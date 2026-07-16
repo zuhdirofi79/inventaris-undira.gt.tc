@@ -4,22 +4,25 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Grup: {{ $groupKey }}</li>
+    @if($items->isNotEmpty() && $items->first()->category)
+    <li class="breadcrumb-item"><a href="{{ route('inventory.category', $items->first()->category) }}">{{ $items->first()->category->name }}</a></li>
+    @endif
+    <li class="breadcrumb-item active">Unit Grup</li>
 @endsection
 
 @section('content')
 <div class="page-header-undira">
     <h1><i class="fas fa-layer-group me-2"></i>Unit dalam Grup</h1>
     <p class="text-muted mb-0">
-        Grup: <code>{{ $groupKey }}</code>
         @if($items->isNotEmpty())
-            &middot; {{ $items->first()->name }} ({{ $items->count() }} unit)
+            {{ $items->first()->name }} ({{ $items->count() }} unit)
         @endif
     </p>
 </div>
 
 <div class="card card-undira">
     <div class="card-body p-0">
+        <div class="table-responsive">
         <table class="table table-hover mb-0">
             <thead>
                 <tr>
@@ -55,6 +58,7 @@
                 @endforelse
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 @endsection

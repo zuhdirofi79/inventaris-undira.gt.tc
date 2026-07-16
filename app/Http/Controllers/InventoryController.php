@@ -6,10 +6,13 @@ use App\Enums\AuditAction;
 use App\Http\Requests\BulkRelocateInventoryRequest;
 use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\UpdateInventoryRequest;
+use App\Models\Campus;
 use App\Models\Category;
 use App\Models\InventoryItem;
 use App\Models\InventoryMutation;
 use App\Models\Room;
+use App\Models\Supplier;
+use App\Models\Vendor;
 use App\Services\AuditLogService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
@@ -27,20 +30,104 @@ class InventoryController extends Controller
         protected InventoryFilterService $filterService,
     ) {}
 
-    public function index(Request $request): View|JsonResponse
+    /**
+     * Category-first inventory overview (client workflow entry point).
+     */
+    public function index(Request $request): View
+    {
+        $query = Category::query()->where('is_active', true);
+
+        if ($search = $request->input('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('code', 'like', '%'.$search.'%');
+            });
+        }
+
+        $this->applyLocationCategoryFilter($query, $request);
+
+        $sort = $request->input('sort', 'name');
+        $dir = $request->input('dir', 'asc') === 'desc' ? 'desc' : 'asc';
+        if (! in_array($sort, ['name', 'code'], true)) {
+            $sort = 'name';
+        }
+        $query->orderBy($sort, $dir);
+
+        $categories = $query->paginate(12)->withQueryString();
+
+        $stats = $this->categorySummaries($categories->pluck('id')->all(), $request);
+
+        return view('inventory.index', [
+            'categories' => $categories,
+            'stats' => $stats,
+            'locationData' => $this->locationTree(),
+            'filters' => $request->only(['search', 'campus_id', 'building_id', 'floor_id', 'room_id', 'sort', 'dir']),
+        ]);
+    }
+
+    /**
+     * Hierarchical browse: Category → Campus → Building → Floor → Room → Items.
+     */
+    public function byCategory(Request $request, Category $category): View
+    {
+        $itemsQuery = InventoryItem::query()
+            ->where('category_id', $category->id)
+            ->with([
+                'subCategory',
+                'supplier',
+                'vendor',
+                'room.floor.building.campus',
+            ]);
+
+        $items = $this->filterService
+            ->apply($request, $itemsQuery)
+            ->orderBy('name')
+            ->orderBy('unit_sequence')
+            ->get();
+
+        $tree = $this->buildLocationTree($items);
+
+        $summary = [
+            'total_units' => $items->count(),
+            'total_groups' => $items->groupBy(fn ($i) => $i->group_key ?: $i->name)->count(),
+            'campuses' => $items->pluck('room.floor.building.campus.id')->unique()->filter()->count(),
+            'buildings' => $items->pluck('room.floor.building.id')->unique()->filter()->count(),
+            'rooms' => $items->pluck('room_id')->unique()->filter()->count(),
+        ];
+
+        return view('inventory.category', [
+            'category' => $category,
+            'tree' => $tree,
+            'summary' => $summary,
+            'locationData' => $this->locationTree(),
+            'filters' => $request->only(['search', 'campus_id', 'building_id', 'floor_id', 'room_id']),
+        ]);
+    }
+
+    /**
+     * Flat item list (DataTables) — kept for search/export power users.
+     */
+    public function items(Request $request): View|JsonResponse
     {
         if ($request->ajax()) {
             return $this->datatable($request);
         }
 
-        return view('inventory.index');
+        return view('inventory.items', [
+            'locationData' => $this->locationTree(),
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+        ]);
     }
 
     public function create(): View
     {
         return view('inventory.create', [
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'rooms' => Room::query()->where('is_active', true)->with('floor.building.campus')->orderBy('name')->get(),
+            'locationData' => $this->locationTree(),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -73,7 +160,9 @@ class InventoryController extends Controller
             }
         });
 
-        return redirect()->route('inventory.index')->with('success', 'Inventaris berhasil ditambahkan.');
+        return redirect()
+            ->route('inventory.category', $category)
+            ->with('success', 'Inventaris berhasil ditambahkan.');
     }
 
     public function show(InventoryItem $inventory): View
@@ -91,9 +180,11 @@ class InventoryController extends Controller
     public function edit(InventoryItem $inventory): View
     {
         return view('inventory.edit', [
-            'inventory' => $inventory->load(['category', 'subCategory', 'room']),
+            'inventory' => $inventory->load(['category', 'subCategory', 'room.floor.building.campus']),
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'rooms' => Room::query()->where('is_active', true)->with('floor.building.campus')->orderBy('name')->get(),
+            'locationData' => $this->locationTree(),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
@@ -113,11 +204,14 @@ class InventoryController extends Controller
     public function destroy(Request $request, InventoryItem $inventory): RedirectResponse
     {
         $oldValues = $inventory->toArray();
+        $categoryId = $inventory->category_id;
         $inventory->delete();
 
         $this->auditLogService->log($request->user(), AuditAction::Delete, $inventory, $oldValues, null);
 
-        return redirect()->route('inventory.index')->with('success', 'Inventaris dipindahkan ke trash.');
+        return redirect()
+            ->route('inventory.category', $categoryId)
+            ->with('success', 'Inventaris dipindahkan ke trash.');
     }
 
     public function trash(): View
@@ -144,7 +238,7 @@ class InventoryController extends Controller
     {
         $items = InventoryItem::query()
             ->where('group_key', $groupKey)
-            ->with(['room.floor.building.campus', 'category'])
+            ->with(['room.floor.building.campus', 'category', 'subCategory'])
             ->orderBy('unit_sequence')
             ->get();
 
@@ -218,5 +312,173 @@ class InventoryController extends Controller
             'recordsFiltered' => $recordsFiltered,
             'data' => $items,
         ]);
+    }
+
+    protected function locationTree()
+    {
+        return Campus::query()
+            ->where('is_active', true)
+            ->with([
+                'buildings' => fn ($q) => $q->where('is_active', true)->orderBy('name')
+                    ->with([
+                        'floors' => fn ($q) => $q->where('is_active', true)->orderBy('floor_number')
+                            ->with([
+                                'rooms' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
+                            ]),
+                    ]),
+            ])
+            ->orderBy('name')
+            ->get();
+    }
+
+    protected function applyLocationCategoryFilter($query, Request $request): void
+    {
+        if ($request->filled('room_id')) {
+            $query->whereHas('inventoryItems', fn ($q) => $q->where('room_id', $request->input('room_id')));
+
+            return;
+        }
+
+        if ($request->filled('floor_id')) {
+            $query->whereHas('inventoryItems.room', fn ($q) => $q->where('floor_id', $request->input('floor_id')));
+
+            return;
+        }
+
+        if ($request->filled('building_id')) {
+            $query->whereHas('inventoryItems.room.floor', fn ($q) => $q->where('building_id', $request->input('building_id')));
+
+            return;
+        }
+
+        if ($request->filled('campus_id')) {
+            $query->whereHas('inventoryItems.room.floor.building', fn ($q) => $q->where('campus_id', $request->input('campus_id')));
+        }
+    }
+
+    /**
+     * @param  list<int|string>  $categoryIds
+     * @return array<int|string, array<string, int>>
+     */
+    protected function categorySummaries(array $categoryIds, Request $request): array
+    {
+        if ($categoryIds === []) {
+            return [];
+        }
+
+        $base = InventoryItem::query()
+            ->whereIn('category_id', $categoryIds)
+            ->when($request->filled('room_id'), fn ($q) => $q->where('room_id', $request->input('room_id')))
+            ->when($request->filled('floor_id') && ! $request->filled('room_id'), fn ($q) => $q->forFloor((int) $request->input('floor_id')))
+            ->when($request->filled('building_id') && ! $request->filled('floor_id') && ! $request->filled('room_id'), fn ($q) => $q->forBuilding((int) $request->input('building_id')))
+            ->when($request->filled('campus_id') && ! $request->filled('building_id') && ! $request->filled('floor_id') && ! $request->filled('room_id'), fn ($q) => $q->forCampus((int) $request->input('campus_id')));
+
+        $rows = (clone $base)
+            ->select('category_id')
+            ->selectRaw('COUNT(*) as total_units')
+            ->selectRaw('COUNT(DISTINCT COALESCE(group_key, name)) as total_items')
+            ->selectRaw('COUNT(DISTINCT room_id) as total_rooms')
+            ->groupBy('category_id')
+            ->get()
+            ->keyBy('category_id');
+
+        $campusRows = (clone $base)
+            ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
+            ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+            ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+            ->select('inventory_items.category_id')
+            ->selectRaw('COUNT(DISTINCT buildings.campus_id) as total_campuses')
+            ->selectRaw('COUNT(DISTINCT buildings.id) as total_buildings')
+            ->groupBy('inventory_items.category_id')
+            ->get()
+            ->keyBy('category_id');
+
+        $stats = [];
+        foreach ($categoryIds as $id) {
+            $stats[$id] = [
+                'total_units' => (int) ($rows[$id]->total_units ?? 0),
+                'total_items' => (int) ($rows[$id]->total_items ?? 0),
+                'total_rooms' => (int) ($rows[$id]->total_rooms ?? 0),
+                'total_campuses' => (int) ($campusRows[$id]->total_campuses ?? 0),
+                'total_buildings' => (int) ($campusRows[$id]->total_buildings ?? 0),
+            ];
+        }
+
+        return $stats;
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, InventoryItem>  $items
+     * @return array<int, array<string, mixed>>
+     */
+    protected function buildLocationTree($items): array
+    {
+        $tree = [];
+
+        foreach ($items as $item) {
+            $room = $item->room;
+            $floor = $room?->floor;
+            $building = $floor?->building;
+            $campus = $building?->campus;
+
+            if (! $campus || ! $building || ! $floor || ! $room) {
+                continue;
+            }
+
+            $cId = $campus->id;
+            $bId = $building->id;
+            $fId = $floor->id;
+            $rId = $room->id;
+            $groupKey = $item->group_key ?: 'item-'.$item->id;
+
+            if (! isset($tree[$cId])) {
+                $tree[$cId] = [
+                    'campus' => $campus,
+                    'buildings' => [],
+                    'unit_count' => 0,
+                ];
+            }
+
+            if (! isset($tree[$cId]['buildings'][$bId])) {
+                $tree[$cId]['buildings'][$bId] = [
+                    'building' => $building,
+                    'floors' => [],
+                    'unit_count' => 0,
+                ];
+            }
+
+            if (! isset($tree[$cId]['buildings'][$bId]['floors'][$fId])) {
+                $tree[$cId]['buildings'][$bId]['floors'][$fId] = [
+                    'floor' => $floor,
+                    'rooms' => [],
+                    'unit_count' => 0,
+                ];
+            }
+
+            if (! isset($tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId])) {
+                $tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId] = [
+                    'room' => $room,
+                    'groups' => [],
+                    'unit_count' => 0,
+                ];
+            }
+
+            if (! isset($tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId]['groups'][$groupKey])) {
+                $tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId]['groups'][$groupKey] = [
+                    'name' => $item->name,
+                    'group_key' => $item->group_key,
+                    'unit' => $item->unit,
+                    'items' => [],
+                ];
+            }
+
+            $tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId]['groups'][$groupKey]['items'][] = $item;
+            $tree[$cId]['unit_count']++;
+            $tree[$cId]['buildings'][$bId]['unit_count']++;
+            $tree[$cId]['buildings'][$bId]['floors'][$fId]['unit_count']++;
+            $tree[$cId]['buildings'][$bId]['floors'][$fId]['rooms'][$rId]['unit_count']++;
+        }
+
+        return $tree;
     }
 }

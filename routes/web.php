@@ -84,8 +84,10 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:inventory.view')->group(function () {
         Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/items', [InventoryController::class, 'items'])->name('inventory.items');
         Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
         Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
+        Route::get('/inventory/categories/{category}', [InventoryController::class, 'byCategory'])->name('inventory.category');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
         Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
     });

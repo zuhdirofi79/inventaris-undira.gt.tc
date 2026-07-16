@@ -360,8 +360,118 @@ body.dark-mode .filter-panel {
     background: #2d2d2d;
 }
 
+/* Inventory category / hierarchy */
+.category-card-mobile {
+    border-left: 4px solid var(--undira-green);
+}
+.category-card-mobile:active {
+    transform: scale(0.99);
+}
+.inventory-item-card {
+    border: 1px solid rgba(0,0,0,.08);
+    border-radius: 10px;
+    padding: .75rem 1rem;
+    background: #fff;
+}
+body.dark-mode .inventory-item-card {
+    background: #2d2d2d;
+    border-color: #444;
+}
+.inventory-tree .accordion-button {
+    font-size: .95rem;
+}
+.inventory-tree .accordion-button:not(.collapsed) {
+    background: rgba(46, 125, 50, 0.08);
+    color: inherit;
+    box-shadow: none;
+}
+.sticky-form-actions {
+    position: sticky;
+    bottom: 0;
+    background: rgba(255,255,255,.95);
+    padding: .75rem 0;
+    z-index: 5;
+    border-top: 1px solid rgba(0,0,0,.06);
+}
+body.dark-mode .sticky-form-actions {
+    background: rgba(26,26,26,.95);
+}
+
 /* Responsive */
+@media (max-width: 991.98px) {
+    .content-wrapper {
+        overflow-x: hidden;
+    }
+    .main-sidebar {
+        box-shadow: 0 0 24px rgba(0,0,0,.25);
+    }
+}
+
 @media (max-width: 768px) {
     .campus-card { min-height: 160px; }
     #toast-container { right: 10px; left: 10px; min-width: auto; }
+
+    .page-header-undira h1 {
+        font-size: 1.25rem;
+    }
+
+    .filter-panel {
+        padding: 1rem;
+    }
+
+    .filter-panel .form-label {
+        margin-bottom: .25rem;
+    }
+
+    .card-undira:hover {
+        transform: none;
+    }
+
+    .table-responsive {
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .dataTables_wrapper .dataTables_length,
+    .dataTables_wrapper .dataTables_filter {
+        text-align: left !important;
+        margin-bottom: .5rem;
+    }
+
+    .dataTables_wrapper .dataTables_filter input {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
+
+    .modal-dialog {
+        margin: .5rem;
+        max-width: calc(100% - 1rem);
+    }
+
+    .btn, .form-control, .form-select {
+        min-height: 40px;
+    }
+
+    .select2-container .select2-selection--single {
+        min-height: 40px;
+    }
+
+    .content-header,
+    .content {
+        padding-left: .5rem !important;
+        padding-right: .5rem !important;
+    }
+
+    .container-fluid {
+        padding-left: .75rem;
+        padding-right: .75rem;
+    }
+}
+
+/* Prevent horizontal page overflow */
+html, body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+.wrapper {
+    overflow-x: hidden;
 }

@@ -4,21 +4,24 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
+    @if($inventory->category)
+    <li class="breadcrumb-item"><a href="{{ route('inventory.category', $inventory->category) }}">{{ $inventory->category->name }}</a></li>
+    @endif
     <li class="breadcrumb-item active">{{ $inventory->inventory_number }}</li>
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap">
-    <div>
-        <h1><i class="fas fa-box me-2"></i>{{ $inventory->name }}</h1>
+<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2">
+    <div class="min-w-0">
+        <h1 class="text-break"><i class="fas fa-box me-2"></i>{{ $inventory->name }}</h1>
         <p class="text-muted mb-0">
-            <code>{{ $inventory->inventory_number }}</code>
+            <code class="text-break">{{ $inventory->inventory_number }}</code>
             @if($inventory->group_key)
-                &middot; Grup: <a href="{{ route('inventory.group-units', $inventory->group_key) }}">{{ $inventory->group_key }}</a>
+                &middot; <a href="{{ route('inventory.group-units', $inventory->group_key) }}">Lihat semua unit</a>
             @endif
         </p>
     </div>
-    <div class="d-flex gap-2 mt-2">
+    <div class="d-flex gap-2 flex-wrap">
         @can('inventory.update')
         <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
         @endcan
@@ -38,18 +41,25 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
+                        <div class="table-responsive">
                         <table class="table table-sm">
-                            <tr><th width="40%">No. Inventaris</th><td>{{ $inventory->inventory_number }}</td></tr>
-                            <tr><th>Barcode</th><td>{{ $inventory->barcode ?? '-' }}</td></tr>
+                            <tr><th width="40%">No. Inventaris</th><td class="text-break">{{ $inventory->inventory_number }}</td></tr>
+                            <tr><th>Barcode</th><td class="text-break">{{ $inventory->barcode ?? '-' }}</td></tr>
                             <tr><th>Kategori</th><td>{{ $inventory->category?->name ?? '-' }}</td></tr>
                             <tr><th>Sub Kategori</th><td>{{ $inventory->subCategory?->name ?? '-' }}</td></tr>
-                            <tr><th>Lokasi</th><td>{{ $inventory->full_location }}</td></tr>
-                            <tr><th>Merek / Tipe</th><td>{{ $inventory->brand }} / {{ $inventory->type }}</td></tr>
+                            <tr><th>Kampus</th><td>{{ $inventory->room?->floor?->building?->campus?->name ?? '-' }}</td></tr>
+                            <tr><th>Gedung</th><td>{{ $inventory->room?->floor?->building?->name ?? '-' }}</td></tr>
+                            <tr><th>Lantai</th><td>{{ $inventory->room?->floor?->name ?? '-' }}</td></tr>
+                            <tr><th>Ruangan</th><td>{{ $inventory->room?->name ?? '-' }}</td></tr>
+                            <tr><th>Jumlah / Satuan</th><td>{{ $inventory->quantity ?? 1 }} {{ $inventory->unit ?? 'Unit' }}</td></tr>
+                            <tr><th>Merek / Tipe</th><td>{{ $inventory->brand ?? '-' }} / {{ $inventory->type ?? '-' }}</td></tr>
                             <tr><th>Model</th><td>{{ $inventory->model ?? '-' }}</td></tr>
                             <tr><th>No. Seri</th><td>{{ $inventory->serial_number ?? '-' }}</td></tr>
                         </table>
+                        </div>
                     </div>
                     <div class="col-md-6">
+                        <div class="table-responsive">
                         <table class="table table-sm">
                             <tr><th width="40%">Kondisi</th><td><span class="badge bg-info">{{ $inventory->condition?->label() }}</span></td></tr>
                             <tr><th>Status</th><td><span class="badge bg-secondary">{{ $inventory->status?->label() }}</span></td></tr>
@@ -62,6 +72,7 @@
                             <tr><th>Penanggung Jawab</th><td>{{ $inventory->responsible_person ?? '-' }}</td></tr>
                             <tr><th>Garansi</th><td>{{ $inventory->warranty_info ?? '-' }} @if($inventory->warranty_expiry) (s/d {{ $inventory->warranty_expiry->format('d/m/Y') }}) @endif</td></tr>
                         </table>
+                        </div>
                     </div>
                     @if($inventory->specification)
                     <div class="col-12">
