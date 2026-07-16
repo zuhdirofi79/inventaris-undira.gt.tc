@@ -18,10 +18,11 @@
 <div class="card card-undira">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
-            <thead><tr><th>Nama</th><th>Slug</th><th>Sub Kategori</th><th>Inventaris</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Kode</th><th>Nama</th><th>Slug</th><th>Sub Kategori</th><th>Inventaris</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
                 @forelse($categories as $category)
                 <tr>
+                    <td><code>{{ $category->code }}</code></td>
                     <td><a href="{{ route('sub-categories.index', $category) }}">{{ $category->name }}</a></td>
                     <td><code>{{ $category->slug }}</code></td>
                     <td>{{ $category->sub_categories_count }}</td>
@@ -36,7 +37,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada kategori.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada kategori.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -50,6 +51,7 @@
             @csrf
             <div class="modal-header"><h5 class="modal-title">Tambah Kategori</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required maxlength="20" placeholder="ELK"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Deskripsi</label><textarea name="description" class="form-control" rows="2"></textarea></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
@@ -66,6 +68,7 @@
             @csrf @method('PUT')
             <div class="modal-header"><h5 class="modal-title">Edit Kategori</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $category->code }}" required maxlength="20"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $category->name }}" required></div>
                 <div class="mb-3"><label class="form-label">Deskripsi</label><textarea name="description" class="form-control" rows="2">{{ $category->description }}</textarea></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $category->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>

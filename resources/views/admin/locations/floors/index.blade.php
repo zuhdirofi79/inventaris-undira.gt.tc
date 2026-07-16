@@ -50,7 +50,8 @@
             <input type="hidden" name="building_id" value="{{ $building->id }}">
             <div class="modal-header"><h5 class="modal-title">Tambah Lantai</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required maxlength="20" placeholder="L1"></div>
+                <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" required min="0"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required placeholder="Lantai 1"></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
             </div>
@@ -66,7 +67,8 @@
             @csrf @method('PUT')
             <div class="modal-header"><h5 class="modal-title">Edit Lantai</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" value="{{ $floor->floor_number }}" required></div>
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $floor->code }}" required maxlength="20"></div>
+                <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" value="{{ $floor->floor_number }}" required min="0"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $floor->name }}" required></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $floor->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
             </div>

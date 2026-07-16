@@ -81,7 +81,15 @@ class BorrowingController extends Controller
 
     public function destroy(Borrowing $borrowing): RedirectResponse
     {
-        $borrowing->delete();
+        DB::transaction(function () use ($borrowing) {
+            if (in_array($borrowing->status, [BorrowingStatus::Dipinjam, BorrowingStatus::Terlambat], true)) {
+                InventoryItem::query()
+                    ->where('id', $borrowing->inventory_item_id)
+                    ->update(['status' => InventoryStatus::Aktif]);
+            }
+
+            $borrowing->delete();
+        });
 
         return back()->with('success', 'Data peminjaman berhasil dihapus.');
     }

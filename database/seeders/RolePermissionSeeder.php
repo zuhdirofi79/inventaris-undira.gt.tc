@@ -49,7 +49,6 @@ class RolePermissionSeeder extends Seeder
         'deletion-approval.view',
         'deletion-approval.request',
         'deletion-approval.approve',
-        'deletion-approve',
         'mutation.view',
         'mutation.create',
     ];
@@ -79,6 +78,9 @@ class RolePermissionSeeder extends Seeder
                 'guard_name' => 'web',
             ]);
         }
+
+        // Remove legacy orphan permission name if present
+        Permission::query()->where('name', 'deletion-approve')->delete();
 
         $superAdmin = Role::firstOrCreate([
             'name' => 'super-admin',

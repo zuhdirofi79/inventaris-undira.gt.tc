@@ -92,7 +92,15 @@ class MaintenanceController extends Controller
 
     public function destroy(Maintenance $maintenance): RedirectResponse
     {
-        $maintenance->delete();
+        DB::transaction(function () use ($maintenance) {
+            if (in_array($maintenance->status, [MaintenanceStatus::Scheduled, MaintenanceStatus::InProgress], true)) {
+                InventoryItem::query()
+                    ->where('id', $maintenance->inventory_item_id)
+                    ->update(['status' => InventoryStatus::Aktif]);
+            }
+
+            $maintenance->delete();
+        });
 
         return back()->with('success', 'Data maintenance berhasil dihapus.');
     }

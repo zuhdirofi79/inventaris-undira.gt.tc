@@ -197,7 +197,20 @@ class InventoryController extends Controller
             ->orderBy($orderBy, $orderDir)
             ->skip($request->input('start', 0))
             ->take($request->input('length', 10))
-            ->get();
+            ->get()
+            ->map(function (InventoryItem $item) {
+                $data = $item->toArray();
+                $data['status'] = [
+                    'value' => $item->status?->value,
+                    'label' => $item->status?->label(),
+                ];
+                $data['condition'] = [
+                    'value' => $item->condition?->value,
+                    'label' => $item->condition?->label(),
+                ];
+
+                return $data;
+            });
 
         return response()->json([
             'draw' => (int) $request->input('draw'),

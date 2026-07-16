@@ -13,8 +13,10 @@ class StoreBuildingRequest extends FormRequest
 
     public function rules(): array
     {
+        $isUpdate = $this->route('building') !== null;
+
         return [
-            'campus_id' => ['required', 'exists:campuses,id'],
+            'campus_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:campuses,id'],
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],

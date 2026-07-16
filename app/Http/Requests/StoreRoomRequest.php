@@ -13,8 +13,10 @@ class StoreRoomRequest extends FormRequest
 
     public function rules(): array
     {
+        $isUpdate = $this->route('room') !== null;
+
         return [
-            'floor_id' => ['required', 'exists:floors,id'],
+            'floor_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:floors,id'],
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'room_type' => ['nullable', 'string', 'max:100'],

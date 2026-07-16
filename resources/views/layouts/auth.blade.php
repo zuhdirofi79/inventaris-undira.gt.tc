@@ -16,7 +16,7 @@
         <div class="auth-card-header">
             <img src="{{ asset('images/logo-undira.png') }}" alt="UNDIRA Logo">
             <h4 class="mb-0">Inventaris UNDIRA</h4>
-            <small>Sistem Manajemen Inventaris Laboratorium</small>
+            <small>Sistem Manajemen Inventaris COY YAHAHA</small>
         </div>
         <div class="auth-card-body">
             @include('components.alert')

@@ -63,29 +63,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
     });
 
-    Route::middleware('permission:inventory.view')->group(function () {
-        Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
-        Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
-        Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
-        Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
-    });
-
+    // Static inventory paths MUST be registered before /inventory/{inventory}
     Route::middleware('permission:inventory.create')->group(function () {
         Route::get('/inventory/create', [InventoryController::class, 'create'])->name('inventory.create');
         Route::post('/inventory', [InventoryController::class, 'store'])->name('inventory.store');
-    });
-
-    Route::middleware('permission:inventory.update')->group(function () {
-        Route::get('/inventory/{inventory}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
-        Route::put('/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
-        Route::post('/inventory/bulk-relocate', [InventoryController::class, 'bulkRelocate'])->name('inventory.bulk-relocate');
-        Route::post('/inventory/{inventory}/photos', [InventoryPhotoController::class, 'store'])->name('inventory.photos.store');
-        Route::delete('/inventory/{inventory}/photos/{photo}', [InventoryPhotoController::class, 'destroy'])->name('inventory.photos.destroy');
-    });
-
-    Route::middleware('permission:inventory.delete')->group(function () {
-        Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
-        Route::post('/inventory/{id}/restore', [InventoryController::class, 'restore'])->name('inventory.restore');
     });
 
     Route::middleware('permission:inventory.import')->prefix('inventory/import')->name('inventory.import.')->group(function () {
@@ -102,7 +83,24 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:inventory.view')->group(function () {
+        Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
+        Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
+        Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
+    });
+
+    Route::middleware('permission:inventory.update')->group(function () {
+        Route::post('/inventory/bulk-relocate', [InventoryController::class, 'bulkRelocate'])->name('inventory.bulk-relocate');
+        Route::get('/inventory/{inventory}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
+        Route::put('/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
+        Route::post('/inventory/{inventory}/photos', [InventoryPhotoController::class, 'store'])->name('inventory.photos.store');
+        Route::delete('/inventory/{inventory}/photos/{photo}', [InventoryPhotoController::class, 'destroy'])->name('inventory.photos.destroy');
+    });
+
+    Route::middleware('permission:inventory.delete')->group(function () {
+        Route::post('/inventory/{id}/restore', [InventoryController::class, 'restore'])->name('inventory.restore');
+        Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
     });
 
     Route::middleware('permission:category.manage')->group(function () {
@@ -149,13 +147,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/rooms/{room}', [RoomManagementController::class, 'destroy'])->name('rooms.destroy');
     });
 
-    Route::middleware('permission:borrowing.view')->group(function () {
-        Route::get('/borrowings', [BorrowingController::class, 'index'])->name('borrowings.index');
-        Route::get('/borrowings/{borrowing}', [BorrowingController::class, 'show'])->name('borrowings.show');
-    });
     Route::middleware('permission:borrowing.create')->group(function () {
         Route::get('/borrowings/create', [BorrowingController::class, 'create'])->name('borrowings.create');
         Route::post('/borrowings', [BorrowingController::class, 'store'])->name('borrowings.store');
+    });
+    Route::middleware('permission:borrowing.view')->group(function () {
+        Route::get('/borrowings', [BorrowingController::class, 'index'])->name('borrowings.index');
+        Route::get('/borrowings/{borrowing}', [BorrowingController::class, 'show'])->name('borrowings.show');
     });
     Route::middleware('permission:borrowing.update')->group(function () {
         Route::get('/borrowings/{borrowing}/edit', [BorrowingController::class, 'edit'])->name('borrowings.edit');
@@ -165,13 +163,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/borrowings/{borrowing}', [BorrowingController::class, 'destroy'])->name('borrowings.destroy');
     });
 
-    Route::middleware('permission:maintenance.view')->group(function () {
-        Route::get('/maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
-        Route::get('/maintenances/{maintenance}', [MaintenanceController::class, 'show'])->name('maintenances.show');
-    });
     Route::middleware('permission:maintenance.create')->group(function () {
         Route::get('/maintenances/create', [MaintenanceController::class, 'create'])->name('maintenances.create');
         Route::post('/maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
+    });
+    Route::middleware('permission:maintenance.view')->group(function () {
+        Route::get('/maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
+        Route::get('/maintenances/{maintenance}', [MaintenanceController::class, 'show'])->name('maintenances.show');
     });
     Route::middleware('permission:maintenance.update')->group(function () {
         Route::get('/maintenances/{maintenance}/edit', [MaintenanceController::class, 'edit'])->name('maintenances.edit');
@@ -181,13 +179,13 @@ Route::middleware('auth')->group(function () {
         Route::delete('/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('maintenances.destroy');
     });
 
-    Route::middleware('permission:stock-opname.view')->group(function () {
-        Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock-opnames.index');
-        Route::get('/stock-opnames/{stockOpname}', [StockOpnameController::class, 'show'])->name('stock-opnames.show');
-    });
     Route::middleware('permission:stock-opname.create')->group(function () {
         Route::get('/stock-opnames/create', [StockOpnameController::class, 'create'])->name('stock-opnames.create');
         Route::post('/stock-opnames', [StockOpnameController::class, 'store'])->name('stock-opnames.store');
+    });
+    Route::middleware('permission:stock-opname.view')->group(function () {
+        Route::get('/stock-opnames', [StockOpnameController::class, 'index'])->name('stock-opnames.index');
+        Route::get('/stock-opnames/{stockOpname}', [StockOpnameController::class, 'show'])->name('stock-opnames.show');
     });
     Route::middleware('permission:stock-opname.update')->group(function () {
         Route::post('/stock-opnames/{stockOpname}/start', [StockOpnameController::class, 'start'])->name('stock-opnames.start');
@@ -209,13 +207,13 @@ Route::middleware('auth')->group(function () {
         Route::post('/deletion-approvals/{deletionApproval}/reject', [DeletionApprovalController::class, 'reject'])->name('deletion-approvals.reject');
     });
 
-    Route::middleware('permission:mutation.view')->group(function () {
-        Route::get('/mutations', [MutationController::class, 'index'])->name('mutations.index');
-        Route::get('/mutations/{mutation}', [MutationController::class, 'show'])->name('mutations.show');
-    });
     Route::middleware('permission:mutation.create')->group(function () {
         Route::get('/mutations/create', [MutationController::class, 'create'])->name('mutations.create');
         Route::post('/mutations', [MutationController::class, 'store'])->name('mutations.store');
+    });
+    Route::middleware('permission:mutation.view')->group(function () {
+        Route::get('/mutations', [MutationController::class, 'index'])->name('mutations.index');
+        Route::get('/mutations/{mutation}', [MutationController::class, 'show'])->name('mutations.show');
     });
 
     Route::middleware('permission:report.view')->group(function () {

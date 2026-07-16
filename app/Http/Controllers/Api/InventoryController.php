@@ -79,6 +79,10 @@ class InventoryController extends Controller
 
     public function destroy(InventoryItem $inventoryItem): JsonResponse
     {
+        if (! request()->user()?->can('inventory.delete')) {
+            return response()->json(['message' => 'Forbidden.'], 403);
+        }
+
         $inventoryItem->delete();
 
         return response()->json(['message' => 'Inventory deleted.']);

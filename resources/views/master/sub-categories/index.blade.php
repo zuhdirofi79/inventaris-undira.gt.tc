@@ -18,10 +18,11 @@
 <div class="card card-undira">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
-            <thead><tr><th>Nama</th><th>Slug</th><th>Inventaris</th><th>Status</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Kode</th><th>Nama</th><th>Slug</th><th>Inventaris</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
                 @forelse($subCategories as $sub)
                 <tr>
+                    <td><code>{{ $sub->code }}</code></td>
                     <td>{{ $sub->name }}</td>
                     <td><code>{{ $sub->slug }}</code></td>
                     <td>{{ $sub->inventory_items_count }}</td>
@@ -35,7 +36,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="text-center text-muted py-4">Belum ada sub kategori.</td></tr>
+                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada sub kategori.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -50,6 +51,7 @@
             <input type="hidden" name="category_id" value="{{ $category->id }}">
             <div class="modal-header"><h5 class="modal-title">Tambah Sub Kategori</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required maxlength="20" placeholder="LPT"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
             </div>
@@ -65,6 +67,7 @@
             @csrf @method('PUT')
             <div class="modal-header"><h5 class="modal-title">Edit Sub Kategori</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
+                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $sub->code }}" required maxlength="20"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $sub->name }}" required></div>
                 <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $sub->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
             </div>
