@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Borrowing;
 use App\Models\Building;
 use App\Models\Campus;
+use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\Room;
@@ -96,10 +97,50 @@ class DashboardController extends Controller
 
     protected function getStats(): array
     {
+        $campusStats = Campus::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get()
+            ->map(function (Campus $campus) {
+                $base = InventoryItem::query()->forCampus($campus->id);
+
+                $agg = (clone $base)
+                    ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
+                    ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+                    ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+                    ->selectRaw('COUNT(inventory_items.id) as total_units')
+                    ->selectRaw('COUNT(DISTINCT COALESCE(inventory_items.group_key, inventory_items.name)) as total_items')
+                    ->selectRaw('COUNT(DISTINCT buildings.id) as buildings')
+                    ->selectRaw('COUNT(DISTINCT floors.id) as floors')
+                    ->selectRaw('COUNT(DISTINCT rooms.id) as rooms')
+                    ->first();
+
+                return [
+                    'id' => $campus->id,
+                    'name' => $campus->name,
+                    'code' => $campus->code,
+                    'total_inventory' => (int) ($agg->total_items ?? 0),
+                    'total_units' => (int) ($agg->total_units ?? 0),
+                    'buildings' => (int) ($agg->buildings ?? 0),
+                    'floors' => (int) ($agg->floors ?? 0),
+                    'rooms' => (int) ($agg->rooms ?? 0),
+                    'available' => (clone $base)->where('status', InventoryStatus::Aktif)->count(),
+                    'borrowed' => (clone $base)->where('status', InventoryStatus::Dipinjam)->count(),
+                    'maintenance' => (clone $base)->where('status', InventoryStatus::Maintenance)->count(),
+                    'damaged' => (clone $base)->whereIn('status', [
+                        InventoryStatus::RusakRingan,
+                        InventoryStatus::RusakBerat,
+                    ])->count(),
+                ];
+            })
+            ->values()
+            ->all();
+
         return [
             'total_inventory' => InventoryItem::count(),
             'total_campuses' => Campus::where('is_active', true)->count(),
             'total_buildings' => Building::where('is_active', true)->count(),
+            'total_floors' => Floor::where('is_active', true)->count(),
             'total_rooms' => Room::where('is_active', true)->count(),
             'active_inventory' => InventoryItem::where('status', InventoryStatus::Aktif)->count(),
             'good_items' => InventoryItem::where('status', InventoryStatus::Aktif)->count(),
@@ -110,6 +151,7 @@ class DashboardController extends Controller
             'warranty_expiring' => InventoryItem::warrantyExpiringSoon(30)->count(),
             'active_borrowings' => Borrowing::query()->where('status', 'dipinjam')->count(),
             'pending_maintenance' => Maintenance::query()->whereDate('next_schedule', '<=', now()->addDays(7))->count(),
+            'campus_stats' => $campusStats,
         ];
     }
 }

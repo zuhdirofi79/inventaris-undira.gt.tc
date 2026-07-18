@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
+use App\Enums\InventoryStatus;
 use App\Http\Requests\BulkRelocateInventoryRequest;
 use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\UpdateInventoryRequest;
@@ -31,9 +32,57 @@ class InventoryController extends Controller
     ) {}
 
     /**
-     * Category-first inventory overview (client workflow entry point).
+     * Campus-first inventory overview (client workflow entry point).
      */
     public function index(Request $request): View
+    {
+        $campuses = Campus::query()
+            ->where('is_active', true)
+            ->withCount([
+                'buildings as buildings_count' => fn ($q) => $q->where('is_active', true),
+            ])
+            ->orderBy('name')
+            ->get();
+
+        $stats = [];
+        foreach ($campuses as $campus) {
+            $base = InventoryItem::query()->forCampus($campus->id);
+
+            $agg = (clone $base)
+                ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
+                ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+                ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+                ->selectRaw('COUNT(inventory_items.id) as total_units')
+                ->selectRaw('COUNT(DISTINCT COALESCE(inventory_items.group_key, inventory_items.name)) as total_items')
+                ->selectRaw('COUNT(DISTINCT floors.id) as floors')
+                ->selectRaw('COUNT(DISTINCT rooms.id) as rooms')
+                ->first();
+
+            $stats[$campus->id] = [
+                'total_units' => (int) ($agg->total_units ?? 0),
+                'total_items' => (int) ($agg->total_items ?? 0),
+                'floors' => (int) ($agg->floors ?? 0),
+                'rooms' => (int) ($agg->rooms ?? 0),
+                'available' => (clone $base)->where('status', InventoryStatus::Aktif)->count(),
+                'borrowed' => (clone $base)->where('status', InventoryStatus::Dipinjam)->count(),
+                'maintenance' => (clone $base)->where('status', InventoryStatus::Maintenance)->count(),
+                'damaged' => (clone $base)->whereIn('status', [
+                    InventoryStatus::RusakRingan,
+                    InventoryStatus::RusakBerat,
+                ])->count(),
+            ];
+        }
+
+        return view('inventory.index', [
+            'campuses' => $campuses,
+            'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * Category-first inventory overview (alternate browse mode).
+     */
+    public function categories(Request $request): View
     {
         $query = Category::query()->where('is_active', true);
 
@@ -57,11 +106,51 @@ class InventoryController extends Controller
 
         $stats = $this->categorySummaries($categories->pluck('id')->all(), $request);
 
-        return view('inventory.index', [
+        return view('inventory.categories', [
             'categories' => $categories,
             'stats' => $stats,
             'locationData' => $this->locationTree(),
             'filters' => $request->only(['search', 'campus_id', 'building_id', 'floor_id', 'room_id', 'sort', 'dir']),
+        ]);
+    }
+
+    /**
+     * Hierarchical browse for one campus: Building → Floor → Room → Units.
+     */
+    public function byCampus(Request $request, Campus $campus): View
+    {
+        $itemsQuery = InventoryItem::query()
+            ->forCampus($campus->id)
+            ->with([
+                'category',
+                'subCategory',
+                'supplier',
+                'vendor',
+                'room.floor.building.campus',
+            ]);
+
+        $items = $this->filterService
+            ->apply($request, $itemsQuery)
+            ->orderBy('name')
+            ->orderBy('unit_sequence')
+            ->get();
+
+        $tree = $this->buildLocationTree($items);
+
+        $summary = [
+            'total_units' => $items->count(),
+            'total_groups' => $items->groupBy(fn ($i) => $i->group_key ?: $i->name)->count(),
+            'buildings' => $items->pluck('room.floor.building.id')->unique()->filter()->count(),
+            'floors' => $items->pluck('room.floor.id')->unique()->filter()->count(),
+            'rooms' => $items->pluck('room_id')->unique()->filter()->count(),
+        ];
+
+        return view('inventory.campus', [
+            'campus' => $campus,
+            'tree' => $tree,
+            'summary' => $summary,
+            'locationData' => $this->locationTree()->where('id', $campus->id)->values(),
+            'filters' => $request->only(['search', 'building_id', 'floor_id', 'room_id']),
         ]);
     }
 

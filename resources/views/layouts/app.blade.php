@@ -101,7 +101,7 @@
 
                     @can('inventory.view')
                     <li class="nav-item">
-                        <a href="{{ route('inventory.index') }}" class="nav-link {{ request()->routeIs('inventory.*') ? 'active' : '' }}">
+                        <a href="{{ route('inventory.index') }}" class="nav-link {{ request()->routeIs('inventory.index','inventory.campus','inventory.categories','inventory.category','inventory.items','inventory.group-units','inventory.show','inventory.create','inventory.edit','inventory.trash','inventory.import.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-boxes"></i>
                             <p>Data Inventaris</p>
                         </a>

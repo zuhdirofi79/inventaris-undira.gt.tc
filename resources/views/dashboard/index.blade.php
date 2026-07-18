@@ -6,61 +6,53 @@
     <li class="breadcrumb-item active">Dashboard</li>
 @endsection
 
-@php
-    use App\Models\Campus;
-    use App\Models\Building;
-    use App\Models\Room;
-    $campusCount = Campus::where('is_active', true)->count();
-    $buildingCount = Building::where('is_active', true)->count();
-    $roomCount = Room::where('is_active', true)->count();
-@endphp
-
 @section('content')
 <div class="page-header-undira">
     <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
+    <p class="text-muted mb-0 small">Ringkasan inventaris per kampus</p>
 </div>
 
 <div class="row">
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-green me-3"><i class="fas fa-boxes"></i></div>
                 <div>
-                    <div class="text-muted small">Total Inventaris</div>
+                    <div class="text-muted small">Total Unit</div>
                     <h3 class="mb-0">{{ number_format($total_inventory ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-university"></i></div>
                 <div>
                     <div class="text-muted small">Kampus</div>
-                    <h3 class="mb-0">{{ $campusCount }}</h3>
+                    <h3 class="mb-0">{{ number_format($total_campuses ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-building"></i></div>
                 <div>
                     <div class="text-muted small">Gedung</div>
-                    <h3 class="mb-0">{{ $buildingCount }}</h3>
+                    <h3 class="mb-0">{{ number_format($total_buildings ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-door-open"></i></div>
                 <div>
                     <div class="text-muted small">Ruangan</div>
-                    <h3 class="mb-0">{{ $roomCount }}</h3>
+                    <h3 class="mb-0">{{ number_format($total_rooms ?? 0) }}</h3>
                 </div>
             </div>
         </div>
@@ -68,18 +60,18 @@
 </div>
 
 <div class="row">
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-green me-3"><i class="fas fa-check-circle"></i></div>
                 <div>
-                    <div class="text-muted small">Barang Baik (Aktif)</div>
+                    <div class="text-muted small">Tersedia</div>
                     <h3 class="mb-0">{{ number_format($active_inventory ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-danger h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-danger me-3"><i class="fas fa-tools"></i></div>
@@ -90,7 +82,7 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-warning h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-warning me-3"><i class="fas fa-hand-holding"></i></div>
@@ -101,7 +93,7 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-3 col-md-6 mb-3">
+    <div class="col-6 col-lg-3 mb-3">
         <div class="card card-undira card-stat stat-info h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-wrench"></i></div>
@@ -114,21 +106,46 @@
     </div>
 </div>
 
-<div class="row mb-3">
-    <div class="col-lg-3 col-md-6 mb-3">
-        <div class="card card-undira card-stat stat-warning h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-warning me-3"><i class="fas fa-shield-alt"></i></div>
-                <div>
-                    <div class="text-muted small">Garansi Habis</div>
-                    <h3 class="mb-0">{{ number_format($warranty_expiring ?? 0) }}</h3>
+<h5 class="mb-3 mt-2"><i class="fas fa-university me-2"></i>Statistik per Kampus</h5>
+<div class="row">
+    @forelse($campus_stats ?? [] as $cs)
+    <div class="col-12 col-md-6 col-xl-4 mb-3">
+        <div class="card card-undira h-100">
+            <div class="card-header bg-undira-green text-white d-flex justify-content-between align-items-center">
+                <strong class="text-break">{{ $cs['name'] }}</strong>
+                <code class="text-white-50 small">{{ $cs['code'] }}</code>
+            </div>
+            <div class="card-body">
+                <div class="row g-2 small">
+                    <div class="col-6"><span class="text-muted">Inventaris</span><div class="fw-bold">{{ number_format($cs['total_inventory']) }}</div></div>
+                    <div class="col-6"><span class="text-muted">Unit</span><div class="fw-bold">{{ number_format($cs['total_units']) }}</div></div>
+                    <div class="col-4"><span class="text-muted">Gedung</span><div class="fw-semibold">{{ $cs['buildings'] }}</div></div>
+                    <div class="col-4"><span class="text-muted">Lantai</span><div class="fw-semibold">{{ $cs['floors'] }}</div></div>
+                    <div class="col-4"><span class="text-muted">Ruangan</span><div class="fw-semibold">{{ $cs['rooms'] }}</div></div>
+                </div>
+                <hr class="my-2">
+                <div class="d-flex flex-wrap gap-1">
+                    <span class="badge bg-success">Tersedia {{ $cs['available'] }}</span>
+                    <span class="badge bg-warning text-dark">Pinjam {{ $cs['borrowed'] }}</span>
+                    <span class="badge bg-info text-dark">Maint. {{ $cs['maintenance'] }}</span>
+                    <span class="badge bg-danger">Rusak {{ $cs['damaged'] }}</span>
                 </div>
             </div>
+            @can('inventory.view')
+            <div class="card-footer bg-transparent">
+                <a href="{{ route('inventory.campus', $cs['id']) }}" class="btn btn-sm btn-outline-success w-100">
+                    Lihat Inventaris Kampus
+                </a>
+            </div>
+            @endcan
         </div>
     </div>
+    @empty
+    <div class="col-12"><div class="alert alert-light">Belum ada data kampus.</div></div>
+    @endforelse
 </div>
 
-<div class="row">
+<div class="row mt-2">
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header bg-undira-green text-white">
@@ -152,7 +169,7 @@
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header" style="background:#3949AB;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-doughnut me-2"></i>Kondisi & Status</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-chart-doughnut me-2"></i>Status</h5>
             </div>
             <div class="card-body">
                 <canvas id="chartCondition" height="250"></canvas>
@@ -205,14 +222,21 @@
 <script>
 const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3'];
 
-// Chart: per kampus (from recent items aggregation)
-let chartCampus, chartCategory, chartCondition;
-
 $.get('{{ route('dashboard.charts') }}', function(data) {
-    // By category chart
-    const catLabels = data.by_category.map(c => c.label);
-    const catData = data.by_category.map(c => c.total);
-    chartCategory = new Chart(document.getElementById('chartCategory'), {
+    const campusLabels = (data.by_campus || []).map(c => c.label);
+    const campusData = (data.by_campus || []).map(c => c.total);
+    new Chart(document.getElementById('chartCampus'), {
+        type: 'pie',
+        data: {
+            labels: campusLabels,
+            datasets: [{ data: campusData, backgroundColor: undiraColors }]
+        },
+        options: { responsive: true, maintainAspectRatio: true }
+    });
+
+    const catLabels = (data.by_category || []).map(c => c.label);
+    const catData = (data.by_category || []).map(c => c.total);
+    new Chart(document.getElementById('chartCategory'), {
         type: 'bar',
         data: {
             labels: catLabels,
@@ -221,10 +245,9 @@ $.get('{{ route('dashboard.charts') }}', function(data) {
         options: { responsive: true, plugins: { legend: { display: false } } }
     });
 
-    // By status/condition
-    const statusLabels = Object.keys(data.by_status).map(s => s.replace(/_/g, ' '));
-    const statusData = Object.values(data.by_status);
-    chartCondition = new Chart(document.getElementById('chartCondition'), {
+    const statusLabels = Object.keys(data.by_status || {}).map(s => s.replace(/_/g, ' '));
+    const statusData = Object.values(data.by_status || {});
+    new Chart(document.getElementById('chartCondition'), {
         type: 'doughnut',
         data: {
             labels: statusLabels,
@@ -234,27 +257,12 @@ $.get('{{ route('dashboard.charts') }}', function(data) {
     });
 });
 
-// Campus chart from recent items
 $.get('{{ route('dashboard.recent-items') }}', function(items) {
-    const campusMap = {};
-    items.forEach(item => {
-        const campus = item.room?.floor?.building?.campus?.name || 'Lainnya';
-        campusMap[campus] = (campusMap[campus] || 0) + 1;
-    });
-    chartCampus = new Chart(document.getElementById('chartCampus'), {
-        type: 'pie',
-        data: {
-            labels: Object.keys(campusMap),
-            datasets: [{ data: Object.values(campusMap), backgroundColor: undiraColors }]
-        },
-        options: { responsive: true }
-    });
-
     let rows = '';
     items.forEach(item => {
         const loc = item.full_location || '-';
         rows += `<tr>
-            <td><a href="/inventory/${item.id}">${item.inventory_number}</a></td>
+            <td><a href="{{ url('/inventory') }}/${item.id}">${item.inventory_number}</a></td>
             <td>${item.name}</td>
             <td>${item.category?.name || '-'}</td>
             <td><small>${loc}</small></td>

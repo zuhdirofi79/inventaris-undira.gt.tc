@@ -4,6 +4,7 @@ use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\BuildingManagementController;
@@ -42,9 +43,14 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login']);
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [RegisterController::class, 'register']);
-    Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-    Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
 });
+
+// Password reset must NOT use guest middleware: an active session would
+// RedirectIfAuthenticated → dashboard (root cause of Issue #1).
+Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('password.update');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -87,7 +93,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory/items', [InventoryController::class, 'items'])->name('inventory.items');
         Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
         Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
+        Route::get('/inventory/by-category', [InventoryController::class, 'categories'])->name('inventory.categories');
         Route::get('/inventory/categories/{category}', [InventoryController::class, 'byCategory'])->name('inventory.category');
+        Route::get('/inventory/campuses/{campus}', [InventoryController::class, 'byCampus'])->name('inventory.campus');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
         Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
     });

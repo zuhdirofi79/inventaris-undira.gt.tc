@@ -23,8 +23,11 @@ Route::prefix('v1')->group(function () {
         Route::get('/floors/{floor}/rooms', [ApiLocationController::class, 'rooms']);
         Route::get('/rooms/{room}', [ApiLocationController::class, 'roomDetail']);
 
-        Route::get('/inventory/scan/{inventoryNumber}', [ApiInventoryController::class, 'scan']);
+        Route::get('/inventory/scan/{inventoryNumber}', [ApiInventoryController::class, 'scan'])
+            ->name('api.inventory.scan');
+        // Namespaced as api.inventory.* so web route names (inventory.index, etc.) are not overwritten.
         Route::apiResource('inventory', ApiInventoryController::class)
-            ->parameters(['inventory' => 'inventoryItem']);
+            ->parameters(['inventory' => 'inventoryItem'])
+            ->names('api.inventory');
     });
 });

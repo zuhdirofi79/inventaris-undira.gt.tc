@@ -17,7 +17,7 @@
         @can('inventory.create')
         <a href="{{ route('inventory.create', ['category_id' => $category->id]) }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
         @endcan
-        <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Kategori</a>
+        <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Kategori</a>
     </div>
 </div>
 
@@ -102,66 +102,7 @@
                                             <span class="badge bg-success">{{ $roomNode['unit_count'] }} unit</span>
                                         </div>
                                         <div class="card-body p-0">
-                                            {{-- Desktop table --}}
-                                            <div class="table-responsive d-none d-md-block">
-                                                <table class="table table-sm table-hover mb-0 align-middle">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Nama</th>
-                                                            <th>Jumlah</th>
-                                                            <th>Satuan</th>
-                                                            <th>Kondisi</th>
-                                                            <th>Status</th>
-                                                            <th></th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        @foreach($roomNode['groups'] as $group)
-                                                        @php
-                                                            $first = $group['items'][0];
-                                                            $count = count($group['items']);
-                                                        @endphp
-                                                        <tr>
-                                                            <td>{{ $group['name'] }}</td>
-                                                            <td>{{ $count }}</td>
-                                                            <td>{{ $group['unit'] ?? 'Unit' }}</td>
-                                                            <td><span class="badge bg-info">{{ $first->condition?->label() }}</span></td>
-                                                            <td><span class="badge bg-secondary">{{ $first->status?->label() }}</span></td>
-                                                            <td class="text-end">
-                                                                @if($group['group_key'] && $count > 1)
-                                                                    <a href="{{ route('inventory.group-units', $group['group_key']) }}" class="btn btn-sm btn-outline-primary">Detail Unit</a>
-                                                                @else
-                                                                    <a href="{{ route('inventory.show', $first) }}" class="btn btn-sm btn-outline-primary">Detail</a>
-                                                                @endif
-                                                            </td>
-                                                        </tr>
-                                                        @endforeach
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                            {{-- Mobile cards --}}
-                                            <div class="d-md-none p-2">
-                                                @foreach($roomNode['groups'] as $group)
-                                                @php
-                                                    $first = $group['items'][0];
-                                                    $count = count($group['items']);
-                                                    $href = ($group['group_key'] && $count > 1)
-                                                        ? route('inventory.group-units', $group['group_key'])
-                                                        : route('inventory.show', $first);
-                                                @endphp
-                                                <a href="{{ $href }}" class="text-decoration-none">
-                                                    <div class="inventory-item-card mb-2">
-                                                        <div class="d-flex justify-content-between">
-                                                            <strong class="text-dark">{{ $count }} {{ $group['name'] }}</strong>
-                                                            <span class="badge bg-secondary">{{ $first->status?->label() }}</span>
-                                                        </div>
-                                                        <div class="small text-muted mt-1">
-                                                            {{ $group['unit'] ?? 'Unit' }} · {{ $first->condition?->label() }}
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                                @endforeach
-                                            </div>
+                                            @include('inventory._unit-table', ['groups' => $roomNode['groups']])
                                         </div>
                                     </div>
                                     @endforeach
