@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCategoryRequest;
 use App\Models\Category;
+use App\Models\OrgUnit;
+use App\Models\ProcurementType;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,11 +13,37 @@ use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
-        $categories = Category::query()->withCount('subCategories', 'inventoryItems')->orderBy('name')->paginate(20);
+        $tab = $request->input('tab', 'klasifikasi');
+        if (! in_array($tab, ['klasifikasi', 'units', 'pengadaan', 'lokasi'], true)) {
+            $tab = 'klasifikasi';
+        }
 
-        return view('master.categories.index', compact('categories'));
+        $categories = Category::query()
+            ->withCount('subCategories', 'inventoryItems')
+            ->orderBy('name')
+            ->paginate(20, ['*'], 'categories_page')
+            ->withQueryString();
+
+        $orgUnits = OrgUnit::query()
+            ->withCount('inventoryItems')
+            ->orderBy('name')
+            ->paginate(20, ['*'], 'units_page')
+            ->withQueryString();
+
+        $procurementTypes = ProcurementType::query()
+            ->withCount('inventoryItems')
+            ->orderBy('name')
+            ->paginate(20, ['*'], 'procurement_page')
+            ->withQueryString();
+
+        return view('master.categories.index', compact(
+            'tab',
+            'categories',
+            'orgUnits',
+            'procurementTypes',
+        ));
     }
 
     public function store(StoreCategoryRequest $request): RedirectResponse
@@ -25,20 +53,38 @@ class CategoryController extends Controller
             'slug' => $request->input('slug') ?? Str::slug($request->input('name')),
         ]);
 
-        return back()->with('success', 'Kategori berhasil ditambahkan.');
+        return redirect()
+            ->route('categories.index', ['tab' => 'klasifikasi'])
+            ->with('success', 'Klasifikasi berhasil ditambahkan.');
     }
 
     public function update(StoreCategoryRequest $request, Category $category): RedirectResponse
     {
         $category->update($request->validated());
 
-        return back()->with('success', 'Kategori berhasil diperbarui.');
+        return redirect()
+            ->route('categories.index', ['tab' => 'klasifikasi'])
+            ->with('success', 'Klasifikasi berhasil diperbarui.');
     }
 
     public function destroy(Category $category): RedirectResponse
     {
+        if ($category->subCategories()->exists()) {
+            return redirect()
+                ->route('categories.index', ['tab' => 'klasifikasi'])
+                ->with('error', 'Kategori tidak dapat dihapus karena masih memiliki sub kategori.');
+        }
+
+        if ($category->inventoryItems()->exists()) {
+            return redirect()
+                ->route('categories.index', ['tab' => 'klasifikasi'])
+                ->with('error', 'Kategori tidak dapat dihapus karena masih digunakan inventaris.');
+        }
+
         $category->delete();
 
-        return back()->with('success', 'Kategori berhasil dihapus.');
+        return redirect()
+            ->route('categories.index', ['tab' => 'klasifikasi'])
+            ->with('success', 'Klasifikasi berhasil dihapus.');
     }
 }

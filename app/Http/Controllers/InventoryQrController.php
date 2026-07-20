@@ -19,8 +19,11 @@ class InventoryQrController extends Controller
     public function scan(string $inventoryNumber): View
     {
         $inventory = InventoryItem::query()
-            ->where('inventory_number', $inventoryNumber)
-            ->with(['category', 'subCategory', 'room.floor.building.campus', 'photos'])
+            ->where(function ($query) use ($inventoryNumber) {
+                $query->where('inventory_number', $inventoryNumber)
+                    ->orWhere('barcode', $inventoryNumber);
+            })
+            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'photos'])
             ->firstOrFail();
 
         if (auth()->check()) {

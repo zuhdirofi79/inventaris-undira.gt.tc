@@ -7,6 +7,7 @@ use App\Models\Campus;
 use App\Models\InventoryItem;
 use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
+use App\Support\Validation\ActiveExists;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -36,7 +37,7 @@ class StockOpnameController extends Controller
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'campus_id' => ['required', 'exists:campuses,id'],
+            'campus_id' => ['required', ActiveExists::rule('campuses')],
             'notes' => ['nullable', 'string'],
         ]);
 

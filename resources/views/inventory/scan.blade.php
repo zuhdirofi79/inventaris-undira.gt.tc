@@ -35,9 +35,14 @@
                 <tr><th>Kondisi</th><td><span class="badge bg-info">{{ $inventory->condition?->label() }}</span></td></tr>
                 <tr><th>Status</th><td><span class="badge bg-secondary">{{ $inventory->status?->label() }}</span></td></tr>
                 <tr><th>Merek</th><td>{{ $inventory->brand ?? '-' }}</td></tr>
+                @auth
                 <tr><th>No. Seri</th><td>{{ $inventory->serial_number ?? '-' }}</td></tr>
+                @else
+                <tr><th>No. Seri</th><td><span class="text-muted">Login untuk melihat</span></td></tr>
+                @endauth
             </table>
 
+            @auth
             @if($inventory->photos->isNotEmpty())
             <div class="row g-2 mt-2">
                 @foreach($inventory->photos->take(4) as $photo)
@@ -48,7 +53,6 @@
             </div>
             @endif
 
-            @auth
             <div class="text-center mt-3">
                 <a href="{{ route('inventory.show', $inventory) }}" class="btn btn-undira">
                     <i class="fas fa-eye me-1"></i>Lihat Detail Lengkap
@@ -56,7 +60,7 @@
             </div>
             @else
             <div class="alert alert-info small mt-3 mb-0">
-                <i class="fas fa-info-circle me-1"></i>Login untuk melihat detail lengkap dan riwayat inventaris.
+                <i class="fas fa-info-circle me-1"></i>Login untuk melihat nomor seri, foto, detail lengkap, dan riwayat inventaris.
             </div>
             @endauth
         </div>

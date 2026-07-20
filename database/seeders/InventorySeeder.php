@@ -381,35 +381,38 @@ class InventorySeeder extends Seeder
         ?int $vendorId = null,
         ?string $fundingSource = null,
     ): void {
-        $inventoryNumber = $this->nextInventoryNumber($room, $subCategory);
+        // Phase 3: 1 physical asset = 1 InventoryItem (quantity always 1).
+        for ($i = 1; $i <= $quantity; $i++) {
+            $inventoryNumber = $this->nextInventoryNumber($room, $subCategory);
 
-        InventoryItem::updateOrCreate(
-            ['inventory_number' => $inventoryNumber],
-            [
-                'name' => $name,
-                'category_id' => $subCategory->category_id,
-                'sub_category_id' => $subCategory->id,
-                'brand' => $brand,
-                'type' => $type,
-                'model' => $model,
-                'purchase_year' => $purchaseYear,
-                'purchase_date' => $purchaseYear ? $purchaseYear.'-01-15' : null,
-                'funding_source' => $fundingSource ?? 'BOS',
-                'price' => $price,
-                'condition' => $condition,
-                'status' => $status,
-                'room_id' => $room->id,
-                'responsible_person' => 'Staff Sarana UNDIRA',
-                'supplier_id' => $supplierId,
-                'vendor_id' => $vendorId,
-                'quantity' => $quantity,
-                'unit' => $unit,
-                'group_key' => $groupKey,
-                'unit_sequence' => null,
-                'created_by' => $createdBy,
-                'updated_by' => $createdBy,
-            ]
-        );
+            InventoryItem::updateOrCreate(
+                ['inventory_number' => $inventoryNumber],
+                [
+                    'name' => $name,
+                    'category_id' => $subCategory->category_id,
+                    'sub_category_id' => $subCategory->id,
+                    'brand' => $brand,
+                    'type' => $type,
+                    'model' => $model,
+                    'purchase_year' => $purchaseYear,
+                    'purchase_date' => $purchaseYear ? $purchaseYear.'-01-15' : null,
+                    'funding_source' => $fundingSource ?? 'BOS',
+                    'price' => $price,
+                    'condition' => $condition,
+                    'status' => $status,
+                    'room_id' => $room->id,
+                    'responsible_person' => 'Staff Sarana UNDIRA',
+                    'supplier_id' => $supplierId,
+                    'vendor_id' => $vendorId,
+                    'quantity' => 1,
+                    'unit' => $unit,
+                    'group_key' => $groupKey,
+                    'unit_sequence' => $i,
+                    'created_by' => $createdBy,
+                    'updated_by' => $createdBy,
+                ]
+            );
+        }
     }
 
     private function createIndividualItem(

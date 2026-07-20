@@ -20,7 +20,11 @@
                     <tr><th>User</th><td>{{ $auditLog->user?->name ?? 'System' }} ({{ $auditLog->user?->email }})</td></tr>
                     <tr><th>Aksi</th><td><span class="badge bg-secondary">{{ $auditLog->action?->label() }}</span></td></tr>
                     <tr><th>Deskripsi</th><td>{{ $auditLog->description ?? '-' }}</td></tr>
+                    <tr><th>Alasan</th><td>{{ $auditLog->reason ?? '-' }}</td></tr>
+                    <tr><th>Jumlah Terdampak</th><td>{{ $auditLog->affected_count ?? '-' }}</td></tr>
                     <tr><th>IP Address</th><td>{{ $auditLog->ip_address ?? '-' }}</td></tr>
+                    <tr><th>Browser</th><td>{{ $auditLog->browser }}</td></tr>
+                    <tr><th>Device</th><td>{{ $auditLog->device }}</td></tr>
                     <tr><th>User Agent</th><td><small>{{ $auditLog->user_agent ?? '-' }}</small></td></tr>
                     <tr><th>Model</th><td>{{ $auditLog->auditable_type ? class_basename($auditLog->auditable_type) . ' #' . $auditLog->auditable_id : '-' }}</td></tr>
                 </table>

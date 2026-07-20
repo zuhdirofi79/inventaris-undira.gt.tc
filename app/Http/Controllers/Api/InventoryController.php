@@ -7,7 +7,10 @@ use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\UpdateInventoryRequest;
 use App\Models\Category;
 use App\Models\InventoryItem;
+use App\Models\OrgUnit;
+use App\Models\ProcurementType;
 use App\Models\Room;
+use App\Models\SubCategory;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
 use Illuminate\Http\JsonResponse;
@@ -25,7 +28,7 @@ class InventoryController extends Controller
     {
         $items = $this->filterService
             ->apply($request)
-            ->with(['category', 'subCategory', 'room.floor.building.campus'])
+            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'procurementType'])
             ->orderBy('inventory_number')
             ->paginate($request->input('per_page', 15));
 
@@ -36,7 +39,7 @@ class InventoryController extends Controller
     {
         $inventoryItem->load([
             'category', 'subCategory', 'room.floor.building.campus',
-            'supplier', 'vendor', 'photos',
+            'orgUnit', 'procurementType', 'supplier', 'vendor', 'photos',
         ]);
 
         return response()->json($inventoryItem);
@@ -44,37 +47,68 @@ class InventoryController extends Controller
 
     public function store(StoreInventoryRequest $request): JsonResponse
     {
-        $data = $request->validated();
+        $data = $this->syncProcurementFunding($request->validated());
         $room = Room::query()->findOrFail($data['room_id']);
         $category = Category::query()->findOrFail($data['category_id']);
+        $subCategory = ! empty($data['sub_category_id'])
+            ? SubCategory::query()->find($data['sub_category_id'])
+            : null;
+        $orgUnit = ! empty($data['org_unit_id'])
+            ? OrgUnit::query()->find($data['org_unit_id'])
+            : null;
+        $quantity = (int) ($data['quantity'] ?? 1);
+        unset($data['quantity']);
+
         $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
-        $inventoryNumber = $this->codeService->generateInventoryNumber($room, $category, $groupKey);
 
-        $item = DB::transaction(function () use ($data, $groupKey, $inventoryNumber, $request) {
-            $item = InventoryItem::query()->create([
-                ...$data,
-                'inventory_number' => $inventoryNumber,
-                'group_key' => $groupKey,
-                'unit_sequence' => 1,
-                'quantity' => 1,
-                'created_by' => $request->user()->id,
-                'updated_by' => $request->user()->id,
-            ]);
+        $items = DB::transaction(function () use ($data, $room, $category, $subCategory, $orgUnit, $quantity, $groupKey, $request) {
+            $created = [];
 
-            return $this->codeService->generateAndSaveCodes($item);
+            for ($i = 0; $i < $quantity; $i++) {
+                $inventoryNumber = $this->codeService->generateInventoryNumber(
+                    $room,
+                    $category,
+                    $subCategory,
+                    $orgUnit,
+                );
+
+                $item = InventoryItem::query()->create([
+                    ...$data,
+                    'inventory_number' => $inventoryNumber,
+                    'group_key' => $groupKey,
+                    'unit_sequence' => $i + 1,
+                    'quantity' => 1,
+                    'created_by' => $request->user()->id,
+                    'updated_by' => $request->user()->id,
+                ]);
+
+                $created[] = $this->codeService->generateAndSaveCodes($item)->load(['category', 'room']);
+            }
+
+            return $created;
         });
 
-        return response()->json($item->load(['category', 'room']), 201);
+        return response()->json([
+            'message' => count($items) > 1
+                ? count($items).' inventory units created (1 asset = 1 record).'
+                : 'Inventory created.',
+            'count' => count($items),
+            'data' => count($items) === 1 ? $items[0] : $items,
+        ], 201);
     }
 
     public function update(UpdateInventoryRequest $request, InventoryItem $inventoryItem): JsonResponse
     {
+        $data = $this->syncProcurementFunding($request->validated());
+        unset($data['quantity']);
+
         $inventoryItem->update([
-            ...$request->validated(),
+            ...$data,
+            'quantity' => 1,
             'updated_by' => $request->user()->id,
         ]);
 
-        return response()->json($inventoryItem->fresh()->load(['category', 'room']));
+        return response()->json($inventoryItem->fresh()->load(['category', 'room', 'orgUnit', 'procurementType']));
     }
 
     public function destroy(InventoryItem $inventoryItem): JsonResponse
@@ -91,10 +125,29 @@ class InventoryController extends Controller
     public function scan(string $inventoryNumber): JsonResponse
     {
         $item = InventoryItem::query()
-            ->where('inventory_number', $inventoryNumber)
-            ->with(['category', 'room.floor.building.campus', 'photos'])
+            ->where(function ($query) use ($inventoryNumber) {
+                $query->where('inventory_number', $inventoryNumber)
+                    ->orWhere('barcode', $inventoryNumber);
+            })
+            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'photos'])
             ->firstOrFail();
 
         return response()->json($item);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function syncProcurementFunding(array $data): array
+    {
+        if (! empty($data['procurement_type_id'])) {
+            $type = ProcurementType::query()->find($data['procurement_type_id']);
+            if ($type) {
+                $data['funding_source'] = $type->name;
+            }
+        }
+
+        return $data;
     }
 }

@@ -8,7 +8,6 @@ use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\View\View;
 
 class RegisterController extends Controller
@@ -23,7 +22,7 @@ class RegisterController extends Controller
         $user = User::query()->create([
             'name' => $request->input('name'),
             'email' => $request->input('email'),
-            'password' => Hash::make($request->input('password')),
+            'password' => $request->input('password'), // User model casts password as hashed
             'phone' => $request->input('phone'),
             'is_active' => true,
         ]);

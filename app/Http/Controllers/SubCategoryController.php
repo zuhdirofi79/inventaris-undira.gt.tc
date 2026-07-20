@@ -37,6 +37,10 @@ class SubCategoryController extends Controller
 
     public function destroy(SubCategory $subCategory): RedirectResponse
     {
+        if ($subCategory->inventoryItems()->exists()) {
+            return back()->with('error', 'Sub kategori tidak dapat dihapus karena masih digunakan inventaris.');
+        }
+
         $subCategory->delete();
 
         return back()->with('success', 'Sub kategori berhasil dihapus.');

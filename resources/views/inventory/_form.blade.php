@@ -23,6 +23,7 @@
                     <div class="col-6 col-md-2">
                         <label class="form-label">Jumlah</label>
                         <input type="number" name="quantity" class="form-control" value="{{ old('quantity', 1) }}" min="1" max="1000">
+                        <div class="form-text">Tiap unit = 1 record + nomor/barcode/QR sendiri.</div>
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label">Satuan</label>
@@ -110,6 +111,15 @@
                         <input type="text" name="serial_number" class="form-control" value="{{ old('serial_number', $item?->serial_number) }}">
                     </div>
                     <div class="col-12 col-md-6">
+                        <label class="form-label">Unit / Divisi</label>
+                        <select name="org_unit_id" class="form-select">
+                            <option value="">Pilih Unit/Divisi</option>
+                            @foreach($orgUnits ?? [] as $unit)
+                                <option value="{{ $unit->id }}" @selected(old('org_unit_id', $item?->org_unit_id) == $unit->id)>{{ $unit->code }} — {{ $unit->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
                         <label class="form-label">Penanggung Jawab</label>
                         <input type="text" name="responsible_person" class="form-control" value="{{ old('responsible_person', $item?->responsible_person) }}">
                     </div>
@@ -134,8 +144,14 @@
                         <input type="date" name="purchase_date" class="form-control" value="{{ old('purchase_date', $item?->purchase_date?->format('Y-m-d')) }}">
                     </div>
                     <div class="col-12 col-md-4">
-                        <label class="form-label">Sumber Dana</label>
-                        <input type="text" name="funding_source" class="form-control" value="{{ old('funding_source', $item?->funding_source) }}">
+                        <label class="form-label">Jenis Pengadaan</label>
+                        <select name="procurement_type_id" class="form-select">
+                            <option value="">Pilih Jenis Pengadaan</option>
+                            @foreach($procurementTypes ?? [] as $type)
+                                <option value="{{ $type->id }}" @selected(old('procurement_type_id', $item?->procurement_type_id) == $type->id)>{{ $type->code }} — {{ $type->name }}</option>
+                            @endforeach
+                        </select>
+                        <input type="hidden" name="funding_source" value="{{ old('funding_source', $item?->funding_source) }}">
                     </div>
                     <div class="col-6 col-md-6">
                         <label class="form-label">Harga (Rp)</label>

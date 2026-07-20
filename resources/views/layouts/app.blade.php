@@ -108,21 +108,21 @@
                     </li>
                     @endcan
 
-                    @if(auth()->user()->can('category.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage'))
-                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*') ? 'menu-open' : '' }}">
+                    @if(auth()->user()->can('category.manage') || auth()->user()->can('unit.manage') || auth()->user()->can('procurement.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage') || auth()->user()->can('location.manage'))
+                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-database"></i>
                             <p>Master Data <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            @can('category.manage')
+                            @canany(['category.manage', 'unit.manage', 'procurement.manage', 'location.manage', 'supplier.manage', 'vendor.manage'])
                             <li class="nav-item">
                                 <a href="{{ route('categories.index') }}" class="nav-link {{ request()->routeIs('categories.*','sub-categories.*') ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
-                                    <p>Kategori</p>
+                                    <p>Hub Master Data</p>
                                 </a>
                             </li>
-                            @endcan
+                            @endcanany
                             @can('supplier.manage')
                             <li class="nav-item">
                                 <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
@@ -143,13 +143,21 @@
                     </li>
                     @endif
 
-                    @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view'))
-                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','stock-opnames.*','mutations.*','deletion-approvals.*') ? 'menu-open' : '' }}">
+                    @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view'))
+                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-cogs"></i>
                             <p>Operasi <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @can('inventory.view')
+                            <li class="nav-item">
+                                <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Scan Barcode</p>
+                                </a>
+                            </li>
+                            @endcan
                             @can('borrowing.view')
                             <li class="nav-item">
                                 <a href="{{ route('borrowings.index') }}" class="nav-link {{ request()->routeIs('borrowings.*') ? 'active' : '' }}">
@@ -203,40 +211,48 @@
                     </li>
                     @endcan
 
-                    @role('super-admin')
+                    @canany(['location.manage', 'user.manage', 'settings.manage', 'backup.manage', 'audit-log.view'])
                     <li class="nav-item {{ request()->routeIs('admin.*','audit-logs.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
                             <p>Admin <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @can('location.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.locations.campuses.index') }}" class="nav-link {{ request()->routeIs('admin.locations.*') ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Kelola Lokasi</p>
                                 </a>
                             </li>
+                            @endcan
+                            @can('user.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Users</p>
                                 </a>
                             </li>
+                            @endcan
+                            @can('audit-log.view')
                             <li class="nav-item">
                                 <a href="{{ route('audit-logs.index') }}" class="nav-link {{ request()->routeIs('audit-logs.*') ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Audit Log</p>
                                 </a>
                             </li>
+                            @endcan
+                            @can('settings.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Settings</p>
                                 </a>
                             </li>
+                            @endcan
                         </ul>
                     </li>
-                    @endrole
+                    @endcanany
                 </ul>
             </nav>
         </div>

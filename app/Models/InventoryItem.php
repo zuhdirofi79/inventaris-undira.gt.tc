@@ -30,11 +30,13 @@ class InventoryItem extends Model
         'purchase_year',
         'purchase_date',
         'funding_source',
+        'procurement_type_id',
         'price',
         'depreciation_value',
         'condition',
         'status',
         'room_id',
+        'org_unit_id',
         'responsible_person',
         'supplier_id',
         'vendor_id',
@@ -82,6 +84,16 @@ class InventoryItem extends Model
     public function room(): BelongsTo
     {
         return $this->belongsTo(Room::class);
+    }
+
+    public function orgUnit(): BelongsTo
+    {
+        return $this->belongsTo(OrgUnit::class);
+    }
+
+    public function procurementType(): BelongsTo
+    {
+        return $this->belongsTo(ProcurementType::class);
     }
 
     public function supplier(): BelongsTo

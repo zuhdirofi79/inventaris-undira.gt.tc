@@ -36,6 +36,10 @@ class CampusManagementController extends Controller
 
     public function destroy(Campus $campus): RedirectResponse
     {
+        if ($campus->buildings()->exists()) {
+            return back()->with('error', 'Kampus tidak dapat dihapus karena masih memiliki gedung.');
+        }
+
         $campus->delete();
 
         return back()->with('success', 'Kampus berhasil dihapus.');

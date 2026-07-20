@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreBuildingRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('super-admin') ?? false;
+        return $this->user()?->can('location.manage') ?? false;
     }
 
     public function rules(): array
@@ -16,7 +17,7 @@ class StoreBuildingRequest extends FormRequest
         $isUpdate = $this->route('building') !== null;
 
         return [
-            'campus_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:campuses,id'],
+            'campus_id' => [$isUpdate ? 'sometimes' : 'required', ActiveExists::rule('campuses')],
             'code' => ['required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],

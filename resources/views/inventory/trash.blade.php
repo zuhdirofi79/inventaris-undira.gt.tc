@@ -35,7 +35,7 @@
                     <td><small>{{ $item->full_location }}</small></td>
                     <td>{{ $item->deleted_at->format('d/m/Y H:i') }}</td>
                     <td>
-                        @can('inventory.delete')
+                        @can('inventory.restore')
                         <form action="{{ route('inventory.restore', $item->id) }}" method="POST" class="d-inline">
                             @csrf
                             <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-undo me-1"></i>Pulihkan</button>

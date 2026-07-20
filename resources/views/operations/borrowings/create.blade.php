@@ -20,7 +20,7 @@
                     <select name="inventory_item_id" class="form-select select2" required>
                         <option value="">Pilih Inventaris</option>
                         @foreach($items as $item)
-                            <option value="{{ $item->id }}" {{ old('inventory_item_id') == $item->id ? 'selected' : '' }}>
+                            <option value="{{ $item->id }}" {{ old('inventory_item_id', request('inventory_item_id')) == $item->id ? 'selected' : '' }}>
                                 {{ $item->inventory_number }} - {{ $item->name }}
                             </option>
                         @endforeach

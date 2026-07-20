@@ -26,7 +26,7 @@ enum AuditAction: string
             self::Import => 'Import',
             self::Export => 'Export',
             self::Download => 'Download',
-            self::ScanQr => 'Scan QR',
+            self::ScanQr => 'Scan Barcode/QR',
             self::Restore => 'Restore',
         };
     }

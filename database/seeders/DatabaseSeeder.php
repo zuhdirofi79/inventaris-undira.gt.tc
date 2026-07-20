@@ -20,6 +20,8 @@ class DatabaseSeeder extends Seeder
             CampusSeeder::class,
             CategorySeeder::class,
             SupplierVendorSeeder::class,
+            MasterLookupSeeder::class,
+            InventorySettingSeeder::class,
             InventorySeeder::class,
         ]);
     }

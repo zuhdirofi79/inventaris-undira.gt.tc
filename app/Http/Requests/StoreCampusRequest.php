@@ -9,7 +9,7 @@ class StoreCampusRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->hasRole('super-admin') ?? false;
+        return $this->user()?->can('location.manage') ?? false;
     }
 
     public function rules(): array

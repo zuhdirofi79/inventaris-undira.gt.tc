@@ -23,6 +23,8 @@ class RolePermissionSeeder extends Seeder
         'location.view',
         'location.manage',
         'category.manage',
+        'unit.manage',
+        'procurement.manage',
         'supplier.manage',
         'vendor.manage',
         'user.manage',

@@ -145,6 +145,21 @@
     @endforelse
 </div>
 
+<div class="card card-undira mt-2 mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-sitemap me-2"></i>Navigasi Hierarki Inventaris</h5>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnReloadTree">
+            <i class="fas fa-sync-alt me-1"></i>Muat Ulang
+        </button>
+    </div>
+    <div class="card-body">
+        <p class="small text-muted mb-3">Kampus → Gedung → Lantai → Ruangan → Kategori → Item. Klik baris untuk expand.</p>
+        <div id="inventoryTree" class="inventory-tree">
+            <div class="text-muted small">Memuat pohon...</div>
+        </div>
+    </div>
+</div>
+
 <div class="row mt-2">
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
@@ -287,5 +302,79 @@ $.get('{{ route('dashboard.recent-activity') }}', function(logs) {
     });
     $('#recentActivityList').html(html || '<li class="list-group-item text-muted text-center">Tidak ada aktivitas</li>');
 });
+
+function statsBadges(stats) {
+    if (!stats) return '';
+    return `<span class="badge bg-secondary">Total ${stats.total ?? 0}</span>
+        <span class="badge bg-warning text-dark">Pinjam ${stats.borrowed ?? 0}</span>
+        <span class="badge bg-info text-dark">Maint ${stats.maintenance ?? 0}</span>
+        <span class="badge bg-danger">Rusak ${stats.damaged ?? 0}</span>
+        <span class="badge bg-dark">Hapus ${stats.deleted ?? 0}</span>`;
+}
+
+function renderNodes(nodes, depth) {
+    let html = '<ul class="tree-level list-unstyled mb-0">';
+    (nodes || []).forEach(node => {
+        const pad = depth * 16;
+        if (node.type === 'item') {
+            html += `<li class="tree-item" style="padding-left:${pad}px">
+                <a href="${node.url}" class="tree-link">
+                    <i class="fas fa-box me-1 text-muted"></i>
+                    <code class="me-2">${node.code || ''}</code>${node.label || ''}
+                    <span class="badge bg-light text-dark border ms-1">${node.status || '-'}</span>
+                </a>
+            </li>`;
+            return;
+        }
+        html += `<li class="tree-node" data-url="${node.children_url || ''}" data-loaded="0" style="padding-left:${pad}px">
+            <div class="tree-row">
+                <button type="button" class="btn btn-sm btn-link tree-toggle p-0 me-1" ${node.has_children ? '' : 'disabled'}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <strong>${node.label}</strong>
+                ${node.code ? `<code class="ms-2 small">${node.code}</code>` : ''}
+                <span class="ms-2 tree-stats">${statsBadges(node.stats)}</span>
+            </div>
+            <div class="tree-children d-none"></div>
+        </li>`;
+    });
+    html += '</ul>';
+    return html;
+}
+
+function loadTreeRoot() {
+    const $root = $('#inventoryTree');
+    $root.html('<div class="text-muted small">Memuat pohon...</div>');
+    $.get('{{ route('dashboard.tree') }}', function (res) {
+        $root.html(renderNodes(res.nodes || [], 0));
+    }).fail(function () {
+        $root.html('<div class="text-danger small">Gagal memuat pohon hierarki.</div>');
+    });
+}
+
+$('#inventoryTree').on('click', '.tree-toggle', function () {
+    const $node = $(this).closest('.tree-node');
+    const $children = $node.children('.tree-children');
+    const $icon = $(this).find('i');
+    if ($node.data('loaded') == 1) {
+        $children.toggleClass('d-none');
+        $icon.toggleClass('fa-chevron-right fa-chevron-down');
+        return;
+    }
+    const url = $node.data('url');
+    if (!url) return;
+    $children.removeClass('d-none').html('<div class="small text-muted py-1">Memuat...</div>');
+    $.get(url, function (res) {
+        const depth = $node.parents('.tree-node').length + 1;
+        $children.html(renderNodes(res.nodes || [], depth));
+        $node.data('loaded', 1);
+        $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+    }).fail(function () {
+        $children.html('<div class="small text-danger">Gagal memuat.</div>');
+    });
+});
+
+$('#btnReloadTree').on('click', loadTreeRoot);
+loadTreeRoot();
 </script>
 @endpush

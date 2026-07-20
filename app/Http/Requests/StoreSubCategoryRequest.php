@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreSubCategoryRequest extends FormRequest
@@ -16,7 +17,7 @@ class StoreSubCategoryRequest extends FormRequest
         $isUpdate = $this->route('subCategory') !== null;
 
         return [
-            'category_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:categories,id'],
+            'category_id' => [$isUpdate ? 'sometimes' : 'required', ActiveExists::rule('categories')],
             'code' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:20'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255'],

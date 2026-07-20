@@ -109,7 +109,11 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 $quantity = (int) ($data['quantity'] ?? 1);
 
                 for ($i = 0; $i < $quantity; $i++) {
-                    $inventoryNumber = $this->codeService->generateInventoryNumber($room, $category, $groupKey);
+                    $inventoryNumber = $this->codeService->generateInventoryNumber(
+                        $room,
+                        $category,
+                        $subCategory,
+                    );
                     $unitSequence = $i + 1;
 
                     $item = InventoryItem::query()->create([

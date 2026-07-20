@@ -7,19 +7,55 @@ use App\Models\AuditLog;
 use App\Models\Borrowing;
 use App\Models\Building;
 use App\Models\Campus;
+use App\Models\Category;
 use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\Room;
+use App\Services\DashboardTreeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
+    public function __construct(
+        protected DashboardTreeService $treeService,
+    ) {}
+
     public function index(): View
     {
         return view('dashboard.index', $this->getStats());
+    }
+
+    public function tree(): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->campuses()]);
+    }
+
+    public function treeBuildings(Campus $campus): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->buildings($campus)]);
+    }
+
+    public function treeFloors(Building $building): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->floors($building)]);
+    }
+
+    public function treeRooms(Floor $floor): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->rooms($floor)]);
+    }
+
+    public function treeCategories(Room $room): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->categories($room)]);
+    }
+
+    public function treeItems(Room $room, Category $category): JsonResponse
+    {
+        return response()->json(['nodes' => $this->treeService->items($room, $category)]);
     }
 
     public function stats(): JsonResponse

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 
 class DeletionApprovalRequest extends FormRequest
@@ -14,7 +15,7 @@ class DeletionApprovalRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'inventory_item_id' => ['required', 'exists:inventory_items,id'],
+            'inventory_item_id' => ['required', ActiveExists::rule('inventory_items')],
             'reason' => ['required', 'string', 'max:1000'],
         ];
     }

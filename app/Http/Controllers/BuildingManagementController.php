@@ -37,6 +37,10 @@ class BuildingManagementController extends Controller
 
     public function destroy(Building $building): RedirectResponse
     {
+        if ($building->floors()->exists()) {
+            return back()->with('error', 'Gedung tidak dapat dihapus karena masih memiliki lantai.');
+        }
+
         $building->delete();
 
         return back()->with('success', 'Gedung berhasil dihapus.');

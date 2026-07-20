@@ -11,10 +11,14 @@ use App\Models\Campus;
 use App\Models\Category;
 use App\Models\InventoryItem;
 use App\Models\InventoryMutation;
+use App\Models\OrgUnit;
+use App\Models\ProcurementType;
 use App\Models\Room;
+use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\Vendor;
 use App\Services\AuditLogService;
+use App\Services\DashboardTreeService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
 use Illuminate\Http\JsonResponse;
@@ -212,27 +216,33 @@ class InventoryController extends Controller
 
     public function create(): View
     {
-        return view('inventory.create', [
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'locationData' => $this->locationTree(),
-            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
-        ]);
+        return view('inventory.create', $this->formLookups());
     }
 
     public function store(StoreInventoryRequest $request): RedirectResponse
     {
-        $data = $request->validated();
+        $data = $this->syncProcurementFunding($request->validated());
         $room = Room::query()->findOrFail($data['room_id']);
         $category = Category::query()->findOrFail($data['category_id']);
+        $subCategory = ! empty($data['sub_category_id'])
+            ? SubCategory::query()->find($data['sub_category_id'])
+            : null;
+        $orgUnit = ! empty($data['org_unit_id'])
+            ? OrgUnit::query()->find($data['org_unit_id'])
+            : null;
         $quantity = (int) ($data['quantity'] ?? 1);
         unset($data['quantity']);
 
         $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
 
-        DB::transaction(function () use ($data, $room, $category, $quantity, $groupKey, $request) {
+        DB::transaction(function () use ($data, $room, $category, $subCategory, $orgUnit, $quantity, $groupKey, $request) {
             for ($i = 0; $i < $quantity; $i++) {
-                $inventoryNumber = $this->codeService->generateInventoryNumber($room, $category, $groupKey);
+                $inventoryNumber = $this->codeService->generateInventoryNumber(
+                    $room,
+                    $category,
+                    $subCategory,
+                    $orgUnit,
+                );
 
                 $item = InventoryItem::query()->create([
                     ...$data,
@@ -249,15 +259,20 @@ class InventoryController extends Controller
             }
         });
 
+        DashboardTreeService::flushCache();
+
         return redirect()
             ->route('inventory.category', $category)
-            ->with('success', 'Inventaris berhasil ditambahkan.');
+            ->with('success', $quantity > 1
+                ? "{$quantity} unit inventaris berhasil ditambahkan (1 aset = 1 record)."
+                : 'Inventaris berhasil ditambahkan.');
     }
 
     public function show(InventoryItem $inventory): View
     {
         $inventory->load([
             'category', 'subCategory', 'room.floor.building.campus',
+            'orgUnit', 'procurementType',
             'supplier', 'vendor', 'photos', 'attachments',
             'mutations.fromRoom', 'mutations.toRoom', 'mutations.movedBy',
             'borrowings', 'maintenances.vendor', 'creator', 'updater',
@@ -270,22 +285,25 @@ class InventoryController extends Controller
     {
         return view('inventory.edit', [
             'inventory' => $inventory->load(['category', 'subCategory', 'room.floor.building.campus']),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'locationData' => $this->locationTree(),
-            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+            ...$this->formLookups(),
         ]);
     }
 
     public function update(UpdateInventoryRequest $request, InventoryItem $inventory): RedirectResponse
     {
         $oldValues = $inventory->toArray();
+        $data = $this->syncProcurementFunding($request->validated());
+        unset($data['quantity']);
+
         $inventory->update([
-            ...$request->validated(),
+            ...$data,
+            'quantity' => 1,
             'updated_by' => $request->user()->id,
         ]);
 
         $this->auditLogService->log($request->user(), AuditAction::Update, $inventory, $oldValues, $inventory->fresh()->toArray());
+
+        DashboardTreeService::flushCache();
 
         return redirect()->route('inventory.show', $inventory)->with('success', 'Inventaris berhasil diperbarui.');
     }
@@ -297,6 +315,8 @@ class InventoryController extends Controller
         $inventory->delete();
 
         $this->auditLogService->log($request->user(), AuditAction::Delete, $inventory, $oldValues, null);
+
+        DashboardTreeService::flushCache();
 
         return redirect()
             ->route('inventory.category', $categoryId)
@@ -319,6 +339,8 @@ class InventoryController extends Controller
         $inventory->restore();
 
         $this->auditLogService->log($request->user(), AuditAction::Restore, $inventory, null, $inventory->toArray());
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Inventaris berhasil dipulihkan.');
     }
@@ -418,6 +440,39 @@ class InventoryController extends Controller
             ])
             ->orderBy('name')
             ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function formLookups(): array
+    {
+        return [
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'locationData' => $this->locationTree(),
+            'orgUnits' => OrgUnit::query()->where('is_active', true)->orderBy('name')->get(),
+            'procurementTypes' => ProcurementType::query()->where('is_active', true)->orderBy('name')->get(),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+        ];
+    }
+
+    /**
+     * Keep legacy funding_source text in sync when procurement type is chosen.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function syncProcurementFunding(array $data): array
+    {
+        if (! empty($data['procurement_type_id'])) {
+            $type = ProcurementType::query()->find($data['procurement_type_id']);
+            if ($type) {
+                $data['funding_source'] = $type->name;
+            }
+        }
+
+        return $data;
     }
 
     protected function applyLocationCategoryFilter($query, Request $request): void

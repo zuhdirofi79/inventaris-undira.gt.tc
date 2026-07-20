@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
@@ -36,7 +35,7 @@ class UserController extends Controller
         $user = User::query()->create([
             'name' => $data['name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+            'password' => $data['password'], // User model casts password as hashed
             'phone' => $data['phone'] ?? null,
             'is_active' => $data['is_active'] ?? true,
         ]);
@@ -61,7 +60,7 @@ class UserController extends Controller
         $user->update(collect($data)->except(['password', 'roles'])->filter(fn ($v) => $v !== null)->all());
 
         if (! empty($data['password'])) {
-            $user->update(['password' => Hash::make($data['password'])]);
+            $user->update(['password' => $data['password']]); // User model casts password as hashed
         }
 
         if (isset($data['roles'])) {

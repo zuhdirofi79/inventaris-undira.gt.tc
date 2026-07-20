@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\MaintenanceStatus;
+use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -16,8 +17,8 @@ class StoreMaintenanceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'inventory_item_id' => ['required', 'exists:inventory_items,id'],
-            'vendor_id' => ['nullable', 'exists:vendors,id'],
+            'inventory_item_id' => ['required', ActiveExists::rule('inventory_items')],
+            'vendor_id' => ['nullable', ActiveExists::rule('vendors')],
             'service_date' => ['required', 'date'],
             'next_schedule' => ['nullable', 'date', 'after_or_equal:service_date'],
             'cost' => ['nullable', 'numeric', 'min:0'],

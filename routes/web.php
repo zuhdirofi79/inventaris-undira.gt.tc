@@ -22,10 +22,13 @@ use App\Http\Controllers\InventoryPhotoController;
 use App\Http\Controllers\InventoryQrController;
 use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MutationController;
+use App\Http\Controllers\OrgUnitController;
+use App\Http\Controllers\ProcurementTypeController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomManagementController;
+use App\Http\Controllers\ScannerController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\SubCategoryController;
@@ -36,13 +39,15 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', fn () => redirect()->route('login'));
 
-Route::get('/scan/{inventoryNumber}', [InventoryQrController::class, 'scan'])->name('inventory.scan');
+Route::get('/scan/{inventoryNumber}', [InventoryQrController::class, 'scan'])
+    ->middleware('throttle:60,1')
+    ->name('inventory.scan');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
-    Route::post('/login', [LoginController::class, 'login']);
+    Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
-    Route::post('/register', [RegisterController::class, 'register']);
+    Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:5,1');
 });
 
 // Password reset must NOT use guest middleware: an active session would
@@ -60,6 +65,19 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard/charts', [DashboardController::class, 'charts'])->name('dashboard.charts');
     Route::get('/dashboard/recent-items', [DashboardController::class, 'recentItems'])->name('dashboard.recent-items');
     Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity'])->name('dashboard.recent-activity');
+    Route::get('/dashboard/tree', [DashboardController::class, 'tree'])->name('dashboard.tree');
+    Route::get('/dashboard/tree/campuses/{campus}/buildings', [DashboardController::class, 'treeBuildings'])->name('dashboard.tree.buildings');
+    Route::get('/dashboard/tree/buildings/{building}/floors', [DashboardController::class, 'treeFloors'])->name('dashboard.tree.floors');
+    Route::get('/dashboard/tree/floors/{floor}/rooms', [DashboardController::class, 'treeRooms'])->name('dashboard.tree.rooms');
+    Route::get('/dashboard/tree/rooms/{room}/categories', [DashboardController::class, 'treeCategories'])->name('dashboard.tree.categories');
+    Route::get('/dashboard/tree/rooms/{room}/categories/{category}/items', [DashboardController::class, 'treeItems'])->name('dashboard.tree.items');
+
+    Route::middleware('permission:inventory.view')->group(function () {
+        Route::get('/scanner', [ScannerController::class, 'index'])->name('scanner.index');
+        Route::post('/scanner/lookup', [ScannerController::class, 'lookup'])
+            ->middleware('throttle:30,1')
+            ->name('scanner.lookup');
+    });
 
     Route::middleware('permission:location.view')->group(function () {
         Route::get('/campuses', [CampusController::class, 'index'])->name('campuses.index');
@@ -108,13 +126,19 @@ Route::middleware('auth')->group(function () {
         Route::delete('/inventory/{inventory}/photos/{photo}', [InventoryPhotoController::class, 'destroy'])->name('inventory.photos.destroy');
     });
 
-    Route::middleware('permission:inventory.delete')->group(function () {
+    Route::middleware('permission:inventory.restore')->group(function () {
         Route::post('/inventory/{id}/restore', [InventoryController::class, 'restore'])->name('inventory.restore');
+    });
+
+    Route::middleware('permission:inventory.delete')->group(function () {
         Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
     });
 
+    Route::get('/categories', [CategoryController::class, 'index'])
+        ->middleware('permission:category.manage|unit.manage|procurement.manage|supplier.manage|vendor.manage|location.manage')
+        ->name('categories.index');
+
     Route::middleware('permission:category.manage')->group(function () {
-        Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
         Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
@@ -122,6 +146,18 @@ Route::middleware('auth')->group(function () {
         Route::post('/sub-categories', [SubCategoryController::class, 'store'])->name('sub-categories.store');
         Route::put('/sub-categories/{subCategory}', [SubCategoryController::class, 'update'])->name('sub-categories.update');
         Route::delete('/sub-categories/{subCategory}', [SubCategoryController::class, 'destroy'])->name('sub-categories.destroy');
+    });
+
+    Route::middleware('permission:unit.manage')->group(function () {
+        Route::post('/org-units', [OrgUnitController::class, 'store'])->name('org-units.store');
+        Route::put('/org-units/{orgUnit}', [OrgUnitController::class, 'update'])->name('org-units.update');
+        Route::delete('/org-units/{orgUnit}', [OrgUnitController::class, 'destroy'])->name('org-units.destroy');
+    });
+
+    Route::middleware('permission:procurement.manage')->group(function () {
+        Route::post('/procurement-types', [ProcurementTypeController::class, 'store'])->name('procurement-types.store');
+        Route::put('/procurement-types/{procurementType}', [ProcurementTypeController::class, 'update'])->name('procurement-types.update');
+        Route::delete('/procurement-types/{procurementType}', [ProcurementTypeController::class, 'destroy'])->name('procurement-types.destroy');
     });
 
     Route::middleware('permission:supplier.manage')->group(function () {
@@ -138,7 +174,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
     });
 
-    Route::middleware(['super-admin'])->prefix('admin/locations')->name('admin.locations.')->group(function () {
+    Route::middleware('permission:location.manage')->prefix('admin/locations')->name('admin.locations.')->group(function () {
         Route::get('/campuses', [CampusManagementController::class, 'index'])->name('campuses.index');
         Route::post('/campuses', [CampusManagementController::class, 'store'])->name('campuses.store');
         Route::put('/campuses/{campus}', [CampusManagementController::class, 'update'])->name('campuses.update');
@@ -236,13 +272,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
     });
 
-    Route::middleware(['super-admin'])->group(function () {
+    Route::middleware('permission:user.manage')->group(function () {
         Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users.index');
         Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
         Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
         Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
+    });
+
+    Route::middleware('permission:settings.manage')->group(function () {
         Route::get('/admin/settings', [SettingController::class, 'index'])->name('admin.settings.index');
         Route::put('/admin/settings', [SettingController::class, 'update'])->name('admin.settings.update');
+    });
+
+    Route::middleware('permission:backup.manage')->group(function () {
         Route::post('/admin/settings/backup', [SettingController::class, 'backup'])->name('admin.settings.backup');
         Route::post('/admin/settings/restore', [SettingController::class, 'restore'])->name('admin.settings.restore');
     });

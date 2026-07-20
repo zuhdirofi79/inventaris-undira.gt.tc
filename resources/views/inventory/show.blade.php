@@ -22,6 +22,18 @@
         </p>
     </div>
     <div class="d-flex gap-2 flex-wrap">
+        @can('borrowing.create')
+        <a href="{{ route('borrowings.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-hand-holding me-1"></i>Pinjam</a>
+        @endcan
+        @can('maintenance.create')
+        <a href="{{ route('maintenances.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-info btn-sm"><i class="fas fa-wrench me-1"></i>Maintenance</a>
+        @endcan
+        @can('mutation.create')
+        <a href="{{ route('mutations.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-exchange-alt me-1"></i>Mutasi</a>
+        @endcan
+        @can('inventory.view')
+        <a href="{{ route('scanner.index') }}" class="btn btn-outline-dark btn-sm"><i class="fas fa-barcode me-1"></i>Scan Lagi</a>
+        @endcan
         @can('inventory.update')
         <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
         @endcan
@@ -51,7 +63,7 @@
                             <tr><th>Gedung</th><td>{{ $inventory->room?->floor?->building?->name ?? '-' }}</td></tr>
                             <tr><th>Lantai</th><td>{{ $inventory->room?->floor?->name ?? '-' }}</td></tr>
                             <tr><th>Ruangan</th><td>{{ $inventory->room?->name ?? '-' }}</td></tr>
-                            <tr><th>Jumlah / Satuan</th><td>{{ $inventory->quantity ?? 1 }} {{ $inventory->unit ?? 'Unit' }}</td></tr>
+                            <tr><th>Jumlah / Satuan</th><td>1 {{ $inventory->unit ?? 'Unit' }} (1 aset = 1 record)</td></tr>
                             <tr><th>Merek / Tipe</th><td>{{ $inventory->brand ?? '-' }} / {{ $inventory->type ?? '-' }}</td></tr>
                             <tr><th>Model</th><td>{{ $inventory->model ?? '-' }}</td></tr>
                             <tr><th>No. Seri</th><td>{{ $inventory->serial_number ?? '-' }}</td></tr>
@@ -66,6 +78,8 @@
                             <tr><th>Harga</th><td>Rp {{ number_format($inventory->price ?? 0, 0, ',', '.') }}</td></tr>
                             <tr><th>Tahun Beli</th><td>{{ $inventory->purchase_year ?? '-' }}</td></tr>
                             <tr><th>Tanggal Beli</th><td>{{ $inventory->purchase_date?->format('d/m/Y') ?? '-' }}</td></tr>
+                            <tr><th>Unit / Divisi</th><td>{{ $inventory->orgUnit ? $inventory->orgUnit->code.' — '.$inventory->orgUnit->name : '-' }}</td></tr>
+                            <tr><th>Jenis Pengadaan</th><td>{{ $inventory->procurementType ? $inventory->procurementType->code.' — '.$inventory->procurementType->name : ($inventory->funding_source ?? '-') }}</td></tr>
                             <tr><th>Sumber Dana</th><td>{{ $inventory->funding_source ?? '-' }}</td></tr>
                             <tr><th>Supplier</th><td>{{ $inventory->supplier?->name ?? '-' }}</td></tr>
                             <tr><th>Vendor</th><td>{{ $inventory->vendor?->name ?? '-' }}</td></tr>

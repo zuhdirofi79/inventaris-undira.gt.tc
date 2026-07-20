@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 
 class StoreMutationRequest extends FormRequest
@@ -14,8 +15,8 @@ class StoreMutationRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'inventory_item_id' => ['required', 'exists:inventory_items,id'],
-            'to_room_id' => ['required', 'exists:rooms,id'],
+            'inventory_item_id' => ['required', ActiveExists::rule('inventory_items')],
+            'to_room_id' => ['required', ActiveExists::rule('rooms')],
             'reason' => ['nullable', 'string', 'max:500'],
             'notes' => ['nullable', 'string'],
         ];

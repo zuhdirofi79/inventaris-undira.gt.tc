@@ -33,6 +33,10 @@ class RoomManagementController extends Controller
 
     public function destroy(Room $room): RedirectResponse
     {
+        if ($room->inventoryItems()->exists()) {
+            return back()->with('error', 'Ruangan tidak dapat dihapus karena masih memiliki inventaris.');
+        }
+
         $room->delete();
 
         return back()->with('success', 'Ruangan berhasil dihapus.');
