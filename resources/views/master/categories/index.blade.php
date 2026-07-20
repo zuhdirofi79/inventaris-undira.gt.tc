@@ -14,6 +14,11 @@
 </div>
 
 <ul class="nav nav-tabs mb-3" role="tablist">
+    @can('category.manage')
+    <li class="nav-item">
+        <a class="nav-link {{ $tab === 'konfigurasi' ? 'active' : '' }}" href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}">Konfigurasi Inventaris</a>
+    </li>
+    @endcan
     <li class="nav-item">
         <a class="nav-link {{ $tab === 'klasifikasi' ? 'active' : '' }}" href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}">Klasifikasi</a>
     </li>
@@ -31,6 +36,14 @@
         <a class="nav-link {{ $tab === 'lokasi' ? 'active' : '' }}" href="{{ route('categories.index', ['tab' => 'lokasi']) }}">Lokasi & Lainnya</a>
     </li>
 </ul>
+
+@if($tab === 'konfigurasi')
+@can('category.manage')
+@include('master.categories._konfigurasi')
+@else
+<div class="alert alert-warning">Anda tidak memiliki izin mengelola konfigurasi inventaris.</div>
+@endcan
+@endif
 
 @if($tab === 'klasifikasi')
 @can('category.manage')

@@ -11,6 +11,7 @@ use App\Http\Controllers\BuildingManagementController;
 use App\Http\Controllers\CampusController;
 use App\Http\Controllers\CampusManagementController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\InventoryMasterConfigurationController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeletionApprovalController;
 use App\Http\Controllers\FloorController;
@@ -146,6 +147,19 @@ Route::middleware('auth')->group(function () {
         Route::post('/sub-categories', [SubCategoryController::class, 'store'])->name('sub-categories.store');
         Route::put('/sub-categories/{subCategory}', [SubCategoryController::class, 'update'])->name('sub-categories.update');
         Route::delete('/sub-categories/{subCategory}', [SubCategoryController::class, 'destroy'])->name('sub-categories.destroy');
+
+        Route::post('/master-configurations', [InventoryMasterConfigurationController::class, 'store'])->name('master-configurations.store');
+        Route::put('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'update'])->name('master-configurations.update');
+        Route::delete('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'destroy'])->name('master-configurations.destroy');
+        Route::get('/master-configurations/preview', [InventoryMasterConfigurationController::class, 'preview'])->name('master-configurations.preview');
+        Route::post('/master-data/options', [InventoryMasterConfigurationController::class, 'storeOption'])->name('master-data.options.store');
+    });
+
+    Route::middleware('permission:category.manage|location.manage|inventory.view')->group(function () {
+        Route::get('/master-data/campuses/{campus}/buildings', [InventoryMasterConfigurationController::class, 'buildingsByCampus'])->name('master-data.buildings.by-campus');
+        Route::get('/master-data/buildings/{building}/floors', [InventoryMasterConfigurationController::class, 'floorsByBuilding'])->name('master-data.floors.by-building');
+        Route::get('/master-data/floors/{floor}/rooms', [InventoryMasterConfigurationController::class, 'roomsByFloor'])->name('master-data.rooms.by-floor');
+        Route::get('/master-data/categories/{category}/subclassifications', [InventoryMasterConfigurationController::class, 'subclassificationsByClassification'])->name('master-data.subclassifications.by-classification');
     });
 
     Route::middleware('permission:unit.manage')->group(function () {

@@ -108,6 +108,39 @@ class InventoryCodeService
     }
 
     /**
+     * Read-only next sequence preview (does NOT consume / increment).
+     *
+     * @return array{last_value: int, next_value: int, next_padded: string}
+     */
+    public function peekNextSequence(int $campusId, ?int $subCategoryId, int $categoryId): array
+    {
+        $classifierType = $subCategoryId ? 'sub_category' : 'category';
+        $classifierId = $subCategoryId ?? $categoryId;
+
+        $row = InventorySequence::query()
+            ->where('campus_id', $campusId)
+            ->where('classifier_type', $classifierType)
+            ->where('classifier_id', $classifierId)
+            ->first();
+
+        $last = $row
+            ? (int) $row->last_value
+            : $this->bootstrapSequenceValue($campusId, $classifierType, $classifierId);
+
+        $next = $last + 1;
+        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
+        if ($padding < 1) {
+            $padding = self::DEFAULT_PADDING;
+        }
+
+        return [
+            'last_value' => $last,
+            'next_value' => $next,
+            'next_padded' => str_pad((string) $next, $padding, '0', STR_PAD_LEFT),
+        ];
+    }
+
+    /**
      * Allocate next monotonic sequence for campus + classifier.
      * Soft-deleted items never free a sequence value.
      */

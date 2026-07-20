@@ -58,9 +58,15 @@
     </nav>
 
     <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira">
-        <a href="{{ route('dashboard') }}" class="brand-link brand-link-undira text-center py-3">
-            <img src="{{ asset('images/logo-undira.png') }}" alt="UNDIRA" class="brand-image img-circle elevation-3" style="opacity:.9; max-height:40px;">
-            <span class="brand-text font-weight-light d-block mt-1">Inventaris UNDIRA</span>
+        <a href="{{ route('dashboard') }}" class="brand-link brand-link-undira undira-brand-link">
+            <div class="undira-logo-container">
+                <img
+                    src="{{ asset('images/LOGO UNDIRA.png') }}"
+                    alt="Logo Universitas Dian Nusantara"
+                    class="undira-brand-logo"
+                >
+            </div>
+            <span class="brand-text font-weight-light">Inventaris UNDIRA</span>
         </a>
 
         <div class="sidebar">
@@ -115,9 +121,19 @@
                             <p>Master Data <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @can('category.manage')
+                            <li class="nav-item">
+                                <a href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}"
+                                   class="nav-link {{ request()->routeIs('master-configurations.*') || request()->routeIs('sub-categories.*') || (request()->routeIs('categories.*') && ! in_array(request('tab'), ['units', 'pengadaan', 'lokasi', 'klasifikasi'], true)) ? 'active' : '' }}">
+                                    <i class="far fa-circle nav-icon"></i>
+                                    <p>Kategori</p>
+                                </a>
+                            </li>
+                            @endcan
                             @canany(['category.manage', 'unit.manage', 'procurement.manage', 'location.manage', 'supplier.manage', 'vendor.manage'])
                             <li class="nav-item">
-                                <a href="{{ route('categories.index') }}" class="nav-link {{ request()->routeIs('categories.*','sub-categories.*') ? 'active' : '' }}">
+                                <a href="{{ route('categories.index', ['tab' => 'lokasi']) }}"
+                                   class="nav-link {{ request()->routeIs('categories.*') && in_array(request('tab'), ['units', 'pengadaan', 'lokasi', 'klasifikasi'], true) ? 'active' : '' }}">
                                     <i class="far fa-circle nav-icon"></i>
                                     <p>Hub Master Data</p>
                                 </a>
