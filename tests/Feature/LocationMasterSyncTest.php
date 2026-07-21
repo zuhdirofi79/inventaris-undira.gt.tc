@@ -60,7 +60,7 @@ class LocationMasterSyncTest extends TestCase
         $browse->assertSee('Ruang Sync 901');
         $browse->assertSee('GT-901');
         $browse->assertSee('Lab');
-        $browse->assertSee('Kapasitas: 40');
+        $browse->assertSee('Kap. 40');
 
         // Hierarchy service (filters / inventaris tree)
         $tree = app(LocationHierarchyService::class)->activeTree($campus->id);
@@ -85,6 +85,7 @@ class LocationMasterSyncTest extends TestCase
     public function test_inactive_room_is_hidden_from_consumers(): void
     {
         $admin = $this->makeSuperAdmin();
+        $viewer = $this->makeViewer();
 
         $campus = Campus::query()->create([
             'code' => 'INA', 'name' => 'Kampus Inactive', 'slug' => 'kampus-inactive', 'is_active' => true,
@@ -96,12 +97,18 @@ class LocationMasterSyncTest extends TestCase
             'building_id' => $building->id, 'code' => 'L1', 'name' => 'Lantai 1', 'floor_number' => 1, 'is_active' => true,
         ]);
         $room = Room::query()->create([
-            'floor_id' => $floor->id, 'code' => 'OFF-1', 'name' => 'Ruang Off', 'is_active' => false,
+            'floor_id' => $floor->id, 'code' => 'OFF-1', 'name' => 'Ruang Off', 'room_type' => 'Kantor', 'capacity' => 1, 'is_active' => false,
         ]);
 
-        $browse = $this->actingAs($admin)->get(route('floors.show', $floor));
-        $browse->assertOk();
-        $browse->assertDontSee('Ruang Off');
+        // Super Admin (location.manage) dapat melihat untuk dikelola
+        $browseAdmin = $this->actingAs($admin)->get(route('floors.show', $floor));
+        $browseAdmin->assertOk();
+        $browseAdmin->assertSee('Ruang Off');
+
+        // Viewer hanya melihat ruangan aktif
+        $browseViewer = $this->actingAs($viewer)->get(route('floors.show', $floor));
+        $browseViewer->assertOk();
+        $browseViewer->assertDontSee('Ruang Off');
 
         $ajax = $this->actingAs($admin)->getJson(route('master-data.rooms.by-floor', $floor));
         $ajax->assertOk();

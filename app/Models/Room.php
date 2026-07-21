@@ -18,6 +18,7 @@ class Room extends Model
         'room_type',
         'capacity',
         'is_active',
+        'notes',
     ];
 
     protected $appends = [

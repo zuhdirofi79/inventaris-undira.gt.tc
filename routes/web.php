@@ -208,6 +208,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/floors/{floor}/rooms', [RoomManagementController::class, 'index'])->name('rooms.index');
         Route::post('/rooms', [RoomManagementController::class, 'store'])->name('rooms.store');
         Route::put('/rooms/{room}', [RoomManagementController::class, 'update'])->name('rooms.update');
+        Route::post('/rooms/{room}/duplicate', [RoomManagementController::class, 'duplicate'])->name('rooms.duplicate');
         Route::delete('/rooms/{room}', [RoomManagementController::class, 'destroy'])->name('rooms.destroy');
     });
 

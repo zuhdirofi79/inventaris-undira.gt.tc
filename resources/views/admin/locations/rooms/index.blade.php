@@ -52,10 +52,11 @@
             <input type="hidden" name="floor_id" value="{{ $floor->id }}">
             <div class="modal-header"><h5 class="modal-title">Tambah Ruangan</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
-                <div class="mb-3"><label class="form-label">Tipe Ruangan</label><input type="text" name="room_type" class="form-control" placeholder="Lab, Kelas, Kantor..."></div>
-                <div class="mb-3"><label class="form-label">Kapasitas</label><input type="number" name="capacity" class="form-control" min="0"></div>
+                <div class="mb-3"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" name="code" class="form-control" required maxlength="20"></div>
+                <div class="mb-3"><label class="form-label">Nama <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">Jenis Ruangan <span class="text-danger">*</span></label><input type="text" name="room_type" class="form-control" placeholder="Lab, Kelas, Kantor..." required></div>
+                <div class="mb-3"><label class="form-label">Kapasitas <span class="text-danger">*</span></label><input type="number" name="capacity" class="form-control" min="1" required></div>
+                <div class="mb-3"><label class="form-label">Keterangan</label><textarea name="notes" class="form-control" rows="2"></textarea></div>
                 <div class="form-check">
                     <input type="hidden" name="is_active" value="0">
                     <input type="checkbox" name="is_active" value="1" class="form-check-input" checked>
@@ -74,10 +75,11 @@
             @csrf @method('PUT')
             <div class="modal-header"><h5 class="modal-title">Edit Ruangan</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
             <div class="modal-body">
-                <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $room->code }}" required></div>
-                <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $room->name }}" required></div>
-                <div class="mb-3"><label class="form-label">Tipe Ruangan</label><input type="text" name="room_type" class="form-control" value="{{ $room->room_type }}"></div>
-                <div class="mb-3"><label class="form-label">Kapasitas</label><input type="number" name="capacity" class="form-control" value="{{ $room->capacity }}" min="0"></div>
+                <div class="mb-3"><label class="form-label">Kode <span class="text-danger">*</span></label><input type="text" name="code" class="form-control" value="{{ $room->code }}" required maxlength="20"></div>
+                <div class="mb-3"><label class="form-label">Nama <span class="text-danger">*</span></label><input type="text" name="name" class="form-control" value="{{ $room->name }}" required></div>
+                <div class="mb-3"><label class="form-label">Jenis Ruangan <span class="text-danger">*</span></label><input type="text" name="room_type" class="form-control" value="{{ $room->room_type }}" required></div>
+                <div class="mb-3"><label class="form-label">Kapasitas <span class="text-danger">*</span></label><input type="number" name="capacity" class="form-control" value="{{ $room->capacity }}" min="1" required></div>
+                <div class="mb-3"><label class="form-label">Keterangan</label><textarea name="notes" class="form-control" rows="2">{{ $room->notes }}</textarea></div>
                 <div class="form-check">
                     <input type="hidden" name="is_active" value="0">
                     <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $room->is_active ? 'checked' : '' }}>
