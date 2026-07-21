@@ -6,7 +6,7 @@
 <form action="{{ route('register') }}" method="POST">
     @csrf
     <div class="mb-3">
-        <label for="name" class="form-label">Nama Lengkap</label>
+        <label for="name" class="form-label">Nama Lengkap <span class="text-danger">*</span></label>
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-user"></i></span>
             <input type="text" name="name" id="name" class="form-control @error('name') is-invalid @enderror"
@@ -16,13 +16,25 @@
     </div>
 
     <div class="mb-3">
-        <label for="email" class="form-label">Email</label>
+        <label for="identity_number" class="form-label">NIK / NIDN / NIM <small class="text-muted">(opsional)</small></label>
+        <div class="input-group">
+            <span class="input-group-text"><i class="fas fa-id-card"></i></span>
+            <input type="text" name="identity_number" id="identity_number"
+                   class="form-control @error('identity_number') is-invalid @enderror"
+                   value="{{ old('identity_number') }}" placeholder="Sesuai identitas Anda">
+        </div>
+        @error('identity_number')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+    </div>
+
+    <div class="mb-3">
+        <label for="email" class="form-label">Email UNDIRA <span class="text-danger">*</span></label>
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-envelope"></i></span>
             <input type="email" name="email" id="email" class="form-control @error('email') is-invalid @enderror"
-                   value="{{ old('email') }}" required>
+                   value="{{ old('email') }}" placeholder="nama@undira.ac.id" required>
         </div>
         @error('email')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+        <div class="form-text">Wajib menggunakan email resmi @undira.ac.id.</div>
     </div>
 
     <div class="mb-3">
@@ -34,7 +46,7 @@
     </div>
 
     <div class="mb-3">
-        <label for="password" class="form-label">Password</label>
+        <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-lock"></i></span>
             <input type="password" name="password" id="password" class="form-control @error('password') is-invalid @enderror" required>
@@ -43,7 +55,7 @@
     </div>
 
     <div class="mb-4">
-        <label for="password_confirmation" class="form-label">Konfirmasi Password</label>
+        <label for="password_confirmation" class="form-label">Konfirmasi Password <span class="text-danger">*</span></label>
         <div class="input-group">
             <span class="input-group-text"><i class="fas fa-lock"></i></span>
             <input type="password" name="password_confirmation" id="password_confirmation" class="form-control" required>
@@ -52,7 +64,7 @@
 
     <div class="alert alert-info small">
         <i class="fas fa-info-circle me-1"></i>
-        Pendaftaran otomatis mendapat role <strong>viewer</strong> dengan akses terbatas.
+        Setelah daftar, kode OTP 4 digit akan dikirim ke email Anda. Role awal: <strong>viewer</strong>.
     </div>
 
     <button type="submit" class="btn btn-undira w-100 py-2">

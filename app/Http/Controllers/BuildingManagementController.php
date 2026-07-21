@@ -6,12 +6,18 @@ use App\Http\Requests\StoreBuildingRequest;
 use App\Models\Building;
 use App\Models\Campus;
 use App\Services\DashboardTreeService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class BuildingManagementController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function index(Campus $campus): View
     {
         $buildings = $campus->buildings()->withCount('floors')->orderBy('name')->paginate(20);
@@ -40,16 +46,10 @@ class BuildingManagementController extends Controller
         return back()->with('success', 'Gedung berhasil diperbarui.');
     }
 
-    public function destroy(Building $building): RedirectResponse
+    public function destroy(Request $request, Building $building): RedirectResponse
     {
-        if ($building->floors()->exists()) {
-            return back()->with('error', 'Gedung tidak dapat dihapus karena masih memiliki lantai.');
-        }
+        $this->trash->softDelete($building, $request->user());
 
-        $building->delete();
-
-        DashboardTreeService::flushCache();
-
-        return back()->with('success', 'Gedung berhasil dihapus.');
+        return back()->with('success', 'Gedung dipindahkan ke Trash (beserta lantai/ruangan/inventaris turunannya).');
     }
 }

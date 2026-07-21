@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
+use App\Models\Concerns\TracksTrashMeta;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Storage;
 class InventoryItem extends Model
 {
     use SoftDeletes;
+    use TracksTrashMeta;
 
     protected $fillable = [
         'inventory_number',

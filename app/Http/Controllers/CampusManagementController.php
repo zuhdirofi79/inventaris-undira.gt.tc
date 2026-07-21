@@ -5,12 +5,18 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreCampusRequest;
 use App\Models\Campus;
 use App\Services\DashboardTreeService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class CampusManagementController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function index(): View
     {
         $campuses = Campus::query()->withCount('buildings')->orderBy('name')->paginate(20);
@@ -39,16 +45,10 @@ class CampusManagementController extends Controller
         return back()->with('success', 'Kampus berhasil diperbarui.');
     }
 
-    public function destroy(Campus $campus): RedirectResponse
+    public function destroy(Request $request, Campus $campus): RedirectResponse
     {
-        if ($campus->buildings()->exists()) {
-            return back()->with('error', 'Kampus tidak dapat dihapus karena masih memiliki gedung.');
-        }
+        $this->trash->softDelete($campus, $request->user());
 
-        $campus->delete();
-
-        DashboardTreeService::flushCache();
-
-        return back()->with('success', 'Kampus berhasil dihapus.');
+        return back()->with('success', 'Kampus dipindahkan ke Trash (beserta gedung/lantai/ruangan/inventaris turunannya).');
     }
 }

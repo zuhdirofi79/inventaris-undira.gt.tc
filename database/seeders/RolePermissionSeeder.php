@@ -53,6 +53,9 @@ class RolePermissionSeeder extends Seeder
         'deletion-approval.approve',
         'mutation.view',
         'mutation.create',
+        'trash.view',
+        'trash.restore',
+        'trash.force-delete',
     ];
 
     /**
@@ -97,5 +100,25 @@ class RolePermissionSeeder extends Seeder
         ]);
 
         $viewer->syncPermissions($this->viewerPermissions);
+
+        // Admin operasional: CRUD tanpa Trash / force delete
+        $admin = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
+        ]);
+
+        $adminPermissions = Permission::query()
+            ->whereNotIn('name', [
+                'trash.view',
+                'trash.restore',
+                'trash.force-delete',
+                'user.manage',
+                'settings.manage',
+                'backup.manage',
+            ])
+            ->pluck('name')
+            ->all();
+
+        $admin->syncPermissions($adminPermissions);
     }
 }

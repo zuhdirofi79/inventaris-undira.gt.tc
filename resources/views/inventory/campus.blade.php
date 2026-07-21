@@ -15,7 +15,7 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         @can('inventory.create')
-        <a href="{{ route('inventory.create') }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
         @endcan
         <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Kampus</a>
     </div>

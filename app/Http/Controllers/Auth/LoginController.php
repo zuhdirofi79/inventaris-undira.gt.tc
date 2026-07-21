@@ -33,6 +33,15 @@ class LoginController extends Controller
 
         $user = Auth::user();
 
+        if (! $user->email_verified_at) {
+            Auth::logout();
+            $request->session()->put('pending_verification_user_id', $user->id);
+
+            return redirect()
+                ->route('verification.notice')
+                ->withErrors(['otp' => 'Email belum diverifikasi. Masukkan kode OTP yang dikirim ke email Anda.']);
+        }
+
         if (! $user->is_active) {
             Auth::logout();
 

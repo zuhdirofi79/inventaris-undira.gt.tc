@@ -4,10 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreOrgUnitRequest;
 use App\Models\OrgUnit;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class OrgUnitController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function store(StoreOrgUnitRequest $request): RedirectResponse
     {
         OrgUnit::query()->create([
@@ -32,18 +38,12 @@ class OrgUnitController extends Controller
             ->with('success', 'Unit/Divisi berhasil diperbarui.');
     }
 
-    public function destroy(OrgUnit $orgUnit): RedirectResponse
+    public function destroy(Request $request, OrgUnit $orgUnit): RedirectResponse
     {
-        if ($orgUnit->inventoryItems()->exists()) {
-            return redirect()
-                ->route('categories.index', ['tab' => 'units'])
-                ->with('error', 'Unit/Divisi tidak dapat dihapus karena masih digunakan inventaris.');
-        }
-
-        $orgUnit->delete();
+        $this->trash->softDelete($orgUnit, $request->user());
 
         return redirect()
             ->route('categories.index', ['tab' => 'units'])
-            ->with('success', 'Unit/Divisi berhasil dihapus.');
+            ->with('success', 'Unit/Divisi dipindahkan ke Trash.');
     }
 }

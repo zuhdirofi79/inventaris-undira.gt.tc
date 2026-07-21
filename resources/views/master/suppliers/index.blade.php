@@ -27,7 +27,10 @@
                     <td>{{ $supplier->inventory_items_count }}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $supplier->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline" data-confirm="Hapus supplier?">
+                        <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>

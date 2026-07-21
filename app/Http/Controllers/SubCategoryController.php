@@ -5,12 +5,18 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreSubCategoryRequest;
 use App\Models\Category;
 use App\Models\SubCategory;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SubCategoryController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function index(Category $category): View
     {
         $subCategories = $category->subCategories()->withCount('inventoryItems')->orderBy('name')->paginate(20);
@@ -35,14 +41,10 @@ class SubCategoryController extends Controller
         return back()->with('success', 'Sub kategori berhasil diperbarui.');
     }
 
-    public function destroy(SubCategory $subCategory): RedirectResponse
+    public function destroy(Request $request, SubCategory $subCategory): RedirectResponse
     {
-        if ($subCategory->inventoryItems()->exists()) {
-            return back()->with('error', 'Sub kategori tidak dapat dihapus karena masih digunakan inventaris.');
-        }
+        $this->trash->softDelete($subCategory, $request->user());
 
-        $subCategory->delete();
-
-        return back()->with('success', 'Sub kategori berhasil dihapus.');
+        return back()->with('success', 'Sub kategori dipindahkan ke Trash.');
     }
 }

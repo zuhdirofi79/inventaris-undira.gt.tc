@@ -4,10 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreProcurementTypeRequest;
 use App\Models\ProcurementType;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 
 class ProcurementTypeController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function store(StoreProcurementTypeRequest $request): RedirectResponse
     {
         ProcurementType::query()->create([
@@ -32,18 +38,12 @@ class ProcurementTypeController extends Controller
             ->with('success', 'Jenis pengadaan berhasil diperbarui.');
     }
 
-    public function destroy(ProcurementType $procurementType): RedirectResponse
+    public function destroy(Request $request, ProcurementType $procurementType): RedirectResponse
     {
-        if ($procurementType->inventoryItems()->exists()) {
-            return redirect()
-                ->route('categories.index', ['tab' => 'pengadaan'])
-                ->with('error', 'Jenis pengadaan tidak dapat dihapus karena masih digunakan inventaris.');
-        }
-
-        $procurementType->delete();
+        $this->trash->softDelete($procurementType, $request->user());
 
         return redirect()
             ->route('categories.index', ['tab' => 'pengadaan'])
-            ->with('success', 'Jenis pengadaan berhasil dihapus.');
+            ->with('success', 'Jenis pengadaan dipindahkan ke Trash.');
     }
 }

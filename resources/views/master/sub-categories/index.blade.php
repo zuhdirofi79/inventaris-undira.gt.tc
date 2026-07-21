@@ -29,7 +29,10 @@
                     <td><span class="badge {{ $sub->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $sub->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $sub->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('sub-categories.destroy', $sub) }}" method="POST" class="d-inline" data-confirm="Hapus sub kategori?">
+                        <form action="{{ route('sub-categories.destroy', $sub) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>

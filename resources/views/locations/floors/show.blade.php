@@ -32,7 +32,7 @@
 
 <div class="row g-3" id="roomCardGrid">
     @forelse($floor->rooms as $room)
-        @include('locations.floors._room-card', ['room' => $room, 'canManageRooms' => $canManageRooms])
+        @include('locations.floors._room-card', ['room' => $room, 'canManageRooms' => $canManageRooms, 'floor' => $floor])
     @empty
     <div class="col-12" id="roomEmptyState">
         <div class="empty-state card card-undira">
@@ -148,13 +148,26 @@
 
 @push('scripts')
 @can('location.manage')
+@php
+    $inventoryCreateUrl = (auth()->user()->can('inventory.create') || auth()->user()->can('category.manage'))
+        ? route('categories.index', [
+            'tab' => 'konfigurasi',
+            'create' => 1,
+            'floor_id' => $floor->id,
+            'building_id' => $floor->building_id,
+            'campus_id' => $floor->building->campus_id,
+        ])
+        : null;
+@endphp
 <script>
 (function () {
     const canManage = true;
     const floorId = @json($floor->id);
+    const campusId = @json($floor->building->campus_id);
+    const buildingId = @json($floor->building_id);
     const storeUrl = @json(route('admin.locations.rooms.store'));
     const csrf = @json(csrf_token());
-    const inventoryCreateUrl = @json(auth()->user()->can('inventory.create') ? route('inventory.create') : null);
+    const inventoryCreateUrl = @json($inventoryCreateUrl);
 
     const typeIcons = {
         'Kelas': 'fa-chalkboard-teacher',
@@ -204,7 +217,7 @@
             ? `<span class="badge bg-undira-blue">${escapeHtml(room.room_type)}</span>`
             : '';
         const inventBtn = inventoryCreateUrl
-            ? `<a href="${inventoryCreateUrl}?room_id=${room.id}&floor_id=${floorId}" class="btn btn-sm btn-outline-success" title="Tambah inventaris"><i class="fas fa-plus"></i></a>`
+            ? `<a href="${inventoryCreateUrl}&room_id=${room.id}" class="btn btn-sm btn-outline-success" title="Tambah inventaris via Konfigurasi"><i class="fas fa-plus"></i></a>`
             : '';
 
         const actions = `
@@ -381,13 +394,13 @@
         }
 
         Swal.fire({
-            title: 'Hapus ruangan?',
-            html: `Apakah Anda yakin ingin menghapus ruangan <strong>${escapeHtml(name)}</strong>?`,
+            title: 'Pindahkan data ke Trash?',
+            html: `Ruangan <strong>${escapeHtml(name)}</strong> beserta inventaris di dalamnya masih dapat dipulihkan dari menu Trash.`,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#EF4444',
+            confirmButtonColor: '#2E7D32',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Hapus',
+            confirmButtonText: 'Pindahkan ke Trash',
             cancelButtonText: 'Batal',
         }).then((result) => {
             if (!result.isConfirmed) return;

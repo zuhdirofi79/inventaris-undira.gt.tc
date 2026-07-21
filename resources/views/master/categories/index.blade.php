@@ -68,7 +68,10 @@
                     <td><span class="badge {{ $category->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $category->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditCategory{{ $category->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('categories.destroy', $category) }}" method="POST" class="d-inline" data-confirm="Hapus klasifikasi ini?">
+                        <form action="{{ route('categories.destroy', $category) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>
@@ -139,7 +142,10 @@
                     <td><span class="badge {{ $unit->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $unit->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditUnit{{ $unit->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('org-units.destroy', $unit) }}" method="POST" class="d-inline" data-confirm="Hapus unit/divisi ini?">
+                        <form action="{{ route('org-units.destroy', $unit) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>
@@ -210,7 +216,10 @@
                     <td><span class="badge {{ $type->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $type->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEditProcurement{{ $type->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('procurement-types.destroy', $type) }}" method="POST" class="d-inline" data-confirm="Hapus jenis pengadaan ini?">
+                        <form action="{{ route('procurement-types.destroy', $type) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>

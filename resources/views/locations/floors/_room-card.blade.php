@@ -79,9 +79,16 @@
             <div class="d-flex flex-wrap gap-1">
                 <a href="{{ route('rooms.show', $room) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
                 @if($canManageRooms)
-                    @can('inventory.create')
-                    <a href="{{ route('inventory.create', ['room_id' => $room->id, 'floor_id' => $room->floor_id]) }}" class="btn btn-sm btn-outline-success" title="Tambah inventaris"><i class="fas fa-plus"></i></a>
-                    @endcan
+                    @canany(['inventory.create', 'category.manage'])
+                    <a href="{{ route('categories.index', [
+                            'tab' => 'konfigurasi',
+                            'create' => 1,
+                            'room_id' => $room->id,
+                            'floor_id' => $floor->id ?? $room->floor_id,
+                            'building_id' => $floor->building_id ?? null,
+                            'campus_id' => $floor->building->campus_id ?? null,
+                        ]) }}" class="btn btn-sm btn-outline-success" title="Tambah inventaris via Konfigurasi"><i class="fas fa-plus"></i></a>
+                    @endcanany
                     <button type="button" class="btn btn-sm btn-outline-warning btn-edit-room"
                         data-id="{{ $room->id }}"
                         data-code="{{ $room->code }}"

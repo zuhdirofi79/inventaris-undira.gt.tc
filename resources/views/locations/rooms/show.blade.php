@@ -19,11 +19,18 @@
             @if($room->room_type) &middot; <span class="badge bg-undira-blue">{{ $room->room_type }}</span> @endif
         </p>
     </div>
-    @can('inventory.create')
-    <a href="{{ route('inventory.create') }}?room_id={{ $room->id }}" class="btn btn-undira btn-sm mt-2">
+    @canany(['inventory.create', 'category.manage'])
+    <a href="{{ route('categories.index', [
+            'tab' => 'konfigurasi',
+            'create' => 1,
+            'room_id' => $room->id,
+            'floor_id' => $room->floor_id,
+            'building_id' => $room->floor->building_id,
+            'campus_id' => $room->floor->building->campus_id,
+        ]) }}" class="btn btn-undira btn-sm mt-2">
         <i class="fas fa-plus me-1"></i>Tambah Inventaris
     </a>
-    @endcan
+    @endcanany
 </div>
 
 <div class="row mb-4">

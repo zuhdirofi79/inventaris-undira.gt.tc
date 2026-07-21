@@ -29,7 +29,10 @@
                     <td>
                         <a href="{{ route('admin.locations.buildings.index', $campus) }}" class="btn btn-sm btn-outline-primary" title="Kelola Gedung"><i class="fas fa-building"></i></a>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $campus->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('admin.locations.campuses.destroy', $campus) }}" method="POST" class="d-inline" data-confirm="Hapus kampus?">
+                        <form action="{{ route('admin.locations.campuses.destroy', $campus) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Kampus beserta gedung/lantai/ruangan/inventaris turunannya akan masuk Trash dan masih dapat dipulihkan."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>

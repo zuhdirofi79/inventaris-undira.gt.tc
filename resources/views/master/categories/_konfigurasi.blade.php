@@ -7,13 +7,13 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h5 class="mb-0">Konfigurasi Inventaris</h5>
-        <p class="text-muted small mb-0">Pusat konfigurasi master inventaris. Nomor urut hanya di-preview (tidak dikonsumsi di halaman ini).</p>
+        <p class="text-muted small mb-0">Pusat input inventaris: lokasi → klasifikasi → data barang → QR/Barcode otomatis tersimpan ke ruangan.</p>
     </div>
-    @can('category.manage')
-    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreateConfig">
-        <i class="fas fa-plus me-1"></i>Tambah
+    @canany(['category.manage', 'inventory.create'])
+    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateConfig" data-bs-toggle="modal" data-bs-target="#modalCreateConfig">
+        <i class="fas fa-plus me-1"></i>Tambah Inventaris
     </button>
-    @endcan
+    @endcanany
 </div>
 
 <form method="GET" action="{{ route('categories.index') }}" class="card card-undira mb-3">
@@ -126,7 +126,10 @@
                                 data-config="{{ e(json_encode($editPayload)) }}">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <form action="{{ route('master-configurations.destroy', $cfg) }}" method="POST" class="d-inline" data-confirm="Nonaktifkan konfigurasi ini?">
+                            <form action="{{ route('master-configurations.destroy', $cfg) }}" method="POST" class="d-inline"
+                                  data-confirm-title="Pindahkan data ke Trash?"
+                                  data-confirm="Konfigurasi masih dapat dipulihkan dari menu Trash."
+                                  data-confirm-button="Pindahkan ke Trash">
                                 @csrf @method('DELETE')
                                 <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                             </form>
@@ -154,14 +157,14 @@
 .table-config-scroll table { min-width: 1400px; }
 </style>
 
-@can('category.manage')
+@canany(['category.manage', 'inventory.create'])
 {{-- CREATE --}}
 <div class="modal fade" id="modalCreateConfig" tabindex="-1" aria-labelledby="modalCreateConfigLabel">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <form action="{{ route('master-configurations.store') }}" method="POST" class="modal-content" id="formCreateConfig">
             @csrf
             <div class="modal-header">
-                <h5 class="modal-title" id="modalCreateConfigLabel">Tambah Konfigurasi Inventaris</h5>
+                <h5 class="modal-title" id="modalCreateConfigLabel">Tambah Inventaris via Konfigurasi</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
@@ -169,12 +172,16 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-undira">Simpan Konfigurasi</button>
+                <button type="submit" class="btn btn-undira"><i class="fas fa-save me-1"></i>Simpan Inventaris</button>
             </div>
         </form>
     </div>
 </div>
 
+@include('master.categories._config-form-script')
+@endcanany
+
+@can('category.manage')
 {{-- EDIT --}}
 <div class="modal fade" id="modalEditConfig" tabindex="-1">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -230,6 +237,4 @@
         </form>
     </div>
 </div>
-
-@include('master.categories._config-form-script')
 @endcan

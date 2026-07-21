@@ -14,6 +14,7 @@ use App\Models\PurchaseYear;
 use App\Models\RoomFunction;
 use App\Models\Setting;
 use App\Services\InventoryCodeService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -21,6 +22,9 @@ use Illuminate\View\View;
 
 class CategoryController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
     public function index(Request $request): View
     {
         $tab = $request->input('tab', 'konfigurasi');
@@ -99,25 +103,13 @@ class CategoryController extends Controller
             ->with('success', 'Klasifikasi berhasil diperbarui.');
     }
 
-    public function destroy(Category $category): RedirectResponse
+    public function destroy(Request $request, Category $category): RedirectResponse
     {
-        if ($category->subCategories()->exists()) {
-            return redirect()
-                ->route('categories.index', ['tab' => 'klasifikasi'])
-                ->with('error', 'Kategori tidak dapat dihapus karena masih memiliki sub kategori.');
-        }
-
-        if ($category->inventoryItems()->exists()) {
-            return redirect()
-                ->route('categories.index', ['tab' => 'klasifikasi'])
-                ->with('error', 'Kategori tidak dapat dihapus karena masih digunakan inventaris.');
-        }
-
-        $category->delete();
+        $this->trash->softDelete($category, $request->user());
 
         return redirect()
             ->route('categories.index', ['tab' => 'klasifikasi'])
-            ->with('success', 'Klasifikasi berhasil dihapus.');
+            ->with('success', 'Klasifikasi dipindahkan ke Trash (sub kategori ikut).');
     }
 
     protected function configurationsQuery(Request $request)

@@ -152,6 +152,27 @@
     $(function () {
         $('.config-form').each(function () { bindForm($(this)); });
 
+        // Prefill dari query (Tambah Inventaris dari Ruangan) + buka modal
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('tab') === 'konfigurasi' && (params.get('create') === '1' || params.get('room_id'))) {
+            const $form = $('#formCreateConfig');
+            const $root = $form.find('.config-form');
+            const api = $root.data('api');
+            if (api && params.get('campus_id')) {
+                (async function () {
+                    $root.find('.cfg-campus').val(String(params.get('campus_id')));
+                    await api.loadBuildings(params.get('building_id'));
+                    if (params.get('building_id')) await api.loadFloors(params.get('floor_id'));
+                    if (params.get('floor_id')) await api.loadRooms(params.get('room_id'));
+                    await api.refreshPreview();
+                    const modalEl = document.getElementById('modalCreateConfig');
+                    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                })();
+            } else if (document.getElementById('modalCreateConfig') && params.get('create') === '1') {
+                bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCreateConfig')).show();
+            }
+        }
+
         $('#modalCreateConfig').on('hidden.bs.modal', function () {
             const $form = $('#formCreateConfig');
             if (!$form.length) return;

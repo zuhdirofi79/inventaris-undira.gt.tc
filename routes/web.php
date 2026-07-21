@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\AuditLogController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\BuildingManagementController;
@@ -34,6 +34,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\TrashController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
 use Illuminate\Support\Facades\Route;
@@ -49,14 +50,33 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [LoginController::class, 'login'])->middleware('throttle:5,1');
     Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
     Route::post('/register', [RegisterController::class, 'register'])->middleware('throttle:5,1');
+
+    Route::get('/email/verify', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::post('/email/verify', [EmailVerificationController::class, 'verify'])
+        ->middleware('throttle:10,1')
+        ->name('verification.verify');
+    Route::post('/email/verify/resend', [EmailVerificationController::class, 'resend'])
+        ->middleware('throttle:3,1')
+        ->name('verification.resend');
 });
 
-// Password reset must NOT use guest middleware: an active session would
-// RedirectIfAuthenticated → dashboard (root cause of Issue #1).
+// Password reset via OTP (must NOT use guest middleware: active session would
+// RedirectIfAuthenticated → dashboard).
 Route::get('/forgot-password', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
-Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
-Route::get('/reset-password/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
-Route::post('/reset-password', [ResetPasswordController::class, 'reset'])->name('password.update');
+Route::post('/forgot-password', [ForgotPasswordController::class, 'sendResetLinkEmail'])
+    ->middleware('throttle:5,1')
+    ->name('password.email');
+Route::get('/forgot-password/otp', [ForgotPasswordController::class, 'showOtpForm'])->name('password.otp');
+Route::post('/forgot-password/otp', [ForgotPasswordController::class, 'verifyOtp'])
+    ->middleware('throttle:10,1')
+    ->name('password.otp.verify');
+Route::post('/forgot-password/otp/resend', [ForgotPasswordController::class, 'resendOtp'])
+    ->middleware('throttle:3,1')
+    ->name('password.otp.resend');
+Route::get('/reset-password', [ForgotPasswordController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])
+    ->middleware('throttle:5,1')
+    ->name('password.update');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
@@ -140,8 +160,13 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::get('/categories', [CategoryController::class, 'index'])
-        ->middleware('permission:category.manage|unit.manage|procurement.manage|supplier.manage|vendor.manage|location.manage')
+        ->middleware('permission:category.manage|unit.manage|procurement.manage|supplier.manage|vendor.manage|location.manage|inventory.create')
         ->name('categories.index');
+
+    Route::middleware('permission:category.manage|inventory.create')->group(function () {
+        Route::post('/master-configurations', [InventoryMasterConfigurationController::class, 'store'])->name('master-configurations.store');
+        Route::get('/master-configurations/preview', [InventoryMasterConfigurationController::class, 'preview'])->name('master-configurations.preview');
+    });
 
     Route::middleware('permission:category.manage')->group(function () {
         Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
@@ -152,14 +177,12 @@ Route::middleware('auth')->group(function () {
         Route::put('/sub-categories/{subCategory}', [SubCategoryController::class, 'update'])->name('sub-categories.update');
         Route::delete('/sub-categories/{subCategory}', [SubCategoryController::class, 'destroy'])->name('sub-categories.destroy');
 
-        Route::post('/master-configurations', [InventoryMasterConfigurationController::class, 'store'])->name('master-configurations.store');
         Route::put('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'update'])->name('master-configurations.update');
         Route::delete('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'destroy'])->name('master-configurations.destroy');
-        Route::get('/master-configurations/preview', [InventoryMasterConfigurationController::class, 'preview'])->name('master-configurations.preview');
         Route::post('/master-data/options', [InventoryMasterConfigurationController::class, 'storeOption'])->name('master-data.options.store');
     });
 
-    Route::middleware('permission:category.manage|location.manage|inventory.view|inventory.create|inventory.update')->group(function () {
+    Route::middleware('permission:category.manage|location.manage|inventory.view|inventory.create|inventory.update|report.view')->group(function () {
         Route::get('/master-data/campuses/{campus}/buildings', [InventoryMasterConfigurationController::class, 'buildingsByCampus'])->name('master-data.buildings.by-campus');
         Route::get('/master-data/buildings/{building}/floors', [InventoryMasterConfigurationController::class, 'floorsByBuilding'])->name('master-data.floors.by-building');
         Route::get('/master-data/floors/{floor}/rooms', [InventoryMasterConfigurationController::class, 'roomsByFloor'])->name('master-data.rooms.by-floor');
@@ -289,6 +312,12 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:audit-log.view')->group(function () {
         Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('audit-logs.index');
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
+    });
+
+    Route::middleware('role:super-admin')->group(function () {
+        Route::get('/admin/trash', [TrashController::class, 'index'])->name('trash.index');
+        Route::post('/admin/trash/{type}/{id}/restore', [TrashController::class, 'restore'])->name('trash.restore');
+        Route::delete('/admin/trash/{type}/{id}', [TrashController::class, 'forceDelete'])->name('trash.force-delete');
     });
 
     Route::middleware('permission:user.manage')->group(function () {

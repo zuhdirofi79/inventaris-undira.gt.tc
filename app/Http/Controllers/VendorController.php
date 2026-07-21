@@ -4,11 +4,17 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreVendorRequest;
 use App\Models\Vendor;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class VendorController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function index(): View
     {
         $vendors = Vendor::query()->withCount('maintenances')->orderBy('name')->paginate(20);
@@ -30,10 +36,10 @@ class VendorController extends Controller
         return back()->with('success', 'Vendor berhasil diperbarui.');
     }
 
-    public function destroy(Vendor $vendor): RedirectResponse
+    public function destroy(Request $request, Vendor $vendor): RedirectResponse
     {
-        $vendor->delete();
+        $this->trash->softDelete($vendor, $request->user());
 
-        return back()->with('success', 'Vendor berhasil dihapus.');
+        return back()->with('success', 'Vendor dipindahkan ke Trash.');
     }
 }

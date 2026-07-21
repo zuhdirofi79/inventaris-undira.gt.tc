@@ -329,12 +329,20 @@
                     <li class="nav-header">SISTEM</li>
 
                     @canany(['user.manage', 'settings.manage', 'backup.manage', 'audit-log.view'])
-                    <li class="nav-item {{ request()->routeIs('admin.users.*','admin.settings.*','audit-logs.*') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('admin.users.*','admin.settings.*','audit-logs.*','trash.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
                             <p>Admin <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @role('super-admin')
+                            <li class="nav-item">
+                                <a href="{{ route('trash.index') }}" class="nav-link {{ request()->routeIs('trash.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-trash text-secondary"></i>
+                                    <p>Trash</p>
+                                </a>
+                            </li>
+                            @endrole
                             @can('user.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
@@ -489,13 +497,13 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
     e.preventDefault();
     const form = this;
     Swal.fire({
-        title: 'Konfirmasi',
+        title: form.getAttribute('data-confirm-title') || 'Konfirmasi',
         text: form.getAttribute('data-confirm') || 'Yakin ingin melanjutkan?',
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonColor: '#2E7D32',
+        confirmButtonColor: form.getAttribute('data-confirm-color') || '#2E7D32',
         cancelButtonColor: '#6c757d',
-        confirmButtonText: 'Ya',
+        confirmButtonText: form.getAttribute('data-confirm-button') || 'Ya',
         cancelButtonText: 'Batal'
     }).then((result) => {
         if (result.isConfirmed) form.submit();

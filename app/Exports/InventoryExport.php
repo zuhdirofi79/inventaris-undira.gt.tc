@@ -77,7 +77,7 @@ class InventoryExport implements FromQuery, WithHeadings, WithMapping
             $room?->name,
             $item->purchase_year,
             $item->purchase_date?->format('Y-m-d'),
-            $item->price,
+            $item->price !== null ? $item->price : null,
             $item->supplier?->name,
             $item->vendor?->name,
             $item->responsible_person,

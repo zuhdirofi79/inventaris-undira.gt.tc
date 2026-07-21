@@ -2,9 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Exports\InventoryExport;
-use App\Models\InventoryItem;
-use App\Services\InventoryFilterService;
+use App\Exports\InventoryHierarchicalExport;
+use App\Models\Campus;
+use App\Models\Category;
+use App\Services\InventoryReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -15,37 +16,53 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
 class ReportController extends Controller
 {
     public function __construct(
-        protected InventoryFilterService $filterService,
+        protected InventoryReportService $reportService,
     ) {}
 
     public function index(): View
     {
-        return view('reports.index');
+        return view('reports.index', [
+            'campuses' => Campus::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'code']),
+        ]);
     }
 
     public function generate(Request $request): View|BinaryFileResponse|Response
     {
         $request->validate([
-            'format' => ['required', 'in:view,excel,pdf,csv'],
+            'format' => ['required', 'in:view,print,excel,pdf,csv'],
+            'campus_id' => ['nullable', 'integer'],
+            'building_id' => ['nullable', 'integer'],
+            'floor_id' => ['nullable', 'integer'],
+            'room_id' => ['nullable', 'integer'],
+            'category_id' => ['nullable', 'integer'],
+            'sub_category_id' => ['nullable', 'integer'],
+            'status' => ['nullable', 'string'],
+            'condition' => ['nullable', 'string'],
+            'purchase_year' => ['nullable', 'integer', 'min:1900', 'max:2100'],
+            'purchase_date_from' => ['nullable', 'date'],
+            'purchase_date_to' => ['nullable', 'date', 'after_or_equal:purchase_date_from'],
+            'search' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $query = $this->filterService->apply($request)
-            ->with(['category', 'subCategory', 'room.floor.building.campus', 'supplier', 'vendor']);
-
-        $items = $query->orderBy('inventory_number')->get();
-
-        $summary = [
-            'total_items' => $items->count(),
-            'total_value' => $items->sum('price'),
-            'by_status' => $items->groupBy(fn ($i) => $i->status?->value)->map->count(),
-            'by_category' => $items->groupBy(fn ($i) => $i->category?->name)->map->count(),
-        ];
+        $report = $this->reportService->build($request);
+        $stamp = now()->format('Ymd_His');
 
         return match ($request->input('format')) {
-            'excel' => Excel::download(new InventoryExport($request, $this->filterService), 'report_'.now()->format('Ymd_His').'.xlsx'),
-            'csv' => Excel::download(new InventoryExport($request, $this->filterService), 'report_'.now()->format('Ymd_His').'.csv', \Maatwebsite\Excel\Excel::CSV),
-            'pdf' => Pdf::loadView('exports.inventory-pdf', compact('items', 'summary'))->download('report_'.now()->format('Ymd_His').'.pdf'),
-            default => view('reports.result', compact('items', 'summary')),
+            'excel' => Excel::download(
+                new InventoryHierarchicalExport($report['tree'], $report['summary'], $report['filters'], $report['meta']),
+                "laporan_inventaris_{$stamp}.xlsx"
+            ),
+            'csv' => Excel::download(
+                new InventoryHierarchicalExport($report['tree'], $report['summary'], $report['filters'], $report['meta']),
+                "laporan_inventaris_{$stamp}.csv",
+                \Maatwebsite\Excel\Excel::CSV
+            ),
+            'pdf' => Pdf::loadView('exports.inventory-pdf', $report)
+                ->setPaper('a4', 'portrait')
+                ->download("laporan_inventaris_{$stamp}.pdf"),
+            'print' => view('reports.print', $report),
+            default => view('reports.result', $report),
         };
     }
 }

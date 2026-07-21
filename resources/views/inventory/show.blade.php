@@ -37,7 +37,10 @@
         <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm" title="Ubah data"><i class="fas fa-edit me-1"></i>Edit</a>
         @endcan
         @can('inventory.delete')
-        <form action="{{ route('inventory.destroy', $inventory) }}" method="POST" data-confirm="Yakin ingin menghapus inventaris ini?">
+        <form action="{{ route('inventory.destroy', $inventory) }}" method="POST"
+              data-confirm-title="Pindahkan data ke Trash?"
+              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+              data-confirm-button="Pindahkan ke Trash">
             @csrf @method('DELETE')
             <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="fas fa-trash me-1"></i>Hapus</button>
         </form>
@@ -85,7 +88,7 @@
             <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2 text-undira-green"></i>Pengadaan</h5></div>
             <div class="card-body">
                 <div class="row g-3 detail-grid">
-                    <div class="col-md-6"><div class="detail-label">Harga</div><div class="detail-value fw-semibold">Rp {{ number_format($inventory->price ?? 0, 0, ',', '.') }}</div></div>
+                    <div class="col-md-6"><div class="detail-label">Harga</div><div class="detail-value fw-semibold">{{ $inventory->price !== null ? 'Rp '.number_format((float) $inventory->price, 0, ',', '.') : '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Tahun / Tanggal Beli</div><div class="detail-value">{{ $inventory->purchase_year ?? '-' }} / {{ $inventory->purchase_date?->format('d/m/Y') ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Unit / Divisi</div><div class="detail-value">{{ $inventory->orgUnit ? $inventory->orgUnit->code.' — '.$inventory->orgUnit->name : '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Jenis Pengadaan</div><div class="detail-value">{{ $inventory->procurementType ? $inventory->procurementType->code.' — '.$inventory->procurementType->name : ($inventory->funding_source ?? '-') }}</div></div>

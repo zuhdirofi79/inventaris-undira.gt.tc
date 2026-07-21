@@ -15,11 +15,16 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('category.manage') ?? false;
+        $user = $this->user();
+
+        return ($user?->can('category.manage') || $user?->can('inventory.create')) ?? false;
     }
 
     public function rules(): array
     {
+        $isUpdate = $this->route('configuration') !== null;
+        $creatingAssets = ! $isUpdate && $this->boolean('create_assets', true);
+
         return [
             'campus_id' => ['required', ActiveExists::rule('campuses')],
             'building_id' => ['required', ActiveExists::rule('buildings')],
@@ -33,6 +38,23 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
             'sub_category_id' => ['required', ActiveExists::rule('sub_categories')],
             'inventory_condition_id' => ['required', ActiveExists::rule('inventory_conditions')],
             'is_active' => ['nullable', 'boolean'],
+            'create_assets' => ['nullable', 'boolean'],
+            // Physical inventory (required when creating assets from Konfigurasi)
+            'asset_name' => [$creatingAssets ? 'required' : 'nullable', 'string', 'max:255'],
+            'quantity' => [$creatingAssets ? 'required' : 'nullable', 'integer', 'min:1', 'max:1000'],
+            'unit' => ['nullable', 'string', 'max:50'],
+            'brand' => ['nullable', 'string', 'max:100'],
+            'price' => ['nullable', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'asset_name.required' => 'Nama barang inventaris wajib diisi.',
+            'quantity.required' => 'Jumlah unit wajib diisi.',
+            'quantity.min' => 'Jumlah minimal 1 unit.',
         ];
     }
 
@@ -49,6 +71,8 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
             $roomId = (int) $this->input('room_id');
             $categoryId = (int) $this->input('category_id');
             $subCategoryId = (int) $this->input('sub_category_id');
+            $isUpdate = $this->route('configuration') !== null;
+            $creatingAssets = ! $isUpdate && $this->boolean('create_assets', true) && filled($this->input('asset_name'));
 
             $building = Building::query()->find($buildingId);
             if (! $building || (int) $building->campus_id !== $campusId) {
@@ -107,6 +131,11 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
                 }
             }
 
+            // Duplikat konfigurasi hanya ditolak jika TIDAK membuat aset fisik
+            if ($creatingAssets) {
+                return;
+            }
+
             $ignoreId = $this->route('configuration')?->id;
             $duplicate = InventoryMasterConfiguration::query()
                 ->when($ignoreId, fn ($q) => $q->whereKeyNot($ignoreId))
@@ -132,6 +161,8 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
     {
         $this->merge([
             'is_active' => $this->boolean('is_active'),
+            'create_assets' => $this->boolean('create_assets', true),
+            'price' => $this->filled('price') ? $this->input('price') : null,
         ]);
     }
 }

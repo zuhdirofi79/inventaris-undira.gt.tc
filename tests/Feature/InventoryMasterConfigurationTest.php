@@ -122,6 +122,7 @@ class InventoryMasterConfigurationTest extends TestCase
         $admin = $this->makeSuperAdmin();
         $this->seed(MasterLookupSeeder::class);
         $payload = $this->validConfigPayload();
+        $payload['create_assets'] = 0;
 
         $this->actingAs($admin)->post(route('master-configurations.store'), $payload)
             ->assertRedirect(route('categories.index', ['tab' => 'konfigurasi']));
@@ -132,6 +133,60 @@ class InventoryMasterConfigurationTest extends TestCase
 
         $this->actingAs($admin)->post(route('master-configurations.store'), $payload)
             ->assertSessionHasErrors();
+    }
+
+    public function test_store_with_assets_creates_items_in_room_with_codes(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        $this->seed(MasterLookupSeeder::class);
+        $this->seed(InventorySettingSeeder::class);
+        Setting::set('inventory.number_format', '{sequence}', 'inventory');
+        Setting::set('inventory.sequence_padding', '6', 'inventory');
+
+        $payload = $this->validConfigPayload();
+        $roomId = $payload['room_id'];
+        $payload['create_assets'] = 1;
+        $payload['asset_name'] = 'Kursi Konfigurasi';
+        $payload['quantity'] = 2;
+        $payload['unit'] = 'Unit';
+        $payload['brand'] = 'Chitose';
+        $payload['price'] = 150000;
+
+        $this->actingAs($admin)->post(route('master-configurations.store'), $payload)
+            ->assertRedirect(route('rooms.show', $roomId));
+
+        $items = \App\Models\InventoryItem::query()->where('room_id', $roomId)->where('name', 'Kursi Konfigurasi')->get();
+        $this->assertCount(2, $items);
+
+        foreach ($items as $item) {
+            $this->assertSame($roomId, (int) $item->room_id);
+            $this->assertNotEmpty($item->inventory_number);
+            $this->assertNotEmpty($item->barcode);
+            $this->assertNotEmpty($item->qr_code_path);
+        }
+
+        $this->actingAs($admin)->get(route('rooms.show', $roomId))
+            ->assertOk()
+            ->assertSee('Kursi Konfigurasi');
+    }
+
+    public function test_inventory_create_redirects_to_konfigurasi(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        $this->seed(MasterLookupSeeder::class);
+        $payload = $this->validConfigPayload();
+        $roomId = $payload['room_id'];
+
+        $this->actingAs($admin)
+            ->get(route('inventory.create', ['room_id' => $roomId]))
+            ->assertRedirect(route('categories.index', [
+                'tab' => 'konfigurasi',
+                'create' => 1,
+                'room_id' => $roomId,
+                'floor_id' => $payload['floor_id'],
+                'building_id' => $payload['building_id'],
+                'campus_id' => $payload['campus_id'],
+            ]));
     }
 
     public function test_buildings_endpoint_scoped_to_campus(): void

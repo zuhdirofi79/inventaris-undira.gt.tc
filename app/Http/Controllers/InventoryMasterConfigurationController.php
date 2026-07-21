@@ -16,7 +16,9 @@ use App\Models\Room;
 use App\Models\RoomFunction;
 use App\Models\SubCategory;
 use App\Services\InventoryCodeService;
+use App\Services\InventoryCreationService;
 use App\Services\LocationCodeGeneratorService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,15 +29,38 @@ class InventoryMasterConfigurationController extends Controller
     public function __construct(
         protected LocationCodeGeneratorService $locationCodes,
         protected InventoryCodeService $inventoryCodes,
+        protected InventoryCreationService $inventoryCreation,
+        protected TrashCascadeService $trash,
     ) {}
 
     public function store(StoreInventoryMasterConfigurationRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $createAssets = $request->boolean('create_assets', true) && filled($data['asset_name'] ?? null);
+
+        if ($createAssets) {
+            $items = $this->inventoryCreation->createFromConfiguration(
+                $this->masterPayload($data),
+                $this->assetPayload($data),
+                $request->user(),
+            );
+
+            $roomId = (int) $data['room_id'];
+            $count = $items->count();
+
+            return redirect()
+                ->route('rooms.show', $roomId)
+                ->with('success', $count > 1
+                    ? "{$count} unit inventaris berhasil ditambahkan ke ruangan (QR & Barcode otomatis)."
+                    : 'Inventaris berhasil ditambahkan ke ruangan (QR & Barcode otomatis).');
+        }
+
+        // Legacy: simpan template konfigurasi saja (tanpa aset fisik)
         $data['generated_location_code'] = $this->buildLocationCode($data);
         $data['created_by'] = $request->user()->id;
         $data['updated_by'] = $request->user()->id;
         $data['is_active'] = $request->boolean('is_active', true);
+        unset($data['asset_name'], $data['quantity'], $data['unit'], $data['brand'], $data['price'], $data['notes'], $data['create_assets']);
 
         InventoryMasterConfiguration::query()->create($data);
 
@@ -52,6 +77,7 @@ class InventoryMasterConfigurationController extends Controller
         $data['generated_location_code'] = $this->buildLocationCode($data);
         $data['updated_by'] = $request->user()->id;
         $data['is_active'] = $request->boolean('is_active', true);
+        unset($data['asset_name'], $data['quantity'], $data['unit'], $data['brand'], $data['price'], $data['notes'], $data['create_assets']);
 
         $configuration->update($data);
 
@@ -60,21 +86,17 @@ class InventoryMasterConfigurationController extends Controller
             ->with('success', 'Konfigurasi inventaris berhasil diperbarui.');
     }
 
-    public function destroy(InventoryMasterConfiguration $configuration): RedirectResponse
+    public function destroy(Request $request, InventoryMasterConfiguration $configuration): RedirectResponse
     {
         $this->authorizeManage();
 
-        $configuration->update(['is_active' => false, 'updated_by' => auth()->id()]);
-        $configuration->delete();
+        $this->trash->softDelete($configuration, $request->user());
 
         return redirect()
             ->route('categories.index', ['tab' => 'konfigurasi'])
-            ->with('success', 'Konfigurasi dinonaktifkan (soft delete).');
+            ->with('success', 'Konfigurasi dipindahkan ke Trash.');
     }
 
-    /**
-     * Preview location code + next sequence WITHOUT allocating.
-     */
     public function preview(Request $request): JsonResponse
     {
         $this->authorizeManage();
@@ -103,12 +125,11 @@ class InventoryMasterConfigurationController extends Controller
 
         $sequence = null;
         if (! empty($data['campus_id']) && ! empty($data['category_id'])) {
-            $peek = $this->inventoryCodes->peekNextSequence(
+            $sequence = $this->inventoryCodes->peekNextSequence(
                 (int) $data['campus_id'],
                 isset($data['sub_category_id']) ? (int) $data['sub_category_id'] : null,
                 (int) $data['category_id'],
             );
-            $sequence = $peek;
         }
 
         return response()->json([
@@ -237,6 +258,45 @@ class InventoryMasterConfigurationController extends Controller
 
     /**
      * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function masterPayload(array $data): array
+    {
+        return [
+            'campus_id' => $data['campus_id'],
+            'building_id' => $data['building_id'],
+            'floor_id' => $data['floor_id'],
+            'org_unit_id' => $data['org_unit_id'],
+            'room_function_id' => $data['room_function_id'] ?? null,
+            'room_id' => $data['room_id'],
+            'procurement_type_id' => $data['procurement_type_id'],
+            'purchase_year_id' => $data['purchase_year_id'],
+            'category_id' => $data['category_id'],
+            'sub_category_id' => $data['sub_category_id'],
+            'inventory_condition_id' => $data['inventory_condition_id'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function assetPayload(array $data): array
+    {
+        return [
+            'name' => $data['asset_name'],
+            'quantity' => $data['quantity'] ?? 1,
+            'unit' => $data['unit'] ?? 'Unit',
+            'brand' => $data['brand'] ?? null,
+            'price' => array_key_exists('price', $data) && $data['price'] !== null && $data['price'] !== ''
+                ? $data['price']
+                : null,
+            'notes' => $data['notes'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
      */
     protected function buildLocationCode(array $data): string
     {
@@ -249,7 +309,10 @@ class InventoryMasterConfigurationController extends Controller
 
     protected function authorizeManage(): void
     {
-        abort_unless(auth()->user()?->can('category.manage'), 403);
+        abort_unless(
+            auth()->user()?->can('category.manage') || auth()->user()?->can('inventory.create'),
+            403
+        );
     }
 
     protected function authorizeView(): void
@@ -257,7 +320,8 @@ class InventoryMasterConfigurationController extends Controller
         abort_unless(
             auth()->user()?->can('category.manage')
             || auth()->user()?->can('location.manage')
-            || auth()->user()?->can('inventory.view'),
+            || auth()->user()?->can('inventory.view')
+            || auth()->user()?->can('inventory.create'),
             403
         );
     }

@@ -122,7 +122,37 @@
         </div>
     </div>
 
-    <div class="col-12"><h6 class="text-uppercase text-muted border-bottom pb-1 mt-2">D. Hasil Otomatis</h6></div>
+    @if(($p ?? 'create') !== 'edit')
+    <div class="col-12"><h6 class="text-uppercase text-muted border-bottom pb-1 mt-2">D. Data Inventaris Fisik</h6></div>
+    <div class="col-md-6">
+        <label class="form-label">Nama Barang <span class="text-danger">*</span></label>
+        <input type="text" name="asset_name" id="{{ $p }}_asset_name" class="form-control" value="{{ old('asset_name') }}" required placeholder="Contoh: Kursi Kuliah">
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Jumlah Unit <span class="text-danger">*</span></label>
+        <input type="number" name="quantity" id="{{ $p }}_quantity" class="form-control" value="{{ old('quantity', 1) }}" min="1" max="1000" required>
+        <div class="form-text">Tiap unit = 1 record + nomor/QR/barcode sendiri.</div>
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Satuan</label>
+        <input type="text" name="unit" id="{{ $p }}_unit" class="form-control" value="{{ old('unit', 'Unit') }}" placeholder="Unit">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Merek</label>
+        <input type="text" name="brand" id="{{ $p }}_brand" class="form-control" value="{{ old('brand') }}">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Harga (Rp)</label>
+        <input type="number" name="price" id="{{ $p }}_price" class="form-control" value="{{ old('price') }}" min="0" step="0.01">
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Catatan</label>
+        <input type="text" name="notes" id="{{ $p }}_notes" class="form-control" value="{{ old('notes') }}">
+    </div>
+    <input type="hidden" name="create_assets" value="1">
+    @endif
+
+    <div class="col-12"><h6 class="text-uppercase text-muted border-bottom pb-1 mt-2">{{ ($p ?? 'create') !== 'edit' ? 'E' : 'D' }}. Hasil Otomatis</h6></div>
     <div class="col-md-6">
         <label class="form-label">Kode Lokasi Otomatis</label>
         <input type="text" class="form-control cfg-location-preview" id="{{ $p }}_location_preview" readonly placeholder="CBB-PPPA-A-101" tabindex="-1">
@@ -131,7 +161,7 @@
     <div class="col-md-6">
         <label class="form-label">Nomor Urut Berikutnya (preview)</label>
         <input type="text" class="form-control cfg-sequence-preview" id="{{ $p }}_sequence_preview" readonly placeholder="000001" tabindex="-1">
-        <div class="form-text">Preview saja — sequence baru dikonsumsi saat aset fisik dibuat.</div>
+        <div class="form-text">Sequence dikonsumsi saat inventaris disimpan. QR Code &amp; Barcode digenerate otomatis.</div>
     </div>
 
     <div class="col-12">

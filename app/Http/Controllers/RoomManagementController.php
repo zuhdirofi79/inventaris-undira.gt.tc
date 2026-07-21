@@ -6,6 +6,7 @@ use App\Http\Requests\StoreRoomRequest;
 use App\Models\Floor;
 use App\Models\Room;
 use App\Services\DashboardTreeService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,9 @@ use Illuminate\View\View;
 
 class RoomManagementController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
     public function index(Floor $floor): View
     {
         $rooms = $floor->rooms()->withCount('inventoryItems')->orderBy('name')->paginate(20);
@@ -47,29 +51,17 @@ class RoomManagementController extends Controller
     {
         abort_unless($request->user()?->can('location.manage'), 403);
 
-        if ($room->inventoryItems()->exists()) {
-            $message = 'Ruangan masih memiliki inventaris. Pindahkan atau hapus inventaris terlebih dahulu.';
-
-            if ($request->expectsJson() || $request->ajax()) {
-                return response()->json(['message' => $message], 422);
-            }
-
-            return back()->with('error', $message);
-        }
-
         $roomId = $room->id;
-        $room->delete();
-
-        DashboardTreeService::flushCache();
+        $this->trash->softDelete($room, $request->user());
 
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
-                'message' => 'Ruangan berhasil dihapus.',
+                'message' => 'Ruangan dipindahkan ke Trash (inventaris di dalamnya ikut).',
                 'data' => ['id' => $roomId],
             ]);
         }
 
-        return back()->with('success', 'Ruangan berhasil dihapus.');
+        return back()->with('success', 'Ruangan dipindahkan ke Trash (inventaris di dalamnya ikut).');
     }
 
     public function duplicate(Request $request, Room $room): JsonResponse|RedirectResponse

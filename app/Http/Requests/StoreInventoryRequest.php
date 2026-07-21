@@ -46,4 +46,12 @@ class StoreInventoryRequest extends FormRequest
             'unit' => ['nullable', 'string', 'max:50'],
         ];
     }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'price' => $this->filled('price') ? $this->input('price') : null,
+            'depreciation_value' => $this->filled('depreciation_value') ? $this->input('depreciation_value') : null,
+        ]);
+    }
 }

@@ -19,6 +19,7 @@ class InventoryFilterService
 
         return $query
             ->filter($filters)
+            ->when(filter_var($filters['include_trash'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->withTrashed())
             ->when($filters['brand'] ?? null, fn (Builder $q, $brand) => $q->where('brand', 'like', "%{$brand}%"))
             ->when(filter_var($filters['borrowed'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->where(function (Builder $inner) {
                 $inner->where('status', InventoryStatus::Dipinjam)
@@ -59,6 +60,7 @@ class InventoryFilterService
             'maintenance' => $request->input('maintenance'),
             'lost' => $request->input('lost'),
             'group_key' => $request->input('group_key'),
+            'include_trash' => $request->boolean('include_trash'),
         ];
     }
 }

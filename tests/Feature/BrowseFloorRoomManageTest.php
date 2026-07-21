@@ -99,7 +99,7 @@ class BrowseFloorRoomManageTest extends TestCase
         ])->assertForbidden();
     }
 
-    public function test_cannot_delete_room_with_inventory(): void
+    public function test_delete_room_with_inventory_moves_both_to_trash(): void
     {
         $admin = $this->makeSuperAdmin();
         ['floor' => $floor] = $this->seedFloor();
@@ -120,7 +120,7 @@ class BrowseFloorRoomManageTest extends TestCase
             'is_active' => true,
         ]);
 
-        InventoryItem::query()->create([
+        $item = InventoryItem::query()->create([
             'room_id' => $room->id,
             'category_id' => $category->id,
             'name' => 'Kursi',
@@ -130,11 +130,9 @@ class BrowseFloorRoomManageTest extends TestCase
         ]);
 
         $response = $this->actingAs($admin)->deleteJson(route('admin.locations.rooms.destroy', $room));
-        $response->assertStatus(422);
-        $response->assertJsonFragment([
-            'message' => 'Ruangan masih memiliki inventaris. Pindahkan atau hapus inventaris terlebih dahulu.',
-        ]);
-        $this->assertDatabaseHas('rooms', ['id' => $room->id, 'deleted_at' => null]);
+        $response->assertOk();
+        $this->assertSoftDeleted($room);
+        $this->assertSoftDeleted($item);
     }
 
     public function test_duplicate_and_update_room_via_ajax(): void

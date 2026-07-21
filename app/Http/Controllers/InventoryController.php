@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\AuditAction;
 use App\Enums\InventoryStatus;
 use App\Http\Requests\BulkRelocateInventoryRequest;
-use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\UpdateInventoryRequest;
 use App\Models\Campus;
 use App\Models\Category;
@@ -22,6 +21,7 @@ use App\Services\DashboardTreeService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
 use App\Services\LocationHierarchyService;
+use App\Services\TrashCascadeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -35,6 +35,7 @@ class InventoryController extends Controller
         protected InventoryCodeService $codeService,
         protected InventoryFilterService $filterService,
         protected LocationHierarchyService $locationHierarchy,
+        protected TrashCascadeService $trash,
     ) {}
 
     /**
@@ -216,58 +217,35 @@ class InventoryController extends Controller
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): RedirectResponse
     {
-        return view('inventory.create', $this->formLookups());
+        $params = ['tab' => 'konfigurasi', 'create' => 1];
+
+        if ($request->filled('room_id')) {
+            $room = Room::query()->with('floor.building.campus')->find($request->integer('room_id'));
+            if ($room) {
+                $params['room_id'] = $room->id;
+                $params['floor_id'] = $room->floor_id;
+                $params['building_id'] = $room->floor?->building_id;
+                $params['campus_id'] = $room->floor?->building?->campus_id;
+            }
+        } else {
+            foreach (['campus_id', 'building_id', 'floor_id', 'room_id'] as $key) {
+                if ($request->filled($key)) {
+                    $params[$key] = $request->integer($key);
+                }
+            }
+        }
+
+        return redirect()->route('categories.index', array_filter($params));
     }
 
-    public function store(StoreInventoryRequest $request): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
-        $data = $this->syncProcurementFunding($request->validated());
-        $room = Room::query()->findOrFail($data['room_id']);
-        $category = Category::query()->findOrFail($data['category_id']);
-        $subCategory = ! empty($data['sub_category_id'])
-            ? SubCategory::query()->find($data['sub_category_id'])
-            : null;
-        $orgUnit = ! empty($data['org_unit_id'])
-            ? OrgUnit::query()->find($data['org_unit_id'])
-            : null;
-        $quantity = (int) ($data['quantity'] ?? 1);
-        unset($data['quantity']);
-
-        $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
-
-        DB::transaction(function () use ($data, $room, $category, $subCategory, $orgUnit, $quantity, $groupKey, $request) {
-            for ($i = 0; $i < $quantity; $i++) {
-                $inventoryNumber = $this->codeService->generateInventoryNumber(
-                    $room,
-                    $category,
-                    $subCategory,
-                    $orgUnit,
-                );
-
-                $item = InventoryItem::query()->create([
-                    ...$data,
-                    'inventory_number' => $inventoryNumber,
-                    'group_key' => $groupKey,
-                    'unit_sequence' => $i + 1,
-                    'quantity' => 1,
-                    'created_by' => $request->user()->id,
-                    'updated_by' => $request->user()->id,
-                ]);
-
-                $this->codeService->generateAndSaveCodes($item);
-                $this->auditLogService->log($request->user(), AuditAction::Create, $item, null, $item->toArray());
-            }
-        });
-
-        DashboardTreeService::flushCache();
-
+        // Single entry-point: physical assets are created only via Konfigurasi Inventaris.
         return redirect()
-            ->route('inventory.category', $category)
-            ->with('success', $quantity > 1
-                ? "{$quantity} unit inventaris berhasil ditambahkan (1 aset = 1 record)."
-                : 'Inventaris berhasil ditambahkan.');
+            ->route('categories.index', ['tab' => 'konfigurasi', 'create' => 1])
+            ->with('error', 'Inventaris fisik hanya dapat dibuat melalui menu Konfigurasi Inventaris.');
     }
 
     public function show(InventoryItem $inventory): View
@@ -314,39 +292,27 @@ class InventoryController extends Controller
 
     public function destroy(Request $request, InventoryItem $inventory): RedirectResponse
     {
-        $oldValues = $inventory->toArray();
         $categoryId = $inventory->category_id;
-        $inventory->delete();
-
-        $this->auditLogService->log($request->user(), AuditAction::Delete, $inventory, $oldValues, null);
-
-        DashboardTreeService::flushCache();
+        $this->trash->softDelete($inventory, $request->user());
 
         return redirect()
             ->route('inventory.category', $categoryId)
-            ->with('success', 'Inventaris dipindahkan ke trash.');
+            ->with('success', 'Inventaris dipindahkan ke Trash.');
     }
 
-    public function trash(): View
+    public function trash(): RedirectResponse
     {
-        $items = InventoryItem::onlyTrashed()
-            ->with(['category', 'room.floor.building.campus'])
-            ->latest('deleted_at')
-            ->paginate(20);
-
-        return view('inventory.trash', compact('items'));
+        return redirect()->route('trash.index', ['tab' => 'inventaris']);
     }
 
     public function restore(Request $request, int $id): RedirectResponse
     {
         $inventory = InventoryItem::onlyTrashed()->findOrFail($id);
-        $inventory->restore();
+        $this->trash->restore($inventory, $request->user());
 
-        $this->auditLogService->log($request->user(), AuditAction::Restore, $inventory, null, $inventory->toArray());
-
-        DashboardTreeService::flushCache();
-
-        return back()->with('success', 'Inventaris berhasil dipulihkan.');
+        return redirect()
+            ->route('trash.index', ['tab' => 'inventaris'])
+            ->with('success', 'Inventaris berhasil dipulihkan.');
     }
 
     public function groupUnits(string $groupKey): View

@@ -30,7 +30,10 @@
                     <td><span class="badge {{ $room->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $room->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $room->id }}"><i class="fas fa-edit"></i></button>
-                        <form action="{{ route('admin.locations.rooms.destroy', $room) }}" method="POST" class="d-inline" data-confirm="Hapus ruangan?">
+                        <form action="{{ route('admin.locations.rooms.destroy', $room) }}" method="POST" class="d-inline"
+                              data-confirm-title="Pindahkan data ke Trash?"
+                              data-confirm="Ruangan beserta inventaris di dalamnya akan masuk Trash dan masih dapat dipulihkan."
+                              data-confirm-button="Pindahkan ke Trash">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
                         </form>

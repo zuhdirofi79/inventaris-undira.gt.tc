@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\TracksTrashMeta;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Campus extends Model
 {
     use SoftDeletes;
+    use TracksTrashMeta;
 
     protected $fillable = [
         'code',

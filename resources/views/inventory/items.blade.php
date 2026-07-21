@@ -17,7 +17,7 @@
         <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-university me-1"></i>Per Kampus</a>
         <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-th-large me-1"></i>Per Kategori</a>
         @can('inventory.create')
-        <a href="{{ route('inventory.create') }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
         @endcan
         @can('inventory.export')
         <div class="btn-group btn-group-sm">
