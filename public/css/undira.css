@@ -529,6 +529,7 @@ body {
   color: var(--undira-muted);
 }
 
+/* Legacy brand helpers; authenticated sidebar brand is in undira-layout.css */
 .brand-link-undira,
 .undira-brand-link {
   display: flex !important;
@@ -537,7 +538,7 @@ body {
 }
 .undira-logo-container {
   background: #fff;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 4px;
   display: inline-flex;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);

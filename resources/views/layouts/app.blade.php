@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/undira-layout.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
     @stack('styles')
 </head>
@@ -27,26 +28,36 @@
 <div class="wrapper">
 
     <nav class="main-header navbar navbar-expand navbar-white navbar-light navbar-undira">
-        <ul class="navbar-nav">
+        <ul class="navbar-nav align-items-center">
             <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button" title="Buka/tutup menu" aria-label="Buka menu"><i class="fas fa-bars"></i></a>
+                <a class="nav-link"
+                   data-widget="pushmenu"
+                   href="#"
+                   role="button"
+                   id="sidebarToggle"
+                   title="Buka/tutup menu"
+                   aria-label="Buka atau tutup menu navigasi"
+                   aria-controls="main-sidebar"
+                   aria-expanded="true">
+                    <i class="fas fa-bars" aria-hidden="true"></i>
+                </a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a href="{{ route('dashboard') }}" class="nav-link navbar-undira-brand">
-                    <img src="{{ asset('images/logo-undira.png') }}" alt="Logo UNDIRA" class="navbar-undira-logo">
-                    <span class="navbar-undira-title">Inventaris UNDIRA<span class="navbar-undira-sub">Universitas Dian Nusantara</span></span>
+                <a href="{{ route('dashboard') }}" class="nav-link app-identity">
+                    <span class="app-identity-title">Inventaris UNDIRA</span>
+                    <span class="app-identity-subtitle">Universitas Dian Nusantara</span>
                 </a>
             </li>
         </ul>
-        <ul class="navbar-nav ms-auto">
+        <ul class="navbar-nav ms-auto align-items-center">
             <li class="nav-item">
-                <a class="nav-link" href="#" id="darkModeToggle" title="Mode Gelap">
-                    <i class="fas fa-moon"></i>
+                <a class="nav-link" href="#" id="darkModeToggle" title="Mode Gelap" aria-label="Alihkan mode gelap">
+                    <i class="fas fa-moon" aria-hidden="true"></i>
                 </a>
             </li>
             <li class="nav-item dropdown">
-                <a class="nav-link" data-bs-toggle="dropdown" href="#" id="notificationDropdown">
-                    <i class="fas fa-bell"></i>
+                <a class="nav-link" data-bs-toggle="dropdown" href="#" id="notificationDropdown" aria-label="Notifikasi">
+                    <i class="fas fa-bell" aria-hidden="true"></i>
                     <span class="badge badge-warning navbar-badge" id="notificationCount" style="display:none;">0</span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="notificationDropdownMenu">
@@ -58,8 +69,8 @@
                 </div>
             </li>
             <li class="nav-item dropdown">
-                <a class="nav-link" data-bs-toggle="dropdown" href="#">
-                    <i class="fas fa-user-circle"></i>
+                <a class="nav-link" data-bs-toggle="dropdown" href="#" aria-label="Menu akun">
+                    <i class="fas fa-user-circle" aria-hidden="true"></i>
                     <span class="d-none d-md-inline ms-1">{{ auth()->user()->name }}</span>
                 </a>
                 <div class="dropdown-menu dropdown-menu-end">
@@ -81,33 +92,34 @@
         </ul>
     </nav>
 
-    <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira">
-        <a href="{{ route('dashboard') }}" class="brand-link brand-link-undira undira-brand-link">
-            <div class="undira-logo-container">
+    <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira" id="main-sidebar" aria-label="Navigasi utama">
+        <a href="{{ route('dashboard') }}" class="brand-link undira-sidebar-brand" title="Inventaris UNDIRA">
+            <span class="undira-sidebar-logo-wrap">
                 <img
-                    src="{{ asset('images/logo-undira.png') }}"
+                    src="{{ asset('images/LOGO UNDIRA.png') }}"
                     alt="Logo Universitas Dian Nusantara"
-                    class="undira-brand-logo"
+                    class="undira-sidebar-logo"
+                    decoding="async"
                 >
-            </div>
-            <span class="brand-text font-weight-light">Inventaris UNDIRA</span>
+            </span>
+            <span class="undira-brand-mark" aria-hidden="true">UN</span>
         </a>
 
         <div class="sidebar">
-            <div class="user-panel mt-3 pb-3 mb-3 d-flex user-panel-undira">
+            <div class="user-panel user-panel-undira d-flex">
                 <div class="image">
-                    <div class="img-circle elevation-2 bg-undira-green d-flex align-items-center justify-content-center" style="width:34px;height:34px;">
+                    <div class="user-avatar" aria-hidden="true">
                         <i class="fas fa-user text-white"></i>
                     </div>
                 </div>
-                <div class="info ms-2">
-                    <a href="#" class="d-block text-white">{{ auth()->user()->name }}</a>
-                    <small class="text-muted">
+                <div class="info">
+                    <span class="user-name">{{ auth()->user()->name }}</span>
+                    <span class="user-meta">
                         <span class="status-indicator"></span> Online
                         @if(auth()->user()->roles->isNotEmpty())
                             &middot; {{ auth()->user()->roles->first()->name }}
                         @endif
-                    </small>
+                    </span>
                 </div>
             </div>
 
@@ -402,6 +414,8 @@
     </footer>
 </div>
 
+<div class="undira-sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
+
 <div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" aria-busy="false">
     <div class="undira-loader">
         <div class="undira-loader-logo-wrap">
@@ -509,6 +523,81 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         if (result.isConfirmed) form.submit();
     });
 });
+
+// Sidebar / overlay sync (AdminLTE PushMenu)
+(function () {
+    const body = document.body;
+    const toggle = document.getElementById('sidebarToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    const mq = window.matchMedia('(max-width: 991.98px)');
+
+    function pushMenu(action) {
+        const $btn = $('[data-widget="pushmenu"]');
+        if ($btn.length && typeof $btn.PushMenu === 'function') {
+            $btn.PushMenu(action);
+            return;
+        }
+        if (action === 'collapse') {
+            body.classList.remove('sidebar-open');
+            body.classList.add('sidebar-collapse');
+        }
+    }
+
+    function isExpanded() {
+        if (mq.matches) {
+            return body.classList.contains('sidebar-open');
+        }
+        return !body.classList.contains('sidebar-collapse');
+    }
+
+    function syncChrome() {
+        const expanded = isExpanded();
+        if (toggle) {
+            toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        }
+        if (backdrop) {
+            const showBackdrop = mq.matches && body.classList.contains('sidebar-open');
+            backdrop.setAttribute('aria-hidden', showBackdrop ? 'false' : 'true');
+        }
+    }
+
+    const observer = new MutationObserver(syncChrome);
+    observer.observe(body, { attributes: true, attributeFilter: ['class'] });
+
+    backdrop?.addEventListener('click', function () {
+        pushMenu('collapse');
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && mq.matches && body.classList.contains('sidebar-open')) {
+            pushMenu('collapse');
+        }
+    });
+
+    document.getElementById('main-sidebar')?.addEventListener('click', function (e) {
+        if (!mq.matches) return;
+        const link = e.target.closest('a.nav-link[href]');
+        if (!link) return;
+        const href = link.getAttribute('href') || '';
+        if (!href || href === '#' || href.startsWith('javascript:')) return;
+        setTimeout(function () { pushMenu('collapse'); }, 80);
+    });
+
+    function onViewportChange() {
+        if (!mq.matches) {
+            body.classList.remove('sidebar-open');
+        }
+        syncChrome();
+    }
+
+    if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', onViewportChange);
+    } else if (typeof mq.addListener === 'function') {
+        mq.addListener(onViewportChange);
+    }
+
+    syncChrome();
+})();
 </script>
 @stack('scripts')
 </body>

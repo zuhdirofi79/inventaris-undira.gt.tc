@@ -9,14 +9,21 @@ class SuperAdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::updateOrCreate(
-            ['email' => 'azwar.syifa.mufiqi@undira.ac.id'],
-            [
-                'name' => 'Azwar Syifa Mufiqi',
-                'password' => 'Undira@2026',
-                'is_active' => true,
-            ]
-        );
+        $email = 'azwar.syifa.mufiqi@undira.ac.id';
+
+        $user = User::query()->firstOrNew(['email' => $email]);
+
+        // Password only on first create — never overwrite an existing hash on reseed.
+        if (! $user->exists) {
+            $user->password = 'Undira@2026';
+        }
+
+        $user->fill([
+            'name' => 'Azwar Syifa Mufiqi',
+            'is_active' => true,
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ]);
+        $user->save();
 
         $user->syncRoles(['super-admin']);
     }

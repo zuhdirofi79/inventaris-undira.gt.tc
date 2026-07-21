@@ -10,7 +10,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'phone', 'identity_number', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'phone', 'identity_number', 'is_active', 'email_verified_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -27,5 +27,23 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->hasRole('super-admin');
+    }
+
+    /**
+     * Super Admin bypasses email OTP verification.
+     */
+    public function requiresEmailVerification(): bool
+    {
+        return ! $this->isSuperAdmin();
+    }
+
+    public function hasVerifiedEmailAddress(): bool
+    {
+        return $this->email_verified_at !== null;
     }
 }

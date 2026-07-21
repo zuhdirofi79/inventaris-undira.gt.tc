@@ -29,6 +29,18 @@ class EmailVerificationController extends Controller
                 ->withErrors(['email' => 'Sesi verifikasi tidak ditemukan. Silakan daftar ulang.']);
         }
 
+        // Super Admin never needs OTP verification.
+        if ($user->isSuperAdmin()) {
+            $request->session()->forget('pending_verification_user_id');
+
+            if (! Auth::check()) {
+                Auth::login($user);
+                $request->session()->regenerate();
+            }
+
+            return redirect()->route('dashboard');
+        }
+
         if ($user->email_verified_at && $user->is_active) {
             $request->session()->forget('pending_verification_user_id');
 

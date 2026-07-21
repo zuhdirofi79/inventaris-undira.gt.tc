@@ -3,60 +3,75 @@
 @section('title', 'Login - Inventaris UNDIRA')
 
 @section('content')
-<form action="{{ route('login') }}" method="POST" class="auth-form" novalidate>
+<form action="{{ route('login') }}" method="POST" class="auth-form" id="loginForm" novalidate>
     @csrf
 
     <div class="mb-3">
-        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-        <div class="input-group input-group-undira">
-            <span class="input-group-text" aria-hidden="true"><i class="fas fa-envelope"></i></span>
-            <input type="email" name="email" id="email"
-                   class="form-control @error('email') is-invalid @enderror"
+        <label for="email" class="form-label">Email <span class="text-danger" aria-hidden="true">*</span></label>
+        <div class="auth-field @error('email') is-invalid @enderror" data-field="email">
+            <span class="auth-field__icon" aria-hidden="true"><i class="fas fa-envelope"></i></span>
+            <input type="email"
+                   name="email"
+                   id="email"
+                   class="form-control auth-field__input"
                    value="{{ old('email') }}"
                    placeholder="nama@undira.ac.id"
                    autocomplete="username"
-                   required autofocus>
+                   inputmode="email"
+                   required
+                   autofocus
+                   aria-required="true"
+                   aria-describedby="emailHelp">
         </div>
-        @error('email')
-            <div class="invalid-feedback d-block"><i class="fas fa-exclamation-circle me-1"></i>{{ $message }}</div>
-        @enderror
-        <div class="form-text">Gunakan email resmi UNDIRA.</div>
+        <div class="auth-field-hint" id="emailHelp">Gunakan email resmi UNDIRA.</div>
     </div>
 
     <div class="mb-3">
-        <label for="password" class="form-label">Password <span class="text-danger">*</span></label>
-        <div class="input-group input-group-undira">
-            <span class="input-group-text" aria-hidden="true"><i class="fas fa-lock"></i></span>
-            <input type="password" name="password" id="password"
-                   class="form-control @error('password') is-invalid @enderror"
+        <label for="password" class="form-label">Password <span class="text-danger" aria-hidden="true">*</span></label>
+        <div class="auth-field @error('password') is-invalid @enderror" data-field="password">
+            <span class="auth-field__icon" aria-hidden="true"><i class="fas fa-lock"></i></span>
+            <input type="password"
+                   name="password"
+                   id="password"
+                   class="form-control auth-field__input"
                    placeholder="Masukkan password"
                    autocomplete="current-password"
-                   required>
-            <button type="button" class="btn btn-outline-secondary" id="togglePassword" title="Tampilkan password" aria-label="Tampilkan password">
-                <i class="fas fa-eye"></i>
+                   required
+                   aria-required="true">
+            <button type="button"
+                    class="auth-field__toggle"
+                    id="togglePassword"
+                    title="Tampilkan password"
+                    aria-label="Tampilkan password"
+                    aria-controls="password"
+                    aria-pressed="false">
+                <i class="fas fa-eye" aria-hidden="true"></i>
             </button>
         </div>
-        @error('password')
-            <div class="invalid-feedback d-block"><i class="fas fa-exclamation-circle me-1"></i>{{ $message }}</div>
-        @enderror
     </div>
 
-    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
-        <div class="form-check">
-            <input type="checkbox" name="remember" id="remember" class="form-check-input" {{ old('remember') ? 'checked' : '' }}>
-            <label class="form-check-label" for="remember">Ingat saya</label>
-        </div>
-        <a href="{{ route('password.request') }}" class="text-decoration-none text-undira-green small fw-semibold">Lupa password?</a>
+    <div class="auth-row">
+        <label class="auth-remember" for="remember">
+            <input type="checkbox"
+                   name="remember"
+                   id="remember"
+                   value="1"
+                   {{ old('remember') ? 'checked' : '' }}>
+            <span class="auth-remember__box" aria-hidden="true"><i class="fas fa-check"></i></span>
+            <span>Ingat saya</span>
+        </label>
+        <a href="{{ route('password.request') }}" class="auth-link">Lupa password?</a>
     </div>
 
-    <button type="submit" id="btnLogin" class="btn btn-undira btn-lg w-100 py-2 fw-semibold">
-        <i class="fas fa-sign-in-alt me-2"></i>Masuk ke Sistem
+    <button type="submit" id="btnLogin" class="btn btn-auth-login">
+        <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
+        <span class="btn-auth-login__label">Masuk ke Sistem</span>
     </button>
     <p class="auth-login-hint" id="loginHint" aria-live="polite"></p>
 
-    <p class="text-center mt-4 mb-0 text-muted small">
+    <p class="auth-signup">
         Belum punya akun?
-        <a href="{{ route('register') }}" class="text-undira-blue fw-semibold text-decoration-none">Daftar sebagai Viewer</a>
+        <a href="{{ route('register') }}" class="auth-link auth-link--blue">Daftar sebagai Viewer</a>
     </p>
 </form>
 @endsection
@@ -68,27 +83,92 @@
 @push('scripts')
 <script src="{{ asset('js/undira-loading.js') }}"></script>
 <script>
-document.getElementById('togglePassword')?.addEventListener('click', function () {
-    const input = document.getElementById('password');
-    const icon = this.querySelector('i');
-    const show = input.type === 'password';
-    input.type = show ? 'text' : 'password';
-    icon.classList.toggle('fa-eye', !show);
-    icon.classList.toggle('fa-eye-slash', show);
-    this.setAttribute('title', show ? 'Sembunyikan password' : 'Tampilkan password');
-    this.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
-});
+(function () {
+    var form = document.getElementById('loginForm');
+    var email = document.getElementById('email');
+    var password = document.getElementById('password');
+    var toggle = document.getElementById('togglePassword');
+    var btn = document.getElementById('btnLogin');
+    var hint = document.getElementById('loginHint');
 
-document.querySelector('.auth-form')?.addEventListener('submit', function () {
-    const btn = document.getElementById('btnLogin');
-    const hint = document.getElementById('loginHint');
-    if (typeof setButtonLoading === 'function') {
-        setButtonLoading(btn, true, 'Memproses Login...');
-    } else if (btn) {
-        btn.disabled = true;
-        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses Login...';
+    function wrapOf(el) {
+        return el ? el.closest('.auth-field') : null;
     }
-    if (hint) hint.textContent = 'Mohon tunggu sebentar';
-});
+
+    function setValidity(input, ok) {
+        var wrap = wrapOf(input);
+        if (!wrap || !input.value) {
+            if (wrap) {
+                wrap.classList.remove('is-valid', 'is-invalid');
+            }
+            return;
+        }
+        wrap.classList.toggle('is-valid', ok);
+        wrap.classList.toggle('is-invalid', !ok);
+    }
+
+    function validateEmail() {
+        if (!email) return true;
+        var ok = email.checkValidity();
+        setValidity(email, ok);
+        return ok;
+    }
+
+    function validatePassword() {
+        if (!password) return true;
+        var ok = password.value.length > 0;
+        setValidity(password, ok);
+        return ok;
+    }
+
+    email?.addEventListener('input', validateEmail);
+    email?.addEventListener('blur', validateEmail);
+    password?.addEventListener('input', validatePassword);
+    password?.addEventListener('blur', validatePassword);
+
+    toggle?.addEventListener('click', function () {
+        var show = password.type === 'password';
+        password.type = show ? 'text' : 'password';
+        var icon = this.querySelector('i');
+        icon.classList.toggle('fa-eye', !show);
+        icon.classList.toggle('fa-eye-slash', show);
+        this.setAttribute('aria-pressed', show ? 'true' : 'false');
+        this.setAttribute('title', show ? 'Sembunyikan password' : 'Tampilkan password');
+        this.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+    });
+
+    form?.addEventListener('submit', function (e) {
+        var emailOk = validateEmail();
+        var passOk = validatePassword();
+        if (!emailOk || !passOk) {
+            e.preventDefault();
+            if (!emailOk) email.focus();
+            else password.focus();
+            return;
+        }
+
+        if (btn) {
+            btn.disabled = true;
+            var label = btn.querySelector('.btn-auth-login__label');
+            if (label) label.textContent = 'Memverifikasi...';
+            else btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memverifikasi...';
+
+            if (!btn.querySelector('.spinner-border')) {
+                var spin = document.createElement('span');
+                spin.className = 'spinner-border spinner-border-sm';
+                spin.setAttribute('role', 'status');
+                spin.setAttribute('aria-hidden', 'true');
+                var icon = btn.querySelector('.fa-sign-in-alt');
+                if (icon) icon.replaceWith(spin);
+                else btn.prepend(spin);
+            }
+
+            if (typeof setButtonLoading === 'function') {
+                /* keep disabled state consistent with shared helper */
+            }
+        }
+        if (hint) hint.textContent = 'Mohon tunggu sebentar';
+    });
+})();
 </script>
 @endpush

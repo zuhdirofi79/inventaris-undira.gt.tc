@@ -1,0 +1,336 @@
+/* UNDIRA authenticated layout — sidebar / navbar / content sync */
+
+:root {
+  --sidebar-expanded-width: 260px;
+  --sidebar-collapsed-width: 4.6rem; /* AdminLTE mini icon rail */
+  --topbar-height: 64px;
+  --layout-transition: 200ms ease;
+  --undira-brand-bg: #ffffff;
+}
+
+/* —— Unified width overrides (AdminLTE sync) —— */
+body.sidebar-mini.layout-fixed .main-sidebar,
+body.sidebar-mini.layout-fixed .main-sidebar::before {
+  width: var(--sidebar-expanded-width);
+}
+
+body.sidebar-mini:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .content-wrapper,
+body.sidebar-mini:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-footer,
+body.sidebar-mini:not(.sidebar-mini-md):not(.sidebar-mini-xs):not(.layout-top-nav) .main-header {
+  margin-left: var(--sidebar-expanded-width);
+  transition: margin-left var(--layout-transition);
+}
+
+body.sidebar-mini.sidebar-collapse .main-sidebar,
+body.sidebar-mini.sidebar-collapse .main-sidebar::before {
+  width: var(--sidebar-collapsed-width) !important;
+}
+
+body.sidebar-mini.sidebar-collapse .content-wrapper,
+body.sidebar-mini.sidebar-collapse .main-footer,
+body.sidebar-mini.sidebar-collapse .main-header {
+  margin-left: var(--sidebar-collapsed-width) !important;
+}
+
+body.sidebar-mini .main-sidebar {
+  transition: width var(--layout-transition), margin-left var(--layout-transition);
+}
+
+/* —— Top navbar —— */
+.main-header.navbar.navbar-undira {
+  min-height: var(--topbar-height);
+  height: var(--topbar-height);
+  align-items: center;
+  padding: 0 0.75rem;
+}
+
+.navbar-undira .nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0.4rem 0.65rem;
+}
+
+.navbar-undira .nav-link[data-widget="pushmenu"] {
+  color: var(--undira-blue, #1A237E);
+  border-radius: 8px;
+}
+
+.navbar-undira .nav-link[data-widget="pushmenu"]:hover,
+.navbar-undira .nav-link[data-widget="pushmenu"]:focus-visible {
+  background: rgba(26, 35, 126, 0.06);
+  outline: none;
+}
+
+.app-identity {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  max-width: min(420px, 46vw);
+  padding: 0 0.25rem;
+  text-decoration: none !important;
+  line-height: 1.15;
+}
+
+.app-identity-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--undira-blue, #1A237E);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-identity-subtitle {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--undira-muted, #64748B);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.1rem;
+}
+
+/* —— Sidebar brand (logo only) —— */
+.undira-sidebar-brand.brand-link {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  min-height: 76px;
+  height: auto;
+  padding: 9px 14px !important;
+  margin: 0 !important;
+  background: var(--undira-brand-bg) !important;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08) !important;
+  box-shadow: none !important;
+  overflow: hidden;
+}
+
+.undira-sidebar-brand .brand-image,
+.undira-sidebar-brand .brand-text {
+  display: none !important;
+}
+
+.undira-sidebar-logo-wrap {
+  width: 100%;
+  max-width: 220px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.undira-sidebar-logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 0 !important;
+}
+
+.undira-brand-mark {
+  display: none;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #1A237E, #283593);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+
+/* Collapsed desktop: hide full logo, show compact mark */
+body.sidebar-mini.sidebar-collapse .undira-sidebar-brand.brand-link {
+  min-height: var(--sidebar-collapsed-width);
+  padding: 0.55rem 0.35rem !important;
+}
+
+body.sidebar-mini.sidebar-collapse .undira-sidebar-logo-wrap {
+  display: none;
+}
+
+body.sidebar-mini.sidebar-collapse .undira-brand-mark {
+  display: inline-flex;
+}
+
+/* —— User panel —— */
+.user-panel-undira {
+  align-items: center !important;
+  padding: 0.85rem 1rem !important;
+  margin: 0 !important;
+  gap: 0.65rem;
+  overflow: hidden;
+}
+
+.user-panel-undira .image {
+  flex-shrink: 0;
+  padding-left: 0 !important;
+}
+
+.user-panel-undira .user-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--undira-green, #2E7D32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.user-panel-undira .info {
+  min-width: 0;
+  flex: 1;
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.user-panel-undira .info .user-name {
+  display: block;
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-decoration: none !important;
+}
+
+.user-panel-undira .info .user-meta {
+  display: block;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.sidebar-mini.sidebar-collapse .user-panel-undira .info {
+  display: none !important;
+}
+
+body.sidebar-mini.sidebar-collapse .user-panel-undira {
+  justify-content: center;
+  padding: 0.75rem 0.35rem !important;
+}
+
+/* Prevent horizontal scroll inside sidebar */
+.main-sidebar .sidebar {
+  overflow-x: hidden;
+}
+
+.nav-sidebar .nav-link p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* —— Mobile overlay —— */
+.undira-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1035;
+  background: rgba(15, 23, 42, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--layout-transition), visibility var(--layout-transition);
+}
+
+body.sidebar-open .undira-sidebar-backdrop {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* —— Tablet / mobile: off-canvas —— */
+@media (max-width: 991.98px) {
+  body.sidebar-mini .content-wrapper,
+  body.sidebar-mini .main-footer,
+  body.sidebar-mini .main-header {
+    margin-left: 0 !important;
+  }
+
+  body.sidebar-mini .main-sidebar,
+  body.sidebar-mini .main-sidebar::before {
+    width: var(--sidebar-expanded-width) !important;
+  }
+
+  /* Always show full logo on mobile drawer (ignore desktop collapse logo hide) */
+  body.sidebar-mini.sidebar-collapse .undira-sidebar-logo-wrap {
+    display: flex;
+  }
+
+  body.sidebar-mini.sidebar-collapse .undira-brand-mark {
+    display: none;
+  }
+
+  body.sidebar-mini.sidebar-collapse .user-panel-undira .info {
+    display: block !important;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .app-identity-subtitle {
+    display: none;
+  }
+
+  .app-identity-title {
+    font-size: 1rem;
+  }
+
+  .app-identity {
+    max-width: min(240px, 52vw);
+  }
+}
+
+@media (max-width: 575.98px) {
+  .app-identity-title {
+    max-width: 42vw;
+  }
+}
+
+/* —— Dark mode —— */
+body.dark-mode .undira-sidebar-brand.brand-link {
+  background: #ffffff !important;
+  border-bottom-color: rgba(15, 23, 42, 0.12) !important;
+}
+
+body.dark-mode .app-identity-title {
+  color: #C7D2FE;
+}
+
+body.dark-mode .app-identity-subtitle {
+  color: #94A3B8;
+}
+
+body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"] {
+  color: #C7D2FE;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.sidebar-mini .main-sidebar,
+  body.sidebar-mini .content-wrapper,
+  body.sidebar-mini .main-footer,
+  body.sidebar-mini .main-header,
+  .undira-sidebar-backdrop {
+    transition: none !important;
+  }
+}

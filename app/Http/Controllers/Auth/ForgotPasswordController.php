@@ -8,11 +8,13 @@ use App\Http\Requests\ResetPasswordWithOtpRequest;
 use App\Http\Requests\VerifyRegistrationOtpRequest;
 use App\Models\User;
 use App\Services\PasswordResetOtpService;
+use App\Support\MailDelivery;
 use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Throwable;
 
 class ForgotPasswordController extends Controller
 {
@@ -40,7 +42,21 @@ class ForgotPasswordController extends Controller
                 ->onlyInput('email');
         }
 
-        $this->otpService->issue($user);
+        if (! MailDelivery::isReady()) {
+            return back()
+                ->withErrors(['email' => MailDelivery::notReadyMessage()])
+                ->onlyInput('email');
+        }
+
+        try {
+            $this->otpService->issue($user);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()
+                ->withErrors(['email' => MailDelivery::notReadyMessage()])
+                ->onlyInput('email');
+        }
 
         $request->session()->put(self::SESSION_USER, $user->id);
         $request->session()->forget(self::SESSION_VERIFIED);
@@ -91,7 +107,18 @@ class ForgotPasswordController extends Controller
                 ->withErrors(['email' => 'Sesi reset password tidak ditemukan. Masukkan email Anda kembali.']);
         }
 
-        $this->otpService->issue($user);
+        if (! MailDelivery::isReady()) {
+            return back()->withErrors(['otp' => MailDelivery::notReadyMessage()]);
+        }
+
+        try {
+            $this->otpService->issue($user);
+        } catch (Throwable $e) {
+            report($e);
+
+            return back()->withErrors(['otp' => MailDelivery::notReadyMessage()]);
+        }
+
         $request->session()->forget(self::SESSION_VERIFIED);
 
         return back()->with('success', 'Kode OTP baru telah dikirim ke email Anda.');
