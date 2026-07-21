@@ -20,4 +20,16 @@ enum InventoryCondition: string
             self::RusakBerat => 'Rusak Berat',
         };
     }
+
+    /**
+     * Semantic tone for pastel badge styling (not raw DB value).
+     */
+    public function badgeTone(): string
+    {
+        return match ($this) {
+            self::Baru, self::Bagus => 'good',
+            self::Cukup => 'fair',
+            self::RusakRingan, self::RusakBerat => 'damaged',
+        };
+    }
 }

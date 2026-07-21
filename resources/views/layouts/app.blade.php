@@ -27,8 +27,13 @@
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
 <script>
-/* Apply layout mode before first paint to avoid expanded-sidebar flash on tablet. */
+/* Apply layout mode + saved theme before first paint (avoids FOUC). */
 (function () {
+    try {
+        if (localStorage.getItem('undira-dark-mode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+    } catch (e) { /* ignore */ }
     var w = window.innerWidth || document.documentElement.clientWidth || 1200;
     if (w < 1200) {
         document.body.classList.add('sidebar-collapse');
@@ -56,9 +61,8 @@
                 </a>
             </li>
             <li class="nav-item min-w-0">
-                <a href="{{ route('dashboard') }}" class="nav-link app-identity">
+                <a href="{{ route('dashboard') }}" class="nav-link app-identity" title="Inventaris UNDIRA">
                     <span class="app-identity-title">Inventaris UNDIRA</span>
-                    <span class="app-identity-subtitle">Universitas Dian Nusantara</span>
                 </a>
             </li>
         </ul>

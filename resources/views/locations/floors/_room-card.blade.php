@@ -69,8 +69,8 @@
                     </div>
                 </div>
             </div>
-            <h6 class="text-undira-blue mb-1 text-break">{{ $room->name }}</h6>
-            <p class="text-muted small mb-2"><code>{{ $room->code }}</code></p>
+            <h6 class="room-card-title text-break">{{ $room->name }}</h6>
+            <p class="room-card-code small"><code>{{ $room->code }}</code></p>
             <div class="d-flex flex-wrap gap-1 mb-2">
                 <span class="badge bg-secondary"><i class="fas fa-box me-1"></i>{{ $room->inventory_items_count }} Item</span>
                 <span class="badge bg-light text-dark"><i class="fas fa-user-friends me-1"></i>Kap. {{ $room->capacity ?? '-' }}</span>

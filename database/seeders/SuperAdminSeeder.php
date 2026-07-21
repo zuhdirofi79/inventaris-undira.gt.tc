@@ -26,5 +26,7 @@ class SuperAdminSeeder extends Seeder
         $user->save();
 
         $user->syncRoles(['super-admin']);
+
+        app(\App\Services\PrimarySuperAdminService::class)->ensureBound();
     }
 }

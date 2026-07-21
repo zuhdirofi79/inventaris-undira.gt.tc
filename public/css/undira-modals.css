@@ -4,9 +4,15 @@
   --text-primary: #172033;
   --text-secondary: #5f6b7a;
   --text-muted: #7b8794;
+  --text-heading: #1A237E;
+  --text-link: #2E7D32;
   --surface-primary: #ffffff;
   --surface-secondary: #f5f7fb;
+  --surface-elevated: #ffffff;
+  --app-bg: #F5F7FA;
   --border-color: #d9e0ea;
+  --border-primary: #d9e0ea;
+  --shadow-color: rgba(15, 23, 42, 0.08);
 
   /*
    * Layer scale (Bootstrap 5 defaults preserved where possible):
@@ -86,15 +92,11 @@ body.modal-open .undira-sidebar-backdrop {
 .content-header h1,
 .card-header-undira,
 .card .card-title {
-  color: var(--undira-blue, #1A237E);
+  color: var(--text-heading);
 }
 
 .app-identity-title {
-  color: var(--undira-blue, #1A237E) !important;
-}
-
-.app-identity-subtitle {
-  color: var(--text-secondary) !important;
+  color: var(--text-heading) !important;
 }
 
 .form-label,
@@ -135,7 +137,7 @@ body.modal-open .undira-sidebar-backdrop {
 }
 
 .table thead th {
-  color: var(--undira-blue, #1A237E);
+  color: var(--text-heading);
 }
 
 .btn-outline-secondary {
@@ -161,14 +163,27 @@ body.modal-open .undira-sidebar-backdrop {
   color: #fff !important;
 }
 
-/* Dark mode: keep surfaces readable without forcing white on light cards */
+/* Dark mode: semantic token remap (brand --undira-blue stays for bg/buttons) */
 body.dark-mode {
-  --text-primary: #E2E8F0;
-  --text-secondary: #94A3B8;
-  --text-muted: #94A3B8;
-  --surface-primary: #1e2430;
-  --surface-secondary: #151a23;
-  --border-color: #334155;
+  --text-primary: #f1f5f9;
+  --text-secondary: #c5ced9;
+  --text-muted: #94a3b8;
+  --text-heading: #e7edff;
+  --text-link: #86efac;
+  --surface-primary: #18202d;
+  --surface-secondary: #202938;
+  --surface-elevated: #242e3d;
+  --app-bg: #111722;
+  --border-color: #354052;
+  --border-primary: #354052;
+  --shadow-color: rgba(0, 0, 0, 0.28);
+  --undira-gray: #111722;
+  --undira-text: #f1f5f9;
+  --undira-muted: #94a3b8;
+  --undira-gray-border: #354052;
+  --undira-blue-soft: rgba(143, 167, 255, 0.16);
+  --undira-green-soft: rgba(88, 196, 106, 0.16);
+  --undira-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
 }
 
 body.dark-mode .modal-content,
@@ -181,13 +196,17 @@ body.dark-mode .modal-footer {
 }
 
 body.dark-mode .modal-title,
-body.dark-mode .form-label {
-  color: #C7D2FE;
+body.dark-mode .form-label,
+body.dark-mode .page-header-undira h1,
+body.dark-mode .content-header h1,
+body.dark-mode .card .card-title,
+body.dark-mode .card-header-undira {
+  color: var(--text-heading);
 }
 
 body.dark-mode .form-control,
 body.dark-mode .form-select {
-  background-color: #151a23;
+  background-color: var(--surface-secondary);
   color: var(--text-primary);
   border-color: var(--border-color);
 }
@@ -196,18 +215,25 @@ body.dark-mode .form-control:disabled,
 body.dark-mode .form-select:disabled,
 body.dark-mode .form-control[readonly] {
   background-color: #0f141c;
-  color: #94A3B8;
+  color: var(--text-muted);
 }
 
 body.dark-mode .manage-option-panel {
-  background: #151a23;
+  background: var(--surface-secondary);
   border-color: var(--border-color);
 }
 
 body.dark-mode .btn-outline-secondary {
-  color: #E2E8F0;
+  color: var(--text-primary);
   background: transparent;
   border-color: #475569;
+}
+
+body.dark-mode .btn-outline-secondary:hover,
+body.dark-mode .btn-outline-secondary:focus-visible {
+  color: #fff;
+  background: #334155;
+  border-color: #64748b;
 }
 
 @media (max-width: 575.98px) {

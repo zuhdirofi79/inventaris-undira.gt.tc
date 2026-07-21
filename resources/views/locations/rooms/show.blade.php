@@ -70,7 +70,7 @@
     </div>
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 room-inventory-table">
                 <thead>
                     <tr>
                         <th>Nama Barang</th>
@@ -78,7 +78,7 @@
                         <th>Kategori</th>
                         <th>Kondisi</th>
                         <th>Status</th>
-                        <th>Aksi</th>
+                        <th class="text-center">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,24 +93,24 @@
                                 {{ $group->unit_count }} unit
                             </a>
                         </td>
-                        <td>{{ $group->category?->name ?? '-' }}</td>
+                        <td>{{ $group->category?->name ?? '—' }}</td>
                         <td>
                             @if($sample)
-                                <span class="badge badge-condition-{{ in_array($sample->condition?->value, ['rusak_ringan','rusak_berat']) ? 'rusak' : 'bagus' }}">
-                                    {{ $sample->condition?->label() }}
-                                </span>
-                            @else - @endif
+                                <x-inventory.condition-badge :condition="$sample->condition" />
+                            @else
+                                <span class="inventory-condition-badge condition-unknown">—</span>
+                            @endif
                         </td>
                         <td>
                             @if($sample)
-                                <span class="badge badge-status-{{ $sample->status?->value ?? 'aktif' }}">
-                                    {{ $sample->status?->label() }}
-                                </span>
-                            @else - @endif
+                                <x-inventory.status-badge :status="$sample->status" />
+                            @else
+                                <span class="inventory-status-badge status-unknown">—</span>
+                            @endif
                         </td>
-                        <td>
+                        <td class="text-center">
                             @if($sample)
-                            <a href="{{ route('inventory.show', $sample) }}" class="btn btn-sm btn-outline-primary">
+                            <a href="{{ route('inventory.show', $sample) }}" class="btn btn-sm btn-outline-primary" aria-label="Lihat {{ $group->name }}">
                                 <i class="fas fa-eye"></i>
                             </a>
                             @endif

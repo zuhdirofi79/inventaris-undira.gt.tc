@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\PrimarySuperAdminService;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -32,6 +33,11 @@ class User extends Authenticatable
     public function isSuperAdmin(): bool
     {
         return $this->hasRole('super-admin');
+    }
+
+    public function isPrimarySuperAdmin(): bool
+    {
+        return app(PrimarySuperAdminService::class)->isPrimary($this);
     }
 
     /**

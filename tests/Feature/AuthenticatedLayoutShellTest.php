@@ -29,13 +29,15 @@ class AuthenticatedLayoutShellTest extends TestCase
 
         $this->assertStringContainsString('id="sidebarToggle"', $html);
         $this->assertStringContainsString('aria-controls="main-sidebar"', $html);
+        $this->assertStringContainsString('app-identity-title', $html);
         $this->assertStringContainsString('Inventaris UNDIRA', $html);
-        $this->assertStringContainsString('Universitas Dian Nusantara', $html);
+        $this->assertStringNotContainsString('app-identity-subtitle', $html);
+        $this->assertStringContainsString('Universitas Dian Nusantara', $html); // footer / sidebar alt
         $this->assertStringContainsString('LOGO UNDIRA.png', $html);
         $this->assertStringContainsString('undira-brand-mark', $html);
         $this->assertStringContainsString('id="sidebarBackdrop"', $html);
         $this->assertStringContainsString('undira-layout.css', $html);
-        $this->assertStringContainsString('Apply layout mode before first paint', $html);
+        $this->assertStringContainsString('Apply layout mode + saved theme before first paint', $html);
         $this->assertStringContainsString('max-width: 1199.98px', $html);
         $this->assertStringContainsString('max-width: 767.98px', $html);
         $this->assertStringContainsString('breadcrumb-undira', $html);

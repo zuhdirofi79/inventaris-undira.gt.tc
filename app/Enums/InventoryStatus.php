@@ -22,4 +22,18 @@ enum InventoryStatus: string
             self::Maintenance => 'Maintenance',
         };
     }
+
+    /**
+     * Semantic tone for pastel badge styling (not raw DB value).
+     */
+    public function badgeTone(): string
+    {
+        return match ($this) {
+            self::Aktif => 'active',
+            self::Dipinjam => 'borrowed',
+            self::Maintenance => 'maintenance',
+            self::RusakRingan, self::RusakBerat => 'damaged',
+            self::Hilang => 'inactive',
+        };
+    }
 }

@@ -123,29 +123,7 @@
 @endcan
 
 @push('styles')
-<style>
-.room-explore-card {
-    border: 1px solid var(--undira-gray-border, #E2E8F0);
-    border-radius: 12px;
-    box-shadow: 0 4px 16px rgba(26, 35, 126, 0.06);
-    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-    height: 100%;
-    overflow: visible;
-}
-.room-explore-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 24px rgba(26, 35, 126, 0.12);
-    border-color: rgba(46, 125, 50, 0.35);
-}
-.room-explore-card .card-body { padding: 1rem 1.1rem; }
-.room-explore-icon {
-    width: 42px; height: 42px; border-radius: 10px;
-    display: inline-flex; align-items: center; justify-content: center;
-    background: #E8F5E9; color: #2E7D32; font-size: 1.1rem;
-}
-.room-explore-actions .dropdown-toggle::after { display: none; }
-.room-explore-actions .btn { min-width: 2rem; }
-</style>
+{{-- Room explore card styles live in public/css/undira.css (theme tokens + dark mode). --}}
 @endpush
 
 @push('scripts')
@@ -259,8 +237,8 @@
                             </div>
                         </div>
                     </div>
-                    <h6 class="text-undira-blue mb-1 text-break">${escapeHtml(room.name)}</h6>
-                    <p class="text-muted small mb-2"><code>${escapeHtml(room.code)}</code></p>
+                    <h6 class="room-card-title text-break">${escapeHtml(room.name)}</h6>
+                    <p class="room-card-code small"><code>${escapeHtml(room.code)}</code></p>
                     <div class="d-flex flex-wrap gap-1 mb-2">
                         <span class="badge bg-secondary"><i class="fas fa-box me-1"></i>${room.inventory_items_count || 0} Item</span>
                         <span class="badge bg-light text-dark"><i class="fas fa-user-friends me-1"></i>Kap. ${room.capacity ?? '-'}</span>

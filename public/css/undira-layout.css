@@ -66,8 +66,8 @@ body.sidebar-mini .main-sidebar {
   line-height: 1.2;
 }
 
-.navbar-undira .nav-link[data-widget="pushmenu"] {
-  color: var(--undira-blue, #1A237E);
+    .navbar-undira .nav-link[data-widget="pushmenu"] {
+  color: var(--text-heading, var(--undira-blue, #1A237E));
   border-radius: 8px;
 }
 
@@ -79,36 +79,24 @@ body.sidebar-mini .main-sidebar {
 
 .app-identity {
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: flex-start;
+  flex-wrap: nowrap;
+  align-items: center;
   min-width: 0;
   max-width: min(380px, 48vw);
+  height: 100%;
   padding: 0.15rem 0.35rem;
   text-decoration: none !important;
-  line-height: 1.15;
+  line-height: 1;
   overflow: hidden;
 }
 
 .app-identity-title {
   display: block;
+  min-width: 0;
   font-size: 17px;
   font-weight: 700;
-  line-height: 1.2;
-  color: var(--undira-blue, #1A237E);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 100%;
-}
-
-.app-identity-subtitle {
-  display: block;
-  margin-top: 2px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.2;
-  color: var(--undira-muted, #64748B);
+  line-height: 1;
+  color: var(--text-heading, var(--undira-blue, #1A237E));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -348,22 +336,11 @@ body.sidebar-open .undira-sidebar-backdrop {
   pointer-events: auto;
 }
 
-/* —— Large desktop: subtitle visible —— */
-@media (min-width: 1200px) {
-  .app-identity-subtitle {
-    display: block;
-  }
-}
-
 /* —— Tablet / small desktop: compact rail by default (JS adds .sidebar-collapse) —— */
 @media (min-width: 768px) and (max-width: 1199.98px) {
   :root {
     --content-padding-x: 20px;
     --content-padding-y: 18px;
-  }
-
-  .app-identity-subtitle {
-    display: none;
   }
 
   .app-identity {
@@ -421,10 +398,6 @@ body.sidebar-open .undira-sidebar-backdrop {
     overflow: hidden;
   }
 
-  .app-identity-subtitle {
-    display: none;
-  }
-
   .app-identity {
     max-width: min(220px, 55vw);
   }
@@ -444,22 +417,23 @@ body.sidebar-open .undira-sidebar-backdrop {
   }
 }
 
-/* —— Dark mode —— */
+/* —— Dark mode (layout chrome; tokens live in undira-modals.css) —— */
 body.dark-mode .undira-sidebar-brand.brand-link {
   background: #ffffff !important;
   border-bottom-color: rgba(15, 23, 42, 0.12) !important;
 }
 
 body.dark-mode .app-identity-title {
-  color: #c7d2fe;
-}
-
-body.dark-mode .app-identity-subtitle {
-  color: #94a3b8;
+  color: var(--text-heading) !important;
 }
 
 body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"] {
-  color: #c7d2fe;
+  color: var(--text-heading);
+}
+
+body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"]:hover,
+body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"]:focus-visible {
+  background: rgba(231, 237, 255, 0.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
