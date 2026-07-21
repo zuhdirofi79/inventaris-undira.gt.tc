@@ -166,12 +166,26 @@
                     if (params.get('floor_id')) await api.loadRooms(params.get('room_id'));
                     await api.refreshPreview();
                     const modalEl = document.getElementById('modalCreateConfig');
-                    if (modalEl) bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    if (modalEl) {
+                        if (typeof window.undiraHidePageOverlay === 'function') {
+                            window.undiraHidePageOverlay();
+                        }
+                        bootstrap.Modal.getOrCreateInstance(modalEl).show();
+                    }
                 })();
             } else if (document.getElementById('modalCreateConfig') && params.get('create') === '1') {
+                if (typeof window.undiraHidePageOverlay === 'function') {
+                    window.undiraHidePageOverlay();
+                }
                 bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCreateConfig')).show();
             }
         }
+
+        $('#modalCreateConfig').on('show.bs.modal', function () {
+            if (typeof window.undiraHidePageOverlay === 'function') {
+                window.undiraHidePageOverlay();
+            }
+        });
 
         $('#modalCreateConfig').on('hidden.bs.modal', function () {
             const $form = $('#formCreateConfig');

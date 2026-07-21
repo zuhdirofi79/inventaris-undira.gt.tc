@@ -80,9 +80,23 @@ class InventoryUiCleanupTest extends TestCase
         $this->assertStringNotContainsString('Harga (Rp)', $html);
 
         $contentPos = strpos($html, 'class="content-wrapper"');
+        $wrapperCloseHint = strpos($html, 'class="main-footer');
         $modalPos = strpos($html, 'id="modalCreateConfig"');
+        $loaderPos = strpos($html, 'id="loadingOverlay"');
         $this->assertNotFalse($contentPos);
         $this->assertNotFalse($modalPos);
+        $this->assertNotFalse($loaderPos);
         $this->assertGreaterThan($contentPos, $modalPos);
+        // Modal must be outside the AdminLTE wrapper region (after main-footer).
+        $this->assertNotFalse($wrapperCloseHint);
+        $this->assertGreaterThan($wrapperCloseHint, $modalPos);
+        // Loader remains in DOM but must not outrank modal architecture in CSS load order.
+        $this->assertStringContainsString('undira-modals.css', $html);
+        $this->assertStringContainsString('undira-loading.js', $html);
+        $this->assertStringContainsString('data-bs-toggle="modal"', $html);
+        $this->assertStringContainsString('data-bs-target="#modalCreateConfig"', $html);
+        $this->assertStringNotContainsString('data-toggle="modal"', $html);
+        $this->assertStringContainsString('--sidebar-expanded-width', file_get_contents(public_path('css/undira-layout.css')));
+        $this->assertStringContainsString('sidebar-collapse', $html);
     }
 }

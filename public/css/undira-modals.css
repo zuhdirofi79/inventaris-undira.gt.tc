@@ -7,35 +7,57 @@
   --surface-primary: #ffffff;
   --surface-secondary: #f5f7fb;
   --border-color: #d9e0ea;
+
+  /*
+   * Layer scale (Bootstrap 5 defaults preserved where possible):
+   * sidebar backdrop < page loader < modal backdrop < modal
+   * Page loader must NEVER sit above an open modal.
+   */
+  --z-sidebar-backdrop: 1035;
+  --z-page-loader: 1040;
+  --z-modal-backdrop: 1050;
+  --z-modal: 1055;
 }
 
 /*
- * AdminLTE chrome uses z-index ~1034–1038.
- * Bootstrap 5 defaults (1050/1055) can lose to ancestor stacking when modals
- * were nested in .content-wrapper. Modals are now @stack('modals') outside
- * .wrapper; keep explicit layering above AdminLTE and below the page loader.
+ * AdminLTE chrome uses ~1034–1038. Modals live in @stack('modals') outside
+ * .wrapper so they share the document stacking context with Bootstrap backdrops.
  */
 .modal-backdrop {
-  z-index: 1090;
+  z-index: var(--z-modal-backdrop);
 }
 
 .modal {
-  z-index: 1095;
+  z-index: var(--z-modal);
 }
 
-.loading-overlay {
-  z-index: 2100;
+#loadingOverlay.loading-overlay {
+  z-index: var(--z-page-loader);
 }
 
 .undira-sidebar-backdrop {
-  z-index: 1035;
+  z-index: var(--z-sidebar-backdrop);
+}
+
+/* While a Bootstrap modal is open, the page loader must not intercept input */
+body.modal-open #loadingOverlay.loading-overlay {
+  display: none;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* Never let the sidebar backdrop intercept clicks while a Bootstrap modal is open */
 body.modal-open .undira-sidebar-backdrop {
-  opacity: 0 !important;
-  visibility: hidden !important;
-  pointer-events: none !important;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.modal.show,
+.modal.show .modal-dialog,
+.modal.show .modal-content {
+  pointer-events: auto;
 }
 
 .manage-option-panel {

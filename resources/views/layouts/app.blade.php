@@ -21,15 +21,27 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-layout.css') }}">
-    <link rel="stylesheet" href="{{ asset('css/undira-modals.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/undira-modals.css') }}">
     @stack('styles')
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
+<script>
+/* Apply layout mode before first paint to avoid expanded-sidebar flash on tablet. */
+(function () {
+    var w = window.innerWidth || document.documentElement.clientWidth || 1200;
+    if (w < 1200) {
+        document.body.classList.add('sidebar-collapse');
+    }
+    if (w < 768) {
+        document.body.classList.remove('sidebar-open');
+    }
+})();
+</script>
 <div class="wrapper">
 
     <nav class="main-header navbar navbar-expand navbar-white navbar-light navbar-undira">
-        <ul class="navbar-nav align-items-center">
+        <ul class="navbar-nav align-items-center flex-nowrap min-w-0">
             <li class="nav-item">
                 <a class="nav-link"
                    data-widget="pushmenu"
@@ -43,14 +55,14 @@
                     <i class="fas fa-bars" aria-hidden="true"></i>
                 </a>
             </li>
-            <li class="nav-item d-none d-sm-inline-block">
+            <li class="nav-item min-w-0">
                 <a href="{{ route('dashboard') }}" class="nav-link app-identity">
                     <span class="app-identity-title">Inventaris UNDIRA</span>
                     <span class="app-identity-subtitle">Universitas Dian Nusantara</span>
                 </a>
             </li>
         </ul>
-        <ul class="navbar-nav ms-auto align-items-center">
+        <ul class="navbar-nav ms-auto align-items-center flex-nowrap">
             <li class="nav-item">
                 <a class="nav-link" href="#" id="darkModeToggle" title="Mode Gelap" aria-label="Alihkan mode gelap">
                     <i class="fas fa-moon" aria-hidden="true"></i>
@@ -529,27 +541,34 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
     });
 });
 
-// Sidebar / overlay sync (AdminLTE PushMenu)
+// Sidebar / overlay sync (AdminLTE PushMenu) — three layout modes
 (function () {
     const body = document.body;
     const toggle = document.getElementById('sidebarToggle');
     const backdrop = document.getElementById('sidebarBackdrop');
-    const mq = window.matchMedia('(max-width: 991.98px)');
+    const mqMobile = window.matchMedia('(max-width: 767.98px)');
+    const mqCompact = window.matchMedia('(max-width: 1199.98px)');
+    let userDesktopPreference = null; // null | 'expanded' | 'collapsed'
 
     function pushMenu(action) {
-        const $btn = $('[data-widget="pushmenu"]');
-        if ($btn.length && typeof $btn.PushMenu === 'function') {
+        const $btn = window.jQuery ? window.jQuery('[data-widget="pushmenu"]') : null;
+        if ($btn && $btn.length && typeof $btn.PushMenu === 'function') {
             $btn.PushMenu(action);
             return;
         }
         if (action === 'collapse') {
             body.classList.remove('sidebar-open');
             body.classList.add('sidebar-collapse');
+        } else if (action === 'expand') {
+            body.classList.remove('sidebar-collapse');
+            if (mqMobile.matches) {
+                body.classList.add('sidebar-open');
+            }
         }
     }
 
     function isExpanded() {
-        if (mq.matches) {
+        if (mqMobile.matches) {
             return body.classList.contains('sidebar-open');
         }
         return !body.classList.contains('sidebar-collapse');
@@ -561,26 +580,61 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
             toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         }
         if (backdrop) {
-            const showBackdrop = mq.matches && body.classList.contains('sidebar-open');
+            const showBackdrop = mqMobile.matches && body.classList.contains('sidebar-open');
             backdrop.setAttribute('aria-hidden', showBackdrop ? 'false' : 'true');
         }
     }
 
+    function applyResponsiveDefaults(fromResize) {
+        if (mqMobile.matches) {
+            // Mobile: off-canvas closed by default
+            body.classList.add('sidebar-collapse');
+            if (!fromResize || !body.classList.contains('sidebar-open')) {
+                body.classList.remove('sidebar-open');
+            }
+        } else if (mqCompact.matches) {
+            // Tablet / small desktop: compact icon rail
+            body.classList.remove('sidebar-open');
+            body.classList.add('sidebar-collapse');
+        } else {
+            // Large desktop: restore preference or expand
+            body.classList.remove('sidebar-open');
+            if (userDesktopPreference === 'collapsed') {
+                body.classList.add('sidebar-collapse');
+            } else {
+                body.classList.remove('sidebar-collapse');
+            }
+        }
+        syncChrome();
+    }
+
     const observer = new MutationObserver(syncChrome);
     observer.observe(body, { attributes: true, attributeFilter: ['class'] });
+
+    toggle?.addEventListener('click', function () {
+        // Capture desktop preference after AdminLTE toggles on next tick
+        window.setTimeout(function () {
+            if (!mqCompact.matches) {
+                userDesktopPreference = body.classList.contains('sidebar-collapse')
+                    ? 'collapsed'
+                    : 'expanded';
+            }
+            syncChrome();
+        }, 0);
+    });
 
     backdrop?.addEventListener('click', function () {
         pushMenu('collapse');
     });
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && mq.matches && body.classList.contains('sidebar-open')) {
+        if (e.key === 'Escape' && mqMobile.matches && body.classList.contains('sidebar-open')) {
             pushMenu('collapse');
         }
     });
 
     document.getElementById('main-sidebar')?.addEventListener('click', function (e) {
-        if (!mq.matches) return;
+        if (!mqMobile.matches) return;
         const link = e.target.closest('a.nav-link[href]');
         if (!link) return;
         const href = link.getAttribute('href') || '';
@@ -589,19 +643,18 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
     });
 
     function onViewportChange() {
-        if (!mq.matches) {
-            body.classList.remove('sidebar-open');
-        }
-        syncChrome();
+        applyResponsiveDefaults(true);
     }
 
-    if (typeof mq.addEventListener === 'function') {
-        mq.addEventListener('change', onViewportChange);
-    } else if (typeof mq.addListener === 'function') {
-        mq.addListener(onViewportChange);
+    if (typeof mqMobile.addEventListener === 'function') {
+        mqMobile.addEventListener('change', onViewportChange);
+        mqCompact.addEventListener('change', onViewportChange);
+    } else if (typeof mqMobile.addListener === 'function') {
+        mqMobile.addListener(onViewportChange);
+        mqCompact.addListener(onViewportChange);
     }
 
-    syncChrome();
+    applyResponsiveDefaults(false);
 })();
 </script>
 @stack('scripts')

@@ -52,12 +52,19 @@
   }
 
   function showPageOverlay(title, sub, options) {
+    // Never cover an interactive Bootstrap modal with the page loader.
+    if (document.body.classList.contains('modal-open') || document.querySelector('.modal.show')) {
+      return;
+    }
     var el = overlayEl();
     if (!el) return;
     var opts = options || {};
     var delay = typeof opts.delay === 'number' ? opts.delay : 0;
 
     function apply() {
+      if (document.body.classList.contains('modal-open') || document.querySelector('.modal.show')) {
+        return;
+      }
       setOverlayText(title || 'Memuat halaman...', sub || 'Sedang mengambil data...');
       el.classList.add('active', 'undira-overlay-show');
       el.setAttribute('aria-busy', 'true');
@@ -85,6 +92,28 @@
     try {
       sessionStorage.removeItem(STORAGE_KEY);
     } catch (err) { /* ignore */ }
+  }
+
+  function cleanupStaleModalState() {
+    if (document.querySelector('.modal.show')) return;
+    document.querySelectorAll('.modal-backdrop').forEach(function (node) {
+      node.parentNode && node.parentNode.removeChild(node);
+    });
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
+  }
+
+  function bindModalSafety() {
+    document.addEventListener('show.bs.modal', function () {
+      hidePageOverlay();
+    });
+    document.addEventListener('shown.bs.modal', function () {
+      hidePageOverlay();
+    });
+    document.addEventListener('hidden.bs.modal', function () {
+      cleanupStaleModalState();
+    });
   }
 
   function showAjaxBar() {
@@ -164,7 +193,9 @@
     if (a.classList.contains('no-page-loader')) return false;
     if (a.getAttribute('data-widget') === 'pushmenu') return false;
     if (a.getAttribute('data-bs-toggle')) return false;
-    if (a.closest('.modal') || a.closest('.dropdown-menu')) return false;
+    if (a.getAttribute('data-bs-dismiss')) return false;
+    if (a.classList.contains('btn-manage-option')) return false;
+    if (a.closest('.modal') || a.closest('.dropdown-menu') || a.closest('.modal-backdrop')) return false;
     try {
       var url = new URL(a.href, window.location.origin);
       if (url.origin !== window.location.origin) return false;
@@ -311,6 +342,7 @@
     window.__undiraLoadingBooted = true;
     bindPageTransitions();
     bindAjaxHooks();
+    bindModalSafety();
     finishInitialLoad();
   }
 
