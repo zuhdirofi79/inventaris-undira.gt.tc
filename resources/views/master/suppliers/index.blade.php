@@ -10,7 +10,7 @@
 @section('content')
 <div class="page-header-undira d-flex justify-content-between align-items-center">
     <h1><i class="fas fa-truck me-2"></i>Supplier</h1>
-    <button class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate"><i class="fas fa-plus me-1"></i>Tambah</button>
+    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="fas fa-plus me-1"></i>Tambah</button>
 </div>
 
 <div class="card card-undira">
@@ -26,7 +26,7 @@
                     <td>{{ $supplier->phone ?? '-' }}</td>
                     <td>{{ $supplier->inventory_items_count }}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $supplier->id }}"><i class="fas fa-edit"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $supplier->id }}" data-no-loader="1"><i class="fas fa-edit"></i></button>
                         <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline"
                               data-confirm-title="Pindahkan data ke Trash?"
                               data-confirm="Data masih dapat dipulihkan dari menu Trash."
@@ -44,7 +44,9 @@
     </div>
     @if($suppliers->hasPages())<div class="card-footer">{{ $suppliers->links() }}</div>@endif
 </div>
+@endsection
 
+@push('modals')
 <div class="modal fade" id="modalCreate" tabindex="-1">
     <div class="modal-dialog">
         <form action="{{ route('suppliers.store') }}" method="POST" class="modal-content">
@@ -57,7 +59,10 @@
                 <div class="mb-3"><label class="form-label">Telepon</label><input type="text" name="phone" class="form-control"></div>
                 <div class="mb-3"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-undira">Simpan</button>
+            </div>
         </form>
     </div>
 </div>
@@ -75,9 +80,12 @@
                 <div class="mb-3"><label class="form-label">Telepon</label><input type="text" name="phone" class="form-control" value="{{ $supplier->phone }}"></div>
                 <div class="mb-3"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2">{{ $supplier->address }}</textarea></div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-undira">Perbarui</button>
+            </div>
         </form>
     </div>
 </div>
 @endforeach
-@endsection
+@endpush

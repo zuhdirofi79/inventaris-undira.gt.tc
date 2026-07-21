@@ -20,8 +20,9 @@
 }
 
 /*
- * AdminLTE chrome uses ~1034–1038. Modals live in @stack('modals') outside
- * .wrapper so they share the document stacking context with Bootstrap backdrops.
+ * AdminLTE .content-wrapper creates a stacking context. Any .modal rendered
+ * inside @yield('content') will sit BELOW body-level .modal-backdrop.
+ * Always render modals via @stack('modals') outside .wrapper.
  */
 .modal-backdrop {
   z-index: var(--z-modal-backdrop);

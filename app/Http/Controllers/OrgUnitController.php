@@ -23,7 +23,7 @@ class OrgUnitController extends Controller
 
         return redirect()
             ->route('categories.index', ['tab' => 'units'])
-            ->with('success', 'Unit/Divisi berhasil ditambahkan.');
+            ->with('success', 'Unit / Divisi berhasil ditambahkan.');
     }
 
     public function update(StoreOrgUnitRequest $request, OrgUnit $orgUnit): RedirectResponse

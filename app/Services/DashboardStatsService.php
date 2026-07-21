@@ -142,6 +142,7 @@ class DashboardStatsService
             ->whereIn('buildings.campus_id', $campusIds)
             ->selectRaw('buildings.campus_id, categories.code, categories.name, COUNT(*) as total')
             ->groupBy('buildings.campus_id', 'categories.code', 'categories.name')
+            ->orderByDesc('total')
             ->orderBy('categories.name')
             ->get();
 
@@ -152,6 +153,14 @@ class DashboardStatsService
                 'code' => $row->code,
                 'total' => (int) $row->total,
             ];
+        }
+
+        // Ensure each campus list is sorted by unit count descending (stable for cards).
+        foreach ($result as $campusId => $cats) {
+            usort($cats, function (array $a, array $b): int {
+                return $b['total'] <=> $a['total'] ?: strcmp($a['name'], $b['name']);
+            });
+            $result[$campusId] = $cats;
         }
 
         return $result;

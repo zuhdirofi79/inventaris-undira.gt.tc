@@ -33,6 +33,7 @@ use App\Http\Controllers\ScannerController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\SubCategoryController;
+use App\Http\Controllers\SupportingMasterController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\UserController;
@@ -186,6 +187,17 @@ Route::middleware('auth')->group(function () {
         Route::put('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'update'])->name('master-configurations.update');
         Route::delete('/master-configurations/{configuration}', [InventoryMasterConfigurationController::class, 'destroy'])->name('master-configurations.destroy');
         Route::post('/master-data/options', [InventoryMasterConfigurationController::class, 'storeOption'])->name('master-data.options.store');
+
+        // Supporting masters (Lokasi & Lainnya hub) — reuse existing tables
+        Route::post('/purchase-years', [SupportingMasterController::class, 'storePurchaseYear'])->name('purchase-years.store');
+        Route::put('/purchase-years/{purchaseYear}', [SupportingMasterController::class, 'updatePurchaseYear'])->name('purchase-years.update');
+        Route::delete('/purchase-years/{purchaseYear}', [SupportingMasterController::class, 'destroyPurchaseYear'])->name('purchase-years.destroy');
+        Route::post('/room-functions', [SupportingMasterController::class, 'storeRoomFunction'])->name('room-functions.store');
+        Route::put('/room-functions/{roomFunction}', [SupportingMasterController::class, 'updateRoomFunction'])->name('room-functions.update');
+        Route::delete('/room-functions/{roomFunction}', [SupportingMasterController::class, 'destroyRoomFunction'])->name('room-functions.destroy');
+        Route::post('/inventory-conditions', [SupportingMasterController::class, 'storeCondition'])->name('inventory-conditions.store');
+        Route::put('/inventory-conditions/{inventoryCondition}', [SupportingMasterController::class, 'updateCondition'])->name('inventory-conditions.update');
+        Route::delete('/inventory-conditions/{inventoryCondition}', [SupportingMasterController::class, 'destroyCondition'])->name('inventory-conditions.destroy');
     });
 
     Route::middleware('permission:category.manage|location.manage|inventory.view|inventory.create|inventory.update|report.view')->group(function () {

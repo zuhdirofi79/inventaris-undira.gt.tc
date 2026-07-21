@@ -10,7 +10,7 @@
 @section('content')
 <div class="page-header-undira d-flex justify-content-between align-items-center">
     <h1><i class="fas fa-users me-2"></i>Kelola Users</h1>
-    <button class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate"><i class="fas fa-plus me-1"></i>Tambah User</button>
+    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="fas fa-plus me-1"></i>Tambah User</button>
 </div>
 
 <div class="card card-undira">
@@ -27,7 +27,7 @@
                     <td><span class="badge {{ $user->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         @if($user->id !== auth()->id())
-                        <button class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $user->id }}"><i class="fas fa-edit"></i></button>
+                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $user->id }}" data-no-loader="1"><i class="fas fa-edit"></i></button>
                         <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="d-inline" data-confirm="Hapus user ini?">
                             @csrf @method('DELETE')
                             <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
@@ -43,7 +43,9 @@
     </div>
     @if($users->hasPages())<div class="card-footer">{{ $users->links() }}</div>@endif
 </div>
+@endsection
 
+@push('modals')
 <div class="modal fade" id="modalCreate" tabindex="-1">
     <div class="modal-dialog modal-lg">
         <form action="{{ route('admin.users.store') }}" method="POST" class="modal-content">
@@ -64,7 +66,10 @@
                     <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-undira">Simpan</button>
+            </div>
         </form>
     </div>
 </div>
@@ -90,9 +95,12 @@
                     <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $user->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
                 </div>
             </div>
-            <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-undira">Perbarui</button>
+            </div>
         </form>
     </div>
 </div>
 @endforeach
-@endsection
+@endpush

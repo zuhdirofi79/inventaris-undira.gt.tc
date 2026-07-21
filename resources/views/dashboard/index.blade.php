@@ -165,93 +165,10 @@
 
 {{-- Per Kampus --}}
 <h5 class="mb-3 mt-2"><i class="fas fa-university me-2"></i>Statistik per Kampus</h5>
-<div class="row g-3 align-items-start dashboard-campus-grid">
+<div class="row g-3 dashboard-campus-grid">
     @forelse($campus_stats ?? [] as $cs)
-    @php
-        $campusCats = collect($cs['categories'] ?? []);
-        $campusCatPreview = $campusCats->take(6);
-        $campusCatRest = $campusCats->slice(6);
-        $campusCollapseId = 'campus-cats-'.$cs['id'];
-    @endphp
-    <div class="col-12 col-sm-12 col-md-6 col-lg-4">
-        <div class="card card-undira dashboard-info-card">
-            <div class="card-header bg-undira-green text-white d-flex justify-content-between align-items-center gap-2">
-                <strong class="text-break">{{ $cs['name'] }}</strong>
-                <code class="text-white-50 small flex-shrink-0">{{ $cs['code'] }}</code>
-            </div>
-            <div class="card-body">
-                <div class="row g-2 small mb-2">
-                    <div class="col-6">
-                        <span class="text-muted">Total Inventaris</span>
-                        <div class="fw-bold">{{ number_format($cs['total_inventory']) }}</div>
-                    </div>
-                    <div class="col-6">
-                        <span class="text-muted">Total Unit</span>
-                        <div class="fw-bold">{{ number_format($cs['total_units']) }}</div>
-                    </div>
-                    <div class="col-4">
-                        <span class="text-muted">Gedung</span>
-                        <div class="fw-semibold">{{ $cs['buildings'] }}</div>
-                    </div>
-                    <div class="col-4">
-                        <span class="text-muted">Lantai</span>
-                        <div class="fw-semibold">{{ $cs['floors'] }}</div>
-                    </div>
-                    <div class="col-4">
-                        <span class="text-muted">Ruangan</span>
-                        <div class="fw-semibold">{{ $cs['rooms'] }}</div>
-                    </div>
-                </div>
-
-                @if($campusCats->isNotEmpty())
-                <div class="small border-top pt-2 campus-category-list">
-                    <div class="text-muted fw-semibold mb-1">Kategori Inventaris</div>
-                    @foreach($campusCatPreview as $cat)
-                    <div class="d-flex justify-content-between gap-2 py-1">
-                        <span class="text-break">{{ $cat['name'] }}</span>
-                        <strong class="flex-shrink-0">{{ number_format($cat['total']) }}</strong>
-                    </div>
-                    @endforeach
-
-                    @if($campusCatRest->isNotEmpty())
-                    <div class="collapse" id="{{ $campusCollapseId }}">
-                        @foreach($campusCatRest as $cat)
-                        <div class="d-flex justify-content-between gap-2 py-1">
-                            <span class="text-break">{{ $cat['name'] }}</span>
-                            <strong class="flex-shrink-0">{{ number_format($cat['total']) }}</strong>
-                        </div>
-                        @endforeach
-                    </div>
-                    <button
-                        class="btn btn-link btn-sm px-0 mt-1 text-undira-green campus-cat-toggle"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#{{ $campusCollapseId }}"
-                        aria-expanded="false"
-                        aria-controls="{{ $campusCollapseId }}"
-                    >
-                        Tampilkan {{ $campusCatRest->count() }} kategori lainnya
-                    </button>
-                    @endif
-                </div>
-                @endif
-
-                <hr class="my-2">
-                <div class="d-flex flex-wrap gap-1">
-                    <span class="badge bg-success">Aktif {{ $cs['available'] }}</span>
-                    <span class="badge bg-warning text-dark">Pinjam {{ $cs['borrowed'] }}</span>
-                    <span class="badge bg-info text-dark">Maint. {{ $cs['maintenance'] }}</span>
-                    <span class="badge bg-danger">Rusak {{ $cs['damaged'] }}</span>
-                </div>
-            </div>
-            @can('inventory.view')
-            <div class="card-footer bg-transparent">
-                <a href="{{ route('inventory.campus', $cs['id']) }}" class="btn btn-sm btn-outline-success w-100">
-                    Lihat Inventaris Kampus
-                </a>
-            </div>
-            @endcan
-        </div>
+    <div class="col-12 col-md-6 col-xl-4 d-flex">
+        <x-dashboard.campus-stat-card :campus="$cs" />
     </div>
     @empty
     <div class="col-12"><div class="alert alert-light mb-0">Belum ada data kampus.</div></div>

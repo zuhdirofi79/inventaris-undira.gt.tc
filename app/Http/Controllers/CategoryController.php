@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCategoryRequest;
+use App\Models\Building;
 use App\Models\Campus;
 use App\Models\Category;
+use App\Models\Floor;
 use App\Models\InventoryConditionMaster;
 use App\Models\InventoryMasterConfiguration;
 use App\Models\InventorySequence;
 use App\Models\OrgUnit;
 use App\Models\ProcurementType;
 use App\Models\PurchaseYear;
+use App\Models\Room;
 use App\Models\RoomFunction;
 use App\Models\Setting;
 use App\Services\InventoryCodeService;
@@ -33,26 +36,54 @@ class CategoryController extends Controller
             $tab = 'konfigurasi';
         }
 
-        $categories = Category::query()
+        $search = trim((string) $request->input('q', ''));
+
+        $categoriesQuery = Category::query()
             ->withCount('subCategories', 'inventoryItems')
-            ->orderBy('name')
+            ->orderBy('name');
+        if ($tab === 'klasifikasi' && $search !== '') {
+            $categoriesQuery->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%")
+                    ->orWhere('slug', 'like', "%{$search}%");
+            });
+        }
+        $categories = $categoriesQuery
             ->paginate(20, ['*'], 'categories_page')
             ->withQueryString();
 
-        $orgUnits = OrgUnit::query()
+        $orgUnitsQuery = OrgUnit::query()
             ->withCount('inventoryItems')
-            ->orderBy('name')
+            ->orderBy('name');
+        if ($tab === 'units' && $search !== '') {
+            $orgUnitsQuery->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%");
+            });
+        }
+        $orgUnits = $orgUnitsQuery
             ->paginate(20, ['*'], 'units_page')
             ->withQueryString();
 
-        $procurementTypes = ProcurementType::query()
+        $procurementQuery = ProcurementType::query()
             ->withCount('inventoryItems')
-            ->orderBy('name')
+            ->orderBy('name');
+        if ($tab === 'pengadaan' && $search !== '') {
+            $procurementQuery->where(function ($q) use ($search) {
+                $q->where('code', 'like', "%{$search}%")
+                    ->orWhere('name', 'like', "%{$search}%");
+            });
+        }
+        $procurementTypes = $procurementQuery
             ->paginate(20, ['*'], 'procurement_page')
             ->withQueryString();
 
         $configurations = null;
         $configLookups = [];
+        $lokasiHub = null;
+        $purchaseYears = null;
+        $roomFunctions = null;
+        $inventoryConditions = null;
 
         if ($tab === 'konfigurasi') {
             $configurations = $this->configurationsQuery($request)
@@ -72,6 +103,29 @@ class CategoryController extends Controller
             ];
         }
 
+        if ($tab === 'lokasi') {
+            $lokasiHub = [
+                'campuses_total' => Campus::query()->count(),
+                'campuses_active' => Campus::query()->where('is_active', true)->count(),
+                'buildings_total' => Building::query()->count(),
+                'buildings_active' => Building::query()->where('is_active', true)->count(),
+                'floors_total' => Floor::query()->count(),
+                'floors_active' => Floor::query()->where('is_active', true)->count(),
+                'rooms_total' => Room::query()->count(),
+                'rooms_active' => Room::query()->where('is_active', true)->count(),
+                'room_functions_total' => RoomFunction::query()->count(),
+                'room_functions_active' => RoomFunction::query()->where('is_active', true)->count(),
+                'purchase_years_total' => PurchaseYear::query()->count(),
+                'purchase_years_active' => PurchaseYear::query()->where('is_active', true)->count(),
+                'conditions_total' => InventoryConditionMaster::query()->count(),
+                'conditions_active' => InventoryConditionMaster::query()->where('is_active', true)->count(),
+            ];
+
+            $purchaseYears = PurchaseYear::query()->orderByDesc('year')->paginate(15, ['*'], 'years_page')->withQueryString();
+            $roomFunctions = RoomFunction::query()->orderBy('sort_order')->orderBy('name')->paginate(15, ['*'], 'functions_page')->withQueryString();
+            $inventoryConditions = InventoryConditionMaster::query()->orderBy('sort_order')->orderBy('name')->paginate(15, ['*'], 'conditions_page')->withQueryString();
+        }
+
         return view('master.categories.index', compact(
             'tab',
             'categories',
@@ -79,6 +133,10 @@ class CategoryController extends Controller
             'procurementTypes',
             'configurations',
             'configLookups',
+            'lokasiHub',
+            'purchaseYears',
+            'roomFunctions',
+            'inventoryConditions',
         ));
     }
 
@@ -86,7 +144,8 @@ class CategoryController extends Controller
     {
         Category::query()->create([
             ...$request->validated(),
-            'slug' => $request->input('slug') ?? Str::slug($request->input('name')),
+            'slug' => $request->input('slug') ?: Str::slug($request->input('name')),
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()
@@ -96,7 +155,11 @@ class CategoryController extends Controller
 
     public function update(StoreCategoryRequest $request, Category $category): RedirectResponse
     {
-        $category->update($request->validated());
+        $category->update([
+            ...$request->validated(),
+            'slug' => $request->input('slug') ?: Str::slug($request->input('name')),
+            'is_active' => $request->boolean('is_active'),
+        ]);
 
         return redirect()
             ->route('categories.index', ['tab' => 'klasifikasi'])

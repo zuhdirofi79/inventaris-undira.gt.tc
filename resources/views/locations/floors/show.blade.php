@@ -9,12 +9,12 @@
     <li class="breadcrumb-item active">{{ $floor->name }}</li>
 @endsection
 
-@section('content')
 @php
     $campus = $floor->building->campus;
     $building = $floor->building;
 @endphp
 
+@section('content')
 <div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
     <div>
         <h1 class="mb-1"><i class="fas fa-layer-group me-2"></i>{{ $floor->name }}</h1>
@@ -24,7 +24,7 @@
         </p>
     </div>
     @can('location.manage')
-    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateRoom" data-bs-toggle="modal" data-bs-target="#modalRoomForm">
+    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateRoom" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
         <i class="fas fa-plus me-1"></i>Tambah Ruangan
     </button>
     @endcan
@@ -41,7 +41,7 @@
                 <p class="fw-semibold mb-1">Belum ada ruangan di lantai ini</p>
                 @can('location.manage')
                 <p class="mb-2">Tambahkan ruangan agar inventaris dapat ditempatkan.</p>
-                <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalRoomForm">
+                <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
                     <i class="fas fa-plus me-1"></i>Tambah Ruangan
                 </button>
                 @else
@@ -52,8 +52,10 @@
     </div>
     @endforelse
 </div>
+@endsection
 
 @can('location.manage')
+@push('modals')
 <div class="modal fade" id="modalRoomForm" tabindex="-1" aria-labelledby="modalRoomFormTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <form id="roomForm" class="modal-content" novalidate>
@@ -117,8 +119,8 @@
         </form>
     </div>
 </div>
+@endpush
 @endcan
-@endsection
 
 @push('styles')
 <style>

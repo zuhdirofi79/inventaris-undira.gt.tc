@@ -10,7 +10,7 @@
         <p class="text-muted small mb-0">Pusat input inventaris: lokasi → klasifikasi → data barang → QR/Barcode otomatis tersimpan ke ruangan.</p>
     </div>
     @canany(['category.manage', 'inventory.create'])
-    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateConfig" data-bs-toggle="modal" data-bs-target="#modalCreateConfig">
+    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateConfig" data-bs-toggle="modal" data-bs-target="#modalCreateConfig" data-no-loader="1">
         <i class="fas fa-plus me-1"></i>Tambah Inventaris
     </button>
     @endcanany
