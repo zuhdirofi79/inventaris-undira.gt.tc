@@ -71,10 +71,11 @@ class InventoryReportTest extends TestCase
         $report = app(InventoryReportService::class)->build($request);
 
         $this->assertSame(2, $report['summary']['total_items']);
-        $this->assertSame(150000.0, $report['summary']['total_value']);
+        $this->assertArrayNotHasKey('total_value', $report['summary']);
         $this->assertCount(1, $report['tree']);
         $this->assertSame($campus->name, $report['tree'][0]['label']);
         $this->assertSame(2, $report['tree'][0]['totals']['count']);
+        $this->assertArrayNotHasKey('value', $report['tree'][0]['totals']);
 
         $roomNode = $report['tree'][0]['buildings'][0]['floors'][0]['rooms'][0];
         $this->assertSame(2, $roomNode['totals']['count']);

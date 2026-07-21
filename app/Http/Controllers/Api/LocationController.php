@@ -62,7 +62,6 @@ class LocationController extends Controller
         return response()->json([
             'room' => $room,
             'inventory_count' => $room->inventoryItems()->count(),
-            'total_value' => $room->inventoryItems()->sum('price'),
         ]);
     }
 }

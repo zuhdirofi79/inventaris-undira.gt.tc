@@ -34,9 +34,6 @@
                                                                 — {{ $item->inventory_number }}
                                                                 @if($item->status) · {{ $item->status->label() }} @endif
                                                                 @if($item->condition) · {{ $item->condition->label() }} @endif
-                                                                @if($item->price)
-                                                                    · Rp {{ number_format((float) $item->price, 0, ',', '.') }}
-                                                                @endif
                                                             </span>
                                                         </li>
                                                     @endforeach
@@ -48,7 +45,6 @@
 
                                 <div class="report-subtotal">
                                     Subtotal Ruangan: {{ number_format($roomNode['totals']['count']) }} item
-                                    · Rp {{ number_format($roomNode['totals']['value'], 0, ',', '.') }}
                                     @if(!empty($roomNode['by_category']))
                                         ·
                                         @foreach($roomNode['by_category'] as $cat => $cnt)
@@ -62,7 +58,6 @@
                         <div class="report-subtotal report-subtotal-floor">
                             Subtotal Lantai {{ $floorNode['label'] }}:
                             {{ number_format($floorNode['totals']['count']) }} item
-                            · Rp {{ number_format($floorNode['totals']['value'], 0, ',', '.') }}
                         </div>
                     </div>
                 @endforeach
@@ -71,7 +66,6 @@
                     Ringkasan {{ $buildingNode['label'] }}:
                     {{ number_format($buildingNode['totals']['count']) }} inventaris
                     · {{ number_format($buildingNode['room_count'] ?? 0) }} ruangan
-                    · Rp {{ number_format($buildingNode['totals']['value'], 0, ',', '.') }}
                 </div>
             </div>
         @endforeach
@@ -82,7 +76,6 @@
             @foreach($campusNode['by_category'] as $cat => $cnt)
                 {{ $cat }}: {{ number_format($cnt) }}<br>
             @endforeach
-            Nilai Inventaris: Rp {{ number_format($campusNode['totals']['value'], 0, ',', '.') }}
         </div>
     </div>
 @empty

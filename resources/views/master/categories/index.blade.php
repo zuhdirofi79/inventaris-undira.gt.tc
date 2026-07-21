@@ -14,11 +14,11 @@
 </div>
 
 <ul class="nav nav-tabs mb-3" role="tablist">
-    @can('category.manage')
+    @canany(['category.manage', 'inventory.create'])
     <li class="nav-item">
         <a class="nav-link {{ $tab === 'konfigurasi' ? 'active' : '' }}" href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}">Konfigurasi Inventaris</a>
     </li>
-    @endcan
+    @endcanany
     <li class="nav-item">
         <a class="nav-link {{ $tab === 'klasifikasi' ? 'active' : '' }}" href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}">Klasifikasi</a>
     </li>
@@ -38,11 +38,11 @@
 </ul>
 
 @if($tab === 'konfigurasi')
-@can('category.manage')
+@canany(['category.manage', 'inventory.create'])
 @include('master.categories._konfigurasi')
 @else
 <div class="alert alert-warning">Anda tidak memiliki izin mengelola konfigurasi inventaris.</div>
-@endcan
+@endcanany
 @endif
 
 @if($tab === 'klasifikasi')

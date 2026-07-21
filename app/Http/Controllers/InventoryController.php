@@ -365,7 +365,7 @@ class InventoryController extends Controller
 
         $orderColumn = $request->input('order.0.column', 0);
         $orderDir = $request->input('order.0.dir', 'asc');
-        $columns = ['inventory_number', 'name', 'category_id', 'status', 'condition', 'price', 'created_at'];
+        $columns = ['inventory_number', 'name', 'category_id', 'status', 'condition', 'created_at'];
         $orderBy = $columns[$orderColumn] ?? 'inventory_number';
 
         $items = $query

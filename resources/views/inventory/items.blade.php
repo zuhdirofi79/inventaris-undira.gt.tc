@@ -17,7 +17,7 @@
         <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-university me-1"></i>Per Kampus</a>
         <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-th-large me-1"></i>Per Kategori</a>
         @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-sliders-h me-1"></i>Konfigurasi Inventaris</a>
         @endcan
         @can('inventory.export')
         <div class="btn-group btn-group-sm">
@@ -100,7 +100,6 @@
                         <th>Lokasi</th>
                         <th>Status</th>
                         <th>Kondisi</th>
-                        <th>Harga</th>
                         <th>Aksi</th>
                     </tr>
                 </thead>
@@ -163,7 +162,6 @@ const table = $('#inventoryTable').DataTable({
         { data: 'full_location', render: d => `<small>${d || '-'}</small>` },
         { data: 'status', render: s => { const label = (typeof s === 'object' && s?.label) ? s.label : (s || '-'); return `<span class="badge bg-secondary">${label}</span>`; }},
         { data: 'condition', render: c => { const label = (typeof c === 'object' && c?.label) ? c.label : (c || '-'); return `<span class="badge bg-info">${label}</span>`; }},
-        { data: 'price', render: p => p ? 'Rp ' + Number(p).toLocaleString('id-ID') : '-' },
         { data: null, orderable: false, render: (data, type, row) => `
             <a href="/inventory/${row.id}" class="btn btn-xs btn-outline-primary btn-sm"><i class="fas fa-eye"></i></a>
             @can('inventory.update')<a href="/inventory/${row.id}/edit" class="btn btn-xs btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>@endcan

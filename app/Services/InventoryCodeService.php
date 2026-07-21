@@ -87,11 +87,11 @@ class InventoryCodeService
     public function scanUrl(string $inventoryNumber): string
     {
         $base = rtrim((string) Setting::get('inventory.scan_base_url', ''), '/');
-        if ($base === '') {
-            return url('/scan/'.$inventoryNumber);
+        if ($base !== '') {
+            return $base.'/scan/'.$inventoryNumber;
         }
 
-        return $base.'/scan/'.$inventoryNumber;
+        return route('inventory.scan', ['inventoryNumber' => $inventoryNumber], true);
     }
 
     public function generateAndSaveCodes(InventoryItem $item): InventoryItem

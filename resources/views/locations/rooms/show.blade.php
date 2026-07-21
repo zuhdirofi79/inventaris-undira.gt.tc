@@ -28,13 +28,13 @@
             'building_id' => $room->floor->building_id,
             'campus_id' => $room->floor->building->campus_id,
         ]) }}" class="btn btn-undira btn-sm mt-2">
-        <i class="fas fa-plus me-1"></i>Tambah Inventaris
+        <i class="fas fa-sliders-h me-1"></i>Konfigurasi Inventaris
     </a>
     @endcanany
 </div>
 
 <div class="row mb-4">
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body">
                 <div class="text-muted small">Total Item</div>
@@ -42,7 +42,7 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body">
                 <div class="text-muted small">Grup Barang</div>
@@ -50,21 +50,15 @@
             </div>
         </div>
     </div>
-    <div class="col-md-3 mb-3">
-        <div class="card card-undira card-stat h-100">
-            <div class="card-body">
-                <div class="text-muted small">Total Nilai</div>
-                <h3 class="mb-0">Rp {{ number_format($stats['total_value'], 0, ',', '.') }}</h3>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3 mb-3">
+    <div class="col-md-4 mb-3">
         <div class="card card-undira card-stat stat-info h-100">
             <div class="card-body">
                 <div class="text-muted small">Status</div>
-                @foreach($stats['by_status'] as $status => $count)
+                @forelse($stats['by_status'] as $status => $count)
                     <small class="d-block">{{ ucfirst(str_replace('_', ' ', $status)) }}: {{ $count }}</small>
-                @endforeach
+                @empty
+                    <small class="d-block text-muted">Belum ada data</small>
+                @endforelse
             </div>
         </div>
     </div>
@@ -124,7 +118,22 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">Belum ada inventaris di ruangan ini.</td>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <p class="fw-semibold mb-1">Belum ada inventaris di ruangan ini.</p>
+                            <p class="mb-2 small">Tambahkan inventaris melalui menu Konfigurasi Inventaris.</p>
+                            @canany(['inventory.create', 'category.manage'])
+                            <a href="{{ route('categories.index', [
+                                'tab' => 'konfigurasi',
+                                'create' => 1,
+                                'room_id' => $room->id,
+                                'floor_id' => $room->floor_id,
+                                'building_id' => $room->floor->building_id,
+                                'campus_id' => $room->floor->building->campus_id,
+                            ]) }}" class="btn btn-sm btn-undira">
+                                <i class="fas fa-sliders-h me-1"></i>Buka Konfigurasi Inventaris
+                            </a>
+                            @endcanany
+                        </td>
                     </tr>
                     @endforelse
                 </tbody>

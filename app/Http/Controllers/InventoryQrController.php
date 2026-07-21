@@ -45,6 +45,45 @@ class InventoryQrController extends Controller
         return view('inventory.scan', compact('inventory'));
     }
 
+    public function inlineQr(InventoryItem $inventory): Response
+    {
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh();
+
+        if (! $inventory->qr_code_path || ! Storage::disk('public')->exists($inventory->qr_code_path)) {
+            abort(404, 'QR Code tidak tersedia.');
+        }
+
+        $filename = str_replace(['/', '\\'], '-', $inventory->inventory_number).'-qr.svg';
+
+        return response(Storage::disk('public')->get($inventory->qr_code_path), 200, [
+            'Content-Type' => 'image/svg+xml; charset=UTF-8',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    public function inlineBarcode(InventoryItem $inventory): Response
+    {
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh();
+
+        $code = $inventory->barcode ?: $inventory->inventory_number;
+        $path = $this->codeService->barcodePath((string) $code);
+
+        if (! Storage::disk('public')->exists($path)) {
+            abort(404, 'Barcode tidak tersedia.');
+        }
+
+        $filename = str_replace(['/', '\\'], '-', (string) $code).'-barcode.png';
+
+        return response(Storage::disk('public')->get($path), 200, [
+            'Content-Type' => 'image/png',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
     public function downloadQr(InventoryItem $inventory): StreamedResponse|RedirectResponse
     {
         $this->codeService->ensureCodes($inventory);

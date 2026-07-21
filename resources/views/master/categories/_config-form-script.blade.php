@@ -206,6 +206,11 @@
         $(document).on('click', '.btn-manage-option', function () {
             const type = $(this).data('type');
             const target = $(this).data('target');
+            const $panel = $('#manageOptionPanel');
+            if (!$panel.length) {
+                window.open(@json(route('categories.index', ['tab' => 'klasifikasi'])), '_blank');
+                return;
+            }
             $('#option_type').val(type);
             $('#option_target_select').val(target);
             $('#option_error').addClass('d-none').text('');
@@ -219,11 +224,32 @@
                 $('#option_fields_code_name').removeClass('d-none');
                 $('#option_fields_year').addClass('d-none');
             }
-            new bootstrap.Modal(document.getElementById('modalManageOption')).show();
+            $panel.removeClass('d-none');
+            // Ensure create modal hosts the panel (move into visible modal if needed)
+            const createModal = document.getElementById('modalCreateConfig');
+            const editModal = document.getElementById('modalEditConfig');
+            if (editModal?.classList.contains('show') && createModal && !createModal.classList.contains('show')) {
+                // From edit: open master page instead of nesting
+                const urls = {
+                    room_function: @json(route('categories.index', ['tab' => 'lokasi'])),
+                    purchase_year: @json(route('categories.index', ['tab' => 'pengadaan'])),
+                    inventory_condition: @json(route('categories.index', ['tab' => 'klasifikasi'])),
+                };
+                window.open(urls[type] || @json(route('categories.index')), '_blank');
+                return;
+            }
+            const focusEl = type === 'purchase_year'
+                ? document.getElementById('option_year')
+                : document.getElementById('option_code');
+            focusEl?.focus();
         });
 
-        $('#formManageOption').on('submit', async function (e) {
-            e.preventDefault();
+        $(document).on('click', '#btnCloseManageOption, .btn-close-manage-option', function () {
+            $('#manageOptionPanel').addClass('d-none');
+            $('#option_error').addClass('d-none').text('');
+        });
+
+        async function saveManageOption() {
             const type = $('#option_type').val();
             const target = $('#option_target_select').val();
             const body = { type, _token: csrf };
@@ -253,9 +279,23 @@
                 const $sel = $('#' + target);
                 const label = json.data.label || json.data.name || json.data.year;
                 $sel.append(`<option value="${json.data.id}" selected>${label}</option>`);
-                bootstrap.Modal.getInstance(document.getElementById('modalManageOption'))?.hide();
+                $('#manageOptionPanel').addClass('d-none');
+                $('#option_error').addClass('d-none').text('');
             } catch (err) {
                 $('#option_error').removeClass('d-none').text('Kesalahan jaringan.');
+            }
+        }
+
+        $('#btnSaveManageOption').on('click', function () {
+            saveManageOption();
+        });
+
+        $('#formCreateConfig').on('submit', function () {
+            const btn = document.getElementById('btnSaveCreateConfig');
+            if (btn) {
+                btn.disabled = true;
+                btn.dataset.undiraOriginalHtml = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Menyimpan...';
             }
         });
     });

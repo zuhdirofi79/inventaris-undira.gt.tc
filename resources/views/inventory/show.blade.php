@@ -88,7 +88,6 @@
             <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2 text-undira-green"></i>Pengadaan</h5></div>
             <div class="card-body">
                 <div class="row g-3 detail-grid">
-                    <div class="col-md-6"><div class="detail-label">Harga</div><div class="detail-value fw-semibold">{{ $inventory->price !== null ? 'Rp '.number_format((float) $inventory->price, 0, ',', '.') : '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Tahun / Tanggal Beli</div><div class="detail-value">{{ $inventory->purchase_year ?? '-' }} / {{ $inventory->purchase_date?->format('d/m/Y') ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Unit / Divisi</div><div class="detail-value">{{ $inventory->orgUnit ? $inventory->orgUnit->code.' — '.$inventory->orgUnit->name : '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Jenis Pengadaan</div><div class="detail-value">{{ $inventory->procurementType ? $inventory->procurementType->code.' — '.$inventory->procurementType->name : ($inventory->funding_source ?? '-') }}</div></div>
@@ -187,7 +186,7 @@
                     <div class="empty-state py-3"><i class="fas fa-qrcode fa-3x text-muted mb-2"></i><div class="text-muted">QR belum tersedia</div></div>
                 @endif
                 @if($inventory->qr_url)
-                <a href="{{ route('inventory.qr.download', $inventory) }}" class="btn btn-outline-success btn-sm w-100 mb-2"><i class="fas fa-download me-1"></i>Unduh QR</a>
+                <a href="{{ route('inventory.qr.download', $inventory) }}" class="btn btn-outline-success btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-download me-1"></i>Unduh QR Code</a>
                 @endif
             </div>
         </div>
@@ -202,9 +201,9 @@
                     <div class="mb-3"><code>{{ $inventory->barcode }}</code></div>
                 @endif
                 @if($inventory->barcode_url)
-                <a href="{{ route('inventory.barcode.download', $inventory) }}" class="btn btn-outline-primary btn-sm w-100 mb-2"><i class="fas fa-download me-1"></i>Unduh Barcode</a>
+                <a href="{{ route('inventory.barcode.download', $inventory) }}" class="btn btn-outline-primary btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-download me-1"></i>Unduh Barcode</a>
                 @endif
-                <a href="{{ route('inventory.label.print', $inventory) }}" target="_blank" class="btn btn-secondary btn-sm w-100 mb-2"><i class="fas fa-print me-1"></i>Cetak Label</a>
+                <a href="{{ route('inventory.label.print', $inventory) }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-print me-1"></i>Cetak Label</a>
                 @can('inventory.update')
                 <form action="{{ route('inventory.codes.regenerate', $inventory) }}" method="POST">
                     @csrf

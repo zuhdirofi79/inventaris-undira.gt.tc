@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-layout.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/undira-modals.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
     @stack('styles')
 </head>
@@ -413,6 +414,10 @@
         <strong>&copy; {{ date('Y') }} Inventaris UNDIRA.</strong> Universitas Dian Nusantara.
     </footer>
 </div>
+
+{{-- Modals must live outside .wrapper / .content-wrapper so Bootstrap backdrop
+     cannot stack above them (AdminLTE stacking-context issue). --}}
+@stack('modals')
 
 <div class="undira-sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
 

@@ -120,10 +120,10 @@
     <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-green me-3"><i class="fas fa-money-bill-wave"></i></div>
+                <div class="stat-icon icon-green me-3"><i class="fas fa-check-circle"></i></div>
                 <div>
-                    <div class="text-muted small">Total Nilai</div>
-                    <h3 class="mb-0 fs-5">Rp {{ number_format($total_value ?? 0, 0, ',', '.') }}</h3>
+                    <div class="text-muted small">Tersedia</div>
+                    <h3 class="mb-0">{{ number_format($active_inventory ?? $available ?? 0) }}</h3>
                 </div>
             </div>
         </div>
@@ -188,10 +188,6 @@
                     <div class="col-6">
                         <span class="text-muted">Total Unit</span>
                         <div class="fw-bold">{{ number_format($cs['total_units']) }}</div>
-                    </div>
-                    <div class="col-12">
-                        <span class="text-muted">Total Nilai</span>
-                        <div class="fw-bold">Rp {{ number_format($cs['total_value'], 0, ',', '.') }}</div>
                     </div>
                     <div class="col-4">
                         <span class="text-muted">Gedung</span>
@@ -404,14 +400,6 @@
             <div class="card-body"><canvas id="chartSubcategory" height="260"></canvas></div>
         </div>
     </div>
-    <div class="col-lg-6 mb-4">
-        <div class="card card-undira">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-coins me-2"></i>Nilai Inventaris per Kampus</h5>
-            </div>
-            <div class="card-body"><canvas id="chartValueCampus" height="260"></canvas></div>
-        </div>
-    </div>
 </div>
 
 @if($highlightItems->isNotEmpty())
@@ -564,13 +552,6 @@ function initDashboardCharts() {
         (chartPayload.by_subcategory || []).map(c => c.label),
         (chartPayload.by_subcategory || []).map(c => Number(c.total)),
         'Jumlah'
-    );
-    makeChart(
-        document.getElementById('chartValueCampus'),
-        'bar',
-        (chartPayload.value_by_campus || []).map(c => c.label),
-        (chartPayload.value_by_campus || []).map(c => Number(c.total)),
-        'Nilai (Rp)'
     );
 }
 

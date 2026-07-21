@@ -115,7 +115,11 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:inventory.import')->prefix('inventory/import')->name('inventory.import.')->group(function () {
-        Route::get('/', fn () => view('inventory.import'))->name('index');
+        Route::get('/', function () {
+            return redirect()
+                ->route('categories.index', ['tab' => 'konfigurasi', 'create' => 1])
+                ->with('error', 'Penambahan inventaris hanya melalui menu Konfigurasi Inventaris.');
+        })->name('index');
         Route::get('/template', [InventoryImportController::class, 'template'])->name('template');
         Route::post('/preview', [InventoryImportController::class, 'preview'])->name('preview');
         Route::post('/process', [InventoryImportController::class, 'process'])->name('process');
@@ -136,6 +140,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory/categories/{category}', [InventoryController::class, 'byCategory'])->name('inventory.category');
         Route::get('/inventory/campuses/{campus}', [InventoryController::class, 'byCampus'])->name('inventory.campus');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
+        Route::get('/inventory/{inventory}/qr', [InventoryQrController::class, 'inlineQr'])->name('inventory.qr');
+        Route::get('/inventory/{inventory}/barcode', [InventoryQrController::class, 'inlineBarcode'])->name('inventory.barcode');
         Route::get('/inventory/{inventory}/qr/download', [InventoryQrController::class, 'downloadQr'])->name('inventory.qr.download');
         Route::get('/inventory/{inventory}/barcode/download', [InventoryQrController::class, 'downloadBarcode'])->name('inventory.barcode.download');
         Route::get('/inventory/{inventory}/label/print', [InventoryQrController::class, 'print'])->name('inventory.label.print');

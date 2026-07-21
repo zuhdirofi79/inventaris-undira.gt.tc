@@ -1,0 +1,195 @@
+/* Modal stacking + readable form/surface contrast (authenticated app) */
+
+:root {
+  --text-primary: #172033;
+  --text-secondary: #5f6b7a;
+  --text-muted: #7b8794;
+  --surface-primary: #ffffff;
+  --surface-secondary: #f5f7fb;
+  --border-color: #d9e0ea;
+}
+
+/*
+ * AdminLTE chrome uses z-index ~1034–1038.
+ * Bootstrap 5 defaults (1050/1055) can lose to ancestor stacking when modals
+ * were nested in .content-wrapper. Modals are now @stack('modals') outside
+ * .wrapper; keep explicit layering above AdminLTE and below the page loader.
+ */
+.modal-backdrop {
+  z-index: 1090;
+}
+
+.modal {
+  z-index: 1095;
+}
+
+.loading-overlay {
+  z-index: 2100;
+}
+
+.undira-sidebar-backdrop {
+  z-index: 1035;
+}
+
+/* Never let the sidebar backdrop intercept clicks while a Bootstrap modal is open */
+body.modal-open .undira-sidebar-backdrop {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+.manage-option-panel {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+}
+
+/* —— Light-mode readable surfaces —— */
+.content-wrapper,
+.content-wrapper .content,
+.card.card-undira,
+.card.card-undira .card-body,
+.modal-content,
+.modal-body,
+.modal-header,
+.modal-footer,
+.filter-panel {
+  color: var(--text-primary);
+}
+
+.modal-title,
+.page-header-undira h1,
+.content-header h1,
+.card-header-undira,
+.card .card-title {
+  color: var(--undira-blue, #1A237E);
+}
+
+.app-identity-title {
+  color: var(--undira-blue, #1A237E) !important;
+}
+
+.app-identity-subtitle {
+  color: var(--text-secondary) !important;
+}
+
+.form-label,
+.col-form-label {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.form-control,
+.form-select,
+.modal .form-control,
+.modal .form-select {
+  color: var(--text-primary);
+  background-color: var(--surface-primary);
+  border-color: var(--border-color);
+}
+
+.form-control::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+
+.form-control:disabled,
+.form-select:disabled,
+.form-control[readonly] {
+  color: #596273;
+  background-color: #eef1f5;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+.form-text {
+  color: var(--text-secondary) !important;
+}
+
+.table {
+  color: var(--text-primary);
+}
+
+.table thead th {
+  color: var(--undira-blue, #1A237E);
+}
+
+.btn-outline-secondary {
+  color: #334155;
+  border-color: #cbd5e1;
+  background: #fff;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus-visible {
+  color: #0f172a;
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.btn-secondary {
+  color: #fff;
+}
+
+.btn-undira,
+.btn-undira:hover,
+.btn-undira:focus-visible {
+  color: #fff !important;
+}
+
+/* Dark mode: keep surfaces readable without forcing white on light cards */
+body.dark-mode {
+  --text-primary: #E2E8F0;
+  --text-secondary: #94A3B8;
+  --text-muted: #94A3B8;
+  --surface-primary: #1e2430;
+  --surface-secondary: #151a23;
+  --border-color: #334155;
+}
+
+body.dark-mode .modal-content,
+body.dark-mode .modal-header,
+body.dark-mode .modal-body,
+body.dark-mode .modal-footer {
+  background-color: var(--surface-primary);
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .modal-title,
+body.dark-mode .form-label {
+  color: #C7D2FE;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background-color: #151a23;
+  color: var(--text-primary);
+  border-color: var(--border-color);
+}
+
+body.dark-mode .form-control:disabled,
+body.dark-mode .form-select:disabled,
+body.dark-mode .form-control[readonly] {
+  background-color: #0f141c;
+  color: #94A3B8;
+}
+
+body.dark-mode .manage-option-panel {
+  background: #151a23;
+  border-color: var(--border-color);
+}
+
+body.dark-mode .btn-outline-secondary {
+  color: #E2E8F0;
+  background: transparent;
+  border-color: #475569;
+}
+
+@media (max-width: 575.98px) {
+  .modal-dialog.modal-xl {
+    margin: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+}

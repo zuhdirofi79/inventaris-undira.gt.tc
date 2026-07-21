@@ -21,7 +21,6 @@ class RoomController extends Controller
                 'category_id',
                 DB::raw('COUNT(*) as unit_count'),
                 DB::raw('MIN(id) as sample_id'),
-                DB::raw('SUM(price) as total_value'),
             ])
             ->groupBy('group_key', 'name', 'category_id')
             ->with('category')
@@ -30,7 +29,6 @@ class RoomController extends Controller
         $stats = [
             'total_items' => $room->inventoryItems()->count(),
             'total_groups' => $groupedInventory->count(),
-            'total_value' => $room->inventoryItems()->sum('price'),
             'by_status' => $room->inventoryItems()
                 ->selectRaw('status, COUNT(*) as total')
                 ->groupBy('status')

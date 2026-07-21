@@ -27,16 +27,14 @@ class DashboardStatsService
             ->groupBy('status')
             ->pluck('total', 'status');
 
-        $totalValue = (float) InventoryItem::query()->sum('price');
-
         return [
             'total_campuses' => Campus::query()->where('is_active', true)->count(),
             'total_buildings' => Building::query()->where('is_active', true)->count(),
             'total_floors' => Floor::query()->where('is_active', true)->count(),
             'total_rooms' => Room::query()->where('is_active', true)->count(),
             'total_inventory' => InventoryItem::query()->count(),
-            'total_value' => $totalValue,
             'active_inventory' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
+            'available' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
             'borrowed' => (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0),
             'maintenance' => (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0),
             'damaged' => (int) ($statusCounts[InventoryStatus::RusakRingan->value] ?? 0)
@@ -74,7 +72,7 @@ class DashboardStatsService
         return $campuses->map(function (Campus $campus) use ($locationCounts, $inventoryAgg, $statusByCampus, $categoryByCampus) {
             $id = $campus->id;
             $loc = $locationCounts[$id] ?? ['buildings' => 0, 'floors' => 0, 'rooms' => 0];
-            $inv = $inventoryAgg[$id] ?? ['total_units' => 0, 'total_inventory' => 0, 'total_value' => 0];
+            $inv = $inventoryAgg[$id] ?? ['total_units' => 0, 'total_inventory' => 0];
             $status = $statusByCampus[$id] ?? [];
             $cats = $categoryByCampus[$id] ?? [];
 
@@ -84,7 +82,6 @@ class DashboardStatsService
                 'code' => $campus->code,
                 'total_inventory' => (int) $inv['total_inventory'],
                 'total_units' => (int) $inv['total_units'],
-                'total_value' => (float) $inv['total_value'],
                 'buildings' => (int) $loc['buildings'],
                 'floors' => (int) $loc['floors'],
                 'rooms' => (int) $loc['rooms'],
@@ -133,7 +130,7 @@ class DashboardStatsService
     }
 
     /**
-     * @return array<int, list<array{name: string, code: string, total: int, total_value: float}>>
+     * @return array<int, list<array{name: string, code: string, total: int}>>
      */
     public function categoryTotalsByCampus(Collection $campusIds): array
     {
@@ -143,7 +140,7 @@ class DashboardStatsService
             ->join('buildings', 'buildings.id', '=', 'floors.building_id')
             ->join('categories', 'categories.id', '=', 'inventory_items.category_id')
             ->whereIn('buildings.campus_id', $campusIds)
-            ->selectRaw('buildings.campus_id, categories.code, categories.name, COUNT(*) as total, COALESCE(SUM(inventory_items.price), 0) as total_value')
+            ->selectRaw('buildings.campus_id, categories.code, categories.name, COUNT(*) as total')
             ->groupBy('buildings.campus_id', 'categories.code', 'categories.name')
             ->orderBy('categories.name')
             ->get();
@@ -154,7 +151,6 @@ class DashboardStatsService
                 'name' => $row->name,
                 'code' => $row->code,
                 'total' => (int) $row->total,
-                'total_value' => (float) $row->total_value,
             ];
         }
 
@@ -205,7 +201,7 @@ class DashboardStatsService
     }
 
     /**
-     * @return list<array{campus_id: int, campus_name: string, categories: list<array{name: string, code: string, total: int, total_value: float}>}>
+     * @return list<array{campus_id: int, campus_name: string, categories: list<array{name: string, code: string, total: int}>}>
      */
     public function campusCategoryBreakdown(): array
     {
@@ -241,16 +237,6 @@ class DashboardStatsService
             ->orderByDesc('total')
             ->get();
 
-        $valueByCampus = InventoryItem::query()
-            ->join('rooms', 'inventory_items.room_id', '=', 'rooms.id')
-            ->join('floors', 'rooms.floor_id', '=', 'floors.id')
-            ->join('buildings', 'floors.building_id', '=', 'buildings.id')
-            ->join('campuses', 'buildings.campus_id', '=', 'campuses.id')
-            ->selectRaw('campuses.name as label, COALESCE(SUM(inventory_items.price), 0) as total')
-            ->groupBy('campuses.name')
-            ->orderByDesc('total')
-            ->get();
-
         $byCategory = InventoryItem::query()
             ->join('categories', 'inventory_items.category_id', '=', 'categories.id')
             ->selectRaw('categories.name as label, COUNT(*) as total')
@@ -280,7 +266,6 @@ class DashboardStatsService
             'by_category' => $byCategory,
             'by_subcategory' => $bySubcategory,
             'by_status' => $byStatus,
-            'value_by_campus' => $valueByCampus,
         ];
     }
 
@@ -331,7 +316,7 @@ class DashboardStatsService
 
     /**
      * @param  Collection<int, int>  $campusIds
-     * @return array<int, array{total_units: int, total_inventory: int, total_value: float}>
+     * @return array<int, array{total_units: int, total_inventory: int}>
      */
     protected function inventoryAggByCampus(Collection $campusIds): array
     {
@@ -343,7 +328,6 @@ class DashboardStatsService
             ->selectRaw('buildings.campus_id')
             ->selectRaw('COUNT(inventory_items.id) as total_units')
             ->selectRaw('COUNT(DISTINCT COALESCE(inventory_items.group_key, inventory_items.name)) as total_inventory')
-            ->selectRaw('COALESCE(SUM(inventory_items.price), 0) as total_value')
             ->groupBy('buildings.campus_id')
             ->get();
 
@@ -352,7 +336,6 @@ class DashboardStatsService
             $result[(int) $row->campus_id] = [
                 'total_units' => (int) $row->total_units,
                 'total_inventory' => (int) $row->total_inventory,
-                'total_value' => (float) $row->total_value,
             ];
         }
 

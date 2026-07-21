@@ -6,38 +6,127 @@
     <title>Cetak Label - {{ $inventory->inventory_number }}</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <style>
+        body { background: #f5f7fa; color: #172033; }
+        .label-card {
+            max-width: 380px;
+            margin: 1.25rem auto;
+            background: #fff;
+            border: 1px solid #d9e0ea;
+            border-radius: 10px;
+            padding: 1.25rem 1.1rem;
+        }
+        .label-title { font-weight: 800; letter-spacing: 0.04em; font-size: 0.95rem; }
+        .label-name { font-size: 1.15rem; font-weight: 700; line-height: 1.25; }
+        .label-number { font-size: 0.95rem; color: #b91c1c; font-weight: 700; word-break: break-all; }
+        .label-qr {
+            width: 160px;
+            height: 160px;
+            object-fit: contain;
+            display: block;
+            margin: 0.75rem auto 0.35rem;
+        }
+        .label-barcode {
+            max-width: 100%;
+            height: 56px;
+            object-fit: contain;
+            display: block;
+            margin: 0.5rem auto 0.25rem;
+        }
+        .label-meta { font-size: 0.8rem; color: #5f6b7a; line-height: 1.4; }
+        .code-fallback {
+            border: 1px dashed #cbd5e1;
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: #64748b;
+            font-size: 0.85rem;
+            margin: 0.5rem 0;
+        }
         @media print {
             .no-print { display: none !important; }
-            body { margin: 0; }
-            .label-card { border: 1px solid #000 !important; box-shadow: none !important; }
+            body { background: #fff; margin: 0; }
+            .label-card {
+                margin: 0;
+                max-width: none;
+                border: 1px solid #000;
+                border-radius: 0;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+            .label-qr { width: 140px; height: 140px; }
+            .label-barcode { height: 48px; }
         }
-        .label-card { max-width: 360px; margin: 2rem auto; }
+        @media (prefers-reduced-motion: reduce) {
+            * { animation: none !important; transition: none !important; }
+        }
     </style>
 </head>
-<body class="bg-light">
+<body>
 <div class="container py-3 no-print text-center">
-    <button type="button" class="btn btn-success me-2" onclick="window.print()">
+    <button type="button" class="btn btn-success me-2" id="btnPrint" onclick="window.print()">
         Cetak
     </button>
-    <a href="{{ route('inventory.show', $inventory) }}" class="btn btn-outline-secondary">Kembali</a>
+    <a href="{{ route('inventory.show', $inventory) }}" class="btn btn-outline-secondary" data-no-loader="1">Kembali</a>
 </div>
 
-<div class="label-card card text-center p-4">
-    <div class="fw-bold text-uppercase mb-1">Inventaris UNDIRA</div>
-    <div class="fs-5 mb-2">{{ $inventory->name }}</div>
-    <code class="fs-6 d-block mb-3">{{ $inventory->inventory_number }}</code>
-    @if($inventory->qr_url)
-        <img src="{{ $inventory->qr_url }}" alt="QR Code" style="width:180px;height:180px;object-fit:contain;">
+@php
+    $hasQr = filled($inventory->qr_url);
+    $hasBarcode = filled($inventory->barcode_url);
+@endphp
+
+<div class="label-card text-center">
+    <div class="label-title text-uppercase mb-1">Inventaris UNDIRA</div>
+    <div class="label-name mb-1">{{ $inventory->name }}</div>
+    <div class="label-number mb-2">{{ $inventory->inventory_number }}</div>
+
+    @if($hasQr)
+        <img
+            src="{{ $inventory->qr_url }}"
+            alt="QR Code {{ $inventory->inventory_number }}"
+            class="label-qr"
+            width="160"
+            height="160"
+            loading="eager"
+            decoding="async"
+        >
+    @else
+        <div class="code-fallback">QR Code belum dapat ditampilkan.</div>
     @endif
-    @if($inventory->barcode_url)
-        <div class="mt-3">
-            <img src="{{ $inventory->barcode_url }}" alt="Barcode" style="max-width:100%;height:60px;object-fit:contain;">
-        </div>
+
+    @if($hasBarcode)
+        <img
+            src="{{ $inventory->barcode_url }}"
+            alt="Barcode {{ $inventory->barcode ?: $inventory->inventory_number }}"
+            class="label-barcode"
+            loading="eager"
+            decoding="async"
+        >
+    @else
+        <div class="code-fallback">Barcode belum dapat ditampilkan.</div>
     @endif
-    <div class="small text-muted mt-3">{{ $inventory->barcode }}</div>
-    <div class="small mt-1">{{ $inventory->full_location }}</div>
-    <div class="small">{{ $inventory->category?->name }}@if($inventory->subCategory) / {{ $inventory->subCategory->name }}@endif</div>
+
+    <div class="small fw-semibold mt-2">{{ $inventory->barcode ?: $inventory->inventory_number }}</div>
+    <div class="label-meta mt-2">{{ $inventory->full_location }}</div>
+    <div class="label-meta">
+        {{ $inventory->category?->name }}@if($inventory->subCategory) / {{ $inventory->subCategory->name }}@endif
+    </div>
 </div>
-<script>window.addEventListener('load', () => setTimeout(() => window.print(), 400));</script>
+
+<script>
+(function () {
+    var ready = {{ ($hasQr && $hasBarcode) ? 'true' : 'false' }};
+    var btn = document.getElementById('btnPrint');
+    if (!ready && btn) {
+        btn.addEventListener('click', function (e) {
+            if (!window.confirm('Kode QR/Barcode belum lengkap. Tetap cetak?')) {
+                e.preventDefault();
+            }
+        });
+        return;
+    }
+    window.addEventListener('load', function () {
+        window.setTimeout(function () { window.print(); }, 350);
+    });
+})();
+</script>
 </body>
 </html>

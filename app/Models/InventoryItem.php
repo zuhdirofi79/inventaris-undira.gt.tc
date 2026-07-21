@@ -167,26 +167,21 @@ class InventoryItem extends Model
 
     public function getQrUrlAttribute(): ?string
     {
-        if (! $this->qr_code_path) {
+        if (! $this->id || (blank($this->qr_code_path) && blank($this->inventory_number))) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->qr_code_path);
+        // Relative route — host-independent (fixes APP_URL vs 127.0.0.1 mismatch).
+        return route('inventory.qr', $this, false);
     }
 
     public function getBarcodeUrlAttribute(): ?string
     {
-        $code = $this->barcode ?: $this->inventory_number;
-        if (blank($code)) {
+        if (! $this->id || blank($this->barcode ?: $this->inventory_number)) {
             return null;
         }
 
-        $path = 'inventory/barcodes/'.str_replace(['/', '\\'], '-', (string) $code).'.png';
-        if (! Storage::disk('public')->exists($path)) {
-            return null;
-        }
-
-        return Storage::disk('public')->url($path);
+        return route('inventory.barcode', $this, false);
     }
 
     public function scopeActive(Builder $query): Builder

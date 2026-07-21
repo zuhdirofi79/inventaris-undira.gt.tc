@@ -12,7 +12,7 @@
                 @endforeach
             </select>
             @can('location.manage')
-            <a href="{{ route('admin.locations.campuses.index') }}" class="btn btn-outline-secondary" title="Kelola Kampus" target="_blank"><i class="fas fa-cog"></i></a>
+            <a href="{{ route('admin.locations.campuses.index') }}" class="btn btn-outline-secondary" title="Kelola Kampus" aria-label="Kelola pilihan Kampus" target="_blank" rel="noopener"><i class="fas fa-cog" aria-hidden="true"></i></a>
             @endcan
         </div>
     </div>
@@ -38,7 +38,7 @@
                 @endforeach
             </select>
             @can('unit.manage')
-            <a href="{{ route('categories.index', ['tab' => 'units']) }}" class="btn btn-outline-secondary" title="Kelola Unit" target="_blank"><i class="fas fa-cog"></i></a>
+            <a href="{{ route('categories.index', ['tab' => 'units']) }}" class="btn btn-outline-secondary" title="Kelola Unit" aria-label="Kelola Unit / Divisi" target="_blank" rel="noopener"><i class="fas fa-cog" aria-hidden="true"></i></a>
             @endcan
         </div>
     </div>
@@ -51,7 +51,7 @@
                     <option value="{{ $rf->id }}" @selected(old('room_function_id') == $rf->id)>{{ $rf->name }} ({{ $rf->code }})</option>
                 @endforeach
             </select>
-            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="room_function" data-target="{{ $p }}_room_function_id" title="Tambah Pilihan"><i class="fas fa-plus"></i></button>
+            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="room_function" data-target="{{ $p }}_room_function_id" title="Tambah Fungsi Ruang" aria-label="Tambah Fungsi Ruang"><i class="fas fa-plus" aria-hidden="true"></i></button>
         </div>
     </div>
     <div class="col-md-4">
@@ -73,7 +73,7 @@
                 @endforeach
             </select>
             @can('procurement.manage')
-            <a href="{{ route('categories.index', ['tab' => 'pengadaan']) }}" class="btn btn-outline-secondary" target="_blank"><i class="fas fa-cog"></i></a>
+            <a href="{{ route('categories.index', ['tab' => 'pengadaan']) }}" class="btn btn-outline-secondary" title="Kelola Jenis Pengadaan" aria-label="Kelola Jenis Pengadaan" target="_blank" rel="noopener"><i class="fas fa-cog" aria-hidden="true"></i></a>
             @endcan
         </div>
     </div>
@@ -86,7 +86,7 @@
                     <option value="{{ $y->id }}" @selected(old('purchase_year_id') == $y->id)>{{ $y->year }}</option>
                 @endforeach
             </select>
-            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="purchase_year" data-target="{{ $p }}_purchase_year_id" title="Tambah Tahun"><i class="fas fa-plus"></i></button>
+            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="purchase_year" data-target="{{ $p }}_purchase_year_id" title="Tambah Tahun Pembelian" aria-label="Tambah Tahun Pembelian"><i class="fas fa-plus" aria-hidden="true"></i></button>
         </div>
     </div>
 
@@ -100,7 +100,7 @@
                     <option value="{{ $cat->id }}" @selected(old('category_id') == $cat->id)>{{ $cat->name }} ({{ $cat->code }})</option>
                 @endforeach
             </select>
-            <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}" class="btn btn-outline-secondary" target="_blank"><i class="fas fa-cog"></i></a>
+            <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}" class="btn btn-outline-secondary" title="Kelola Klasifikasi" aria-label="Kelola Klasifikasi" target="_blank" rel="noopener"><i class="fas fa-cog" aria-hidden="true"></i></a>
         </div>
     </div>
     <div class="col-md-4">
@@ -118,7 +118,7 @@
                     <option value="{{ $cond->id }}" @selected(old('inventory_condition_id') == $cond->id)>{{ $cond->name }}</option>
                 @endforeach
             </select>
-            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="inventory_condition" data-target="{{ $p }}_inventory_condition_id" title="Tambah Kondisi"><i class="fas fa-plus"></i></button>
+            <button type="button" class="btn btn-outline-secondary btn-manage-option" data-type="inventory_condition" data-target="{{ $p }}_inventory_condition_id" title="Tambah Kondisi" aria-label="Tambah Kondisi Inventaris"><i class="fas fa-plus" aria-hidden="true"></i></button>
         </div>
     </div>
 
@@ -141,11 +141,7 @@
         <label class="form-label">Merek</label>
         <input type="text" name="brand" id="{{ $p }}_brand" class="form-control" value="{{ old('brand') }}">
     </div>
-    <div class="col-md-4">
-        <label class="form-label">Harga (Rp)</label>
-        <input type="number" name="price" id="{{ $p }}_price" class="form-control" value="{{ old('price') }}" min="0" step="0.01">
-    </div>
-    <div class="col-md-4">
+    <div class="col-md-8">
         <label class="form-label">Catatan</label>
         <input type="text" name="notes" id="{{ $p }}_notes" class="form-control" value="{{ old('notes') }}">
     </div>

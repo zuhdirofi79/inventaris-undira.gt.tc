@@ -1,12 +1,16 @@
 /**
  * UNDIRA Loading helpers — page overlay, AJAX bar, inline spinner, button loading.
- * No business logic. Depends on jQuery when available for AJAX hooks.
+ * Progressive enhancement: links keep valid href; overlay is cosmetic only.
  */
 (function (window, document) {
   'use strict';
 
   var STORAGE_KEY = 'undiraNavLoading';
+  var SAFETY_MS = 12000;
+  var SHOW_DELAY_MS = 180;
   var ajaxCount = 0;
+  var safetyTimer = null;
+  var showTimer = null;
   var logoUrl = (window.UNDIRA_LOADING && window.UNDIRA_LOADING.logo) || '/images/undira.png';
 
   function $(sel, ctx) {
@@ -36,19 +40,51 @@
     if (s) s.textContent = sub || 'Mohon tunggu sebentar';
   }
 
-  function showPageOverlay(title, sub) {
+  function clearTimers() {
+    if (showTimer) {
+      window.clearTimeout(showTimer);
+      showTimer = null;
+    }
+    if (safetyTimer) {
+      window.clearTimeout(safetyTimer);
+      safetyTimer = null;
+    }
+  }
+
+  function showPageOverlay(title, sub, options) {
     var el = overlayEl();
     if (!el) return;
-    setOverlayText(title || 'Memuat halaman...', sub || 'Sedang mengambil data...');
-    el.classList.add('active', 'undira-overlay-show');
-    el.setAttribute('aria-busy', 'true');
+    var opts = options || {};
+    var delay = typeof opts.delay === 'number' ? opts.delay : 0;
+
+    function apply() {
+      setOverlayText(title || 'Memuat halaman...', sub || 'Sedang mengambil data...');
+      el.classList.add('active', 'undira-overlay-show');
+      el.setAttribute('aria-busy', 'true');
+      if (safetyTimer) window.clearTimeout(safetyTimer);
+      safetyTimer = window.setTimeout(function () {
+        hidePageOverlay();
+      }, SAFETY_MS);
+    }
+
+    if (delay > 0) {
+      if (showTimer) window.clearTimeout(showTimer);
+      showTimer = window.setTimeout(apply, delay);
+      return;
+    }
+
+    apply();
   }
 
   function hidePageOverlay() {
+    clearTimers();
     var el = overlayEl();
     if (!el) return;
     el.classList.remove('active', 'undira-overlay-show');
     el.setAttribute('aria-busy', 'false');
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch (err) { /* ignore */ }
   }
 
   function showAjaxBar() {
@@ -113,17 +149,26 @@
     }
   }
 
+  function isExcludedPath(pathname) {
+    return /\/inventory\/[^/]+\/(qr|barcode)(\/download)?$/.test(pathname)
+      || /\/inventory\/[^/]+\/label\/print$/.test(pathname)
+      || /\/scan\//.test(pathname);
+  }
+
   function isInternalNavLink(a) {
     if (!a || a.tagName !== 'A') return false;
     var href = a.getAttribute('href');
     if (!href || href === '#' || href.indexOf('javascript:') === 0) return false;
     if (a.target === '_blank' || a.hasAttribute('download')) return false;
-    if (a.dataset.undiraNoLoading === '1') return false;
+    if (a.dataset.undiraNoLoading === '1' || a.getAttribute('data-no-loader') === '1') return false;
+    if (a.classList.contains('no-page-loader')) return false;
     if (a.getAttribute('data-widget') === 'pushmenu') return false;
     if (a.getAttribute('data-bs-toggle')) return false;
+    if (a.closest('.modal') || a.closest('.dropdown-menu')) return false;
     try {
       var url = new URL(a.href, window.location.origin);
       if (url.origin !== window.location.origin) return false;
+      if (isExcludedPath(url.pathname)) return false;
       if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) {
         return false;
       }
@@ -137,21 +182,20 @@
     document.addEventListener('click', function (e) {
       var a = e.target.closest && e.target.closest('a');
       if (!isInternalNavLink(a)) return;
-      // Sidebar / navbar / breadcrumb / in-content links
       var inNav =
         a.closest('.main-sidebar') ||
         a.closest('.main-header') ||
         a.closest('.content-wrapper') ||
         a.closest('.breadcrumb');
       if (!inNav) return;
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button === 1) return;
 
-      e.preventDefault();
+      // Do NOT preventDefault — keep progressive enhancement.
+      // Overlay is cosmetic; browser navigates via real href.
       try {
         sessionStorage.setItem(STORAGE_KEY, '1');
       } catch (err) { /* ignore */ }
-      showPageOverlay('Memuat halaman...', 'Sedang mengambil data...');
-      window.location.href = a.href;
+      showPageOverlay('Memuat halaman...', 'Sedang mengambil data...', { delay: SHOW_DELAY_MS });
     }, true);
   }
 
@@ -159,8 +203,11 @@
     var hadNav = false;
     try {
       hadNav = sessionStorage.getItem(STORAGE_KEY) === '1';
-      if (hadNav) sessionStorage.removeItem(STORAGE_KEY);
+      sessionStorage.removeItem(STORAGE_KEY);
     } catch (err) { /* ignore */ }
+
+    // Always clear any restored/stale overlay first.
+    hidePageOverlay();
 
     if (hadNav) {
       showPageOverlay('Memuat halaman...', 'Sedang mengambil data...');
@@ -177,13 +224,23 @@
       }
     }
 
-    if (document.readyState === 'complete') {
-      window.setTimeout(reveal, hadNav ? 180 : 40);
-    } else {
-      window.addEventListener('load', function () {
-        window.setTimeout(reveal, hadNav ? 180 : 40);
+    // Hide on DOM ready — do not wait for images (broken/slow assets used to stick the loader).
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', function () {
+        window.setTimeout(reveal, hadNav ? 120 : 0);
       });
+    } else {
+      window.setTimeout(reveal, hadNav ? 120 : 0);
     }
+
+    window.addEventListener('load', hidePageOverlay);
+    window.addEventListener('pageshow', function () {
+      hidePageOverlay();
+    });
+    window.addEventListener('popstate', hidePageOverlay);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') hidePageOverlay();
+    });
   }
 
   function bindAjaxHooks() {
@@ -193,9 +250,7 @@
     $jq(document).ajaxSend(function (_e, _xhr, settings) {
       if (settings.undiraSkipLoading) return;
       var url = settings.url || '';
-      // Polling notifikasi & background ringan — tanpa indikator
       if (url.indexOf('notifications') !== -1) return;
-      // Full overlay only when explicitly requested
       if (settings.undiraOverlay) {
         showPageOverlay(settings.undiraOverlayTitle || 'Memuat data...', 'Mohon tunggu sebentar');
         return;
@@ -212,7 +267,7 @@
       if (ajaxCount === 1) showAjaxBar();
     });
 
-    $jq(document).ajaxComplete(function (_e, _xhr, settings) {
+    function finishAjax(settings) {
       if (settings.undiraSkipLoading) return;
       var url = settings.url || '';
       if (url.indexOf('notifications') !== -1) return;
@@ -227,10 +282,18 @@
       if (settings.undiraTarget) return;
       ajaxCount = Math.max(0, ajaxCount - 1);
       if (ajaxCount === 0) hideAjaxBar();
+    }
+
+    $jq(document).ajaxComplete(function (_e, _xhr, settings) {
+      finishAjax(settings);
+    });
+
+    $jq(document).ajaxError(function (_e, _xhr, settings) {
+      finishAjax(settings);
+      hidePageOverlay();
     });
   }
 
-  // Public API (compatible with existing showLoading / hideLoading)
   window.showLoading = function (title, sub) {
     showPageOverlay(title || 'Memuat halaman...', sub || 'Mohon tunggu sebentar');
   };

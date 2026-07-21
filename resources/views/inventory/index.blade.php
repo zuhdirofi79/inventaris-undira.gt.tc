@@ -14,10 +14,9 @@
     </div>
     <div class="d-flex gap-2 flex-wrap">
         @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
-        @endcan
-        @can('inventory.import')
-        <a href="{{ route('inventory.import.index') }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-file-import me-1"></i>Import</a>
+        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
+            <i class="fas fa-sliders-h me-1"></i>Buka Konfigurasi Inventaris
+        </a>
         @endcan
         <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-th-large me-1"></i>Per Kategori</a>
         <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Semua Item</a>
@@ -32,6 +31,10 @@
         </div>
         @endcan
     </div>
+</div>
+
+<div class="alert alert-info border-0 shadow-sm mb-3" role="status">
+    Penambahan inventaris dilakukan melalui menu <strong>Konfigurasi Inventaris</strong>.
 </div>
 
 <div class="row g-3">

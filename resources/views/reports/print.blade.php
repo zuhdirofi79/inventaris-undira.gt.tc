@@ -71,7 +71,7 @@
         <table>
             <tr>
                 <td>Total Inventaris: {{ number_format($summary['total_items'] ?? 0) }}</td>
-                <td>Total Nilai: Rp {{ number_format($summary['total_value'] ?? 0, 0, ',', '.') }}</td>
+                <td>Total Inventaris: {{ number_format($summary['total_items'] ?? 0) }}</td>
             </tr>
             <tr>
                 <td>Furniture: {{ $summary['category_named']['Furniture'] ?? 0 }}</td>

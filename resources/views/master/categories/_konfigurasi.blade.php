@@ -158,9 +158,10 @@
 </style>
 
 @canany(['category.manage', 'inventory.create'])
+@push('modals')
 {{-- CREATE --}}
-<div class="modal fade" id="modalCreateConfig" tabindex="-1" aria-labelledby="modalCreateConfigLabel">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="modalCreateConfig" tabindex="-1" aria-labelledby="modalCreateConfigLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <form action="{{ route('master-configurations.store') }}" method="POST" class="modal-content" id="formCreateConfig">
             @csrf
             <div class="modal-header">
@@ -168,23 +169,53 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
+                <div id="manageOptionPanel" class="manage-option-panel d-none mb-3" role="region" aria-label="Tambah pilihan master">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong class="small text-uppercase text-muted mb-0">Tambah Pilihan Master</strong>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCloseManageOption" aria-label="Tutup panel pilihan">Tutup</button>
+                    </div>
+                    <input type="hidden" id="option_type">
+                    <input type="hidden" id="option_target_select">
+                    <div id="option_fields_code_name" class="row g-2">
+                        <div class="col-md-4">
+                            <label class="form-label small" for="option_code">Kode <span class="text-danger">*</span></label>
+                            <input type="text" id="option_code" class="form-control form-control-sm" maxlength="30">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small" for="option_name">Nama <span class="text-danger">*</span></label>
+                            <input type="text" id="option_name" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div id="option_fields_year" class="row g-2 d-none">
+                        <div class="col-md-4">
+                            <label class="form-label small" for="option_year">Tahun <span class="text-danger">*</span></label>
+                            <input type="number" id="option_year" class="form-control form-control-sm" min="1990" max="2100">
+                        </div>
+                    </div>
+                    <div class="alert alert-danger py-2 small d-none mt-2 mb-0" id="option_error" role="alert"></div>
+                    <div class="mt-2">
+                        <button type="button" class="btn btn-sm btn-undira" id="btnSaveManageOption">Simpan Pilihan</button>
+                    </div>
+                </div>
                 @include('master.categories._config-form-fields', ['prefix' => 'create', 'lookups' => $lookups])
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-undira"><i class="fas fa-save me-1"></i>Simpan Inventaris</button>
+                <button type="submit" class="btn btn-undira" id="btnSaveCreateConfig"><i class="fas fa-save me-1"></i>Simpan Inventaris</button>
             </div>
         </form>
     </div>
 </div>
+@endpush
 
 @include('master.categories._config-form-script')
 @endcanany
 
 @can('category.manage')
+@push('modals')
 {{-- EDIT --}}
-<div class="modal fade" id="modalEditConfig" tabindex="-1">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+<div class="modal fade" id="modalEditConfig" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable modal-dialog-centered">
         <form method="POST" class="modal-content" id="formEditConfig">
             @csrf @method('PUT')
             <div class="modal-header">
@@ -192,6 +223,13 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
+                <div id="manageOptionPanelEdit" class="manage-option-panel d-none mb-3" role="region" aria-label="Tambah pilihan master">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <strong class="small text-uppercase text-muted mb-0">Tambah Pilihan Master</strong>
+                        <button type="button" class="btn btn-sm btn-outline-secondary btn-close-manage-option" aria-label="Tutup panel pilihan">Tutup</button>
+                    </div>
+                    <p class="small text-muted mb-2 mb-0">Gunakan tombol + pada form untuk menambah pilihan, atau kelola master data di tab terkait.</p>
+                </div>
                 @include('master.categories._config-form-fields', ['prefix' => 'edit', 'lookups' => $lookups])
             </div>
             <div class="modal-footer">
@@ -201,40 +239,5 @@
         </form>
     </div>
 </div>
-
-{{-- Nested option manager --}}
-<div class="modal fade" id="modalManageOption" tabindex="-1" style="z-index: 1060;">
-    <div class="modal-dialog">
-        <form class="modal-content" id="formManageOption">
-            <div class="modal-header">
-                <h5 class="modal-title">Tambah Pilihan Master</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" name="type" id="option_type">
-                <input type="hidden" name="target_select" id="option_target_select">
-                <div id="option_fields_code_name">
-                    <div class="mb-3">
-                        <label class="form-label">Kode <span class="text-danger">*</span></label>
-                        <input type="text" name="code" id="option_code" class="form-control" maxlength="30">
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Nama <span class="text-danger">*</span></label>
-                        <input type="text" name="name" id="option_name" class="form-control">
-                    </div>
-                </div>
-                <div id="option_fields_year" class="d-none">
-                    <div class="mb-3">
-                        <label class="form-label">Tahun <span class="text-danger">*</span></label>
-                        <input type="number" name="year" id="option_year" class="form-control" min="1990" max="2100">
-                    </div>
-                </div>
-                <div class="alert alert-danger d-none" id="option_error"></div>
-            </div>
-            <div class="modal-footer">
-                <button type="submit" class="btn btn-undira">Simpan Pilihan</button>
-            </div>
-        </form>
-    </div>
-</div>
+@endpush
 @endcan

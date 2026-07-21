@@ -47,18 +47,15 @@
 @endif
 
 <div class="row g-3 mb-3 no-print">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card card-undira"><div class="card-body"><div class="text-muted small">Total Inventaris</div><div class="fs-4 fw-bold">{{ number_format($summary['total_items'] ?? 0) }}</div></div></div>
     </div>
-    <div class="col-md-3">
-        <div class="card card-undira"><div class="card-body"><div class="text-muted small">Total Nilai</div><div class="fs-4 fw-bold">Rp {{ number_format($summary['total_value'] ?? 0, 0, ',', '.') }}</div></div></div>
-    </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card card-undira"><div class="card-body"><div class="text-muted small">Status</div><div class="small">
             Aktif: {{ $summary['aktif'] ?? 0 }} · Dipinjam: {{ $summary['dipinjam'] ?? 0 }} · Maint: {{ $summary['maintenance'] ?? 0 }} · Rusak: {{ $summary['rusak'] ?? 0 }}
         </div></div></div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card card-undira"><div class="card-body"><div class="text-muted small">Kategori</div><div class="small">
             @foreach(($summary['by_category'] ?? []) as $cat => $count)
                 <span class="badge bg-info me-1">{{ $cat }}: {{ $count }}</span>
@@ -74,7 +71,6 @@
     <div class="card-footer">
         <strong>Grand Total:</strong>
         {{ number_format($summary['total_items'] ?? 0) }} inventaris
-        · Rp {{ number_format($summary['total_value'] ?? 0, 0, ',', '.') }}
         · Furniture {{ $summary['category_named']['Furniture'] ?? 0 }}
         · Elektronik {{ $summary['category_named']['Elektronik'] ?? 0 }}
         · ATK {{ $summary['category_named']['ATK'] ?? 0 }}

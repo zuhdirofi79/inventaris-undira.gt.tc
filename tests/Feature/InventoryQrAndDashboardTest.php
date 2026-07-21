@@ -52,6 +52,59 @@ class InventoryQrAndDashboardTest extends TestCase
         $response->assertSee('Cetak Label');
     }
 
+    public function test_inline_qr_returns_svg_with_correct_mime(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        $item = $this->makeItem();
+        app(InventoryCodeService::class)->ensureCodes($item);
+
+        $response = $this->actingAs($admin)->get(route('inventory.qr', $item));
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'image/svg+xml; charset=UTF-8');
+        $this->assertStringContainsString('svg', strtolower($response->getContent()));
+        $this->assertStringNotContainsString('attachment', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_inline_barcode_returns_png_with_correct_mime(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        $item = $this->makeItem();
+        app(InventoryCodeService::class)->ensureCodes($item);
+
+        $response = $this->actingAs($admin)->get(route('inventory.barcode', $item));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('image/png', (string) $response->headers->get('content-type'));
+        $this->assertNotEmpty($response->getContent());
+        $this->assertStringNotContainsString('attachment', (string) $response->headers->get('content-disposition'));
+    }
+
+    public function test_label_print_page_embeds_relative_code_routes(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        $item = $this->makeItem();
+        app(InventoryCodeService::class)->ensureCodes($item);
+        $item->refresh();
+
+        $response = $this->actingAs($admin)->get(route('inventory.label.print', $item));
+
+        $response->assertOk();
+        $response->assertSee(route('inventory.qr', $item, false), false);
+        $response->assertSee(route('inventory.barcode', $item, false), false);
+        $response->assertDontSee('http://localhost/storage/', false);
+        $response->assertSee($item->inventory_number, false);
+    }
+
+    public function test_qr_payload_uses_scan_route(): void
+    {
+        $item = $this->makeItem();
+        $service = app(InventoryCodeService::class);
+        $url = $service->scanUrl($item->inventory_number);
+
+        $this->assertStringContainsString('/scan/'.$item->inventory_number, $url);
+    }
+
     public function test_authenticated_scan_redirects_to_detail(): void
     {
         $admin = $this->makeSuperAdmin();

@@ -132,7 +132,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Pembelian & Nilai</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-file-invoice me-2"></i>Informasi Pengadaan</h5></div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6 col-md-4">
@@ -152,14 +152,6 @@
                             @endforeach
                         </select>
                         <input type="hidden" name="funding_source" value="{{ old('funding_source', $item?->funding_source) }}">
-                    </div>
-                    <div class="col-6 col-md-6">
-                        <label class="form-label">Harga (Rp)</label>
-                        <input type="number" name="price" class="form-control" value="{{ old('price', $item?->price) }}" min="0" step="0.01">
-                    </div>
-                    <div class="col-6 col-md-6">
-                        <label class="form-label">Nilai Depresiasi</label>
-                        <input type="number" name="depreciation_value" class="form-control" value="{{ old('depreciation_value', $item?->depreciation_value) }}" min="0" step="0.01">
                     </div>
                 </div>
             </div>

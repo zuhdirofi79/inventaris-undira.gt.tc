@@ -164,7 +164,7 @@ class InventoryReportService
 
             $roomNode['categories'][$categoryKey]['sub_categories'][$subKey]['items'][] = $item;
 
-            $price = (float) ($item->price ?? 0);
+            $price = 0.0;
             $this->bumpTotals($roomNode['categories'][$categoryKey]['sub_categories'][$subKey]['totals'], $price);
             $this->bumpTotals($roomNode['categories'][$categoryKey]['totals'], $price);
             $this->bumpTotals($roomNode['totals'], $price);
@@ -257,7 +257,6 @@ class InventoryReportService
 
         return [
             'total_items' => $items->count(),
-            'total_value' => (float) $items->sum(fn (InventoryItem $i) => (float) ($i->price ?? 0)),
             'by_category' => $byCategory,
             'by_status' => $byStatus,
             'by_condition' => $byCondition,
@@ -319,20 +318,19 @@ class InventoryReportService
     }
 
     /**
-     * @return array{count: int, value: float}
+     * @return array{count: int}
      */
     protected function emptyTotals(): array
     {
-        return ['count' => 0, 'value' => 0.0];
+        return ['count' => 0];
     }
 
     /**
-     * @param  array{count: int, value: float}  $totals
+     * @param  array{count: int}  $totals
      */
-    protected function bumpTotals(array &$totals, float $price): void
+    protected function bumpTotals(array &$totals, float $price = 0.0): void
     {
         $totals['count']++;
-        $totals['value'] += $price;
     }
 
     /**
