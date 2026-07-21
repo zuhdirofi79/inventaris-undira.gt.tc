@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
     @stack('styles')
 </head>
 <body class="hold-transition sidebar-mini layout-fixed">
@@ -393,13 +394,22 @@
     </footer>
 </div>
 
-<div class="loading-overlay" id="loadingOverlay">
-    <div class="text-center">
-        <div class="spinner-border text-success" role="status"></div>
-        <p class="mt-2 text-muted">Memuat...</p>
+<div class="loading-overlay" id="loadingOverlay" role="status" aria-live="polite" aria-busy="false">
+    <div class="undira-loader">
+        <div class="undira-loader-logo-wrap">
+            <span class="undira-loader-ring" aria-hidden="true"></span>
+            <img src="{{ asset('images/undira.png') }}" alt="Logo UNDIRA" class="undira-loader-logo">
+        </div>
+        <p class="undira-loader-text" id="undiraLoaderText">Memuat halaman...</p>
+        <p class="undira-loader-sub" id="undiraLoaderSub">Sedang mengambil data...</p>
     </div>
 </div>
 
+<script>
+window.UNDIRA_LOADING = {
+    logo: @json(asset('images/undira.png'))
+};
+</script>
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
@@ -408,6 +418,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="{{ asset('js/undira-loading.js') }}"></script>
 <script>
 $.ajaxSetup({
     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
@@ -427,8 +438,7 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 5000);
 }
 
-function showLoading() { $('#loadingOverlay').addClass('active'); }
-function hideLoading() { $('#loadingOverlay').removeClass('active'); }
+/* showLoading / hideLoading disediakan oleh undira-loading.js (overlay logo UNDIRA) */
 
 // Dark mode toggle
 (function() {

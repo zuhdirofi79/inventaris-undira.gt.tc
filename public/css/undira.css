@@ -137,7 +137,8 @@ body {
   border: 1px solid var(--undira-gray-border) !important;
   border-radius: var(--undira-radius) !important;
   box-shadow: var(--undira-shadow) !important;
-  overflow: hidden;
+  /* Jangan overflow:hidden — memotong isi card (dashboard statistik kampus) */
+  overflow: visible;
 }
 
 .card-header {
@@ -595,4 +596,68 @@ body.dark-mode .card-header,
 body.dark-mode .table thead th {
   background: #1e2430 !important;
   color: #C7D2FE !important;
+}
+
+/* Dashboard info cards — tinggi mengikuti isi, tidak memotong konten */
+.dashboard-campus-grid,
+.dashboard-info-card {
+  min-height: 0;
+}
+
+.dashboard-info-card {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--undira-radius) !important;
+  box-shadow: var(--undira-shadow) !important;
+}
+
+.dashboard-info-card .card-header {
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.dashboard-info-card .card-header.bg-undira-green {
+  background-color: var(--undira-green) !important;
+  color: #fff !important;
+}
+
+.dashboard-info-card .card-header.bg-undira-blue {
+  background-color: var(--undira-blue) !important;
+  color: #fff !important;
+}
+
+.dashboard-info-card .card-body {
+  flex: 0 1 auto;
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+  padding: 1rem 1.15rem;
+}
+
+.dashboard-info-card .card-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  overflow: visible;
+}
+
+.dashboard-info-card .list-group,
+.dashboard-info-card .list-group-item {
+  overflow: visible;
+}
+
+.dashboard-info-card .campus-category-list {
+  max-height: none;
+  overflow: visible;
+}
+
+.row.align-items-start > [class*="col-"] {
+  display: flex;
+  flex-direction: column;
+}
+
+.row.align-items-start > [class*="col-"] > .dashboard-info-card {
+  width: 100%;
 }

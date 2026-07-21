@@ -46,7 +46,7 @@
     </div>
 
     <div class="col-lg-7">
-        <div class="card card-undira">
+        <div class="card card-undira" id="previewCard">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">Preview Data</h5>
                 <span id="previewStats" class="badge bg-secondary">Belum ada preview</span>
@@ -93,15 +93,18 @@ $('#btnPreview').on('click', function() {
     formData.append('file', file);
     formData.append('_token', '{{ csrf_token() }}');
 
-    showLoading();
+    const $btn = $(this);
+    if (typeof setButtonLoading === 'function') setButtonLoading(this, true, 'Memproses...');
+
     $.ajax({
         url: '{{ route('inventory.import.preview') }}',
         method: 'POST',
         data: formData,
         processData: false,
         contentType: false,
+        undiraTarget: '#previewCard',
         success: function(res) {
-            hideLoading();
+            if (typeof setButtonLoading === 'function') setButtonLoading($btn[0], false);
             $('#previewStats').text(`${res.valid_rows} valid, ${res.error_rows} error`).removeClass('bg-secondary').addClass(res.error_rows > 0 ? 'bg-warning' : 'bg-success');
 
             let rows = '';
@@ -127,7 +130,7 @@ $('#btnPreview').on('click', function() {
             $('#btnProcess').prop('disabled', !previewValid);
         },
         error: function(xhr) {
-            hideLoading();
+            if (typeof setButtonLoading === 'function') setButtonLoading($btn[0], false);
             Swal.fire('Error', xhr.responseJSON?.message || 'Gagal preview file.', 'error');
         }
     });
@@ -151,20 +154,23 @@ $('#btnProcess').on('click', function() {
         formData.append('file', file);
         formData.append('_token', '{{ csrf_token() }}');
 
-        showLoading();
+        const btn = document.getElementById('btnProcess');
+        if (typeof setButtonLoading === 'function') setButtonLoading(btn, true, 'Memproses...');
+
         $.ajax({
             url: '{{ route('inventory.import.process') }}',
             method: 'POST',
             data: formData,
             processData: false,
             contentType: false,
+            undiraTarget: '#previewCard',
             success: function(res) {
-                hideLoading();
+                if (typeof setButtonLoading === 'function') setButtonLoading(btn, false);
                 Swal.fire('Berhasil', `${res.imported} item berhasil diimport.`, 'success')
                     .then(() => window.location.href = '{{ route('inventory.index') }}');
             },
             error: function(xhr) {
-                hideLoading();
+                if (typeof setButtonLoading === 'function') setButtonLoading(btn, false);
                 Swal.fire('Error', 'Import gagal. Periksa data Excel.', 'error');
             }
         });

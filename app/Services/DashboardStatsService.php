@@ -122,6 +122,7 @@ class DashboardStatsService
             return [
                 'category' => $first->category_name,
                 'category_code' => $first->category_code,
+                'category_id' => (int) $first->category_id,
                 'total' => (int) $group->sum('total'),
                 'subcategories' => $group->map(fn ($row) => [
                     'name' => $row->sub_name,

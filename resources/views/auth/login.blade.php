@@ -49,9 +49,10 @@
         <a href="{{ route('password.request') }}" class="text-decoration-none text-undira-green small fw-semibold">Lupa password?</a>
     </div>
 
-    <button type="submit" class="btn btn-undira btn-lg w-100 py-2 fw-semibold">
+    <button type="submit" id="btnLogin" class="btn btn-undira btn-lg w-100 py-2 fw-semibold">
         <i class="fas fa-sign-in-alt me-2"></i>Masuk ke Sistem
     </button>
+    <p class="auth-login-hint" id="loginHint" aria-live="polite"></p>
 
     <p class="text-center mt-4 mb-0 text-muted small">
         Belum punya akun?
@@ -60,7 +61,12 @@
 </form>
 @endsection
 
+@push('styles')
+<link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
+@endpush
+
 @push('scripts')
+<script src="{{ asset('js/undira-loading.js') }}"></script>
 <script>
 document.getElementById('togglePassword')?.addEventListener('click', function () {
     const input = document.getElementById('password');
@@ -71,6 +77,18 @@ document.getElementById('togglePassword')?.addEventListener('click', function ()
     icon.classList.toggle('fa-eye-slash', show);
     this.setAttribute('title', show ? 'Sembunyikan password' : 'Tampilkan password');
     this.setAttribute('aria-label', show ? 'Sembunyikan password' : 'Tampilkan password');
+});
+
+document.querySelector('.auth-form')?.addEventListener('submit', function () {
+    const btn = document.getElementById('btnLogin');
+    const hint = document.getElementById('loginHint');
+    if (typeof setButtonLoading === 'function') {
+        setButtonLoading(btn, true, 'Memproses Login...');
+    } else if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses Login...';
+    }
+    if (hint) hint.textContent = 'Mohon tunggu sebentar';
 });
 </script>
 @endpush
