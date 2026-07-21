@@ -12,12 +12,12 @@
 <div class="row">
     <div class="col-lg-8">
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Informasi Dasar</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-info-circle me-2"></i>Informasi Dasar</h5></div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-12 col-md-8">
                         <label class="form-label">Nama Barang <span class="text-danger">*</span></label>
-                        <input type="text" name="name" class="form-control" value="{{ old('name', $item?->name) }}" required>
+                        <input type="text" name="name" class="form-control" value="{{ old('name', $item?->name) }}" placeholder="Contoh: Kursi Kuliah" required>
                     </div>
                     @if(!$isEdit)
                     <div class="col-6 col-md-2">
@@ -56,7 +56,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Lokasi</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Lokasi</h5></div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
@@ -70,20 +70,20 @@
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label">Gedung <span class="text-danger">*</span></label>
-                        <select id="building_id" class="form-select" required>
-                            <option value="">Pilih Gedung</option>
+                        <select id="building_id" class="form-select" required disabled>
+                            <option value="">Pilih Kampus dulu</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label">Lantai <span class="text-danger">*</span></label>
-                        <select id="floor_id" class="form-select" required>
-                            <option value="">Pilih Lantai</option>
+                        <select id="floor_id" class="form-select" required disabled>
+                            <option value="">Pilih Gedung dulu</option>
                         </select>
                     </div>
                     <div class="col-12 col-md-6">
                         <label class="form-label">Ruangan <span class="text-danger">*</span></label>
-                        <select name="room_id" id="room_id" class="form-select" required>
-                            <option value="">Pilih Ruangan</option>
+                        <select name="room_id" id="room_id" class="form-select" required disabled>
+                            <option value="">Pilih Lantai dulu</option>
                         </select>
                     </div>
                 </div>
@@ -91,7 +91,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Spesifikasi</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i>Spesifikasi</h5></div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6 col-md-4">
@@ -132,7 +132,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Pembelian & Nilai</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-file-invoice-dollar me-2"></i>Pembelian & Nilai</h5></div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-6 col-md-4">
@@ -168,7 +168,7 @@
 
     <div class="col-lg-4">
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Status & Kondisi</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-toggle-on me-2"></i>Status & Kondisi</h5></div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Kondisi <span class="text-danger">*</span></label>
@@ -190,7 +190,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Supplier & Vendor</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-truck me-2"></i>Supplier & Vendor</h5></div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Supplier</label>
@@ -214,7 +214,7 @@
         </div>
 
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Garansi & Catatan</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-sticky-note me-2"></i>Garansi & Catatan</h5></div>
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Info Garansi</label>

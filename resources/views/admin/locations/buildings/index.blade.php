@@ -53,7 +53,11 @@
             <div class="modal-body">
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" checked>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
         </form>
@@ -69,7 +73,11 @@
             <div class="modal-body">
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $building->code }}" required></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $building->name }}" required></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $building->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $building->is_active ? 'checked' : '' }}>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
         </form>

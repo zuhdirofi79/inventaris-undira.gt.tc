@@ -5,18 +5,23 @@ namespace App\Http\Controllers;
 use App\Enums\AuditAction;
 use App\Models\InventoryItem;
 use App\Services\AuditLogService;
+use App\Services\InventoryCodeService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class InventoryQrController extends Controller
 {
     public function __construct(
         protected AuditLogService $auditLogService,
+        protected InventoryCodeService $codeService,
     ) {}
 
-    public function scan(string $inventoryNumber): View
+    public function scan(string $inventoryNumber): View|RedirectResponse
     {
         $inventory = InventoryItem::query()
             ->where(function ($query) use ($inventoryNumber) {
@@ -26,11 +31,64 @@ class InventoryQrController extends Controller
             ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'photos'])
             ->firstOrFail();
 
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh();
+
         if (auth()->check()) {
             $this->auditLogService->log(auth()->user(), AuditAction::ScanQr, $inventory, null, null, "Scan QR {$inventoryNumber}");
+
+            if (auth()->user()->can('inventory.view')) {
+                return redirect()->route('inventory.show', $inventory);
+            }
         }
 
         return view('inventory.scan', compact('inventory'));
+    }
+
+    public function downloadQr(InventoryItem $inventory): StreamedResponse|RedirectResponse
+    {
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh();
+
+        if (! $inventory->qr_code_path || ! Storage::disk('public')->exists($inventory->qr_code_path)) {
+            return back()->with('error', 'QR Code tidak tersedia.');
+        }
+
+        $filename = str_replace(['/', '\\'], '-', $inventory->inventory_number).'-qr.svg';
+
+        return Storage::disk('public')->download($inventory->qr_code_path, $filename);
+    }
+
+    public function downloadBarcode(InventoryItem $inventory): StreamedResponse|RedirectResponse
+    {
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh();
+
+        $code = $inventory->barcode ?: $inventory->inventory_number;
+        $path = $this->codeService->barcodePath($code);
+
+        if (! Storage::disk('public')->exists($path)) {
+            return back()->with('error', 'Barcode tidak tersedia.');
+        }
+
+        $filename = str_replace(['/', '\\'], '-', $code).'-barcode.png';
+
+        return Storage::disk('public')->download($path, $filename);
+    }
+
+    public function print(InventoryItem $inventory): View
+    {
+        $this->codeService->ensureCodes($inventory);
+        $inventory->refresh()->load(['category', 'room.floor.building.campus']);
+
+        return view('inventory.print-label', compact('inventory'));
+    }
+
+    public function regenerate(InventoryItem $inventory): RedirectResponse
+    {
+        $this->codeService->generateAndSaveCodes($inventory);
+
+        return back()->with('success', 'QR Code dan Barcode berhasil digenerate ulang.');
     }
 
     public function labels(Request $request): Response
@@ -39,6 +97,14 @@ class InventoryQrController extends Controller
             'inventory_ids' => ['required', 'array', 'min:1'],
             'inventory_ids.*' => ['integer', 'exists:inventory_items,id'],
         ]);
+
+        $items = InventoryItem::query()
+            ->whereIn('id', $request->input('inventory_ids'))
+            ->get();
+
+        foreach ($items as $item) {
+            $this->codeService->ensureCodes($item);
+        }
 
         $items = InventoryItem::query()
             ->whereIn('id', $request->input('inventory_ids'))

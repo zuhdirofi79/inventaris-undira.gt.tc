@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreFloorRequest;
 use App\Models\Building;
 use App\Models\Floor;
+use App\Services\DashboardTreeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 
@@ -21,12 +22,16 @@ class FloorManagementController extends Controller
     {
         Floor::query()->create($request->validated());
 
+        DashboardTreeService::flushCache();
+
         return back()->with('success', 'Lantai berhasil ditambahkan.');
     }
 
     public function update(StoreFloorRequest $request, Floor $floor): RedirectResponse
     {
         $floor->update($request->validated());
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Lantai berhasil diperbarui.');
     }
@@ -38,6 +43,8 @@ class FloorManagementController extends Controller
         }
 
         $floor->delete();
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Lantai berhasil dihapus.');
     }

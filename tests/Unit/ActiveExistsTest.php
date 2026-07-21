@@ -47,4 +47,21 @@ class ActiveExistsTest extends TestCase
 
         $this->assertFalse($validator->fails());
     }
+
+    public function test_rejects_inactive_master_ids(): void
+    {
+        $category = Category::query()->create([
+            'code' => 'OFF',
+            'name' => 'Inactive Cat',
+            'slug' => 'inactive-cat',
+            'is_active' => false,
+        ]);
+
+        $validator = Validator::make(
+            ['category_id' => $category->id],
+            ['category_id' => ActiveExists::rule('categories')],
+        );
+
+        $this->assertTrue($validator->fails());
+    }
 }

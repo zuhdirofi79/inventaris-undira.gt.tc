@@ -1,6 +1,6 @@
+@push('scripts')
 <script>
 (function () {
-    const locationData = @json($locationData ?? []);
     const previewUrl = @json(route('master-configurations.preview'));
     const optionStoreUrl = @json(route('master-data.options.store'));
     const csrf = @json(csrf_token());
@@ -16,7 +16,7 @@
             $el.append(`<option value="${item.id}" ${String(item.id) === String(selectedId || '') ? 'selected' : ''}>${label}</option>`);
         });
         if (!(items || []).length) {
-            $el.append('<option value="" disabled>Tidak ada data</option>');
+            $el.append('<option value="" disabled>Data tidak tersedia</option>');
         }
     }
 
@@ -41,12 +41,20 @@
 
         async function loadBuildings(selected) {
             const campusId = $campus.val();
-            if (!campusId) { resetChild($building, 'Pilih Kampus dulu'); resetChild($floor, 'Pilih Gedung dulu'); resetChild($room, 'Pilih Lantai dulu'); return; }
+            if (!campusId) {
+                resetChild($building, 'Pilih Kampus dulu');
+                resetChild($floor, 'Pilih Gedung dulu');
+                resetChild($room, 'Pilih Lantai dulu');
+                return;
+            }
             $building.prop('disabled', true).html('<option value="">Memuat…</option>');
             try {
                 const json = await fetchJson(buildingsUrl(campusId));
                 fillSelect($building, json.data, 'Pilih Gedung', selected);
-                if (!selected) { resetChild($floor, 'Pilih Gedung dulu'); resetChild($room, 'Pilih Lantai dulu'); }
+                if (!selected) {
+                    resetChild($floor, 'Pilih Gedung dulu');
+                    resetChild($room, 'Pilih Lantai dulu');
+                }
             } catch (e) {
                 fillSelect($building, [], 'Gagal memuat gedung');
             }
@@ -54,7 +62,11 @@
 
         async function loadFloors(selected) {
             const buildingId = $building.val();
-            if (!buildingId) { resetChild($floor, 'Pilih Gedung dulu'); resetChild($room, 'Pilih Lantai dulu'); return; }
+            if (!buildingId) {
+                resetChild($floor, 'Pilih Gedung dulu');
+                resetChild($room, 'Pilih Lantai dulu');
+                return;
+            }
             $floor.prop('disabled', true).html('<option value="">Memuat…</option>');
             try {
                 const json = await fetchJson(floorsUrl(buildingId));
@@ -67,7 +79,10 @@
 
         async function loadRooms(selected) {
             const floorId = $floor.val();
-            if (!floorId) { resetChild($room, 'Pilih Lantai dulu'); return; }
+            if (!floorId) {
+                resetChild($room, 'Pilih Lantai dulu');
+                return;
+            }
             $room.prop('disabled', true).html('<option value="">Memuat…</option>');
             try {
                 const json = await fetchJson(roomsUrl(floorId));
@@ -79,7 +94,10 @@
 
         async function loadSubs(selected) {
             const catId = $category.val();
-            if (!catId) { resetChild($sub, 'Pilih Klasifikasi dulu'); return; }
+            if (!catId) {
+                resetChild($sub, 'Pilih Klasifikasi dulu');
+                return;
+            }
             $sub.prop('disabled', true).html('<option value="">Memuat…</option>');
             try {
                 const json = await fetchJson(subsUrl(catId));
@@ -110,6 +128,16 @@
             }
         }
 
+        function resetCascade() {
+            resetChild($building, 'Pilih Kampus dulu');
+            resetChild($floor, 'Pilih Gedung dulu');
+            resetChild($room, 'Pilih Lantai dulu');
+            resetChild($sub, 'Pilih Klasifikasi dulu');
+            $root.find('.cfg-location-preview').val('');
+            $root.find('.cfg-sequence-preview').val('');
+            $root.find('.cfg-location-error').text('');
+        }
+
         $campus.on('change', function () { loadBuildings(null); refreshPreview(); });
         $building.on('change', function () { loadFloors(null); refreshPreview(); });
         $floor.on('change', function () { loadRooms(null); refreshPreview(); });
@@ -118,11 +146,19 @@
         $category.on('change', function () { loadSubs(null); refreshPreview(); });
         $sub.on('change', refreshPreview);
 
-        $root.data('api', { loadBuildings, loadFloors, loadRooms, loadSubs, refreshPreview });
+        $root.data('api', { loadBuildings, loadFloors, loadRooms, loadSubs, refreshPreview, resetCascade });
     }
 
     $(function () {
         $('.config-form').each(function () { bindForm($(this)); });
+
+        $('#modalCreateConfig').on('hidden.bs.modal', function () {
+            const $form = $('#formCreateConfig');
+            if (!$form.length) return;
+            $form[0].reset();
+            const api = $form.find('.config-form').data('api');
+            if (api) api.resetCascade();
+        });
 
         $('.btn-edit-config').on('click', async function () {
             let cfg = $(this).attr('data-config');
@@ -201,10 +237,7 @@
                 $('#option_error').removeClass('d-none').text('Kesalahan jaringan.');
             }
         });
-
-        @if($errors->any() && old('_token') && request()->routeIs('master-configurations.*'))
-        // reopen create modal after validation failure is handled by redirect back — optional
-        @endif
     });
 })();
 </script>
+@endpush

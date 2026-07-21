@@ -116,11 +116,15 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory/categories/{category}', [InventoryController::class, 'byCategory'])->name('inventory.category');
         Route::get('/inventory/campuses/{campus}', [InventoryController::class, 'byCampus'])->name('inventory.campus');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
+        Route::get('/inventory/{inventory}/qr/download', [InventoryQrController::class, 'downloadQr'])->name('inventory.qr.download');
+        Route::get('/inventory/{inventory}/barcode/download', [InventoryQrController::class, 'downloadBarcode'])->name('inventory.barcode.download');
+        Route::get('/inventory/{inventory}/label/print', [InventoryQrController::class, 'print'])->name('inventory.label.print');
         Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
     });
 
     Route::middleware('permission:inventory.update')->group(function () {
         Route::post('/inventory/bulk-relocate', [InventoryController::class, 'bulkRelocate'])->name('inventory.bulk-relocate');
+        Route::post('/inventory/{inventory}/codes/regenerate', [InventoryQrController::class, 'regenerate'])->name('inventory.codes.regenerate');
         Route::get('/inventory/{inventory}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
         Route::put('/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
         Route::post('/inventory/{inventory}/photos', [InventoryPhotoController::class, 'store'])->name('inventory.photos.store');
@@ -155,7 +159,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/master-data/options', [InventoryMasterConfigurationController::class, 'storeOption'])->name('master-data.options.store');
     });
 
-    Route::middleware('permission:category.manage|location.manage|inventory.view')->group(function () {
+    Route::middleware('permission:category.manage|location.manage|inventory.view|inventory.create|inventory.update')->group(function () {
         Route::get('/master-data/campuses/{campus}/buildings', [InventoryMasterConfigurationController::class, 'buildingsByCampus'])->name('master-data.buildings.by-campus');
         Route::get('/master-data/buildings/{building}/floors', [InventoryMasterConfigurationController::class, 'floorsByBuilding'])->name('master-data.floors.by-building');
         Route::get('/master-data/floors/{floor}/rooms', [InventoryMasterConfigurationController::class, 'roomsByFloor'])->name('master-data.rooms.by-floor');

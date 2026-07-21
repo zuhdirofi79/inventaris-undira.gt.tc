@@ -10,6 +10,8 @@ class RoomController extends Controller
 {
     public function show(Room $room): View
     {
+        abort_unless($room->is_active, 404);
+
         $room->load('floor.building.campus');
 
         $groupedInventory = $room->inventoryItems()

@@ -6,6 +6,13 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Inventaris UNDIRA')</title>
 
+    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-undira.png') }}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
@@ -18,13 +25,16 @@
 <body class="hold-transition sidebar-mini layout-fixed">
 <div class="wrapper">
 
-    <nav class="main-header navbar navbar-expand navbar-dark navbar-undira">
+    <nav class="main-header navbar navbar-expand navbar-white navbar-light navbar-undira">
         <ul class="navbar-nav">
             <li class="nav-item">
-                <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+                <a class="nav-link" data-widget="pushmenu" href="#" role="button" title="Buka/tutup menu" aria-label="Buka menu"><i class="fas fa-bars"></i></a>
             </li>
             <li class="nav-item d-none d-sm-inline-block">
-                <a href="{{ route('dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ route('dashboard') }}" class="nav-link navbar-undira-brand">
+                    <img src="{{ asset('images/logo-undira.png') }}" alt="Logo UNDIRA" class="navbar-undira-logo">
+                    <span class="navbar-undira-title">Inventaris UNDIRA<span class="navbar-undira-sub">Universitas Dian Nusantara</span></span>
+                </a>
             </li>
         </ul>
         <ul class="navbar-nav ms-auto">
@@ -46,13 +56,26 @@
                     <a href="{{ route('notifications.index') }}" class="dropdown-item dropdown-footer">Lihat Semua</a>
                 </div>
             </li>
-            <li class="nav-item">
-                <form action="{{ route('logout') }}" method="POST" class="d-inline">
-                    @csrf
-                    <button type="submit" class="nav-link btn btn-link text-white border-0">
-                        <i class="fas fa-sign-out-alt"></i> Keluar
-                    </button>
-                </form>
+            <li class="nav-item dropdown">
+                <a class="nav-link" data-bs-toggle="dropdown" href="#">
+                    <i class="fas fa-user-circle"></i>
+                    <span class="d-none d-md-inline ms-1">{{ auth()->user()->name }}</span>
+                </a>
+                <div class="dropdown-menu dropdown-menu-end">
+                    <span class="dropdown-item-text">
+                        <strong>{{ auth()->user()->name }}</strong>
+                        @if(auth()->user()->roles->isNotEmpty())
+                            <br><small class="text-muted">{{ auth()->user()->roles->first()->name }}</small>
+                        @endif
+                    </span>
+                    <div class="dropdown-divider"></div>
+                    <form action="{{ route('logout') }}" method="POST" class="px-0">
+                        @csrf
+                        <button type="submit" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt me-2"></i> Keluar
+                        </button>
+                    </form>
+                </div>
             </li>
         </ul>
     </nav>
@@ -61,7 +84,7 @@
         <a href="{{ route('dashboard') }}" class="brand-link brand-link-undira undira-brand-link">
             <div class="undira-logo-container">
                 <img
-                    src="{{ asset('images/LOGO UNDIRA.png') }}"
+                    src="{{ asset('images/logo-undira.png') }}"
                     alt="Logo Universitas Dian Nusantara"
                     class="undira-brand-logo"
                 >
@@ -89,6 +112,8 @@
 
             <nav class="mt-2">
                 <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    <li class="nav-header">UTAMA</li>
+
                     <li class="nav-item">
                         <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-tachometer-alt"></i>
@@ -98,51 +123,102 @@
 
                     @can('location.view')
                     <li class="nav-item">
-                        <a href="{{ route('campuses.index') }}" class="nav-link {{ request()->routeIs('campuses.*','buildings.*','floors.*','rooms.*') ? 'active' : '' }}">
+                        <a href="{{ route('campuses.index') }}"
+                           class="nav-link {{ request()->routeIs('campuses.*', 'buildings.*', 'floors.*', 'rooms.*') && ! request()->routeIs('admin.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-map-marked-alt"></i>
                             <p>Jelajahi Lokasi</p>
                         </a>
                     </li>
                     @endcan
 
-                    @can('inventory.view')
-                    <li class="nav-item">
-                        <a href="{{ route('inventory.index') }}" class="nav-link {{ request()->routeIs('inventory.index','inventory.campus','inventory.categories','inventory.category','inventory.items','inventory.group-units','inventory.show','inventory.create','inventory.edit','inventory.trash','inventory.import.*') ? 'active' : '' }}">
+                    <li class="nav-header">DATA</li>
+
+                    @if(auth()->user()->can('inventory.view') || auth()->user()->can('category.manage'))
+                    <li class="nav-item {{ request()->routeIs('inventory.*') || request()->routeIs('master-configurations.*') || (request()->routeIs('categories.*') && request('tab', 'konfigurasi') === 'konfigurasi') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-boxes"></i>
-                            <p>Data Inventaris</p>
+                            <p>Inventaris <i class="fas fa-angle-left right"></i></p>
                         </a>
+                        <ul class="nav nav-treeview">
+                            @can('inventory.view')
+                            <li class="nav-item">
+                                <a href="{{ route('inventory.index') }}"
+                                   class="nav-link {{ request()->routeIs('inventory.index','inventory.campus','inventory.categories','inventory.category','inventory.items','inventory.group-units','inventory.show','inventory.create','inventory.edit','inventory.trash','inventory.import.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-list"></i>
+                                    <p>Data Inventaris</p>
+                                </a>
+                            </li>
+                            @endcan
+                            @can('category.manage')
+                            <li class="nav-item">
+                                <a href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}"
+                                   class="nav-link {{ request()->routeIs('master-configurations.*') || (request()->routeIs('categories.*') && request('tab', 'konfigurasi') === 'konfigurasi') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-sliders-h"></i>
+                                    <p>Konfigurasi Inventaris</p>
+                                </a>
+                            </li>
+                            @endcan
+                        </ul>
                     </li>
-                    @endcan
+                    @endif
 
                     @if(auth()->user()->can('category.manage') || auth()->user()->can('unit.manage') || auth()->user()->can('procurement.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage') || auth()->user()->can('location.manage'))
-                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*','admin.locations.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-database"></i>
                             <p>Master Data <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            @can('category.manage')
+                            @can('location.manage')
                             <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}"
-                                   class="nav-link {{ request()->routeIs('master-configurations.*') || request()->routeIs('sub-categories.*') || (request()->routeIs('categories.*') && ! in_array(request('tab'), ['units', 'pengadaan', 'lokasi', 'klasifikasi'], true)) ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Kategori</p>
+                                <a href="{{ route('admin.locations.campuses.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.locations.campuses.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-university"></i>
+                                    <p>Kampus</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.locations.campuses.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.locations.buildings.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-building"></i>
+                                    <p>Gedung</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.locations.campuses.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.locations.floors.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-layer-group"></i>
+                                    <p>Lantai</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('admin.locations.campuses.index') }}"
+                                   class="nav-link {{ request()->routeIs('admin.locations.rooms.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-door-open"></i>
+                                    <p>Ruangan</p>
                                 </a>
                             </li>
                             @endcan
-                            @canany(['category.manage', 'unit.manage', 'procurement.manage', 'location.manage', 'supplier.manage', 'vendor.manage'])
+                            @can('category.manage')
                             <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'lokasi']) }}"
-                                   class="nav-link {{ request()->routeIs('categories.*') && in_array(request('tab'), ['units', 'pengadaan', 'lokasi', 'klasifikasi'], true) ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Hub Master Data</p>
+                                <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}"
+                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'klasifikasi' ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-tags"></i>
+                                    <p>Kategori</p>
                                 </a>
                             </li>
-                            @endcanany
+                            <li class="nav-item">
+                                <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}"
+                                   class="nav-link {{ request()->routeIs('sub-categories.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-tag"></i>
+                                    <p>Sub Kategori</p>
+                                </a>
+                            </li>
+                            @endcan
                             @can('supplier.manage')
                             <li class="nav-item">
                                 <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-truck"></i>
                                     <p>Supplier</p>
                                 </a>
                             </li>
@@ -150,26 +226,37 @@
                             @can('vendor.manage')
                             <li class="nav-item">
                                 <a href="{{ route('vendors.index') }}" class="nav-link {{ request()->routeIs('vendors.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-store"></i>
                                     <p>Vendor</p>
                                 </a>
                             </li>
                             @endcan
+                            @canany(['category.manage', 'unit.manage', 'procurement.manage', 'location.manage', 'supplier.manage', 'vendor.manage'])
+                            <li class="nav-item">
+                                <a href="{{ route('categories.index', ['tab' => 'lokasi']) }}"
+                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'lokasi' ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-sitemap"></i>
+                                    <p>Hub Master Data</p>
+                                </a>
+                            </li>
+                            @endcanany
                         </ul>
                     </li>
                     @endif
 
-                    @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view'))
-                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*') ? 'menu-open' : '' }}">
+                    <li class="nav-header">OPERASI</li>
+
+                    @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view') || auth()->user()->can('procurement.manage'))
+                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-cogs"></i>
-                            <p>Operasi <i class="fas fa-angle-left right"></i></p>
+                            <i class="nav-icon fas fa-briefcase"></i>
+                            <p>Operasional <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
                             @can('inventory.view')
                             <li class="nav-item">
                                 <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-barcode"></i>
                                     <p>Scan Barcode</p>
                                 </a>
                             </li>
@@ -177,7 +264,7 @@
                             @can('borrowing.view')
                             <li class="nav-item">
                                 <a href="{{ route('borrowings.index') }}" class="nav-link {{ request()->routeIs('borrowings.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-handshake"></i>
                                     <p>Peminjaman</p>
                                 </a>
                             </li>
@@ -185,31 +272,40 @@
                             @can('maintenance.view')
                             <li class="nav-item">
                                 <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-tools"></i>
                                     <p>Maintenance</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('stock-opname.view')
-                            <li class="nav-item">
-                                <a href="{{ route('stock-opnames.index') }}" class="nav-link {{ request()->routeIs('stock-opnames.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Stock Opname</p>
                                 </a>
                             </li>
                             @endcan
                             @can('mutation.view')
                             <li class="nav-item">
                                 <a href="{{ route('mutations.index') }}" class="nav-link {{ request()->routeIs('mutations.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-exchange-alt"></i>
                                     <p>Mutasi</p>
+                                </a>
+                            </li>
+                            @endcan
+                            @can('procurement.manage')
+                            <li class="nav-item">
+                                <a href="{{ route('categories.index', ['tab' => 'pengadaan']) }}"
+                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'pengadaan' ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-shopping-cart"></i>
+                                    <p>Pengadaan</p>
+                                </a>
+                            </li>
+                            @endcan
+                            @can('stock-opname.view')
+                            <li class="nav-item">
+                                <a href="{{ route('stock-opnames.index') }}" class="nav-link {{ request()->routeIs('stock-opnames.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-clipboard-check"></i>
+                                    <p>Stock Opname</p>
                                 </a>
                             </li>
                             @endcan
                             @can('deletion-approval.view')
                             <li class="nav-item">
                                 <a href="{{ route('deletion-approvals.index') }}" class="nav-link {{ request()->routeIs('deletion-approvals.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-trash-alt"></i>
                                     <p>Persetujuan Hapus</p>
                                 </a>
                             </li>
@@ -217,6 +313,8 @@
                         </ul>
                     </li>
                     @endif
+
+                    <li class="nav-header">LAPORAN</li>
 
                     @can('report.view')
                     <li class="nav-item">
@@ -227,25 +325,19 @@
                     </li>
                     @endcan
 
-                    @canany(['location.manage', 'user.manage', 'settings.manage', 'backup.manage', 'audit-log.view'])
-                    <li class="nav-item {{ request()->routeIs('admin.*','audit-logs.*') ? 'menu-open' : '' }}">
+                    <li class="nav-header">SISTEM</li>
+
+                    @canany(['user.manage', 'settings.manage', 'backup.manage', 'audit-log.view'])
+                    <li class="nav-item {{ request()->routeIs('admin.users.*','admin.settings.*','audit-logs.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
                             <p>Admin <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            @can('location.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('admin.locations.campuses.index') }}" class="nav-link {{ request()->routeIs('admin.locations.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
-                                    <p>Kelola Lokasi</p>
-                                </a>
-                            </li>
-                            @endcan
                             @can('user.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-users"></i>
                                     <p>Users</p>
                                 </a>
                             </li>
@@ -253,7 +345,7 @@
                             @can('audit-log.view')
                             <li class="nav-item">
                                 <a href="{{ route('audit-logs.index') }}" class="nav-link {{ request()->routeIs('audit-logs.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-history"></i>
                                     <p>Audit Log</p>
                                 </a>
                             </li>
@@ -261,7 +353,7 @@
                             @can('settings.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-                                    <i class="far fa-circle nav-icon"></i>
+                                    <i class="nav-icon fas fa-cog"></i>
                                     <p>Settings</p>
                                 </a>
                             </li>

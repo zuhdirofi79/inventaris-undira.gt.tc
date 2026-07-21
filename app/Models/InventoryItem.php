@@ -54,6 +54,7 @@ class InventoryItem extends Model
     protected $appends = [
         'full_location',
         'qr_url',
+        'barcode_url',
     ];
 
     protected function casts(): array
@@ -169,6 +170,21 @@ class InventoryItem extends Model
         }
 
         return Storage::disk('public')->url($this->qr_code_path);
+    }
+
+    public function getBarcodeUrlAttribute(): ?string
+    {
+        $code = $this->barcode ?: $this->inventory_number;
+        if (blank($code)) {
+            return null;
+        }
+
+        $path = 'inventory/barcodes/'.str_replace(['/', '\\'], '-', (string) $code).'.png';
+        if (! Storage::disk('public')->exists($path)) {
+            return null;
+        }
+
+        return Storage::disk('public')->url($path);
     }
 
     public function scopeActive(Builder $query): Builder

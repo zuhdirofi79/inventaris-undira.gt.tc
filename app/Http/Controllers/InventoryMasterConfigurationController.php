@@ -153,7 +153,8 @@ class InventoryMasterConfigurationController extends Controller
             ->where('floor_id', $floor->id)
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'code', 'name', 'floor_id']);
+            ->get(['id', 'code', 'name', 'floor_id'])
+            ->each(fn (Room $room) => $room->setAppends([]));
 
         return response()->json(['data' => $items]);
     }

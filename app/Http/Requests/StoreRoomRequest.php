@@ -22,7 +22,14 @@ class StoreRoomRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'room_type' => ['nullable', 'string', 'max:100'],
             'capacity' => ['nullable', 'integer', 'min:0'],
-            'is_active' => ['nullable', 'boolean'],
+            'is_active' => ['required', 'boolean'],
         ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'is_active' => $this->boolean('is_active'),
+        ]);
     }
 }

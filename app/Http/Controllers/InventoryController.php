@@ -21,6 +21,7 @@ use App\Services\AuditLogService;
 use App\Services\DashboardTreeService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
+use App\Services\LocationHierarchyService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -33,6 +34,7 @@ class InventoryController extends Controller
         protected AuditLogService $auditLogService,
         protected InventoryCodeService $codeService,
         protected InventoryFilterService $filterService,
+        protected LocationHierarchyService $locationHierarchy,
     ) {}
 
     /**
@@ -153,7 +155,7 @@ class InventoryController extends Controller
             'campus' => $campus,
             'tree' => $tree,
             'summary' => $summary,
-            'locationData' => $this->locationTree()->where('id', $campus->id)->values(),
+            'locationData' => $this->locationTree($campus->id),
             'filters' => $request->only(['search', 'building_id', 'floor_id', 'room_id']),
         ]);
     }
@@ -270,6 +272,8 @@ class InventoryController extends Controller
 
     public function show(InventoryItem $inventory): View
     {
+        $this->codeService->ensureCodes($inventory);
+
         $inventory->load([
             'category', 'subCategory', 'room.floor.building.campus',
             'orgUnit', 'procurementType',
@@ -425,21 +429,9 @@ class InventoryController extends Controller
         ]);
     }
 
-    protected function locationTree()
+    protected function locationTree(?int $campusId = null)
     {
-        return Campus::query()
-            ->where('is_active', true)
-            ->with([
-                'buildings' => fn ($q) => $q->where('is_active', true)->orderBy('name')
-                    ->with([
-                        'floors' => fn ($q) => $q->where('is_active', true)->orderBy('floor_number')
-                            ->with([
-                                'rooms' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
-                            ]),
-                    ]),
-            ])
-            ->orderBy('name')
-            ->get();
+        return $this->locationHierarchy->activeTree($campusId);
     }
 
     /**

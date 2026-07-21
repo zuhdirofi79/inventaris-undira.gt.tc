@@ -53,7 +53,11 @@
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required maxlength="20" placeholder="L1"></div>
                 <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" required min="0"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required placeholder="Lantai 1"></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" checked>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
         </form>
@@ -70,7 +74,11 @@
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $floor->code }}" required maxlength="20"></div>
                 <div class="mb-3"><label class="form-label">No. Lantai</label><input type="number" name="floor_number" class="form-control" value="{{ $floor->floor_number }}" required min="0"></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $floor->name }}" required></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $floor->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $floor->is_active ? 'checked' : '' }}>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
         </form>

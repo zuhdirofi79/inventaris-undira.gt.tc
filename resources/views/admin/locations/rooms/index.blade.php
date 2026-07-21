@@ -56,7 +56,11 @@
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Tipe Ruangan</label><input type="text" name="room_type" class="form-control" placeholder="Lab, Kelas, Kantor..."></div>
                 <div class="mb-3"><label class="form-label">Kapasitas</label><input type="number" name="capacity" class="form-control" min="0"></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" checked>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
         </form>
@@ -74,7 +78,11 @@
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $room->name }}" required></div>
                 <div class="mb-3"><label class="form-label">Tipe Ruangan</label><input type="text" name="room_type" class="form-control" value="{{ $room->room_type }}"></div>
                 <div class="mb-3"><label class="form-label">Kapasitas</label><input type="number" name="capacity" class="form-control" value="{{ $room->capacity }}" min="0"></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $room->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $room->is_active ? 'checked' : '' }}>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
         </form>

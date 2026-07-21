@@ -49,7 +49,6 @@ class CategoryController extends Controller
 
         $configurations = null;
         $configLookups = [];
-        $locationData = collect();
 
         if ($tab === 'konfigurasi') {
             $configurations = $this->configurationsQuery($request)
@@ -67,20 +66,6 @@ class CategoryController extends Controller
                 'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
                 'conditions' => InventoryConditionMaster::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']),
             ];
-
-            $locationData = Campus::query()
-                ->where('is_active', true)
-                ->with([
-                    'buildings' => fn ($q) => $q->where('is_active', true)->orderBy('name')
-                        ->with([
-                            'floors' => fn ($q) => $q->where('is_active', true)->orderBy('floor_number')
-                                ->with([
-                                    'rooms' => fn ($q) => $q->where('is_active', true)->orderBy('name'),
-                                ]),
-                        ]),
-                ])
-                ->orderBy('name')
-                ->get();
         }
 
         return view('master.categories.index', compact(
@@ -90,7 +75,6 @@ class CategoryController extends Controller
             'procurementTypes',
             'configurations',
             'configLookups',
-            'locationData',
         ));
     }
 

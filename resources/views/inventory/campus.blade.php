@@ -34,7 +34,7 @@
         <div class="row g-2">
             <div class="col-12 col-md-4">
                 <label class="form-label small">Cari</label>
-                <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Nama / no. inventaris / serial...">
+                <input type="text" name="search" class="form-control" value="{{ $filters['search'] ?? '' }}" placeholder="Nama / kode / no. inventaris...">
             </div>
             <div class="col-6 col-md-2">
                 <label class="form-label small">Gedung</label>
@@ -110,19 +110,41 @@ const selected = {
 function populate($el, items, placeholder, selectedId) {
     $el.empty().append(`<option value="">${placeholder}</option>`);
     (items || []).forEach(item => {
-        $el.append(`<option value="${item.id}" ${String(item.id) === String(selectedId) ? 'selected' : ''}>${item.name}</option>`);
+        $el.append(`<option value="${item.id}" ${String(item.id) === String(selectedId || '') ? 'selected' : ''}>${item.name}</option>`);
     });
 }
-function syncFilters(preserve = true) {
-    const campus = locationData[0] || null;
-    populate($('#filterBuilding'), campus?.buildings || [], 'Semua', preserve ? selected.building : null);
-    const building = campus?.buildings?.find(b => String(b.id) === String($('#filterBuilding').val()));
-    populate($('#filterFloor'), building?.floors || [], 'Semua', preserve ? selected.floor : null);
-    const floor = building?.floors?.find(f => String(f.id) === String($('#filterFloor').val()));
-    populate($('#filterRoom'), floor?.rooms || [], 'Semua', preserve ? selected.room : null);
+function getCampus() {
+    return locationData[0] || null;
 }
-$('#filterBuilding').on('change', () => { selected.floor = selected.room = null; syncFilters(false); });
-$('#filterFloor').on('change', () => { selected.room = null; syncFilters(false); });
-syncFilters(true);
+function getBuilding() {
+    const campus = getCampus();
+    return campus?.buildings?.find(b => String(b.id) === String($('#filterBuilding').val())) || null;
+}
+function getFloor() {
+    const building = getBuilding();
+    return building?.floors?.find(f => String(f.id) === String($('#filterFloor').val())) || null;
+}
+function initFilters() {
+    const campus = getCampus();
+    populate($('#filterBuilding'), campus?.buildings || [], 'Semua', selected.building);
+    const building = getBuilding();
+    populate($('#filterFloor'), building?.floors || [], 'Semua', selected.floor);
+    const floor = getFloor();
+    populate($('#filterRoom'), floor?.rooms || [], 'Semua', selected.room);
+}
+$('#filterBuilding').on('change', function () {
+    selected.building = $(this).val() || null;
+    selected.floor = selected.room = null;
+    const building = getBuilding();
+    populate($('#filterFloor'), building?.floors || [], 'Semua', null);
+    populate($('#filterRoom'), [], 'Semua', null);
+});
+$('#filterFloor').on('change', function () {
+    selected.floor = $(this).val() || null;
+    selected.room = null;
+    const floor = getFloor();
+    populate($('#filterRoom'), floor?.rooms || [], 'Semua', null);
+});
+initFilters();
 </script>
 @endpush

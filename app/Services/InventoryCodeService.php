@@ -101,10 +101,51 @@ class InventoryCodeService
         }
 
         $item->qr_code_path = $this->generateQrCode($item);
-        $this->generateBarcode($item->inventory_number);
+        $this->generateBarcode($item->barcode ?: $item->inventory_number);
         $item->save();
 
         return $item->fresh();
+    }
+
+    /**
+     * Ensure QR + barcode files exist (for legacy rows or missing files).
+     */
+    public function ensureCodes(InventoryItem $item): InventoryItem
+    {
+        $disk = Storage::disk('public');
+        $needsSave = false;
+
+        if (blank($item->barcode)) {
+            $item->barcode = $item->inventory_number;
+            $needsSave = true;
+        }
+
+        $code = $item->barcode ?: $item->inventory_number;
+        $safeName = str_replace(['/', '\\'], '-', (string) $code);
+        $qrPath = $item->qr_code_path ?: "inventory/qrcodes/{$safeName}.svg";
+        $barcodePath = "inventory/barcodes/{$safeName}.png";
+
+        if (! $item->qr_code_path || ! $disk->exists($qrPath)) {
+            $item->qr_code_path = $this->generateQrCode($item);
+            $needsSave = true;
+        }
+
+        if (! $disk->exists($barcodePath)) {
+            $this->generateBarcode($code);
+        }
+
+        if ($needsSave) {
+            $item->save();
+        }
+
+        return $item->fresh() ?? $item;
+    }
+
+    public function barcodePath(string $inventoryNumber): string
+    {
+        $safeName = str_replace(['/', '\\'], '-', $inventoryNumber);
+
+        return "inventory/barcodes/{$safeName}.png";
     }
 
     /**

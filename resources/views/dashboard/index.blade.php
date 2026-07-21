@@ -9,80 +9,88 @@
 @section('content')
 <div class="page-header-undira">
     <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
-    <p class="text-muted mb-0 small">Ringkasan inventaris per kampus</p>
+    <p class="text-muted mb-0 small">Pusat informasi inventaris Universitas Dian Nusantara</p>
 </div>
 
-<div class="row">
-    <div class="col-6 col-lg-3 mb-3">
+@php
+    $highlightKeys = ['Kursi', 'Meja', 'Lemari', 'Komputer', 'Laptop', 'Printer', 'AC', 'LCD', 'Whiteboard', 'Proyektor', 'Monitor'];
+    $subMap = collect($category_breakdown ?? [])
+        ->flatMap(fn ($block) => $block['subcategories'] ?? [])
+        ->keyBy(fn ($s) => strtolower($s['name']));
+    $highlightItems = collect($highlightKeys)->map(function ($name) use ($subMap) {
+        $row = $subMap->get(strtolower($name));
+        return ['name' => $name, 'total' => (int) ($row['total'] ?? 0)];
+    })->filter(fn ($i) => $i['total'] > 0)->values();
+    if ($highlightItems->isEmpty()) {
+        $highlightItems = collect($category_breakdown ?? [])
+            ->flatMap(fn ($block) => collect($block['subcategories'] ?? [])->map(fn ($s) => [
+                'name' => $s['name'],
+                'total' => (int) $s['total'],
+            ]))
+            ->sortByDesc('total')
+            ->take(8)
+            ->values();
+    }
+@endphp
+
+{{-- Card Summary --}}
+<div class="row g-3 mb-1">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-green me-3"><i class="fas fa-boxes"></i></div>
                 <div>
-                    <div class="text-muted small">Total Unit</div>
+                    <div class="text-muted small">Total Inventaris</div>
                     <h3 class="mb-0">{{ number_format($total_inventory ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-university"></i></div>
                 <div>
-                    <div class="text-muted small">Kampus</div>
+                    <div class="text-muted small">Total Kampus</div>
                     <h3 class="mb-0">{{ number_format($total_campuses ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-building"></i></div>
                 <div>
-                    <div class="text-muted small">Gedung</div>
+                    <div class="text-muted small">Total Gedung</div>
                     <h3 class="mb-0">{{ number_format($total_buildings ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat stat-blue h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-door-open"></i></div>
                 <div>
-                    <div class="text-muted small">Ruangan</div>
+                    <div class="text-muted small">Total Ruangan</div>
                     <h3 class="mb-0">{{ number_format($total_rooms ?? 0) }}</h3>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<div class="row">
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat h-100">
             <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-green me-3"><i class="fas fa-check-circle"></i></div>
+                <div class="stat-icon icon-green me-3"><i class="fas fa-money-bill-wave"></i></div>
                 <div>
-                    <div class="text-muted small">Tersedia</div>
-                    <h3 class="mb-0">{{ number_format($active_inventory ?? 0) }}</h3>
+                    <div class="text-muted small">Total Nilai</div>
+                    <h3 class="mb-0 fs-5">Rp {{ number_format($total_value ?? 0, 0, ',', '.') }}</h3>
                 </div>
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3 mb-3">
-        <div class="card card-undira card-stat stat-danger h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-danger me-3"><i class="fas fa-tools"></i></div>
-                <div>
-                    <div class="text-muted small">Rusak</div>
-                    <h3 class="mb-0">{{ number_format($damaged ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
-    </div>
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat stat-warning h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-warning me-3"><i class="fas fa-hand-holding"></i></div>
@@ -93,7 +101,7 @@
             </div>
         </div>
     </div>
-    <div class="col-6 col-lg-3 mb-3">
+    <div class="col-6 col-lg-3">
         <div class="card card-undira card-stat stat-info h-100">
             <div class="card-body d-flex align-items-center">
                 <div class="stat-icon icon-blue me-3"><i class="fas fa-wrench"></i></div>
@@ -104,8 +112,20 @@
             </div>
         </div>
     </div>
+    <div class="col-6 col-lg-3">
+        <div class="card card-undira card-stat stat-danger h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="stat-icon icon-danger me-3"><i class="fas fa-tools"></i></div>
+                <div>
+                    <div class="text-muted small">Rusak</div>
+                    <h3 class="mb-0">{{ number_format($damaged ?? 0) }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
+{{-- Per Kampus --}}
 <h5 class="mb-3 mt-2"><i class="fas fa-university me-2"></i>Statistik per Kampus</h5>
 <div class="row">
     @forelse($campus_stats ?? [] as $cs)
@@ -116,16 +136,27 @@
                 <code class="text-white-50 small">{{ $cs['code'] }}</code>
             </div>
             <div class="card-body">
-                <div class="row g-2 small">
+                <div class="row g-2 small mb-2">
                     <div class="col-6"><span class="text-muted">Inventaris</span><div class="fw-bold">{{ number_format($cs['total_inventory']) }}</div></div>
                     <div class="col-6"><span class="text-muted">Unit</span><div class="fw-bold">{{ number_format($cs['total_units']) }}</div></div>
+                    <div class="col-12"><span class="text-muted">Nilai</span><div class="fw-bold">Rp {{ number_format($cs['total_value'], 0, ',', '.') }}</div></div>
                     <div class="col-4"><span class="text-muted">Gedung</span><div class="fw-semibold">{{ $cs['buildings'] }}</div></div>
                     <div class="col-4"><span class="text-muted">Lantai</span><div class="fw-semibold">{{ $cs['floors'] }}</div></div>
                     <div class="col-4"><span class="text-muted">Ruangan</span><div class="fw-semibold">{{ $cs['rooms'] }}</div></div>
                 </div>
+                @if(!empty($cs['categories']))
+                <div class="small border-top pt-2">
+                    @foreach($cs['categories'] as $cat)
+                        <div class="d-flex justify-content-between">
+                            <span>{{ $cat['name'] }}</span>
+                            <strong>{{ number_format($cat['total']) }}</strong>
+                        </div>
+                    @endforeach
+                </div>
+                @endif
                 <hr class="my-2">
                 <div class="d-flex flex-wrap gap-1">
-                    <span class="badge bg-success">Tersedia {{ $cs['available'] }}</span>
+                    <span class="badge bg-success">Aktif {{ $cs['available'] }}</span>
                     <span class="badge bg-warning text-dark">Pinjam {{ $cs['borrowed'] }}</span>
                     <span class="badge bg-info text-dark">Maint. {{ $cs['maintenance'] }}</span>
                     <span class="badge bg-danger">Rusak {{ $cs['damaged'] }}</span>
@@ -133,15 +164,71 @@
             </div>
             @can('inventory.view')
             <div class="card-footer bg-transparent">
-                <a href="{{ route('inventory.campus', $cs['id']) }}" class="btn btn-sm btn-outline-success w-100">
-                    Lihat Inventaris Kampus
-                </a>
+                <a href="{{ route('inventory.campus', $cs['id']) }}" class="btn btn-sm btn-outline-success w-100">Lihat Inventaris Kampus</a>
             </div>
             @endcan
         </div>
     </div>
     @empty
     <div class="col-12"><div class="alert alert-light">Belum ada data kampus.</div></div>
+    @endforelse
+</div>
+
+{{-- Per Sub Klasifikasi --}}
+<h5 class="mb-3 mt-3"><i class="fas fa-tags me-2"></i>Statistik per Sub Klasifikasi</h5>
+<div class="row">
+    @forelse($category_breakdown ?? [] as $block)
+    <div class="col-12 col-md-6 col-xl-4 mb-3">
+        <div class="card card-undira h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>{{ $block['category'] }}</strong>
+                <span class="badge bg-undira-green">{{ number_format($block['total']) }}</span>
+            </div>
+            <ul class="list-group list-group-flush small">
+                @foreach($block['subcategories'] as $sub)
+                <li class="list-group-item d-flex justify-content-between">
+                    <span>{{ $sub['name'] }}</span>
+                    <strong>{{ number_format($sub['total']) }}</strong>
+                </li>
+                @endforeach
+            </ul>
+        </div>
+    </div>
+    @empty
+    <div class="col-12"><div class="alert alert-light">Belum ada data klasifikasi inventaris.</div></div>
+    @endforelse
+</div>
+
+{{-- Per Kampus + Sub Klasifikasi --}}
+<h5 class="mb-3 mt-3"><i class="fas fa-sitemap me-2"></i>Kampus × Sub Klasifikasi</h5>
+<div class="row">
+    @forelse($campus_subcategory_breakdown ?? [] as $campusBlock)
+    <div class="col-12 col-lg-6 mb-3">
+        <div class="card card-undira h-100">
+            <div class="card-header bg-undira-blue text-white">
+                <strong>{{ $campusBlock['campus_name'] }}</strong>
+            </div>
+            <div class="card-body py-2">
+                @forelse($campusBlock['categories'] as $cat)
+                <div class="mb-3">
+                    <div class="fw-semibold mb-1">{{ $cat['category'] }} <span class="badge bg-secondary">{{ number_format($cat['total']) }}</span></div>
+                    <div class="row g-1 small">
+                        @foreach($cat['subcategories'] as $sub)
+                        <div class="col-6 d-flex justify-content-between border-bottom py-1">
+                            <span class="text-muted">{{ $sub['name'] }}</span>
+                            <strong>{{ number_format($sub['total']) }}</strong>
+                        </div>
+                        @endforeach
+                    </div>
+                </div>
+                @empty
+                <p class="text-muted small mb-0">Belum ada inventaris di kampus ini.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
+    @empty
+    <div class="col-12"><div class="alert alert-light">Belum ada data kampus × klasifikasi.</div></div>
     @endforelse
 </div>
 
@@ -160,48 +247,75 @@
     </div>
 </div>
 
+{{-- Charts --}}
 <div class="row mt-2">
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header bg-undira-green text-white">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Per Kampus</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Inventaris per Kampus</h5>
             </div>
-            <div class="card-body">
-                <canvas id="chartCampus" height="250"></canvas>
-            </div>
+            <div class="card-body"><canvas id="chartCampus" height="250"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header bg-undira-blue text-white">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Per Kategori</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Kategori</h5>
             </div>
-            <div class="card-body">
-                <canvas id="chartCategory" height="250"></canvas>
-            </div>
+            <div class="card-body"><canvas id="chartCategory" height="250"></canvas></div>
         </div>
     </div>
     <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header" style="background:#3949AB;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-doughnut me-2"></i>Status</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-chart-doughnut me-2"></i>Inventaris per Status</h5>
             </div>
-            <div class="card-body">
-                <canvas id="chartCondition" height="250"></canvas>
+            <div class="card-body"><canvas id="chartStatus" height="250"></canvas></div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card card-undira">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Jenis (Sub Klasifikasi)</h5>
             </div>
+            <div class="card-body"><canvas id="chartSubcategory" height="260"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card card-undira">
+            <div class="card-header">
+                <h5 class="card-title mb-0"><i class="fas fa-coins me-2"></i>Nilai Inventaris per Kampus</h5>
+            </div>
+            <div class="card-body"><canvas id="chartValueCampus" height="260"></canvas></div>
         </div>
     </div>
 </div>
 
+@if($highlightItems->isNotEmpty())
+<h5 class="mb-3 mt-2"><i class="fas fa-cubes me-2"></i>Ringkasan Jenis Barang</h5>
+<div class="row g-3 mb-3">
+    @foreach($highlightItems as $hi)
+    <div class="col-6 col-md-4 col-lg-3">
+        <div class="card card-undira highlight-item-card h-100">
+            <div class="card-body py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold text-undira-blue">{{ $hi['name'] }}</span>
+                <span class="badge bg-undira-green rounded-pill fs-6">{{ number_format($hi['total']) }}</span>
+            </div>
+        </div>
+    </div>
+    @endforeach
+</div>
+@endif
+
 <div class="row">
     <div class="col-lg-7 mb-4">
         <div class="card card-undira">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-box me-2"></i>Inventaris Terbaru</h5>
-            </div>
+            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-box me-2"></i>Inventaris Terbaru</h5></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0" id="recentItemsTable">
+                    <table class="table table-hover mb-0">
                         <thead>
                             <tr>
                                 <th>No. Inventaris</th>
@@ -211,7 +325,16 @@
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td colspan="4"><div class="skeleton skeleton-text"></div></td></tr>
+                            @forelse($recent_items ?? [] as $item)
+                            <tr>
+                                <td><a href="{{ route('inventory.show', $item) }}">{{ $item->inventory_number }}</a></td>
+                                <td>{{ $item->name }}</td>
+                                <td>{{ $item->category?->name ?? '-' }}</td>
+                                <td><small>{{ $item->full_location ?? '-' }}</small></td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="4" class="text-center text-muted">Tidak ada data</td></tr>
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -220,12 +343,22 @@
     </div>
     <div class="col-lg-5 mb-4">
         <div class="card card-undira">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>Aktivitas Terbaru</h5>
-            </div>
+            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>Aktivitas Terbaru</h5></div>
             <div class="card-body p-0">
-                <ul class="list-group list-group-flush" id="recentActivityList">
-                    <li class="list-group-item"><div class="skeleton skeleton-text"></div></li>
+                <ul class="list-group list-group-flush">
+                    @forelse($recent_activity ?? [] as $log)
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <div><strong>{{ $log['user'] }}</strong> <span class="text-muted">{{ $log['action'] }}</span></div>
+                            <small class="text-muted">{{ $log['created_at_human'] }}</small>
+                        </div>
+                        @if(!empty($log['description']))
+                            <small class="text-muted">{{ $log['description'] }}</small>
+                        @endif
+                    </li>
+                    @empty
+                    <li class="list-group-item text-muted text-center">Tidak ada aktivitas</li>
+                    @endforelse
                 </ul>
             </div>
         </div>
@@ -235,81 +368,73 @@
 
 @push('scripts')
 <script>
-const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3'];
+const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3', '#00897B', '#6D4C41'];
+const chartPayload = @json($charts ?? []);
 
-$.get('{{ route('dashboard.charts') }}', function(data) {
-    const campusLabels = (data.by_campus || []).map(c => c.label);
-    const campusData = (data.by_campus || []).map(c => c.total);
-    new Chart(document.getElementById('chartCampus'), {
-        type: 'pie',
+function makeChart(el, type, labels, data, label) {
+    if (!el) return;
+    if (!labels.length) {
+        el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0">Belum ada data</p>';
+        return;
+    }
+    new Chart(el, {
+        type,
         data: {
-            labels: campusLabels,
-            datasets: [{ data: campusData, backgroundColor: undiraColors }]
+            labels,
+            datasets: [{
+                label: label || 'Jumlah',
+                data,
+                backgroundColor: undiraColors,
+            }],
         },
-        options: { responsive: true, maintainAspectRatio: true }
-    });
-
-    const catLabels = (data.by_category || []).map(c => c.label);
-    const catData = (data.by_category || []).map(c => c.total);
-    new Chart(document.getElementById('chartCategory'), {
-        type: 'bar',
-        data: {
-            labels: catLabels,
-            datasets: [{ label: 'Jumlah', data: catData, backgroundColor: undiraColors }]
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: type !== 'bar' } },
         },
-        options: { responsive: true, plugins: { legend: { display: false } } }
     });
+}
 
-    const statusLabels = Object.keys(data.by_status || {}).map(s => s.replace(/_/g, ' '));
-    const statusData = Object.values(data.by_status || {});
-    new Chart(document.getElementById('chartCondition'), {
-        type: 'doughnut',
-        data: {
-            labels: statusLabels,
-            datasets: [{ data: statusData, backgroundColor: undiraColors }]
-        },
-        options: { responsive: true }
-    });
-});
-
-$.get('{{ route('dashboard.recent-items') }}', function(items) {
-    let rows = '';
-    items.forEach(item => {
-        const loc = item.full_location || '-';
-        rows += `<tr>
-            <td><a href="{{ url('/inventory') }}/${item.id}">${item.inventory_number}</a></td>
-            <td>${item.name}</td>
-            <td>${item.category?.name || '-'}</td>
-            <td><small>${loc}</small></td>
-        </tr>`;
-    });
-    $('#recentItemsTable tbody').html(rows || '<tr><td colspan="4" class="text-center text-muted">Tidak ada data</td></tr>');
-});
-
-$.get('{{ route('dashboard.recent-activity') }}', function(logs) {
-    let html = '';
-    logs.forEach(log => {
-        const user = log.user?.name || 'System';
-        const action = log.action?.label || log.action || '-';
-        const time = new Date(log.created_at).toLocaleString('id-ID');
-        html += `<li class="list-group-item">
-            <div class="d-flex justify-content-between">
-                <div><strong>${user}</strong> <span class="text-muted">${action}</span></div>
-                <small class="text-muted">${time}</small>
-            </div>
-            ${log.description ? `<small class="text-muted">${log.description}</small>` : ''}
-        </li>`;
-    });
-    $('#recentActivityList').html(html || '<li class="list-group-item text-muted text-center">Tidak ada aktivitas</li>');
-});
+makeChart(
+    document.getElementById('chartCampus'),
+    'pie',
+    (chartPayload.by_campus || []).map(c => c.label),
+    (chartPayload.by_campus || []).map(c => Number(c.total)),
+);
+makeChart(
+    document.getElementById('chartCategory'),
+    'bar',
+    (chartPayload.by_category || []).map(c => c.label),
+    (chartPayload.by_category || []).map(c => Number(c.total)),
+    'Jumlah'
+);
+makeChart(
+    document.getElementById('chartStatus'),
+    'doughnut',
+    (chartPayload.by_status || []).map(c => c.label),
+    (chartPayload.by_status || []).map(c => Number(c.total)),
+);
+makeChart(
+    document.getElementById('chartSubcategory'),
+    'bar',
+    (chartPayload.by_subcategory || []).map(c => c.label),
+    (chartPayload.by_subcategory || []).map(c => Number(c.total)),
+    'Jumlah'
+);
+makeChart(
+    document.getElementById('chartValueCampus'),
+    'bar',
+    (chartPayload.value_by_campus || []).map(c => c.label),
+    (chartPayload.value_by_campus || []).map(c => Number(c.total)),
+    'Nilai (Rp)'
+);
 
 function statsBadges(stats) {
     if (!stats) return '';
     return `<span class="badge bg-secondary">Total ${stats.total ?? 0}</span>
         <span class="badge bg-warning text-dark">Pinjam ${stats.borrowed ?? 0}</span>
         <span class="badge bg-info text-dark">Maint ${stats.maintenance ?? 0}</span>
-        <span class="badge bg-danger">Rusak ${stats.damaged ?? 0}</span>
-        <span class="badge bg-dark">Hapus ${stats.deleted ?? 0}</span>`;
+        <span class="badge bg-danger">Rusak ${stats.damaged ?? 0}</span>`;
 }
 
 function renderNodes(nodes, depth) {

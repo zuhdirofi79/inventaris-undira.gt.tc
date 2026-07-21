@@ -71,7 +71,13 @@
     </div>
     @empty
     <div class="col-12">
-        <div class="alert alert-light text-center">Belum ada kampus aktif.</div>
+        <div class="card card-undira">
+            <div class="card-body empty-state">
+                <i class="fas fa-university"></i>
+                <p class="fw-semibold mb-1">Belum ada kampus aktif</p>
+                <p class="mb-0">Tambahkan data kampus di Master Data agar inventaris dapat dikelompokkan.</p>
+            </div>
+        </div>
     </div>
     @endforelse
 </div>

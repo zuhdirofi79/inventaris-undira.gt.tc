@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreCampusRequest;
 use App\Models\Campus;
+use App\Services\DashboardTreeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -24,12 +25,16 @@ class CampusManagementController extends Controller
             'slug' => $request->input('slug') ?? Str::slug($request->input('name')),
         ]);
 
+        DashboardTreeService::flushCache();
+
         return back()->with('success', 'Kampus berhasil ditambahkan.');
     }
 
     public function update(StoreCampusRequest $request, Campus $campus): RedirectResponse
     {
         $campus->update($request->validated());
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Kampus berhasil diperbarui.');
     }
@@ -41,6 +46,8 @@ class CampusManagementController extends Controller
         }
 
         $campus->delete();
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Kampus berhasil dihapus.');
     }

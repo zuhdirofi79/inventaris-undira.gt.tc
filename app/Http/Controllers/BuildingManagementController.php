@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreBuildingRequest;
 use App\Models\Building;
 use App\Models\Campus;
+use App\Services\DashboardTreeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -25,12 +26,16 @@ class BuildingManagementController extends Controller
             'slug' => $request->input('slug') ?? Str::slug($request->input('name')),
         ]);
 
+        DashboardTreeService::flushCache();
+
         return back()->with('success', 'Gedung berhasil ditambahkan.');
     }
 
     public function update(StoreBuildingRequest $request, Building $building): RedirectResponse
     {
         $building->update($request->validated());
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Gedung berhasil diperbarui.');
     }
@@ -42,6 +47,8 @@ class BuildingManagementController extends Controller
         }
 
         $building->delete();
+
+        DashboardTreeService::flushCache();
 
         return back()->with('success', 'Gedung berhasil dihapus.');
     }

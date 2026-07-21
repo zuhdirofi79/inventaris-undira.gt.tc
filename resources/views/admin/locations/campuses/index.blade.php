@@ -53,7 +53,11 @@
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" required></div>
                 <div class="mb-3"><label class="form-label">Deskripsi</label><textarea name="description" class="form-control" rows="2"></textarea></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" checked><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" checked>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Simpan</button></div>
         </form>
@@ -70,7 +74,11 @@
                 <div class="mb-3"><label class="form-label">Kode</label><input type="text" name="code" class="form-control" value="{{ $campus->code }}" required></div>
                 <div class="mb-3"><label class="form-label">Nama</label><input type="text" name="name" class="form-control" value="{{ $campus->name }}" required></div>
                 <div class="mb-3"><label class="form-label">Deskripsi</label><textarea name="description" class="form-control" rows="2">{{ $campus->description }}</textarea></div>
-                <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $campus->is_active ? 'checked' : '' }}><label class="form-check-label">Aktif</label></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" {{ $campus->is_active ? 'checked' : '' }}>
+                    <label class="form-check-label">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer"><button type="submit" class="btn btn-undira">Perbarui</button></div>
         </form>
