@@ -77,7 +77,8 @@
     @endif
 
     <div class="small fw-semibold mt-2">{{ $inventory->inventory_number }}</div>
-    <div class="label-meta mt-2">{{ $inventory->full_location }}</div>
+    <div class="label-meta mt-2">Ruangan: {{ $inventory->room?->name ?? $inventory->full_location }}</div>
+    <div class="label-meta">PIC: {{ $inventory->responsible_person ?: '—' }}</div>
     <div class="label-meta">
         {{ $inventory->category?->name }}@if($inventory->subCategory) / {{ $inventory->subCategory->name }}@endif
     </div>

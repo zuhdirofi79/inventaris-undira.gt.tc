@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\InventoryItem;
 use App\Models\InventoryMutation;
 use App\Models\Maintenance;
+use App\Models\MaintenanceSchedule;
 use App\Models\StockOpname;
 use App\Models\User;
 use App\Observers\InventoryItemObserver;
@@ -17,6 +18,7 @@ use App\Policies\CategoryPolicy;
 use App\Policies\InventoryItemPolicy;
 use App\Policies\InventoryMutationPolicy;
 use App\Policies\MaintenancePolicy;
+use App\Policies\MaintenanceSchedulePolicy;
 use App\Policies\StockOpnamePolicy;
 use App\Policies\UserPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -45,6 +47,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Campus::class, CampusPolicy::class);
         Gate::policy(Borrowing::class, BorrowingPolicy::class);
         Gate::policy(Maintenance::class, MaintenancePolicy::class);
+        Gate::policy(MaintenanceSchedule::class, MaintenanceSchedulePolicy::class);
         Gate::policy(StockOpname::class, StockOpnamePolicy::class);
         Gate::policy(InventoryMutation::class, InventoryMutationPolicy::class);
     }

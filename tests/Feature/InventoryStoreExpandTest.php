@@ -28,7 +28,6 @@ class InventoryStoreExpandTest extends TestCase
         $admin = $this->makeSuperAdmin();
         $this->seed(MasterLookupSeeder::class);
         $this->seed(InventorySettingSeeder::class);
-        Setting::set('inventory.number_format', '{sequence}', 'inventory');
         Setting::set('inventory.sequence_padding', '6', 'inventory');
 
         $payload = $this->validAssetPayload();
@@ -37,9 +36,18 @@ class InventoryStoreExpandTest extends TestCase
         $response = $this->actingAs($admin)->post(route('master-configurations.store'), $payload);
 
         $response->assertRedirect(route('rooms.show', $roomId));
-        $this->assertSame(3, InventoryItem::query()->where('name', 'Kursi Uji Phase5')->count());
-        $this->assertSame(3, InventoryItem::query()->where('name', 'Kursi Uji Phase5')->where('quantity', 1)->count());
-        $this->assertSame(3, InventoryItem::query()->where('name', 'Kursi Uji Phase5')->where('room_id', $roomId)->count());
+        $items = InventoryItem::query()->where('name', 'Kursi Uji Phase5')->orderBy('id')->get();
+        $this->assertCount(3, $items);
+        $this->assertSame(3, $items->where('quantity', 1)->count());
+        $this->assertSame(3, $items->where('room_id', $roomId)->count());
+
+        foreach ($items as $item) {
+            $this->assertMatchesRegularExpression(
+                '/^TST-[A-Z0-9]+-24-FUR-KRS-\d{6}$/',
+                $item->inventory_number,
+            );
+        }
+        $this->assertNotSame($items[0]->inventory_number, $items[1]->inventory_number);
     }
 
     public function test_legacy_inventory_store_is_blocked(): void

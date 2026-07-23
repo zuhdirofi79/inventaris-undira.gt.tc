@@ -325,21 +325,96 @@
             </div>
         </div>
 
-        <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Riwayat Maintenance</h5></div>
+        <div class="card card-undira mb-3" id="maintenance-schedules">
+            <div class="card-header card-header-undira d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-calendar2-check me-2"></i>Jadwal Preventif</h5>
+                @can('maintenance.create')
+                <a href="{{ route('maintenance-schedules.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-sm btn-outline-primary">Tambah Jadwal</a>
+                @endcan
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0 table-undira">
+                        <thead>
+                            <tr><th>Jenis</th><th>Interval</th><th>Berikutnya</th><th>PIC</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse($inventory->maintenanceSchedules as $sched)
+                            <tr>
+                                <td>{{ $sched->maintenance_type?->label() }}</td>
+                                <td>{{ $sched->intervalLabel() }}</td>
+                                <td>{{ $sched->next_maintenance_date?->format('d/m/Y') }}</td>
+                                <td>{{ $sched->responsible_pic ?: '—' }}</td>
+                                <td>
+                                    @if(! $sched->is_active)
+                                        Nonaktif
+                                    @elseif($sched->isOverdue())
+                                        <span class="text-danger">Terlambat</span>
+                                    @elseif($sched->isDueToday())
+                                        <span class="text-warning">Hari ini</span>
+                                    @else
+                                        Aktif
+                                    @endif
+                                </td>
+                                <td class="text-end">
+                                    @can('maintenance.view')
+                                    <a href="{{ route('maintenance-schedules.show', $sched) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @empty
+                            <tr><td colspan="6" class="text-center text-muted py-3">Belum ada jadwal preventif.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-undira mb-3" id="maintenance-history">
+            <div class="card-header card-header-undira d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Maintenance History</h5>
+                @can('maintenance.create')
+                <a href="{{ route('maintenances.scan') }}" class="btn btn-sm btn-outline-info">Scan QR</a>
+                @endcan
+            </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover table-striped mb-0 table-undira">
                         <thead>
-                            <tr><th>Tanggal</th><th>Jadwal berikutnya</th><th>Vendor</th><th>Status</th><th></th></tr>
+                            <tr>
+                                <th>No. WO</th>
+                                <th>Tanggal</th>
+                                <th>Teknisi</th>
+                                <th>Vendor</th>
+                                <th>Jenis</th>
+                                <th>Prioritas</th>
+                                <th>Biaya</th>
+                                <th>Status</th>
+                                <th>Hasil</th>
+                                <th>Foto</th>
+                                <th>Selesai</th>
+                                <th></th>
+                            </tr>
                         </thead>
                         <tbody>
                             @forelse($inventory->maintenances as $maint)
                             <tr>
-                                <td>{{ $maint->service_date?->format('d/m/Y') ?? '-' }}</td>
-                                <td>{{ $maint->next_schedule?->format('d/m/Y') ?? '-' }}</td>
-                                <td>{{ $maint->vendor?->name ?? '-' }}</td>
+                                <td><code class="small">{{ $maint->maintenance_number ?? '—' }}</code></td>
+                                <td>{{ $maint->service_date?->format('d/m/Y') ?? '—' }}</td>
+                                <td>{{ $maint->technician ?: '—' }}</td>
+                                <td>{{ $maint->vendor?->name ?? '—' }}</td>
+                                <td>{{ $maint->maintenance_type?->label() ?? '—' }}</td>
+                                <td>{{ $maint->priority?->label() ?? '—' }}</td>
+                                <td>{{ $maint->cost ? 'Rp '.number_format($maint->cost, 0, ',', '.') : '—' }}</td>
                                 <td><span class="badge bg-info text-dark">{{ $maint->status?->label() }}</span></td>
+                                <td>{{ $maint->result?->label() ?? '—' }}</td>
+                                <td class="small">
+                                    B{{ $maint->photos->where('type','before')->count() }}
+                                    /S{{ $maint->photos->where('type','during')->count() }}
+                                    /A{{ $maint->photos->where('type','after')->count() }}
+                                </td>
+                                <td>{{ $maint->completed_at?->timezone(config('app.timezone'))->format('d/m/Y') ?? '—' }}</td>
                                 <td class="text-end">
                                     @can('maintenance.view')
                                     <a href="{{ route('maintenances.show', $maint) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
@@ -348,7 +423,7 @@
                             </tr>
                             @empty
                             <tr>
-                                <td colspan="5" class="text-center text-muted py-4">Belum ada riwayat maintenance.</td>
+                                <td colspan="12" class="text-center text-muted py-4">Belum ada riwayat pemeliharaan.</td>
                             </tr>
                             @endforelse
                         </tbody>

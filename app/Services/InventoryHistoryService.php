@@ -54,13 +54,16 @@ class InventoryHistoryService
                 : ($maint->created_at?->copy() ?? now());
             $events->push([
                 'at' => $when,
-                'title' => 'Maintenance',
+                'title' => 'Pemeliharaan'.($maint->maintenance_number ? ' '.$maint->maintenance_number : ''),
                 'detail' => trim(
-                    ($maint->status?->label() ?? '')
+                    ($maint->maintenance_type?->label() ?? '')
+                    .' · '.($maint->status?->label() ?? '')
+                    .($maint->technician ? ' · '.$maint->technician : '')
                     .($maint->vendor?->name ? ' · '.$maint->vendor->name : '')
+                    .($maint->result ? ' · '.$maint->result->label() : '')
                     .($maint->notes ? ' · '.$maint->notes : '')
                 ) ?: null,
-                'actor' => null,
+                'actor' => $maint->creator?->name,
                 'icon' => 'bi-wrench-adjustable',
                 'tone' => 'warning',
             ]);

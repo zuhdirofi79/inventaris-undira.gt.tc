@@ -4,7 +4,7 @@ namespace App\Enums;
 
 enum MaintenanceStatus: string
 {
-    case Scheduled = 'scheduled';
+    case Waiting = 'waiting';
     case InProgress = 'in_progress';
     case Completed = 'completed';
     case Cancelled = 'cancelled';
@@ -12,10 +12,15 @@ enum MaintenanceStatus: string
     public function label(): string
     {
         return match ($this) {
-            self::Scheduled => 'Terjadwal',
-            self::InProgress => 'Sedang Berlangsung',
+            self::Waiting => 'Menunggu',
+            self::InProgress => 'Sedang Dikerjakan',
             self::Completed => 'Selesai',
             self::Cancelled => 'Dibatalkan',
         };
+    }
+
+    public function isOpen(): bool
+    {
+        return $this === self::Waiting || $this === self::InProgress;
     }
 }

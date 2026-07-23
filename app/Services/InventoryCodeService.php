@@ -2,51 +2,84 @@
 
 namespace App\Services;
 
+use App\Models\Campus;
 use App\Models\Category;
+use App\Models\InventoryGlobalSequence;
 use App\Models\InventoryItem;
-use App\Models\InventorySequence;
-use App\Models\OrgUnit;
-use App\Models\Room;
+use App\Models\ProcurementType;
 use App\Models\Setting;
 use App\Models\SubCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
+/**
+ * Official UNDIRA inventory numbering:
+ * {CAMPUS}-{PROCUREMENT}-{YY}-{CATEGORY}-{SUBCATEGORY}-{######}
+ *
+ * Running number is GLOBAL (never resets). Inventory numbers are immutable after create.
+ */
 class InventoryCodeService
 {
-    public const DEFAULT_FORMAT = '{campus}-{org_unit}-{sub_category}-{sequence}';
-
     public const DEFAULT_PADDING = 6;
 
+    public const GLOBAL_SEQUENCE_ID = 1;
+
     /**
-     * Generate inventory number using configurable master-code format.
-     * Sequence is allocated per campus + sub_category (fallback: category), never reused.
+     * Generate official inventory number from master codes + global sequence.
      */
     public function generateInventoryNumber(
-        Room $room,
+        Campus $campus,
+        ProcurementType $procurement,
+        int $purchaseYear,
         Category $category,
-        ?SubCategory $subCategory = null,
-        ?OrgUnit $orgUnit = null,
+        SubCategory $subCategory,
     ): string {
-        $room->loadMissing('floor.building.campus');
+        $campusCode = $this->requireCode($campus->code, 'Kode kampus');
+        $procurementCode = $this->requireCode($procurement->code, 'Kode jenis pengadaan');
+        $categoryCode = $this->requireCode($category->code, 'Kode kategori');
+        $subCode = $this->requireCode($subCategory->code, 'Kode subkategori');
 
-        $campus = $room->floor?->building?->campus;
-        $campusId = $campus?->id;
-        if (! $campusId) {
-            throw new \RuntimeException('Ruangan tidak terhubung ke kampus.');
+        if ($purchaseYear < 1900 || $purchaseYear > 2100) {
+            throw new \RuntimeException('Tahun pengadaan tidak valid.');
         }
 
-        $sequence = $this->allocateSequence(
-            $campusId,
-            $subCategory?->id,
-            $category->id,
-        );
+        $year2 = str_pad((string) ($purchaseYear % 100), 2, '0', STR_PAD_LEFT);
+        $sequence = $this->allocateGlobalSequence();
+        $padding = $this->padding();
 
-        $tokens = $this->formatTokens($room, $category, $subCategory, $orgUnit, $sequence);
-        $pattern = (string) Setting::get('inventory.number_format', self::DEFAULT_FORMAT);
+        return implode('-', [
+            $campusCode,
+            $procurementCode,
+            $year2,
+            $categoryCode,
+            $subCode,
+            str_pad((string) $sequence, $padding, '0', STR_PAD_LEFT),
+        ]);
+    }
 
-        return $this->applyFormat($pattern, $tokens);
+    /**
+     * Build number from known sequence value (used by renumber / dry-run preview).
+     */
+    public function formatInventoryNumber(
+        Campus $campus,
+        ProcurementType $procurement,
+        int $purchaseYear,
+        Category $category,
+        SubCategory $subCategory,
+        int $sequence,
+    ): string {
+        $year2 = str_pad((string) ($purchaseYear % 100), 2, '0', STR_PAD_LEFT);
+        $padding = $this->padding();
+
+        return implode('-', [
+            $this->requireCode($campus->code, 'Kode kampus'),
+            $this->requireCode($procurement->code, 'Kode jenis pengadaan'),
+            $year2,
+            $this->requireCode($category->code, 'Kode kategori'),
+            $this->requireCode($subCategory->code, 'Kode subkategori'),
+            str_pad((string) $sequence, $padding, '0', STR_PAD_LEFT),
+        ]);
     }
 
     public function generateGroupKey(string $name, int $roomId, int $categoryId): string
@@ -55,25 +88,30 @@ class InventoryCodeService
     }
 
     /**
-     * QR encodes the public detail URL (scan page), not the raw inventory number.
+     * QR encodes plain inventory number only (not URL / JSON).
      */
     public function generateQrCode(InventoryItem $item): string
     {
-        $scanUrl = $this->scanUrl($item->inventory_number);
+        $payload = (string) $item->inventory_number;
+        if ($payload === '') {
+            throw new \RuntimeException('Nomor inventaris kosong; QR tidak dapat digenerate.');
+        }
 
-        // SVG avoids Imagick dependency (often missing on low-end/dev environments).
         $qrData = QrCode::format('svg')
             ->size(300)
             ->margin(1)
-            ->generate($scanUrl);
+            ->generate($payload);
 
-        $safeName = str_replace(['/', '\\'], '-', $item->inventory_number);
+        $safeName = str_replace(['/', '\\'], '-', $payload);
         $path = "inventory/qrcodes/{$safeName}.svg";
         Storage::disk('public')->put($path, $qrData);
 
         return $path;
     }
 
+    /**
+     * Public scan page URL (for links in UI — not embedded in QR).
+     */
     public function scanUrl(string $inventoryNumber): string
     {
         $base = rtrim((string) Setting::get('inventory.scan_base_url', ''), '/');
@@ -93,8 +131,7 @@ class InventoryCodeService
     }
 
     /**
-     * Ensure QR file exists (for legacy rows or missing files).
-     * Does not generate barcodes — barcode feature has been retired.
+     * Ensure QR file exists for the current immutable inventory number.
      */
     public function ensureCodes(InventoryItem $item): InventoryItem
     {
@@ -117,34 +154,23 @@ class InventoryCodeService
     }
 
     /**
-     * Allocate next monotonic sequence for campus + classifier.
-     * Soft-deleted items never free a sequence value.
+     * Allocate next global sequence (never reused, never resets).
      */
-    public function allocateSequence(int $campusId, ?int $subCategoryId, int $categoryId): int
+    public function allocateGlobalSequence(): int
     {
-        $classifierType = $subCategoryId ? 'sub_category' : 'category';
-        $classifierId = $subCategoryId ?? $categoryId;
-
-        return (int) DB::transaction(function () use ($campusId, $classifierType, $classifierId) {
-            $row = InventorySequence::query()
-                ->where('campus_id', $campusId)
-                ->where('classifier_type', $classifierType)
-                ->where('classifier_id', $classifierId)
+        return (int) DB::transaction(function () {
+            $row = InventoryGlobalSequence::query()
+                ->whereKey(self::GLOBAL_SEQUENCE_ID)
                 ->lockForUpdate()
                 ->first();
 
             if (! $row) {
-                $bootstrapped = $this->bootstrapSequenceValue($campusId, $classifierType, $classifierId);
-
-                $row = InventorySequence::query()->create([
-                    'campus_id' => $campusId,
-                    'classifier_type' => $classifierType,
-                    'classifier_id' => $classifierId,
-                    'last_value' => $bootstrapped,
+                InventoryGlobalSequence::query()->create([
+                    'id' => self::GLOBAL_SEQUENCE_ID,
+                    'last_value' => 0,
                 ]);
-
-                $row = InventorySequence::query()
-                    ->whereKey($row->id)
+                $row = InventoryGlobalSequence::query()
+                    ->whereKey(self::GLOBAL_SEQUENCE_ID)
                     ->lockForUpdate()
                     ->firstOrFail();
             }
@@ -157,30 +183,15 @@ class InventoryCodeService
     }
 
     /**
-     * Read-only next sequence preview (does NOT consume / increment).
+     * Read-only next global sequence preview (does NOT consume).
      *
      * @return array{last_value: int, next_value: int, next_padded: string}
      */
-    public function peekNextSequence(int $campusId, ?int $subCategoryId, int $categoryId): array
+    public function peekNextSequence(?int $campusId = null, ?int $subCategoryId = null, ?int $categoryId = null): array
     {
-        $classifierType = $subCategoryId ? 'sub_category' : 'category';
-        $classifierId = $subCategoryId ?? $categoryId;
-
-        $row = InventorySequence::query()
-            ->where('campus_id', $campusId)
-            ->where('classifier_type', $classifierType)
-            ->where('classifier_id', $classifierId)
-            ->first();
-
-        $last = $row
-            ? (int) $row->last_value
-            : $this->bootstrapSequenceValue($campusId, $classifierType, $classifierId);
-
+        $last = (int) (InventoryGlobalSequence::query()->find(self::GLOBAL_SEQUENCE_ID)?->last_value ?? 0);
         $next = $last + 1;
-        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
-        if ($padding < 1) {
-            $padding = self::DEFAULT_PADDING;
-        }
+        $padding = $this->padding();
 
         return [
             'last_value' => $last,
@@ -189,75 +200,45 @@ class InventoryCodeService
         ];
     }
 
-    protected function bootstrapSequenceValue(int $campusId, string $classifierType, int $classifierId): int
+    /**
+     * Reset global counter (renumber command only).
+     */
+    public function resetGlobalSequence(int $lastValue = 0): void
     {
-        $query = InventoryItem::withTrashed()
-            ->whereHas('room.floor.building', fn ($q) => $q->where('campus_id', $campusId));
+        DB::transaction(function () use ($lastValue) {
+            $row = InventoryGlobalSequence::query()
+                ->whereKey(self::GLOBAL_SEQUENCE_ID)
+                ->lockForUpdate()
+                ->first();
 
-        if ($classifierType === 'sub_category') {
-            $query->where('sub_category_id', $classifierId);
-        } else {
-            $query->where('category_id', $classifierId)->whereNull('sub_category_id');
-        }
+            if (! $row) {
+                InventoryGlobalSequence::query()->create([
+                    'id' => self::GLOBAL_SEQUENCE_ID,
+                    'last_value' => $lastValue,
+                ]);
 
-        $max = 0;
-        foreach ($query->pluck('inventory_number') as $number) {
-            $parts = explode('-', (string) $number);
-            $tail = (int) end($parts);
-            if ($tail > $max) {
-                $max = $tail;
+                return;
             }
-        }
 
-        return $max;
+            $row->last_value = $lastValue;
+            $row->save();
+        });
     }
 
-    /**
-     * @return array<string, string>
-     */
-    protected function formatTokens(
-        Room $room,
-        Category $category,
-        ?SubCategory $subCategory,
-        ?OrgUnit $orgUnit,
-        int $sequence,
-    ): array {
-        $floor = $room->floor;
-        $building = $floor?->building;
-        $campus = $building?->campus;
-        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
-        if ($padding < 1) {
-            $padding = self::DEFAULT_PADDING;
-        }
-
-        $subCode = strtoupper($subCategory?->code ?: ($category->code ?? 'XXX'));
-
-        return [
-            'campus' => strtoupper($campus?->code ?? 'XXX'),
-            'building' => strtoupper($building?->code ?? 'XXX'),
-            'floor' => 'L'.($floor?->floor_number ?? 0),
-            'floor_code' => strtoupper($floor?->code ?? 'XXX'),
-            'room' => strtoupper($room->code ?? 'XXX'),
-            'category' => strtoupper($category->code ?? 'XXX'),
-            'sub_category' => $subCode,
-            'org_unit' => strtoupper($orgUnit?->code ?? 'NA'),
-            'sequence' => str_pad((string) $sequence, $padding, '0', STR_PAD_LEFT),
-        ];
-    }
-
-    /**
-     * @param  array<string, string>  $tokens
-     */
-    protected function applyFormat(string $pattern, array $tokens): string
+    public function padding(): int
     {
-        return (string) preg_replace_callback(
-            '/\{([a-z_]+)\}/i',
-            function (array $matches) use ($tokens) {
-                $key = strtolower($matches[1]);
+        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
 
-                return $tokens[$key] ?? $matches[0];
-            },
-            $pattern
-        );
+        return $padding < 1 ? self::DEFAULT_PADDING : $padding;
+    }
+
+    protected function requireCode(?string $code, string $label): string
+    {
+        $normalized = strtoupper(trim((string) $code));
+        if ($normalized === '') {
+            throw new \RuntimeException("{$label} wajib diisi di master data.");
+        }
+
+        return $normalized;
     }
 }

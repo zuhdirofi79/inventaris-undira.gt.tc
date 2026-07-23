@@ -100,7 +100,7 @@ class FormRequestPhase1Test extends TestCase
         $this->assertTrue($validator->fails());
         $this->assertSame('Status maintenance tidak valid.', $validator->errors()->first('status'));
         $this->assertSame(
-            'Jadwal berikutnya tidak boleh sebelum tanggal servis.',
+            'Jadwal berikutnya tidak boleh sebelum tanggal pemeliharaan.',
             $validator->errors()->first('next_schedule'),
         );
         $this->assertContains(MaintenanceStatus::Completed->value, array_column(MaintenanceStatus::cases(), 'value'));

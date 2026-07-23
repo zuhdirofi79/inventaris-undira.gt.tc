@@ -6,6 +6,7 @@ use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Category;
 use App\Models\InventoryItem;
+use App\Models\ProcurementType;
 use App\Models\Room;
 use App\Models\SubCategory;
 use App\Models\Supplier;
@@ -43,10 +44,12 @@ class InventoryImport implements ToCollection, WithHeadingRow
             $validator = Validator::make($data, [
                 'name' => ['required', 'string', 'max:255'],
                 'category_code' => ['required', 'string'],
+                'sub_category_code' => ['required', 'string'],
+                'procurement_type_code' => ['required', 'string'],
                 'room_code' => ['required', 'string'],
                 'condition' => ['required', Rule::enum(InventoryCondition::class)],
                 'status' => ['required', Rule::enum(InventoryStatus::class)],
-                'purchase_year' => ['nullable', 'integer'],
+                'purchase_year' => ['required', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
                 'purchase_date' => ['nullable', 'date'],
                 'price' => ['nullable', 'numeric', 'min:0'],
                 'quantity' => ['nullable', 'integer', 'min:1'],
@@ -62,23 +65,32 @@ class InventoryImport implements ToCollection, WithHeadingRow
             }
 
             $category = Category::query()->where('code', $data['category_code'])->first();
-            $room = Room::query()->where('code', $data['room_code'])->first();
+            $room = Room::query()->with('floor.building.campus')->where('code', $data['room_code'])->first();
+            $procurement = ProcurementType::query()->where('code', $data['procurement_type_code'])->first();
+            $subCategory = $category
+                ? SubCategory::query()
+                    ->where('category_id', $category->id)
+                    ->where('code', $data['sub_category_code'])
+                    ->first()
+                : null;
 
-            if (! $category || ! $room) {
+            if (! $category || ! $room || ! $subCategory || ! $procurement) {
                 $this->errors[] = [
                     'row' => $rowNumber,
-                    'errors' => ['Kategori atau ruangan tidak ditemukan.'],
+                    'errors' => ['Kategori, subkategori, jenis pengadaan, atau ruangan tidak ditemukan.'],
                 ];
 
                 continue;
             }
 
-            $subCategory = null;
-            if (! empty($data['sub_category_code'])) {
-                $subCategory = SubCategory::query()
-                    ->where('category_id', $category->id)
-                    ->where('code', $data['sub_category_code'])
-                    ->first();
+            $campus = $room->floor?->building?->campus;
+            if (! $campus) {
+                $this->errors[] = [
+                    'row' => $rowNumber,
+                    'errors' => ['Ruangan tidak terhubung ke kampus.'],
+                ];
+
+                continue;
             }
 
             $supplier = ! empty($data['supplier_name'])
@@ -89,7 +101,7 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 ? Vendor::query()->firstOrCreate(['name' => $data['vendor_name']])
                 : null;
 
-            $previewRow = [
+            $this->preview[] = [
                 'row' => $rowNumber,
                 'name' => $data['name'],
                 'category' => $category->name,
@@ -98,36 +110,37 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 'condition' => $data['condition'],
             ];
 
-            $this->preview[] = $previewRow;
-
             if ($this->previewOnly) {
                 continue;
             }
 
-            DB::transaction(function () use ($data, $category, $subCategory, $room, $supplier, $vendor) {
+            DB::transaction(function () use ($data, $campus, $category, $subCategory, $procurement, $room, $supplier, $vendor) {
                 $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
                 $quantity = (int) ($data['quantity'] ?? 1);
+                $purchaseYear = (int) $data['purchase_year'];
 
                 for ($i = 0; $i < $quantity; $i++) {
                     $inventoryNumber = $this->codeService->generateInventoryNumber(
-                        $room,
+                        $campus,
+                        $procurement,
+                        $purchaseYear,
                         $category,
                         $subCategory,
                     );
-                    $unitSequence = $i + 1;
 
                     $item = InventoryItem::query()->create([
                         'inventory_number' => $inventoryNumber,
                         'name' => $data['name'],
                         'category_id' => $category->id,
-                        'sub_category_id' => $subCategory?->id,
+                        'sub_category_id' => $subCategory->id,
+                        'procurement_type_id' => $procurement->id,
                         'room_id' => $room->id,
                         'brand' => $data['brand'] ?? null,
                         'type' => $data['type'] ?? null,
                         'model' => $data['model'] ?? null,
                         'serial_number' => $data['serial_number'] ?? null,
                         'specification' => $data['specification'] ?? null,
-                        'purchase_year' => $data['purchase_year'] ?? null,
+                        'purchase_year' => $purchaseYear,
                         'purchase_date' => $data['purchase_date'] ?? null,
                         'funding_source' => $data['funding_source'] ?? null,
                         'price' => $data['price'] ?? null,
@@ -142,7 +155,7 @@ class InventoryImport implements ToCollection, WithHeadingRow
                         'quantity' => 1,
                         'unit' => $data['unit'] ?? 'Unit',
                         'group_key' => $groupKey,
-                        'unit_sequence' => $unitSequence,
+                        'unit_sequence' => $i + 1,
                         'created_by' => $this->userId,
                         'updated_by' => $this->userId,
                     ]);

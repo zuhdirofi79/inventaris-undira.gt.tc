@@ -59,7 +59,9 @@ class UpdateInventoryRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         // Lokasi hanya diubah lewat Mutasi Inventaris — abaikan room_id dari form edit.
+        // Nomor inventaris immutable — tidak boleh diubah dari request.
         $this->request->remove('room_id');
+        $this->request->remove('inventory_number');
 
         $this->merge([
             'price' => $this->filled('price') ? $this->input('price') : null,

@@ -26,6 +26,9 @@
                     <strong>{{ $notification->data['title'] ?? 'Notifikasi' }}</strong>
                     <p class="mb-1 text-muted">{{ $notification->data['message'] ?? json_encode($notification->data) }}</p>
                     <small class="text-muted">{{ $notification->created_at->diffForHumans() }}</small>
+                    @if(!empty($notification->data['url']))
+                        <div class="mt-1"><a href="{{ url($notification->data['url']) }}" class="small">Buka detail</a></div>
+                    @endif
                 </div>
                 @if(!$notification->read_at)
                 <form action="{{ route('notifications.read', $notification->id) }}" method="POST">

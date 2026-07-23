@@ -67,7 +67,7 @@ class DashboardPhase5Test extends TestCase
         Maintenance::query()->create([
             'inventory_item_id' => $item->id,
             'service_date' => now()->toDateString(),
-            'status' => MaintenanceStatus::Scheduled,
+            'status' => MaintenanceStatus::Waiting,
         ]);
 
         $charts = app(DashboardStatsService::class)->chartData();

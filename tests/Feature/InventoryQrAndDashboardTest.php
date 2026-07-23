@@ -90,16 +90,25 @@ class InventoryQrAndDashboardTest extends TestCase
         $response->assertDontSee('/barcode', false);
         $response->assertDontSee('http://localhost/storage/', false);
         $response->assertSee($item->inventory_number, false);
+        $response->assertSee('Ruangan:', false);
+        $response->assertSee('PIC:', false);
     }
 
-    public function test_qr_payload_uses_scan_route_url(): void
+    public function test_qr_file_is_named_from_inventory_number_not_scan_url(): void
     {
-        $item = $this->makeItem();
+        $item = $this->makeItem(['inventory_number' => 'CBB-HIBAH-26-EL-LPT-000099']);
         $service = app(InventoryCodeService::class);
-        $url = $service->scanUrl($item->inventory_number);
 
+        $path = $service->generateQrCode($item);
+
+        $this->assertSame('inventory/qrcodes/CBB-HIBAH-26-EL-LPT-000099.svg', $path);
+        Storage::disk('public')->assertExists($path);
+        $this->assertStringNotContainsString('scan', $path);
+        $this->assertStringNotContainsString('http', $path);
+
+        // scanUrl remains available for UI links, but is not used as QR filename/payload source.
+        $url = $service->scanUrl($item->inventory_number);
         $this->assertStringContainsString('/scan/'.$item->inventory_number, $url);
-        $this->assertStringStartsWith('http', $url);
     }
 
     public function test_authenticated_scan_redirects_to_detail(): void

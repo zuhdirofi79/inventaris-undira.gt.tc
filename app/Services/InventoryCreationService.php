@@ -9,6 +9,7 @@ use App\Models\InventoryConditionMaster;
 use App\Models\InventoryItem;
 use App\Models\InventoryMasterConfiguration;
 use App\Models\OrgUnit;
+use App\Models\ProcurementType;
 use App\Models\PurchaseYear;
 use App\Models\Room;
 use App\Models\SubCategory;
@@ -18,7 +19,7 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Single entry-point for creating physical inventory assets.
- * Always writes inventory_items.room_id and generates QR/Barcode.
+ * Always writes inventory_items.room_id and generates official inventory number + QR.
  */
 class InventoryCreationService
 {
@@ -39,14 +40,20 @@ class InventoryCreationService
     {
         return DB::transaction(function () use ($master, $asset, $user) {
             $room = Room::query()->with('floor.building.campus')->findOrFail($master['room_id']);
+            $campus = $room->floor?->building?->campus;
+            if (! $campus) {
+                throw new \RuntimeException('Ruangan tidak terhubung ke kampus.');
+            }
+
             $category = Category::query()->findOrFail($master['category_id']);
             $subCategory = SubCategory::query()->findOrFail($master['sub_category_id']);
             $orgUnit = OrgUnit::query()->findOrFail($master['org_unit_id']);
+            $procurement = ProcurementType::query()->findOrFail($master['procurement_type_id']);
             $conditionMaster = InventoryConditionMaster::query()->findOrFail($master['inventory_condition_id']);
             $purchaseYear = PurchaseYear::query()->findOrFail($master['purchase_year_id']);
 
             $locationCode = $this->locationCodes->generate(
-                $room->floor->building->campus,
+                $campus,
                 $orgUnit,
                 $room,
             );
@@ -90,10 +97,11 @@ class InventoryCreationService
             $items = collect();
             for ($i = 0; $i < $quantity; $i++) {
                 $inventoryNumber = $this->codes->generateInventoryNumber(
-                    $room,
+                    $campus,
+                    $procurement,
+                    (int) $purchaseYear->year,
                     $category,
                     $subCategory,
-                    $orgUnit,
                 );
 
                 $item = InventoryItem::query()->create([

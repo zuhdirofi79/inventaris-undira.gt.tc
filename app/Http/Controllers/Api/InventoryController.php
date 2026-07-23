@@ -7,7 +7,6 @@ use App\Http\Requests\StoreInventoryRequest;
 use App\Http\Requests\UpdateInventoryRequest;
 use App\Models\Category;
 use App\Models\InventoryItem;
-use App\Models\OrgUnit;
 use App\Models\ProcurementType;
 use App\Models\Room;
 use App\Models\SubCategory;
@@ -48,28 +47,31 @@ class InventoryController extends Controller
     public function store(StoreInventoryRequest $request): JsonResponse
     {
         $data = $this->syncProcurementFunding($request->validated());
-        $room = Room::query()->findOrFail($data['room_id']);
+        $room = Room::query()->with('floor.building.campus')->findOrFail($data['room_id']);
+        $campus = $room->floor?->building?->campus;
+        if (! $campus) {
+            return response()->json(['message' => 'Ruangan tidak terhubung ke kampus.'], 422);
+        }
+
         $category = Category::query()->findOrFail($data['category_id']);
-        $subCategory = ! empty($data['sub_category_id'])
-            ? SubCategory::query()->find($data['sub_category_id'])
-            : null;
-        $orgUnit = ! empty($data['org_unit_id'])
-            ? OrgUnit::query()->find($data['org_unit_id'])
-            : null;
+        $subCategory = SubCategory::query()->findOrFail($data['sub_category_id']);
+        $procurement = ProcurementType::query()->findOrFail($data['procurement_type_id']);
+        $purchaseYear = (int) $data['purchase_year'];
         $quantity = (int) ($data['quantity'] ?? 1);
         unset($data['quantity']);
 
         $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
 
-        $items = DB::transaction(function () use ($data, $room, $category, $subCategory, $orgUnit, $quantity, $groupKey, $request) {
+        $items = DB::transaction(function () use ($data, $campus, $category, $subCategory, $procurement, $purchaseYear, $quantity, $groupKey, $request) {
             $created = [];
 
             for ($i = 0; $i < $quantity; $i++) {
                 $inventoryNumber = $this->codeService->generateInventoryNumber(
-                    $room,
+                    $campus,
+                    $procurement,
+                    $purchaseYear,
                     $category,
                     $subCategory,
-                    $orgUnit,
                 );
 
                 $item = InventoryItem::query()->create([

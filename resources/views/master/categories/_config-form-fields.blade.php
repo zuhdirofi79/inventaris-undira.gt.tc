@@ -157,7 +157,7 @@
     <div class="col-md-6">
         <label class="form-label">Nomor Urut Berikutnya (preview)</label>
         <input type="text" class="form-control cfg-sequence-preview" id="{{ $p }}_sequence_preview" readonly placeholder="000001" tabindex="-1">
-        <div class="form-text">Sequence dikonsumsi saat inventaris disimpan. QR Code digenerate otomatis.</div>
+        <div class="form-text">Sequence global dikonsumsi saat inventaris disimpan. Format nomor: Kampus-Pengadaan-Tahun-Kategori-Sub-Urut. QR berisi nomor inventaris.</div>
     </div>
 
     <div class="col-12">

@@ -7,11 +7,13 @@ use App\Models\Borrowing;
 use App\Models\DeletionApproval;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
+use App\Models\MaintenanceSchedule;
 use App\Models\StockOpname;
 use App\Models\User;
 use App\Notifications\BorrowingCreatedNotification;
 use App\Notifications\DeletionApprovalNotification;
 use App\Notifications\MaintenanceDueNotification;
+use App\Notifications\MaintenanceScheduleReminderNotification;
 use App\Notifications\OverdueBorrowingNotification;
 use App\Notifications\StockOpnameStatusNotification;
 use App\Notifications\WarrantyExpiringNotification;
@@ -44,6 +46,23 @@ class NotificationService
         }
 
         $user->notify(new MaintenanceDueNotification($maintenance));
+
+        return true;
+    }
+
+    public function notifyMaintenanceScheduleReminder(User $user, MaintenanceSchedule $schedule): bool
+    {
+        if ($this->alreadyNotified(
+            $user,
+            MaintenanceScheduleReminderNotification::class,
+            'maintenance_schedule_id',
+            $schedule->id,
+            withinDays: 1,
+        )) {
+            return false;
+        }
+
+        $user->notify(new MaintenanceScheduleReminderNotification($schedule));
 
         return true;
     }
@@ -181,6 +200,26 @@ class NotificationService
         return $count;
     }
 
+    /**
+     * Preventive schedules: due within remind_before_days window or overdue.
+     */
+    public function dispatchMaintenanceScheduleAlerts(): int
+    {
+        $schedules = app(MaintenanceScheduleService::class)->schedulesNeedingReminder();
+        $users = $this->operatorUsers();
+        $count = 0;
+
+        foreach ($schedules as $schedule) {
+            foreach ($users as $user) {
+                if ($this->notifyMaintenanceScheduleReminder($user, $schedule)) {
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
     public function dispatchOverdueBorrowingAlerts(): int
     {
         $borrowings = Borrowing::query()
@@ -206,19 +245,21 @@ class NotificationService
     }
 
     /**
-     * @return array{warranty: int, maintenance: int, overdue: int, total: int}
+     * @return array{warranty: int, maintenance: int, schedules: int, overdue: int, total: int}
      */
     public function dispatchAllScheduledAlerts(): array
     {
         $warranty = $this->dispatchWarrantyExpiringAlerts();
         $maintenance = $this->dispatchMaintenanceDueAlerts();
+        $schedules = $this->dispatchMaintenanceScheduleAlerts();
         $overdue = $this->dispatchOverdueBorrowingAlerts();
 
         return [
             'warranty' => $warranty,
             'maintenance' => $maintenance,
+            'schedules' => $schedules,
             'overdue' => $overdue,
-            'total' => $warranty + $maintenance + $overdue,
+            'total' => $warranty + $maintenance + $schedules + $overdue,
         ];
     }
 

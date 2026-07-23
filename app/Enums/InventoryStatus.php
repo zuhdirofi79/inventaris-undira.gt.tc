@@ -10,6 +10,8 @@ enum InventoryStatus: string
     case Hilang = 'hilang';
     case Dipinjam = 'dipinjam';
     case Maintenance = 'maintenance';
+    case TidakDapatDiperbaiki = 'tidak_dapat_diperbaiki';
+    case PerluPenggantian = 'perlu_penggantian';
 
     public function label(): string
     {
@@ -19,7 +21,9 @@ enum InventoryStatus: string
             self::RusakBerat => 'Rusak Berat',
             self::Hilang => 'Hilang',
             self::Dipinjam => 'Dipinjam',
-            self::Maintenance => 'Maintenance',
+            self::Maintenance => 'Dalam Pemeliharaan',
+            self::TidakDapatDiperbaiki => 'Tidak Dapat Diperbaiki',
+            self::PerluPenggantian => 'Perlu Penggantian',
         };
     }
 
@@ -32,8 +36,23 @@ enum InventoryStatus: string
             self::Aktif => 'active',
             self::Dipinjam => 'borrowed',
             self::Maintenance => 'maintenance',
-            self::RusakRingan, self::RusakBerat => 'damaged',
+            self::RusakRingan, self::RusakBerat, self::TidakDapatDiperbaiki, self::PerluPenggantian => 'damaged',
             self::Hilang => 'inactive',
         };
+    }
+
+    public function isDamagedList(): bool
+    {
+        return in_array($this, [
+            self::RusakRingan,
+            self::RusakBerat,
+            self::TidakDapatDiperbaiki,
+            self::PerluPenggantian,
+        ], true);
+    }
+
+    public function isBorrowable(): bool
+    {
+        return $this === self::Aktif;
     }
 }

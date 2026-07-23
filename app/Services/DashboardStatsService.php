@@ -52,7 +52,9 @@ class DashboardStatsService
                 'borrowed' => (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0),
                 'maintenance' => (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0),
                 'damaged' => (int) ($statusCounts[InventoryStatus::RusakRingan->value] ?? 0)
-                    + (int) ($statusCounts[InventoryStatus::RusakBerat->value] ?? 0),
+                    + (int) ($statusCounts[InventoryStatus::RusakBerat->value] ?? 0)
+                    + (int) ($statusCounts[InventoryStatus::TidakDapatDiperbaiki->value] ?? 0)
+                    + (int) ($statusCounts[InventoryStatus::PerluPenggantian->value] ?? 0),
                 'lost' => (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0),
                 'campus_stats' => $this->campusStats(),
                 'category_breakdown' => $this->categorySubcategoryBreakdown(),

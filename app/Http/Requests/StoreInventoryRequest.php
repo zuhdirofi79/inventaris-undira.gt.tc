@@ -20,17 +20,17 @@ class StoreInventoryRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', ActiveExists::rule('categories')],
-            'sub_category_id' => ['nullable', ActiveExists::rule('sub_categories')],
+            'sub_category_id' => ['required', ActiveExists::rule('sub_categories')],
             'room_id' => ['required', ActiveExists::rule('rooms')],
             'brand' => ['nullable', 'string', 'max:255'],
             'type' => ['nullable', 'string', 'max:255'],
             'model' => ['nullable', 'string', 'max:255'],
             'serial_number' => ['nullable', 'string', 'max:255'],
             'specification' => ['nullable', 'string'],
-            'purchase_year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
+            'purchase_year' => ['required', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
             'purchase_date' => ['nullable', 'date'],
             'funding_source' => ['nullable', 'string', 'max:255'],
-            'procurement_type_id' => ['nullable', ActiveExists::rule('procurement_types')],
+            'procurement_type_id' => ['required', ActiveExists::rule('procurement_types')],
             'price' => ['nullable', 'numeric', 'min:0'],
             'depreciation_value' => ['nullable', 'numeric', 'min:0'],
             'condition' => ['required', Rule::enum(InventoryCondition::class)],
@@ -52,7 +52,10 @@ class StoreInventoryRequest extends FormRequest
         return [
             'name.required' => 'Nama barang wajib diisi.',
             'category_id.required' => 'Kategori wajib dipilih.',
+            'sub_category_id.required' => 'Subkategori wajib dipilih.',
             'room_id.required' => 'Ruangan wajib dipilih.',
+            'purchase_year.required' => 'Tahun pengadaan wajib diisi.',
+            'procurement_type_id.required' => 'Jenis pengadaan wajib dipilih.',
             'purchase_date.date' => 'Tanggal pembelian tidak valid.',
             'price.min' => 'Harga tidak boleh negatif.',
             'condition.required' => 'Kondisi barang wajib dipilih.',
@@ -62,6 +65,9 @@ class StoreInventoryRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        // Inventory number is server-generated and immutable.
+        $this->request->remove('inventory_number');
+
         $this->merge([
             'price' => $this->filled('price') ? $this->input('price') : null,
             'depreciation_value' => $this->filled('depreciation_value') ? $this->input('depreciation_value') : null,

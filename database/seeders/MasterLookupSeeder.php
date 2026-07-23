@@ -32,6 +32,11 @@ class MasterLookupSeeder extends Seeder
         $types = [
             ['code' => 'UNDIRA', 'name' => 'UNDIRA'],
             ['code' => 'HIBAH', 'name' => 'Hibah'],
+            ['code' => 'HB', 'name' => 'Hibah (kode singkat)'],
+            ['code' => 'BL', 'name' => 'Pembelian'],
+            ['code' => 'SP', 'name' => 'Sponsor'],
+            ['code' => 'DN', 'name' => 'Donasi'],
+            ['code' => 'LP', 'name' => 'Lelang'],
             ['code' => 'KS', 'name' => 'Kerja Sama'],
             ['code' => 'YAY', 'name' => 'Yayasan'],
             ['code' => 'BOS', 'name' => 'Bantuan Operasional Sekolah / Kampus'],

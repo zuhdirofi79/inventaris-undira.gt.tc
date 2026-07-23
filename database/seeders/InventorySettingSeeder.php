@@ -9,11 +9,11 @@ class InventorySettingSeeder extends Seeder
 {
     public function run(): void
     {
-        // EAMS default: Campus + Org Unit + Sub Classification + padded sequence
-        // Example: CBB-PPPA-CHR-000001
+        // Official UNDIRA format is enforced in InventoryCodeService (setting kept for reference only).
+        // Example: CBB-HIBAH-26-EL-LPT-000001
         Setting::set(
             'inventory.number_format',
-            '{campus}-{org_unit}-{sub_category}-{sequence}',
+            '{campus}-{procurement}-{year}-{category}-{sub_category}-{sequence}',
             'inventory'
         );
 

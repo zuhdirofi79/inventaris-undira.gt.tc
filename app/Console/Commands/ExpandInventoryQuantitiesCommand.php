@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\InventoryItem;
-use App\Models\OrgUnit;
+use App\Models\ProcurementType;
 use App\Models\SubCategory;
 use App\Services\InventoryCodeService;
 use Illuminate\Console\Command;
@@ -23,7 +23,7 @@ class ExpandInventoryQuantitiesCommand extends Command
         $dryRun = (bool) $this->option('dry-run');
         $aggregates = InventoryItem::query()
             ->where('quantity', '>', 1)
-            ->with(['room.floor.building.campus', 'category', 'subCategory', 'orgUnit'])
+            ->with(['room.floor.building.campus', 'category', 'subCategory', 'procurementType'])
             ->get();
 
         if ($aggregates->isEmpty()) {
@@ -43,10 +43,20 @@ class ExpandInventoryQuantitiesCommand extends Command
             }
 
             DB::transaction(function () use ($aggregate, $extra, $codeService) {
-                $room = $aggregate->room;
+                $campus = $aggregate->room?->floor?->building?->campus;
                 $category = $aggregate->category;
                 $subCategory = $aggregate->subCategory;
-                $orgUnit = $aggregate->orgUnit;
+                $procurement = $aggregate->procurementType;
+
+                if (! $campus || ! $category || ! $subCategory instanceof SubCategory || ! $procurement instanceof ProcurementType) {
+                    throw new \RuntimeException(
+                        "Item {$aggregate->id} missing campus/category/subcategory/procurement for renumbering."
+                    );
+                }
+
+                $purchaseYear = (int) ($aggregate->purchase_year
+                    ?: ($aggregate->purchase_date?->year ?? $aggregate->created_at?->year ?? now()->year));
+
                 $groupKey = $aggregate->group_key ?: $codeService->generateGroupKey(
                     $aggregate->name,
                     $aggregate->room_id,
@@ -59,16 +69,17 @@ class ExpandInventoryQuantitiesCommand extends Command
                     'unit_sequence' => $aggregate->unit_sequence ?: 1,
                 ]);
 
-                if (! $aggregate->barcode || ! $aggregate->qr_code_path) {
+                if (! $aggregate->qr_code_path) {
                     $codeService->generateAndSaveCodes($aggregate);
                 }
 
                 for ($i = 0; $i < $extra; $i++) {
                     $number = $codeService->generateInventoryNumber(
-                        $room,
+                        $campus,
+                        $procurement,
+                        $purchaseYear,
                         $category,
-                        $subCategory instanceof SubCategory ? $subCategory : null,
-                        $orgUnit instanceof OrgUnit ? $orgUnit : null,
+                        $subCategory,
                     );
 
                     $clone = $aggregate->replicate([

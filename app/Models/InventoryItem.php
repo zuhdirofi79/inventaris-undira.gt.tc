@@ -143,6 +143,11 @@ class InventoryItem extends Model
         return $this->hasMany(Maintenance::class);
     }
 
+    public function maintenanceSchedules(): HasMany
+    {
+        return $this->hasMany(MaintenanceSchedule::class);
+    }
+
     public function deletionApprovals(): HasMany
     {
         return $this->hasMany(DeletionApproval::class);

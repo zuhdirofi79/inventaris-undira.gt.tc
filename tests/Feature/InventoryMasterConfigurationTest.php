@@ -96,25 +96,20 @@ class InventoryMasterConfigurationTest extends TestCase
         $this->assertSame($before['last_value'], $after['last_value']);
     }
 
-    public function test_sequence_continues_across_rooms_same_campus_subclass(): void
+    public function test_sequence_is_global_and_monotonic(): void
     {
         $this->seed(InventorySettingSeeder::class);
-        Setting::set('inventory.number_format', '{sequence}', 'inventory');
         Setting::set('inventory.sequence_padding', '6', 'inventory');
 
-        [$campus, $category, $sub, $org, $room1, $room2] = $this->seedTwoRooms();
-
         $service = app(InventoryCodeService::class);
-        $n1 = $service->allocateSequence($campus->id, $sub->id, $category->id);
-        $n2 = $service->allocateSequence($campus->id, $sub->id, $category->id);
+        $n1 = $service->allocateGlobalSequence();
+        $n2 = $service->allocateGlobalSequence();
 
         $this->assertSame(1, $n1);
         $this->assertSame(2, $n2);
 
-        // Different room must not reset scope
-        $peek = $service->peekNextSequence($campus->id, $sub->id, $category->id);
+        $peek = $service->peekNextSequence();
         $this->assertSame(3, $peek['next_value']);
-        $this->assertNotSame($room1->id, $room2->id);
     }
 
     public function test_store_configuration_and_reject_duplicate(): void
@@ -140,7 +135,6 @@ class InventoryMasterConfigurationTest extends TestCase
         $admin = $this->makeSuperAdmin();
         $this->seed(MasterLookupSeeder::class);
         $this->seed(InventorySettingSeeder::class);
-        Setting::set('inventory.number_format', '{sequence}', 'inventory');
         Setting::set('inventory.sequence_padding', '6', 'inventory');
 
         $payload = $this->validConfigPayload();
@@ -162,7 +156,14 @@ class InventoryMasterConfigurationTest extends TestCase
             $this->assertSame($roomId, (int) $item->room_id);
             $this->assertNotEmpty($item->inventory_number);
             $this->assertNotEmpty($item->qr_code_path);
-            $this->assertNotEmpty($item->qr_code_path);
+            // Format: CAMPUS-PROC-YY-CAT-SUB-######
+            $this->assertMatchesRegularExpression(
+                '/^[A-Z0-9]+-[A-Z0-9]+-\d{2}-[A-Z0-9]+-[A-Z0-9]+-\d{6}$/',
+                $item->inventory_number,
+            );
+            \Illuminate\Support\Facades\Storage::disk('public')->assertExists($item->qr_code_path);
+            $qr = \Illuminate\Support\Facades\Storage::disk('public')->get($item->qr_code_path);
+            $this->assertStringContainsString('<svg', strtolower($qr));
         }
 
         $this->actingAs($admin)->get(route('rooms.show', $roomId))
@@ -207,16 +208,15 @@ class InventoryMasterConfigurationTest extends TestCase
     {
         $this->seed(InventorySettingSeeder::class);
         Setting::set('inventory.sequence_padding', '6', 'inventory');
-        [$campus, $category, $sub] = $this->seedMinimalMasters();
 
         $service = app(InventoryCodeService::class);
-        $this->assertSame(1, $service->allocateSequence($campus->id, $sub->id, $category->id));
-        $this->assertSame(2, $service->allocateSequence($campus->id, $sub->id, $category->id));
+        $this->assertSame(1, $service->allocateGlobalSequence());
+        $this->assertSame(2, $service->allocateGlobalSequence());
 
         // Soft-deleting assets must never free sequence slots (last_value stays).
-        $next = $service->allocateSequence($campus->id, $sub->id, $category->id);
+        $next = $service->allocateGlobalSequence();
         $this->assertSame(3, $next);
-        $peek = $service->peekNextSequence($campus->id, $sub->id, $category->id);
+        $peek = $service->peekNextSequence();
         $this->assertSame(3, $peek['last_value']);
         $this->assertSame(4, $peek['next_value']);
     }

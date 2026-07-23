@@ -9,13 +9,11 @@ use App\Models\Category;
 use App\Models\Floor;
 use App\Models\InventoryConditionMaster;
 use App\Models\InventoryMasterConfiguration;
-use App\Models\InventorySequence;
 use App\Models\OrgUnit;
 use App\Models\ProcurementType;
 use App\Models\PurchaseYear;
 use App\Models\Room;
 use App\Models\RoomFunction;
-use App\Models\Setting;
 use App\Enums\AuditAction;
 use App\Exports\MasterArrayExport;
 use App\Http\Requests\ImportMasterRequest;
@@ -339,40 +337,21 @@ class CategoryController extends Controller
     }
 
     /**
-     * Attach last/next sequence without N+1 allocate (read-only peek, batched).
+     * Attach global sequence preview (read-only, shared across all configurations).
      *
      * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, InventoryMasterConfiguration>  $configurations
      */
     protected function attachSequencePreviews($configurations): void
     {
-        $padding = (int) Setting::get('inventory.sequence_padding', InventoryCodeService::DEFAULT_PADDING);
-        if ($padding < 1) {
-            $padding = InventoryCodeService::DEFAULT_PADDING;
-        }
+        $peek = app(InventoryCodeService::class)->peekNextSequence();
+        $padding = app(InventoryCodeService::class)->padding();
 
-        $pairs = $configurations->getCollection()
-            ->map(fn (InventoryMasterConfiguration $c) => [$c->campus_id, $c->sub_category_id])
-            ->unique(fn ($p) => $p[0].':'.$p[1])
-            ->values();
-
-        $seqMap = [];
-        foreach ($pairs as [$campusId, $subId]) {
-            $row = InventorySequence::query()
-                ->where('campus_id', $campusId)
-                ->where('classifier_type', 'sub_category')
-                ->where('classifier_id', $subId)
-                ->first();
-            $last = $row ? (int) $row->last_value : 0;
-            $seqMap[$campusId.':'.$subId] = $last;
-        }
-
-        $configurations->getCollection()->transform(function (InventoryMasterConfiguration $c) use ($seqMap, $padding) {
-            $last = $seqMap[$c->campus_id.':'.$c->sub_category_id] ?? 0;
-            $next = $last + 1;
-            $c->setAttribute('sequence_last', $last);
-            $c->setAttribute('sequence_next', $next);
-            $c->setAttribute('sequence_next_padded', str_pad((string) $next, $padding, '0', STR_PAD_LEFT));
-            $c->setAttribute('sequence_last_padded', str_pad((string) $last, $padding, '0', STR_PAD_LEFT));
+        $configurations->getCollection()->transform(function (InventoryMasterConfiguration $c) use ($peek, $padding) {
+            $c->setAttribute('sequence_last', $peek['last_value']);
+            $c->setAttribute('sequence_next', $peek['next_value']);
+            $c->setAttribute('sequence_next_padded', $peek['next_padded']);
+            $c->setAttribute('sequence_last_padded', str_pad((string) $peek['last_value'], $padding, '0', STR_PAD_LEFT));
+            $c->setAttribute('sequence_scope', 'global');
 
             return $c;
         });

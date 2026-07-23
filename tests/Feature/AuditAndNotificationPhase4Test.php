@@ -61,14 +61,19 @@ class AuditAndNotificationPhase4Test extends TestCase
         $admin = $this->makeAdmin();
         $item = $this->makeInventoryItem();
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->post(route('maintenances.store'), [
                 'inventory_item_id' => $item->id,
+                'maintenance_type' => 'repair',
+                'priority' => 'medium',
                 'service_date' => now()->toDateString(),
                 'next_schedule' => now()->addDays(30)->toDateString(),
                 'description' => 'Servis rutin',
-            ])
-            ->assertRedirect(route('maintenances.index'));
+                'status' => 'waiting',
+            ]);
+
+        $maintenance = Maintenance::query()->latest('id')->first();
+        $response->assertRedirect(route('maintenances.show', $maintenance));
 
         $this->assertTrue(AuditLog::query()->where('description', 'MAINTENANCE_CREATED')->exists());
         $this->assertSame(InventoryStatus::Maintenance, $item->fresh()->status);
@@ -162,7 +167,7 @@ class AuditAndNotificationPhase4Test extends TestCase
             'inventory_item_id' => $item->id,
             'service_date' => now()->subDay()->toDateString(),
             'next_schedule' => now()->addDays(2)->toDateString(),
-            'status' => MaintenanceStatus::Scheduled,
+            'status' => MaintenanceStatus::Waiting,
         ]);
 
         $service = app(NotificationService::class);

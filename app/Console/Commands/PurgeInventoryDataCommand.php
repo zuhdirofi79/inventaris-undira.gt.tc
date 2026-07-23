@@ -49,6 +49,7 @@ class PurgeInventoryDataCommand extends Command
         'stock_opname_items',
         'stock_opnames',
         'borrowings',
+        'maintenance_schedules',
         'maintenances',
         'deletion_approvals',
         'inventory_mutations',
@@ -377,6 +378,11 @@ class PurgeInventoryDataCommand extends Command
         $deleted['borrowings'] = Borrowing::withTrashed()->count();
         Borrowing::withTrashed()->forceDelete();
 
+        if (Schema::hasTable('maintenance_schedules')) {
+            $deleted['maintenance_schedules'] = DB::table('maintenance_schedules')->count();
+            DB::table('maintenance_schedules')->delete();
+        }
+
         $deleted['maintenances'] = Maintenance::query()->count();
         Maintenance::query()->delete();
 
@@ -406,6 +412,10 @@ class PurgeInventoryDataCommand extends Command
         if ($resetSequences) {
             $deleted['inventory_sequences_reset'] = InventorySequence::query()->count();
             InventorySequence::query()->update(['last_value' => 0]);
+            if (Schema::hasTable('inventory_global_sequences')) {
+                DB::table('inventory_global_sequences')->update(['last_value' => 0]);
+                $deleted['inventory_global_sequences_reset'] = 1;
+            }
         } else {
             $deleted['inventory_sequences_reset'] = 0;
         }

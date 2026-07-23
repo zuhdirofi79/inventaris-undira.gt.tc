@@ -42,7 +42,7 @@ class InventoryAdvancedPhase7Test extends TestCase
         Maintenance::query()->create([
             'inventory_item_id' => $item->id,
             'service_date' => now()->toDateString(),
-            'status' => MaintenanceStatus::Scheduled,
+            'status' => MaintenanceStatus::Waiting,
         ]);
 
         $html = $this->actingAs($admin)
@@ -52,7 +52,7 @@ class InventoryAdvancedPhase7Test extends TestCase
             ->assertSee('Lampiran')
             ->assertSee('Riwayat Mutasi')
             ->assertSee('Riwayat Peminjaman')
-            ->assertSee('Riwayat Maintenance')
+            ->assertSee('Maintenance History')
             ->assertSee('Budi Pinjam')
             ->assertSee('Cetak Label')
             ->assertSee('name="photos[]"', false)

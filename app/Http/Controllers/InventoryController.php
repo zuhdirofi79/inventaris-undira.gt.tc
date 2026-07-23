@@ -325,7 +325,8 @@ class InventoryController extends Controller
             'attachments' => fn ($q) => $q->latest()->limit(50),
             'mutations' => fn ($q) => $q->with(['fromRoom', 'toRoom', 'movedBy'])->latest()->limit(25),
             'borrowings' => fn ($q) => $q->with('approvedBy')->latest()->limit(25),
-            'maintenances' => fn ($q) => $q->with('vendor')->latest()->limit(25),
+            'maintenances' => fn ($q) => $q->with(['vendor', 'creator', 'photos'])->latest('service_date')->latest('id')->limit(50),
+            'maintenanceSchedules' => fn ($q) => $q->latest('next_maintenance_date')->limit(20),
         ]);
 
         $timeline = app(\App\Services\InventoryHistoryService::class)->timeline($inventory);

@@ -22,7 +22,11 @@ use App\Http\Controllers\InventoryImportController;
 use App\Http\Controllers\InventoryAttachmentController;
 use App\Http\Controllers\InventoryPhotoController;
 use App\Http\Controllers\InventoryQrController;
+use App\Http\Controllers\DamagedInventoryController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MaintenanceDashboardController;
+use App\Http\Controllers\MaintenanceReportController;
+use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MutationController;
 use App\Http\Controllers\OrgUnitController;
 use App\Http\Controllers\ProcurementTypeController;
@@ -278,12 +282,19 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:maintenance.create')->group(function () {
+        Route::get('/maintenances/scan', [MaintenanceController::class, 'scan'])->name('maintenances.scan');
+        Route::post('/maintenances/scan/lookup', [MaintenanceController::class, 'scanLookup'])
+            ->middleware('throttle:60,1')
+            ->name('maintenances.scan.lookup');
         Route::get('/maintenances/create', [MaintenanceController::class, 'create'])->name('maintenances.create');
         Route::post('/maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
     });
     Route::middleware('permission:maintenance.view')->group(function () {
         Route::get('/maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
         Route::get('/maintenances/{maintenance}', [MaintenanceController::class, 'show'])->name('maintenances.show');
+        Route::get('/maintenance-dashboard', [MaintenanceDashboardController::class, 'index'])->name('maintenance-dashboard.index');
+        Route::get('/maintenance-reports', [MaintenanceReportController::class, 'index'])->name('maintenance-reports.index');
+        Route::post('/maintenance-reports/generate', [MaintenanceReportController::class, 'generate'])->name('maintenance-reports.generate');
     });
     Route::middleware('permission:maintenance.update')->group(function () {
         Route::get('/maintenances/{maintenance}/edit', [MaintenanceController::class, 'edit'])->name('maintenances.edit');
@@ -292,6 +303,29 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:maintenance.delete')->group(function () {
         Route::delete('/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('maintenances.destroy');
     });
+
+    Route::middleware('permission:maintenance.create')->group(function () {
+        Route::get('/maintenance-schedules/create', [MaintenanceScheduleController::class, 'create'])->name('maintenance-schedules.create');
+        Route::post('/maintenance-schedules', [MaintenanceScheduleController::class, 'store'])->name('maintenance-schedules.store');
+    });
+    Route::middleware('permission:maintenance.view')->group(function () {
+        Route::get('/maintenance-schedules', [MaintenanceScheduleController::class, 'index'])->name('maintenance-schedules.index');
+        Route::get('/maintenance-schedules/{maintenance_schedule}', [MaintenanceScheduleController::class, 'show'])->name('maintenance-schedules.show');
+    });
+    Route::middleware('permission:maintenance.update')->group(function () {
+        Route::get('/maintenance-schedules/{maintenance_schedule}/edit', [MaintenanceScheduleController::class, 'edit'])->name('maintenance-schedules.edit');
+        Route::put('/maintenance-schedules/{maintenance_schedule}', [MaintenanceScheduleController::class, 'update'])->name('maintenance-schedules.update');
+        Route::post('/maintenance-schedules/{maintenance_schedule}/advance', [MaintenanceScheduleController::class, 'advance'])->name('maintenance-schedules.advance');
+    });
+    Route::middleware('permission:maintenance.delete')->group(function () {
+        Route::delete('/maintenance-schedules/{maintenance_schedule}', [MaintenanceScheduleController::class, 'destroy'])->name('maintenance-schedules.destroy');
+    });
+
+    Route::middleware('permission:inventory.view')->group(function () {
+        Route::get('/inventory-damaged', [DamagedInventoryController::class, 'index'])->name('inventory.damaged.index');
+    });
+    Route::delete('/inventory-damaged/{inventory}', [DamagedInventoryController::class, 'destroy'])
+        ->name('inventory.damaged.destroy');
 
     Route::middleware('permission:stock-opname.create')->group(function () {
         Route::get('/stock-opnames/create', [StockOpnameController::class, 'create'])->name('stock-opnames.create');

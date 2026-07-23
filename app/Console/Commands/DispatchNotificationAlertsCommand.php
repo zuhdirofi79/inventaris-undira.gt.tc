@@ -10,7 +10,7 @@ class DispatchNotificationAlertsCommand extends Command
     protected $signature = 'notifications:dispatch-alerts
                             {--days=30 : Warranty expiry window in days}';
 
-    protected $description = 'Kirim notifikasi garansi, maintenance jatuh tempo, dan peminjaman terlambat';
+    protected $description = 'Kirim notifikasi garansi, jadwal/WO maintenance, dan peminjaman terlambat';
 
     public function handle(NotificationService $notifications): int
     {
@@ -18,10 +18,11 @@ class DispatchNotificationAlertsCommand extends Command
 
         $warranty = $notifications->dispatchWarrantyExpiringAlerts($days);
         $maintenance = $notifications->dispatchMaintenanceDueAlerts();
+        $schedules = $notifications->dispatchMaintenanceScheduleAlerts();
         $overdue = $notifications->dispatchOverdueBorrowingAlerts();
-        $total = $warranty + $maintenance + $overdue;
+        $total = $warranty + $maintenance + $schedules + $overdue;
 
-        $this->info("Notifikasi terkirim: garansi={$warranty}, maintenance={$maintenance}, terlambat={$overdue}, total={$total}");
+        $this->info("Notifikasi terkirim: garansi={$warranty}, wo={$maintenance}, jadwal={$schedules}, terlambat={$overdue}, total={$total}");
 
         return self::SUCCESS;
     }

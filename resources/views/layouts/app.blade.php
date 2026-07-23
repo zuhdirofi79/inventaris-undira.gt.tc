@@ -279,7 +279,7 @@
                     <li class="nav-header">OPERASI</li>
 
                     @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view') || auth()->user()->can('procurement.manage'))
-                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','maintenance-schedules.*','maintenance-dashboard.*','maintenance-reports.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*','inventory.damaged.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-briefcase"></i>
                             <p>Operasional <i class="fas fa-angle-left right"></i></p>
@@ -303,9 +303,35 @@
                             @endcan
                             @can('maintenance.view')
                             <li class="nav-item">
-                                <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') ? 'active' : '' }}">
+                                <a href="{{ route('maintenance-dashboard.index') }}" class="nav-link {{ request()->routeIs('maintenance-dashboard.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-tachometer-alt"></i>
+                                    <p>Dashboard Maintenance</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') && ! request()->routeIs('maintenance-schedules.*') && ! request()->routeIs('maintenance-dashboard.*') && ! request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-tools"></i>
-                                    <p>Maintenance</p>
+                                    <p>Work Order</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('maintenance-schedules.index') }}" class="nav-link {{ request()->routeIs('maintenance-schedules.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-calendar-check"></i>
+                                    <p>Jadwal Preventif</p>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-file-alt"></i>
+                                    <p>Laporan Maintenance</p>
+                                </a>
+                            </li>
+                            @endcan
+                            @can('inventory.view')
+                            <li class="nav-item">
+                                <a href="{{ route('inventory.damaged.index') }}" class="nav-link {{ request()->routeIs('inventory.damaged.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-exclamation-triangle"></i>
+                                    <p>Barang Rusak</p>
                                 </a>
                             </li>
                             @endcan
@@ -352,7 +378,15 @@
                     <li class="nav-item">
                         <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-chart-bar"></i>
-                            <p>Laporan</p>
+                            <p>Laporan Inventaris</p>
+                        </a>
+                    </li>
+                    @endcan
+                    @can('maintenance.view')
+                    <li class="nav-item">
+                        <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-tools"></i>
+                            <p>Laporan Maintenance</p>
                         </a>
                     </li>
                     @endcan
