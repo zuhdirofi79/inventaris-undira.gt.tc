@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
-use App\Exports\InventoryExport;
 use App\Exports\InventoryHierarchicalExport;
 use App\Services\AuditLogService;
 use App\Services\InventoryFilterService;

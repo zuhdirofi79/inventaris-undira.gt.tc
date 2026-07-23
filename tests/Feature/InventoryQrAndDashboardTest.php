@@ -25,7 +25,7 @@ class InventoryQrAndDashboardTest extends TestCase
         Storage::fake('public');
     }
 
-    public function test_ensure_codes_creates_qr_and_barcode_files(): void
+    public function test_ensure_codes_creates_qr_file_only(): void
     {
         $item = $this->makeItem();
 
@@ -33,9 +33,8 @@ class InventoryQrAndDashboardTest extends TestCase
         $item->refresh();
 
         $this->assertNotNull($item->qr_code_path);
-        $this->assertSame($item->inventory_number, $item->barcode);
         Storage::disk('public')->assertExists($item->qr_code_path);
-        Storage::disk('public')->assertExists('inventory/barcodes/'.str_replace(['/', '\\'], '-', $item->inventory_number).'.png');
+        Storage::disk('public')->assertMissing('inventory/barcodes/'.str_replace(['/', '\\'], '-', $item->inventory_number).'.png');
     }
 
     public function test_detail_page_auto_generates_missing_codes(): void
@@ -50,6 +49,8 @@ class InventoryQrAndDashboardTest extends TestCase
         $this->assertNotNull($item->qr_code_path);
         $response->assertSee('Unduh QR Code');
         $response->assertSee('Cetak Label');
+        $response->assertDontSee('Unduh Barcode');
+        $response->assertSee('Timeline Inventaris');
     }
 
     public function test_inline_qr_returns_svg_with_correct_mime(): void
@@ -66,21 +67,16 @@ class InventoryQrAndDashboardTest extends TestCase
         $this->assertStringNotContainsString('attachment', (string) $response->headers->get('content-disposition'));
     }
 
-    public function test_inline_barcode_returns_png_with_correct_mime(): void
+    public function test_barcode_routes_are_removed(): void
     {
         $admin = $this->makeSuperAdmin();
         $item = $this->makeItem();
-        app(InventoryCodeService::class)->ensureCodes($item);
 
-        $response = $this->actingAs($admin)->get(route('inventory.barcode', $item));
-
-        $response->assertOk();
-        $this->assertStringStartsWith('image/png', (string) $response->headers->get('content-type'));
-        $this->assertNotEmpty($response->getContent());
-        $this->assertStringNotContainsString('attachment', (string) $response->headers->get('content-disposition'));
+        $this->actingAs($admin)->get('/inventory/'.$item->id.'/barcode')->assertNotFound();
+        $this->actingAs($admin)->get('/inventory/'.$item->id.'/barcode/download')->assertNotFound();
     }
 
-    public function test_label_print_page_embeds_relative_code_routes(): void
+    public function test_label_print_page_embeds_relative_qr_route_only(): void
     {
         $admin = $this->makeSuperAdmin();
         $item = $this->makeItem();
@@ -91,18 +87,19 @@ class InventoryQrAndDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee(route('inventory.qr', $item, false), false);
-        $response->assertSee(route('inventory.barcode', $item, false), false);
+        $response->assertDontSee('/barcode', false);
         $response->assertDontSee('http://localhost/storage/', false);
         $response->assertSee($item->inventory_number, false);
     }
 
-    public function test_qr_payload_uses_scan_route(): void
+    public function test_qr_payload_uses_scan_route_url(): void
     {
         $item = $this->makeItem();
         $service = app(InventoryCodeService::class);
         $url = $service->scanUrl($item->inventory_number);
 
         $this->assertStringContainsString('/scan/'.$item->inventory_number, $url);
+        $this->assertStringStartsWith('http', $url);
     }
 
     public function test_authenticated_scan_redirects_to_detail(): void
@@ -116,6 +113,21 @@ class InventoryQrAndDashboardTest extends TestCase
         $response->assertRedirect(route('inventory.show', $item));
     }
 
+    public function test_public_scan_shows_rich_detail(): void
+    {
+        $item = $this->makeItem();
+        app(InventoryCodeService::class)->ensureCodes($item);
+
+        $response = $this->get(route('inventory.scan', $item->inventory_number));
+
+        $response->assertOk();
+        $response->assertSee($item->name);
+        $response->assertSee('Kampus');
+        $response->assertSee('Gedung');
+        $response->assertSee('Riwayat Perpindahan');
+        $response->assertSee('Riwayat Maintenance');
+    }
+
     public function test_dashboard_stats_come_from_database(): void
     {
         $admin = $this->makeSuperAdmin();
@@ -125,14 +137,16 @@ class InventoryQrAndDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Total Inventaris');
-        $response->assertSee('Statistik per Kampus');
-        $response->assertSee('Statistik per Sub Klasifikasi');
-        $response->assertSee('Kampus × Sub Klasifikasi');
-        $response->assertSee('Inventaris per Kampus');
+        $response->assertSee('Total Unit Kerja');
+        $response->assertSee('Total User');
+        $response->assertSee('Inventaris per Kondisi');
+        $response->assertSee('Inventaris per Unit Kerja');
 
         $summary = app(DashboardStatsService::class)->summary();
         $this->assertGreaterThanOrEqual(1, $summary['total_inventory']);
         $this->assertGreaterThanOrEqual(1, $summary['total_campuses']);
+        $this->assertArrayHasKey('by_condition', $summary['charts']);
+        $this->assertArrayHasKey('by_org_unit', $summary['charts']);
         $this->assertNotEmpty($summary['charts']['by_campus']);
     }
 

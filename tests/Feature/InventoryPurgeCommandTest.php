@@ -169,7 +169,7 @@ class InventoryPurgeCommandTest extends TestCase
         $this->assertStringContainsString('konfigurasi', $location);
     }
 
-    public function test_data_inventaris_points_to_konfigurasi_not_import_form(): void
+    public function test_data_inventaris_points_to_konfigurasi_and_keeps_import_entry(): void
     {
         $user = User::factory()->create(['is_active' => true, 'email_verified_at' => now()]);
         $user->assignRole('super-admin');
@@ -181,7 +181,9 @@ class InventoryPurgeCommandTest extends TestCase
 
         $this->assertStringContainsString('Konfigurasi Inventaris', $html);
         $this->assertStringContainsString('Penambahan inventaris dilakukan melalui menu', $html);
-        $this->assertStringNotContainsString('inventory/import', $html);
+        // Import Excel is a separate bulk channel; create still goes via Konfigurasi.
+        $this->assertStringContainsString('inventory/import', $html);
+        $this->assertStringContainsString('Import Excel', $html);
     }
 
     public function test_dashboard_has_no_nilai_chart_after_cleanup(): void

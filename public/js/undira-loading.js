@@ -179,7 +179,7 @@
   }
 
   function isExcludedPath(pathname) {
-    return /\/inventory\/[^/]+\/(qr|barcode)(\/download)?$/.test(pathname)
+    return /\/inventory\/[^/]+\/qr(\/download)?$/.test(pathname)
       || /\/inventory\/[^/]+\/label\/print$/.test(pathname)
       || /\/scan\//.test(pathname);
   }

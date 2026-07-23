@@ -347,7 +347,7 @@ class TrashCascadeService
     protected function performForceDelete(Model $model, User $actor): void
     {
         $old = $model->toArray();
-        $this->auditLog->log($actor, AuditAction::Delete, $model, $old, null, 'Force deleted permanently');
+        $this->auditLog->log($actor, AuditAction::ForceDelete, $model, $old, null, 'Force deleted permanently');
         $model->forceDelete();
     }
 }

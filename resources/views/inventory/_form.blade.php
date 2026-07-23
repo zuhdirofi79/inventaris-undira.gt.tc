@@ -23,7 +23,7 @@
                     <div class="col-6 col-md-2">
                         <label class="form-label">Jumlah</label>
                         <input type="number" name="quantity" class="form-control" value="{{ old('quantity', 1) }}" min="1" max="1000">
-                        <div class="form-text">Tiap unit = 1 record + nomor/barcode/QR sendiri.</div>
+                        <div class="form-text">Tiap unit = 1 record + nomor/QR sendiri.</div>
                     </div>
                     <div class="col-6 col-md-2">
                         <label class="form-label">Satuan</label>
@@ -58,6 +58,10 @@
         <div class="card card-undira mb-4">
             <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-map-marker-alt me-2"></i>Lokasi</h5></div>
             <div class="card-body">
+                @if(!empty($lockLocation))
+                    <p class="mb-0"><strong>{{ $item?->full_location ?? '—' }}</strong></p>
+                    <p class="text-muted small mb-0 mt-1">Ubah lokasi melalui menu Mutasi Inventaris.</p>
+                @else
                 <div class="row g-3">
                     <div class="col-12 col-md-6">
                         <label class="form-label">Kampus <span class="text-danger">*</span></label>
@@ -87,6 +91,7 @@
                         </select>
                     </div>
                 </div>
+                @endif
             </div>
         </div>
 

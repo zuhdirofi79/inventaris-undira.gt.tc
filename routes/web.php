@@ -19,6 +19,7 @@ use App\Http\Controllers\FloorManagementController;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\InventoryExportController;
 use App\Http\Controllers\InventoryImportController;
+use App\Http\Controllers\InventoryAttachmentController;
 use App\Http\Controllers\InventoryPhotoController;
 use App\Http\Controllers\InventoryQrController;
 use App\Http\Controllers\MaintenanceController;
@@ -83,10 +84,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/dashboard/stats', [DashboardController::class, 'stats'])->name('dashboard.stats');
-    Route::get('/dashboard/charts', [DashboardController::class, 'charts'])->name('dashboard.charts');
-    Route::get('/dashboard/recent-items', [DashboardController::class, 'recentItems'])->name('dashboard.recent-items');
-    Route::get('/dashboard/recent-activity', [DashboardController::class, 'recentActivity'])->name('dashboard.recent-activity');
     Route::get('/dashboard/tree', [DashboardController::class, 'tree'])->name('dashboard.tree');
     Route::get('/dashboard/tree/campuses/{campus}/buildings', [DashboardController::class, 'treeBuildings'])->name('dashboard.tree.buildings');
     Route::get('/dashboard/tree/buildings/{building}/floors', [DashboardController::class, 'treeFloors'])->name('dashboard.tree.floors');
@@ -116,11 +113,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:inventory.import')->prefix('inventory/import')->name('inventory.import.')->group(function () {
-        Route::get('/', function () {
-            return redirect()
-                ->route('categories.index', ['tab' => 'konfigurasi', 'create' => 1])
-                ->with('error', 'Penambahan inventaris hanya melalui menu Konfigurasi Inventaris.');
-        })->name('index');
+        Route::get('/', [InventoryImportController::class, 'index'])->name('index');
         Route::get('/template', [InventoryImportController::class, 'template'])->name('template');
         Route::post('/preview', [InventoryImportController::class, 'preview'])->name('preview');
         Route::post('/process', [InventoryImportController::class, 'process'])->name('process');
@@ -134,6 +127,8 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:inventory.view')->group(function () {
         Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
+        Route::get('/inventory/lookup', [InventoryController::class, 'lookup'])->name('inventory.lookup');
+        Route::get('/inventory/lookup-rooms', [InventoryController::class, 'lookupRooms'])->name('inventory.lookup-rooms');
         Route::get('/inventory/items', [InventoryController::class, 'items'])->name('inventory.items');
         Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
         Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
@@ -142,9 +137,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory/campuses/{campus}', [InventoryController::class, 'byCampus'])->name('inventory.campus');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
         Route::get('/inventory/{inventory}/qr', [InventoryQrController::class, 'inlineQr'])->name('inventory.qr');
-        Route::get('/inventory/{inventory}/barcode', [InventoryQrController::class, 'inlineBarcode'])->name('inventory.barcode');
         Route::get('/inventory/{inventory}/qr/download', [InventoryQrController::class, 'downloadQr'])->name('inventory.qr.download');
-        Route::get('/inventory/{inventory}/barcode/download', [InventoryQrController::class, 'downloadBarcode'])->name('inventory.barcode.download');
         Route::get('/inventory/{inventory}/label/print', [InventoryQrController::class, 'print'])->name('inventory.label.print');
         Route::get('/inventory/{inventory}', [InventoryController::class, 'show'])->name('inventory.show');
     });
@@ -155,7 +148,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory/{inventory}/edit', [InventoryController::class, 'edit'])->name('inventory.edit');
         Route::put('/inventory/{inventory}', [InventoryController::class, 'update'])->name('inventory.update');
         Route::post('/inventory/{inventory}/photos', [InventoryPhotoController::class, 'store'])->name('inventory.photos.store');
+        Route::post('/inventory/{inventory}/photos/{photo}/primary', [InventoryPhotoController::class, 'setPrimary'])->name('inventory.photos.primary');
         Route::delete('/inventory/{inventory}/photos/{photo}', [InventoryPhotoController::class, 'destroy'])->name('inventory.photos.destroy');
+        Route::post('/inventory/{inventory}/attachments', [InventoryAttachmentController::class, 'store'])->name('inventory.attachments.store');
+        Route::delete('/inventory/{inventory}/attachments/{attachment}', [InventoryAttachmentController::class, 'destroy'])->name('inventory.attachments.destroy');
     });
 
     Route::middleware('permission:inventory.restore')->group(function () {
@@ -176,6 +172,9 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('permission:category.manage')->group(function () {
+        Route::get('/categories/export', [CategoryController::class, 'export'])->name('categories.export');
+        Route::get('/categories/import/template', [CategoryController::class, 'importTemplate'])->name('categories.import.template');
+        Route::post('/categories/import', [CategoryController::class, 'import'])->name('categories.import');
         Route::post('/categories', [CategoryController::class, 'store'])->name('categories.store');
         Route::put('/categories/{category}', [CategoryController::class, 'update'])->name('categories.update');
         Route::delete('/categories/{category}', [CategoryController::class, 'destroy'])->name('categories.destroy');
@@ -221,6 +220,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:supplier.manage')->group(function () {
         Route::get('/suppliers', [SupplierController::class, 'index'])->name('suppliers.index');
+        Route::get('/suppliers/export', [SupplierController::class, 'export'])->name('suppliers.export');
+        Route::get('/suppliers/import/template', [SupplierController::class, 'importTemplate'])->name('suppliers.import.template');
+        Route::post('/suppliers/import', [SupplierController::class, 'import'])->name('suppliers.import');
         Route::post('/suppliers', [SupplierController::class, 'store'])->name('suppliers.store');
         Route::put('/suppliers/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
         Route::delete('/suppliers/{supplier}', [SupplierController::class, 'destroy'])->name('suppliers.destroy');
@@ -228,6 +230,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:vendor.manage')->group(function () {
         Route::get('/vendors', [VendorController::class, 'index'])->name('vendors.index');
+        Route::get('/vendors/export', [VendorController::class, 'export'])->name('vendors.export');
+        Route::get('/vendors/import/template', [VendorController::class, 'importTemplate'])->name('vendors.import.template');
+        Route::post('/vendors/import', [VendorController::class, 'import'])->name('vendors.import');
         Route::post('/vendors', [VendorController::class, 'store'])->name('vendors.store');
         Route::put('/vendors/{vendor}', [VendorController::class, 'update'])->name('vendors.update');
         Route::delete('/vendors/{vendor}', [VendorController::class, 'destroy'])->name('vendors.destroy');
@@ -235,6 +240,9 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:location.manage')->prefix('admin/locations')->name('admin.locations.')->group(function () {
         Route::get('/campuses', [CampusManagementController::class, 'index'])->name('campuses.index');
+        Route::get('/campuses/export', [CampusManagementController::class, 'export'])->name('campuses.export');
+        Route::get('/campuses/import/template', [CampusManagementController::class, 'importTemplate'])->name('campuses.import.template');
+        Route::post('/campuses/import', [CampusManagementController::class, 'import'])->name('campuses.import');
         Route::post('/campuses', [CampusManagementController::class, 'store'])->name('campuses.store');
         Route::put('/campuses/{campus}', [CampusManagementController::class, 'update'])->name('campuses.update');
         Route::delete('/campuses/{campus}', [CampusManagementController::class, 'destroy'])->name('campuses.destroy');
@@ -332,9 +340,13 @@ Route::middleware('auth')->group(function () {
         Route::get('/audit-logs/{auditLog}', [AuditLogController::class, 'show'])->name('audit-logs.show');
     });
 
-    Route::middleware('role:super-admin')->group(function () {
+    Route::middleware('permission:trash.view')->group(function () {
         Route::get('/admin/trash', [TrashController::class, 'index'])->name('trash.index');
+    });
+    Route::middleware('permission:trash.restore')->group(function () {
         Route::post('/admin/trash/{type}/{id}/restore', [TrashController::class, 'restore'])->name('trash.restore');
+    });
+    Route::middleware('permission:trash.force-delete')->group(function () {
         Route::delete('/admin/trash/{type}/{id}', [TrashController::class, 'forceDelete'])->name('trash.force-delete');
     });
 
@@ -352,6 +364,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:backup.manage')->group(function () {
         Route::post('/admin/settings/backup', [SettingController::class, 'backup'])->name('admin.settings.backup');
+        Route::get('/admin/settings/backup/{file}', [SettingController::class, 'downloadBackup'])->name('admin.settings.backup.download');
         Route::post('/admin/settings/restore', [SettingController::class, 'restore'])->name('admin.settings.restore');
     });
 

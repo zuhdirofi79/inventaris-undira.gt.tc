@@ -9,6 +9,7 @@ use App\Models\Category;
 use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
+use App\Support\InventarisCache;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Cache;
 
@@ -178,6 +179,7 @@ class DashboardTreeService
     public static function flushCache(): void
     {
         Cache::increment('dashboard.tree.bust');
+        InventarisCache::flush();
     }
 
     protected function key(string $suffix): string

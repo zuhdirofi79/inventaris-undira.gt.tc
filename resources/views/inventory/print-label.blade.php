@@ -25,13 +25,6 @@
             display: block;
             margin: 0.75rem auto 0.35rem;
         }
-        .label-barcode {
-            max-width: 100%;
-            height: 56px;
-            object-fit: contain;
-            display: block;
-            margin: 0.5rem auto 0.25rem;
-        }
         .label-meta { font-size: 0.8rem; color: #5f6b7a; line-height: 1.4; }
         .code-fallback {
             border: 1px dashed #cbd5e1;
@@ -53,25 +46,16 @@
                 page-break-inside: avoid;
             }
             .label-qr { width: 140px; height: 140px; }
-            .label-barcode { height: 48px; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-            * { animation: none !important; transition: none !important; }
         }
     </style>
 </head>
 <body>
 <div class="container py-3 no-print text-center">
-    <button type="button" class="btn btn-success me-2" id="btnPrint" onclick="window.print()">
-        Cetak
-    </button>
+    <button type="button" class="btn btn-success me-2" id="btnPrint" onclick="window.print()">Cetak</button>
     <a href="{{ route('inventory.show', $inventory) }}" class="btn btn-outline-secondary" data-no-loader="1">Kembali</a>
 </div>
 
-@php
-    $hasQr = filled($inventory->qr_url);
-    $hasBarcode = filled($inventory->barcode_url);
-@endphp
+@php $hasQr = filled($inventory->qr_url); @endphp
 
 <div class="label-card text-center">
     <div class="label-title text-uppercase mb-1">Inventaris UNDIRA</div>
@@ -92,19 +76,7 @@
         <div class="code-fallback">QR Code belum dapat ditampilkan.</div>
     @endif
 
-    @if($hasBarcode)
-        <img
-            src="{{ $inventory->barcode_url }}"
-            alt="Barcode {{ $inventory->barcode ?: $inventory->inventory_number }}"
-            class="label-barcode"
-            loading="eager"
-            decoding="async"
-        >
-    @else
-        <div class="code-fallback">Barcode belum dapat ditampilkan.</div>
-    @endif
-
-    <div class="small fw-semibold mt-2">{{ $inventory->barcode ?: $inventory->inventory_number }}</div>
+    <div class="small fw-semibold mt-2">{{ $inventory->inventory_number }}</div>
     <div class="label-meta mt-2">{{ $inventory->full_location }}</div>
     <div class="label-meta">
         {{ $inventory->category?->name }}@if($inventory->subCategory) / {{ $inventory->subCategory->name }}@endif
@@ -113,11 +85,11 @@
 
 <script>
 (function () {
-    var ready = {{ ($hasQr && $hasBarcode) ? 'true' : 'false' }};
+    var ready = {{ $hasQr ? 'true' : 'false' }};
     var btn = document.getElementById('btnPrint');
     if (!ready && btn) {
         btn.addEventListener('click', function (e) {
-            if (!window.confirm('Kode QR/Barcode belum lengkap. Tetap cetak?')) {
+            if (!window.confirm('QR Code belum lengkap. Tetap cetak?')) {
                 e.preventDefault();
             }
         });

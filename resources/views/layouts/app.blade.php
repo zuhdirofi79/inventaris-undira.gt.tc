@@ -11,8 +11,9 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
@@ -21,11 +22,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-layout.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/undira-ui.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-modals.css') }}">
     @stack('styles')
 </head>
-<body class="hold-transition sidebar-mini layout-fixed">
+<body class="hold-transition sidebar-mini layout-fixed undira-erp">
 <script>
 /* Apply layout mode + saved theme before first paint (avoids FOUC). */
 (function () {
@@ -286,8 +288,8 @@
                             @can('inventory.view')
                             <li class="nav-item">
                                 <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-barcode"></i>
-                                    <p>Scan Barcode</p>
+                                    <i class="nav-icon fas fa-qrcode"></i>
+                                    <p>Scan QR</p>
                                 </a>
                             </li>
                             @endcan
@@ -357,21 +359,21 @@
 
                     <li class="nav-header">SISTEM</li>
 
-                    @canany(['user.manage', 'settings.manage', 'backup.manage', 'audit-log.view'])
+                    @canany(['user.manage', 'settings.manage', 'backup.manage', 'audit-log.view', 'trash.view'])
                     <li class="nav-item {{ request()->routeIs('admin.users.*','admin.settings.*','audit-logs.*','trash.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-user-shield"></i>
                             <p>Admin <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
-                            @role('super-admin')
+                            @can('trash.view')
                             <li class="nav-item">
                                 <a href="{{ route('trash.index') }}" class="nav-link {{ request()->routeIs('trash.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-trash text-secondary"></i>
                                     <p>Trash</p>
                                 </a>
                             </li>
-                            @endrole
+                            @endcan
                             @can('user.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
@@ -468,7 +470,8 @@ $.ajaxSetup({
 });
 
 function showToast(message, type = 'success') {
-    const bg = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+    if (!message) return;
+    const bg = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : type === 'warning' ? 'bg-warning text-dark' : 'bg-info';
     const toast = $(`
         <div class="toast align-items-center text-white ${bg} border-0 show mb-2" role="alert">
             <div class="d-flex">
@@ -481,7 +484,25 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 5000);
 }
 
+@if(session('success'))
+showToast(@json(session('success')), 'success');
+@endif
+@if(session('error'))
+showToast(@json(session('error')), 'error');
+@endif
+@if(session('warning'))
+showToast(@json(session('warning')), 'warning');
+@endif
+
 /* showLoading / hideLoading disediakan oleh undira-loading.js (overlay logo UNDIRA) */
+
+// Disable submit + spinner untuk form biasa (UX anti double-submit)
+$(document).on('submit', 'form:not([data-confirm]):not([data-no-loading])', function () {
+    const btn = this.querySelector('button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled])');
+    if (!btn || typeof setButtonLoading !== 'function') return;
+    if (btn.classList.contains('is-loading')) return;
+    setButtonLoading(btn, true, btn.getAttribute('data-loading-text') || 'Menyimpan...');
+});
 
 // Dark mode toggle
 (function() {
@@ -541,7 +562,12 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         confirmButtonText: form.getAttribute('data-confirm-button') || 'Ya',
         cancelButtonText: 'Batal'
     }).then((result) => {
-        if (result.isConfirmed) form.submit();
+        if (!result.isConfirmed) return;
+        const btn = form.querySelector('button[type="submit"], input[type="submit"]');
+        if (btn && typeof setButtonLoading === 'function' && !form.hasAttribute('data-no-loading')) {
+            setButtonLoading(btn, true, btn.getAttribute('data-loading-text') || 'Memproses...');
+        }
+        form.submit();
     });
 });
 

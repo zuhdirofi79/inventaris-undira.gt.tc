@@ -43,6 +43,7 @@ class InventoryFilterService
             'room_id' => $request->input('room_id'),
             'category_id' => $request->input('category_id'),
             'sub_category_id' => $request->input('sub_category_id'),
+            'org_unit_id' => $request->input('org_unit_id'),
             'status' => $request->input('status'),
             'condition' => $request->input('condition'),
             'brand' => $request->input('brand'),

@@ -32,10 +32,10 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         if (request()->expectsJson()) {
-            return response()->json(['message' => 'Notification marked as read.']);
+            return response()->json(['message' => 'Notifikasi ditandai sudah dibaca.']);
         }
 
-        return back();
+        return back()->with('success', 'Notifikasi ditandai sudah dibaca.');
     }
 
     public function markAllAsRead(): RedirectResponse|JsonResponse
@@ -43,7 +43,7 @@ class NotificationController extends Controller
         auth()->user()->unreadNotifications->markAsRead();
 
         if (request()->expectsJson()) {
-            return response()->json(['message' => 'All notifications marked as read.']);
+            return response()->json(['message' => 'Semua notifikasi ditandai sudah dibaca.']);
         }
 
         return back()->with('success', 'Semua notifikasi ditandai sudah dibaca.');

@@ -17,10 +17,17 @@
     <p class="text-muted mb-0"><code>{{ $inventory->inventory_number }}</code> &middot; {{ $inventory->name }}</p>
 </div>
 
+<div class="alert alert-info border-0 shadow-sm">
+    Lokasi inventaris tidak diubah dari halaman ini.
+    Gunakan <a href="{{ route('mutations.create', ['inventory_item_id' => $inventory->id]) }}" class="alert-link">Mutasi Inventaris</a>
+    agar riwayat perpindahan tersimpan.
+    <div class="small mt-1 mb-0"><strong>Lokasi saat ini:</strong> {{ $inventory->full_location }}</div>
+</div>
+
 <form action="{{ route('inventory.update', $inventory) }}" method="POST" class="inventory-form">
     @csrf
     @method('PUT')
-    @include('inventory._form', ['inventory' => $inventory])
+    @include('inventory._form', ['inventory' => $inventory, 'lockLocation' => true])
     <div class="d-flex flex-wrap gap-2 sticky-form-actions">
         <button type="submit" class="btn btn-undira"><i class="fas fa-save me-1"></i>Perbarui</button>
         <a href="{{ route('inventory.show', $inventory) }}" class="btn btn-outline-secondary">Batal</a>

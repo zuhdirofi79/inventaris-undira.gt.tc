@@ -32,30 +32,142 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $recentActivity = AuditLog::query()
-            ->with('user')
-            ->latest()
-            ->limit(15)
-            ->get()
-            ->map(function (AuditLog $log) {
-                $action = $log->action instanceof AuditAction
-                    ? $log->action
-                    : AuditAction::tryFrom((string) $log->action);
+        $recentActivity = collect();
+        if (auth()->user()?->can('audit-log.view')) {
+            $recentActivity = AuditLog::query()
+                ->with('user')
+                ->latest()
+                ->limit(15)
+                ->get()
+                ->map(function (AuditLog $log) {
+                    $action = $log->action instanceof AuditAction
+                        ? $log->action
+                        : AuditAction::tryFrom((string) $log->action);
 
-                return [
-                    'user' => $log->user?->name ?? 'System',
-                    'action' => $action?->label() ?? (string) $log->action,
-                    'description' => $log->description,
-                    'created_at' => optional($log->created_at)?->toIso8601String(),
-                    'created_at_human' => optional($log->created_at)?->timezone(config('app.timezone'))->format('d/m/Y H:i'),
-                ];
-            });
+                    $role = is_array($log->new_values) ? ($log->new_values['role'] ?? null) : null;
+
+                    return [
+                        'user' => $log->user?->name ?? 'Sistem',
+                        'role' => $role,
+                        'action' => $action?->label() ?? (string) $log->action,
+                        'description' => $this->friendlyAuditDescription($log->description),
+                        'ip' => $log->ip_address,
+                        'created_at' => $log->created_at?->toIso8601String(),
+                        'created_at_human' => $log->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i'),
+                    ];
+                });
+        }
 
         return view('dashboard.index', [
             ...$stats,
             'recent_items' => $recentItems,
             'recent_activity' => $recentActivity,
+            'quick_actions' => $this->quickActions(),
         ]);
+    }
+
+    /**
+     * @return list<array{label: string, description: string, icon: string, url: string, permission: string}>
+     */
+    protected function quickActions(): array
+    {
+        $actions = [
+            [
+                'label' => 'Lihat Inventaris',
+                'description' => 'Daftar aset aktif',
+                'icon' => 'fa-boxes',
+                'url' => route('inventory.index'),
+                'permission' => 'inventory.view',
+            ],
+            [
+                'label' => 'Tambah Inventaris',
+                'description' => 'Lewat konfigurasi master',
+                'icon' => 'fa-plus-circle',
+                'url' => route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]),
+                'permission' => 'inventory.create',
+            ],
+            [
+                'label' => 'Peminjaman',
+                'description' => 'Catat barang dipinjam',
+                'icon' => 'fa-hand-holding',
+                'url' => route('borrowings.create'),
+                'permission' => 'borrowing.create',
+            ],
+            [
+                'label' => 'Mutasi',
+                'description' => 'Pindahkan lokasi barang',
+                'icon' => 'fa-exchange-alt',
+                'url' => route('mutations.create'),
+                'permission' => 'mutation.create',
+            ],
+            [
+                'label' => 'Maintenance',
+                'description' => 'Jadwalkan perawatan',
+                'icon' => 'fa-wrench',
+                'url' => route('maintenances.create'),
+                'permission' => 'maintenance.create',
+            ],
+            [
+                'label' => 'Stock Opname',
+                'description' => 'Mulai pengecekan stok',
+                'icon' => 'fa-clipboard-check',
+                'url' => route('stock-opnames.create'),
+                'permission' => 'stock-opname.create',
+            ],
+            [
+                'label' => 'Scanner',
+                'description' => 'Scan QR Code inventaris',
+                'icon' => 'fa-qrcode',
+                'url' => route('scanner.index'),
+                'permission' => 'inventory.view',
+            ],
+            [
+                'label' => 'Laporan',
+                'description' => 'Cetak / export laporan',
+                'icon' => 'fa-file-alt',
+                'url' => route('reports.index'),
+                'permission' => 'report.view',
+            ],
+        ];
+
+        return array_values(array_filter(
+            $actions,
+            fn (array $action) => auth()->user()?->can($action['permission']) ?? false,
+        ));
+    }
+
+    protected function friendlyAuditDescription(?string $description): ?string
+    {
+        if ($description === null || $description === '') {
+            return null;
+        }
+
+        return match ($description) {
+            'BORROWING_CREATED' => 'Peminjaman baru dicatat',
+            'BORROWING_UPDATED' => 'Peminjaman diperbarui',
+            'BORROWING_DELETED' => 'Peminjaman dihapus',
+            'MAINTENANCE_CREATED' => 'Maintenance dicatat',
+            'MAINTENANCE_UPDATED' => 'Maintenance diperbarui',
+            'MAINTENANCE_DELETED' => 'Maintenance dihapus',
+            'MUTATION_CREATED' => 'Mutasi inventaris dicatat',
+            'STOCK_OPNAME_CREATED' => 'Stock opname dibuat',
+            'STOCK_OPNAME_STARTED' => 'Stock opname dimulai',
+            'STOCK_OPNAME_COMPLETED' => 'Stock opname selesai',
+            'STOCK_OPNAME_DELETED' => 'Stock opname dihapus',
+            'CATEGORY_CREATED' => 'Kategori ditambahkan',
+            'CATEGORY_UPDATED' => 'Kategori diperbarui',
+            'SUPPLIER_CREATED' => 'Supplier ditambahkan',
+            'VENDOR_CREATED' => 'Vendor ditambahkan',
+            'CAMPUS_CREATED' => 'Kampus ditambahkan',
+            'DELETION_APPROVAL_REQUESTED' => 'Permintaan hapus diajukan',
+            'DELETION_APPROVAL_APPROVED' => 'Penghapusan disetujui',
+            'DELETION_APPROVAL_REJECTED' => 'Penghapusan ditolak',
+            'INVENTORY_BULK_RELOCATED' => 'Inventaris dipindahkan massal',
+            'USER_CREATED' => 'Pengguna ditambahkan',
+            'USER_UPDATED' => 'Pengguna diperbarui',
+            'USER_DELETED' => 'Pengguna dihapus',
+            default => $description,
+        };
     }
 
     public function tree(): JsonResponse
@@ -86,49 +198,5 @@ class DashboardController extends Controller
     public function treeItems(Room $room, Category $category): JsonResponse
     {
         return response()->json(['nodes' => $this->treeService->items($room, $category)]);
-    }
-
-    public function stats(): JsonResponse
-    {
-        return response()->json($this->statsService->summary());
-    }
-
-    public function charts(): JsonResponse
-    {
-        return response()->json($this->statsService->chartData());
-    }
-
-    public function recentItems(): JsonResponse
-    {
-        $items = InventoryItem::query()
-            ->with(['category', 'room.floor.building.campus'])
-            ->latest()
-            ->limit(10)
-            ->get();
-
-        return response()->json($items);
-    }
-
-    public function recentActivity(): JsonResponse
-    {
-        $logs = AuditLog::query()
-            ->with('user')
-            ->latest()
-            ->limit(15)
-            ->get()
-            ->map(function (AuditLog $log) {
-                $action = $log->action instanceof AuditAction
-                    ? $log->action
-                    : AuditAction::tryFrom((string) $log->action);
-
-                return [
-                    'user' => ['name' => $log->user?->name ?? 'System'],
-                    'action' => ['label' => $action?->label() ?? (string) $log->action],
-                    'description' => $log->description,
-                    'created_at' => optional($log->created_at)?->toIso8601String(),
-                ];
-            });
-
-        return response()->json($logs);
     }
 }

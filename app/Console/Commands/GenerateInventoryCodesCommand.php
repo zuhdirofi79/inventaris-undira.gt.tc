@@ -10,7 +10,7 @@ class GenerateInventoryCodesCommand extends Command
 {
     protected $signature = 'inventory:generate-codes {--chunk=100 : Batch size}';
 
-    protected $description = 'Generate missing QR codes and barcodes for inventory items';
+    protected $description = 'Generate missing QR codes for inventory items';
 
     public function handle(InventoryCodeService $codeService): int
     {

@@ -13,6 +13,21 @@
         <div class="undira-skel undira-skel-sm" style="width:320px;max-width:100%;"></div>
     </div>
     <div class="row g-3 mb-3">
+        @for($i = 0; $i < 4; $i++)
+        <div class="col-6 col-lg-3">
+            <div class="card card-undira h-100">
+                <div class="card-body d-flex align-items-center gap-3">
+                    <span class="undira-skel undira-skel-circle"></span>
+                    <div class="flex-grow-1">
+                        <div class="undira-skel undira-skel-sm mb-2" style="width:70%;"></div>
+                        <div class="undira-skel undira-skel-lg" style="width:45%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endfor
+    </div>
+    <div class="row g-3 mb-3">
         @for($i = 0; $i < 8; $i++)
         <div class="col-6 col-lg-3">
             <div class="card card-undira h-100">
@@ -45,10 +60,11 @@
 </div>
 
 <div id="dashboardRealContent" class="dashboard-real-content is-hidden" aria-hidden="true">
-<div class="page-header-undira">
-    <h1><i class="fas fa-tachometer-alt me-2"></i>Dashboard</h1>
-    <p class="text-muted mb-0 small">Pusat informasi inventaris Universitas Dian Nusantara</p>
-</div>
+<x-ui.page-header
+    title="Dashboard"
+    subtitle="Pusat informasi inventaris Universitas Dian Nusantara"
+    icon="bi bi-speedometer2"
+/>
 
 @php
     $highlightKeys = ['Kursi', 'Meja', 'Lemari', 'Komputer', 'Laptop', 'Printer', 'AC', 'LCD', 'Whiteboard', 'Proyektor', 'Monitor'];
@@ -71,100 +87,77 @@
     }
 @endphp
 
+@if(!empty($quick_actions))
+<x-ui.section-title title="Aksi Cepat" icon="bi bi-lightning-charge-fill" subtitle="Pintasan operasional sesuai izin Anda" />
+<div class="row g-3 mb-4 dashboard-quick-actions">
+    @foreach($quick_actions as $action)
+    <div class="col-6 col-md-4 col-xl-3">
+        <x-ui.action-tile
+            :href="$action['url']"
+            :label="$action['label']"
+            :description="$action['description']"
+            :icon="'fas '.$action['icon']"
+        />
+    </div>
+    @endforeach
+</div>
+@endif
+
 {{-- Card Summary --}}
+<x-ui.section-title title="Ringkasan Inventaris" icon="bi bi-speedometer2" subtitle="Metrik utama aset UNDIRA" class="mt-1" />
 <div class="row g-3 mb-1">
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-green me-3"><i class="fas fa-boxes"></i></div>
-                <div>
-                    <div class="text-muted small">Total Inventaris</div>
-                    <h3 class="mb-0">{{ number_format($total_inventory ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Jumlah Inventaris" :value="number_format($total_inventory ?? 0)" icon="bi bi-box-seam" tone="green" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-blue h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-blue me-3"><i class="fas fa-university"></i></div>
-                <div>
-                    <div class="text-muted small">Total Kampus</div>
-                    <h3 class="mb-0">{{ number_format($total_campuses ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Barang Aktif" :value="number_format($active_inventory ?? $available ?? 0)" icon="bi bi-check-circle" tone="green" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-blue h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-blue me-3"><i class="fas fa-building"></i></div>
-                <div>
-                    <div class="text-muted small">Total Gedung</div>
-                    <h3 class="mb-0">{{ number_format($total_buildings ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Barang Dipinjam" :value="number_format($borrowed ?? 0)" icon="bi bi-hand-index" tone="warning" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-blue h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-blue me-3"><i class="fas fa-door-open"></i></div>
-                <div>
-                    <div class="text-muted small">Total Ruangan</div>
-                    <h3 class="mb-0">{{ number_format($total_rooms ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Barang Maintenance" :value="number_format($maintenance ?? 0)" icon="bi bi-wrench-adjustable" tone="info" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-green me-3"><i class="fas fa-check-circle"></i></div>
-                <div>
-                    <div class="text-muted small">Tersedia</div>
-                    <h3 class="mb-0">{{ number_format($active_inventory ?? $available ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Barang Rusak" :value="number_format($damaged ?? 0)" icon="bi bi-exclamation-triangle" tone="danger" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-warning h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-warning me-3"><i class="fas fa-hand-holding"></i></div>
-                <div>
-                    <div class="text-muted small">Dipinjam</div>
-                    <h3 class="mb-0">{{ number_format($borrowed ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Barang Hilang" :value="number_format($lost ?? 0)" icon="bi bi-question-circle" tone="danger" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-info h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-blue me-3"><i class="fas fa-wrench"></i></div>
-                <div>
-                    <div class="text-muted small">Maintenance</div>
-                    <h3 class="mb-0">{{ number_format($maintenance ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Jumlah Supplier" :value="number_format($total_suppliers ?? 0)" icon="bi bi-truck" tone="blue" />
     </div>
     <div class="col-6 col-lg-3">
-        <div class="card card-undira card-stat stat-danger h-100">
-            <div class="card-body d-flex align-items-center">
-                <div class="stat-icon icon-danger me-3"><i class="fas fa-tools"></i></div>
-                <div>
-                    <div class="text-muted small">Rusak</div>
-                    <h3 class="mb-0">{{ number_format($damaged ?? 0) }}</h3>
-                </div>
-            </div>
-        </div>
+        <x-ui.kpi label="Jumlah Vendor" :value="number_format($total_vendors ?? 0)" icon="bi bi-shop" tone="blue" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Jumlah Kampus" :value="number_format($total_campuses ?? 0)" icon="bi bi-building" tone="blue" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Gedung" :value="number_format($total_buildings ?? 0)" icon="bi bi-buildings" tone="blue" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Ruangan" :value="number_format($total_rooms ?? 0)" icon="bi bi-door-open" tone="blue" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Lantai" :value="number_format($total_floors ?? 0)" icon="bi bi-layers" tone="green" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Unit Kerja" :value="number_format($total_org_units ?? 0)" icon="bi bi-people" tone="blue" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Kategori" :value="number_format($total_categories ?? 0)" icon="bi bi-tags" tone="green" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total Subkategori" :value="number_format($total_sub_categories ?? 0)" icon="bi bi-tag" tone="green" />
+    </div>
+    <div class="col-6 col-lg-3">
+        <x-ui.kpi label="Total User" :value="number_format($total_users ?? 0)" icon="bi bi-person-badge" tone="blue" />
     </div>
 </div>
 
 {{-- Per Kampus --}}
-<h5 class="mb-3 mt-2"><i class="fas fa-university me-2"></i>Statistik per Kampus</h5>
+<x-ui.section-title title="Statistik per Kampus" icon="bi bi-geo-alt" subtitle="Sebaran inventaris antar kampus" />
 <div class="row g-3 dashboard-campus-grid">
     @forelse($campus_stats ?? [] as $cs)
     <div class="col-12 col-md-6 col-xl-4 d-flex">
@@ -176,7 +169,7 @@
 </div>
 
 {{-- Per Sub Klasifikasi --}}
-<h5 class="mb-3 mt-4"><i class="fas fa-tags me-2"></i>Statistik per Sub Klasifikasi</h5>
+<x-ui.section-title title="Statistik per Sub Klasifikasi" icon="bi bi-tags" class="mt-4" />
 <div class="row g-3 align-items-start">
     @forelse($category_breakdown ?? [] as $block)
     @php
@@ -231,7 +224,7 @@
 </div>
 
 {{-- Per Kampus + Sub Klasifikasi --}}
-<h5 class="mb-3 mt-4"><i class="fas fa-sitemap me-2"></i>Kampus × Sub Klasifikasi</h5>
+<x-ui.section-title title="Kampus × Sub Klasifikasi" icon="bi bi-diagram-3" class="mt-4" />
 <div class="row g-3 align-items-start">
     @forelse($campus_subcategory_breakdown ?? [] as $campusBlock)
     <div class="col-12 col-lg-6">
@@ -309,18 +302,52 @@
     </div>
 </div>
 <div class="row">
-    <div class="col-lg-6 mb-4">
+    <div class="col-lg-4 mb-4">
         <div class="card card-undira">
             <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Jenis (Sub Klasifikasi)</h5>
+                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Jenis</h5>
             </div>
             <div class="card-body"><canvas id="chartSubcategory" height="260"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card card-undira">
+            <div class="card-header" style="background:#6D4C41;color:#fff;">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Inventaris per Kondisi</h5>
+            </div>
+            <div class="card-body"><canvas id="chartCondition" height="260"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4 mb-4">
+        <div class="card card-undira">
+            <div class="card-header" style="background:#455A64;color:#fff;">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Unit Kerja</h5>
+            </div>
+            <div class="card-body"><canvas id="chartOrgUnit" height="260"></canvas></div>
+        </div>
+    </div>
+</div>
+<div class="row">
+    <div class="col-lg-6 mb-4">
+        <div class="card card-undira">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>Grafik Peminjaman</h5>
+            </div>
+            <div class="card-body"><canvas id="chartBorrowing" height="260"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6 mb-4">
+        <div class="card card-undira">
+            <div class="card-header" style="background:#00897B;color:#fff;">
+                <h5 class="card-title mb-0"><i class="fas fa-chart-area me-2"></i>Grafik Maintenance</h5>
+            </div>
+            <div class="card-body"><canvas id="chartMaintenance" height="260"></canvas></div>
         </div>
     </div>
 </div>
 
 @if($highlightItems->isNotEmpty())
-<h5 class="mb-3 mt-2"><i class="fas fa-cubes me-2"></i>Ringkasan Jenis Barang</h5>
+<x-ui.section-title title="Ringkasan Jenis Barang" icon="bi bi-grid-3x3-gap" class="mt-2" />
 <div class="row g-3 mb-3">
     @foreach($highlightItems as $hi)
     <div class="col-6 col-md-4 col-lg-3">
@@ -359,7 +386,15 @@
                                 <td><small>{{ $item->full_location ?? '-' }}</small></td>
                             </tr>
                             @empty
-                            <tr><td colspan="4" class="text-center text-muted">Tidak ada data</td></tr>
+                            <tr>
+                                <td colspan="4" class="p-0">
+                                    <x-empty-state
+                                        icon="fa-box-open"
+                                        title="Belum ada inventaris terbaru"
+                                        message="Inventaris yang baru ditambahkan akan muncul di sini."
+                                    />
+                                </td>
+                            </tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -374,16 +409,25 @@
                 <ul class="list-group list-group-flush">
                     @forelse($recent_activity ?? [] as $log)
                     <li class="list-group-item">
-                        <div class="d-flex justify-content-between">
-                            <div><strong>{{ $log['user'] }}</strong> <span class="text-muted">{{ $log['action'] }}</span></div>
-                            <small class="text-muted">{{ $log['created_at_human'] }}</small>
+                        <div class="d-flex justify-content-between gap-2">
+                            <div>
+                                <strong>{{ $log['user'] }}</strong>
+                                <span class="badge bg-light text-dark border ms-1">{{ $log['action'] }}</span>
+                            </div>
+                            <small class="text-muted flex-shrink-0">{{ $log['created_at_human'] }}</small>
                         </div>
                         @if(!empty($log['description']))
-                            <small class="text-muted">{{ $log['description'] }}</small>
+                            <small class="text-muted d-block mt-1">{{ $log['description'] }}</small>
                         @endif
                     </li>
                     @empty
-                    <li class="list-group-item text-muted text-center">Tidak ada aktivitas</li>
+                    <li class="list-group-item p-0 border-0">
+                        <x-empty-state
+                            icon="fa-history"
+                            title="Belum ada aktivitas"
+                            message="Login, CRUD, import/export, dan approval akan tercatat di sini."
+                        />
+                    </li>
                     @endforelse
                 </ul>
             </div>
@@ -423,6 +467,7 @@ function makeChart(el, type, labels, data, label) {
         el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0">Belum ada data</p>';
         return;
     }
+    const isLine = type === 'line';
     new Chart(el, {
         type,
         data: {
@@ -430,13 +475,20 @@ function makeChart(el, type, labels, data, label) {
             datasets: [{
                 label: label || 'Jumlah',
                 data,
-                backgroundColor: undiraColors,
+                backgroundColor: isLine ? 'rgba(46, 125, 50, 0.15)' : undiraColors,
+                borderColor: isLine ? '#2E7D32' : undefined,
+                borderWidth: isLine ? 2 : undefined,
+                fill: isLine,
+                tension: isLine ? 0.3 : undefined,
             }],
         },
         options: {
             responsive: true,
             maintainAspectRatio: true,
-            plugins: { legend: { display: type !== 'bar' } },
+            plugins: { legend: { display: type === 'pie' || type === 'doughnut' } },
+            scales: isLine || type === 'bar' ? {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+            } : undefined,
         },
     });
 }
@@ -469,6 +521,33 @@ function initDashboardCharts() {
         (chartPayload.by_subcategory || []).map(c => c.label),
         (chartPayload.by_subcategory || []).map(c => Number(c.total)),
         'Jumlah'
+    );
+    makeChart(
+        document.getElementById('chartCondition'),
+        'doughnut',
+        (chartPayload.by_condition || []).map(c => c.label),
+        (chartPayload.by_condition || []).map(c => Number(c.total)),
+    );
+    makeChart(
+        document.getElementById('chartOrgUnit'),
+        'bar',
+        (chartPayload.by_org_unit || []).map(c => c.label),
+        (chartPayload.by_org_unit || []).map(c => Number(c.total)),
+        'Jumlah'
+    );
+    makeChart(
+        document.getElementById('chartBorrowing'),
+        'line',
+        (chartPayload.borrowings_monthly || []).map(c => c.label),
+        (chartPayload.borrowings_monthly || []).map(c => Number(c.total)),
+        'Peminjaman'
+    );
+    makeChart(
+        document.getElementById('chartMaintenance'),
+        'line',
+        (chartPayload.maintenances_monthly || []).map(c => c.label),
+        (chartPayload.maintenances_monthly || []).map(c => Number(c.total)),
+        'Maintenance'
     );
 }
 

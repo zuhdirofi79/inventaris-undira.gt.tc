@@ -2,52 +2,75 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AuditAction;
+use App\Http\Requests\StoreInventoryPhotoRequest;
 use App\Models\InventoryItem;
 use App\Models\InventoryPhoto;
+use App\Services\AuditLogService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class InventoryPhotoController extends Controller
 {
-    public function store(Request $request, InventoryItem $inventory): RedirectResponse
+    public function __construct(
+        protected AuditLogService $audit,
+    ) {}
+
+    public function store(StoreInventoryPhotoRequest $request, InventoryItem $inventory): RedirectResponse
     {
-        $request->validate([
-            'photos' => ['required', 'array', 'min:1'],
-            'photos.*' => ['image', 'max:5120'],
-            'is_primary' => ['nullable', 'boolean'],
-        ]);
+        $uploaded = 0;
 
         foreach ($request->file('photos') as $index => $photo) {
             $path = $photo->store("inventory/photos/{$inventory->id}", 'public');
+            $makePrimary = $request->boolean('is_primary') && $index === 0;
 
-            $isPrimary = $request->boolean('is_primary') && $index === 0;
-
-            if ($isPrimary) {
+            if ($makePrimary) {
                 $inventory->photos()->update(['is_primary' => false]);
             }
 
+            $isFirstPhoto = $inventory->photos()->count() === 0 && $index === 0;
+
             $inventory->photos()->create([
                 'path' => $path,
-                'is_primary' => $isPrimary || ($inventory->photos()->count() === 0 && $index === 0),
+                'is_primary' => $makePrimary || $isFirstPhoto,
             ]);
+            $uploaded++;
         }
 
-        return back()->with('success', 'Foto berhasil diupload.');
+        $this->audit->log($request->user(), AuditAction::Update, $inventory, null, [
+            'photos_uploaded' => $uploaded,
+        ], 'INVENTORY_PHOTOS_UPLOADED');
+
+        return back()->with('success', "{$uploaded} foto berhasil diunggah.");
+    }
+
+    public function setPrimary(InventoryItem $inventory, InventoryPhoto $photo): RedirectResponse
+    {
+        abort_unless($photo->inventory_item_id === $inventory->id, 404);
+        abort_unless(request()->user()?->can('inventory.update') ?? false, 403);
+
+        $inventory->photos()->update(['is_primary' => false]);
+        $photo->update(['is_primary' => true]);
+
+        return back()->with('success', 'Foto utama diperbarui.');
     }
 
     public function destroy(InventoryItem $inventory, InventoryPhoto $photo): RedirectResponse
     {
         abort_unless($photo->inventory_item_id === $inventory->id, 404);
 
+        $photoId = $photo->id;
         Storage::disk('public')->delete($photo->path);
         $wasPrimary = $photo->is_primary;
         $photo->delete();
 
         if ($wasPrimary) {
-            $next = $inventory->photos()->first();
-            $next?->update(['is_primary' => true]);
+            $inventory->photos()->first()?->update(['is_primary' => true]);
         }
+
+        $this->audit->log(request()->user(), AuditAction::Update, $inventory, null, [
+            'photo_id' => $photoId,
+        ], 'INVENTORY_PHOTO_DELETED');
 
         return back()->with('success', 'Foto berhasil dihapus.');
     }

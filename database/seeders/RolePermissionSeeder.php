@@ -10,6 +10,8 @@ use Spatie\Permission\PermissionRegistrar;
 class RolePermissionSeeder extends Seeder
 {
     /**
+     * Canonical permission catalog (used by routes / policies / menus).
+     *
      * @var list<string>
      */
     private array $permissions = [
@@ -37,17 +39,14 @@ class RolePermissionSeeder extends Seeder
         'borrowing.create',
         'borrowing.update',
         'borrowing.delete',
-        'borrowing.manage',
         'maintenance.view',
         'maintenance.create',
         'maintenance.update',
         'maintenance.delete',
-        'maintenance.manage',
         'stock-opname.view',
         'stock-opname.create',
         'stock-opname.update',
         'stock-opname.delete',
-        'stock-opname.manage',
         'deletion-approval.view',
         'deletion-approval.request',
         'deletion-approval.approve',
@@ -59,18 +58,73 @@ class RolePermissionSeeder extends Seeder
     ];
 
     /**
+     * Viewer — read-only.
+     *
      * @var list<string>
      */
     private array $viewerPermissions = [
         'inventory.view',
         'location.view',
         'report.view',
-        'report.export',
         'borrowing.view',
         'maintenance.view',
         'stock-opname.view',
         'mutation.view',
         'deletion-approval.view',
+    ];
+
+    /**
+     * Staff — operasional harian (tanpa master data / admin sistem / hapus permanen).
+     *
+     * @var list<string>
+     */
+    private array $staffPermissions = [
+        'inventory.view',
+        'inventory.create',
+        'inventory.update',
+        'inventory.export',
+        'location.view',
+        'report.view',
+        'report.export',
+        'borrowing.view',
+        'borrowing.create',
+        'borrowing.update',
+        'maintenance.view',
+        'maintenance.create',
+        'maintenance.update',
+        'stock-opname.view',
+        'stock-opname.create',
+        'stock-opname.update',
+        'mutation.view',
+        'mutation.create',
+        'deletion-approval.view',
+        'deletion-approval.request',
+    ];
+
+    /**
+     * Admin — CRUD operasional + master data, tanpa trash / user / settings / backup.
+     *
+     * @var list<string>
+     */
+    private array $adminExcludedPermissions = [
+        'trash.view',
+        'trash.restore',
+        'trash.force-delete',
+        'user.manage',
+        'settings.manage',
+        'backup.manage',
+    ];
+
+    /**
+     * Legacy permission names removed from the catalog.
+     *
+     * @var list<string>
+     */
+    private array $orphanPermissions = [
+        'deletion-approve',
+        'borrowing.manage',
+        'maintenance.manage',
+        'stock-opname.manage',
     ];
 
     public function run(): void
@@ -84,41 +138,38 @@ class RolePermissionSeeder extends Seeder
             ]);
         }
 
-        // Remove legacy orphan permission name if present
-        Permission::query()->where('name', 'deletion-approve')->delete();
+        Permission::query()->whereIn('name', $this->orphanPermissions)->delete();
 
         $superAdmin = Role::firstOrCreate([
             'name' => 'super-admin',
             'guard_name' => 'web',
         ]);
+        $superAdmin->syncPermissions(
+            Permission::query()->where('guard_name', 'web')->pluck('name')->all()
+        );
 
-        $superAdmin->syncPermissions(Permission::all());
+        $admin = Role::firstOrCreate([
+            'name' => 'admin',
+            'guard_name' => 'web',
+        ]);
+        $admin->syncPermissions(
+            Permission::query()
+                ->where('guard_name', 'web')
+                ->whereNotIn('name', $this->adminExcludedPermissions)
+                ->pluck('name')
+                ->all()
+        );
+
+        $staff = Role::firstOrCreate([
+            'name' => 'staff',
+            'guard_name' => 'web',
+        ]);
+        $staff->syncPermissions($this->staffPermissions);
 
         $viewer = Role::firstOrCreate([
             'name' => 'viewer',
             'guard_name' => 'web',
         ]);
-
         $viewer->syncPermissions($this->viewerPermissions);
-
-        // Admin operasional: CRUD tanpa Trash / force delete
-        $admin = Role::firstOrCreate([
-            'name' => 'admin',
-            'guard_name' => 'web',
-        ]);
-
-        $adminPermissions = Permission::query()
-            ->whereNotIn('name', [
-                'trash.view',
-                'trash.restore',
-                'trash.force-delete',
-                'user.manage',
-                'settings.manage',
-                'backup.manage',
-            ])
-            ->pluck('name')
-            ->all();
-
-        $admin->syncPermissions($adminPermissions);
     }
 }

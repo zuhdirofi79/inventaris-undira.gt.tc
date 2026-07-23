@@ -8,12 +8,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-hand-holding me-2"></i>Peminjaman</h1>
+<x-ui.page-header title="Peminjaman" subtitle="Kelola peminjaman inventaris" icon="bi bi-hand-index">
     @can('borrowing.create')
-    <a href="{{ route('borrowings.create') }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+    <a href="{{ route('borrowings.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</div>
+</x-ui.page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

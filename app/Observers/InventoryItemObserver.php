@@ -6,7 +6,7 @@ use App\Models\InventoryItem;
 use App\Services\InventoryCodeService;
 
 /**
- * Safety net: ensure QR/Barcode exist whenever an InventoryItem is created
+ * Safety net: ensure QR Code exists whenever an InventoryItem is created
  * without going through InventoryCodeService explicitly.
  */
 class InventoryItemObserver
@@ -17,7 +17,7 @@ class InventoryItemObserver
 
     public function created(InventoryItem $item): void
     {
-        if (blank($item->qr_code_path) || blank($item->barcode)) {
+        if (blank($item->qr_code_path)) {
             $this->codes->ensureCodes($item);
         }
     }

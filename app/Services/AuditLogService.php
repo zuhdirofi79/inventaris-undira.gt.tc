@@ -32,6 +32,21 @@ class AuditLogService
             $reason = (string) $newValues['reason'];
         }
 
+        $meta = [];
+        if ($user) {
+            $roles = $user->relationLoaded('roles')
+                ? $user->roles->pluck('name')->all()
+                : $user->getRoleNames()->all();
+            $meta['role'] = implode(', ', $roles) ?: null;
+            $meta['user_name'] = $user->name;
+        }
+
+        if (is_array($newValues)) {
+            $newValues = array_merge($meta, $newValues);
+        } elseif ($meta !== []) {
+            $newValues = $meta;
+        }
+
         return AuditLog::query()->create([
             'user_id' => $user?->id,
             'action' => $actionValue,

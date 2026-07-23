@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\ForgotPasswordRequest;
 use App\Http\Requests\ResetPasswordWithOtpRequest;
 use App\Http\Requests\VerifyRegistrationOtpRequest;
 use App\Models\User;
+use App\Services\AuditLogService;
 use App\Services\PasswordResetOtpService;
 use App\Support\MailDelivery;
 use Illuminate\Auth\Events\PasswordReset;
@@ -153,6 +155,15 @@ class ForgotPasswordController extends Controller
         ])->save();
 
         event(new PasswordReset($user));
+
+        app(AuditLogService::class)->log(
+            $user,
+            AuditAction::ResetPassword,
+            $user,
+            null,
+            null,
+            'Password direset via OTP',
+        );
 
         $request->session()->forget([self::SESSION_USER, self::SESSION_VERIFIED]);
 

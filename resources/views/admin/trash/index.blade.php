@@ -7,13 +7,13 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <div>
-        <h1 class="text-secondary"><i class="fas fa-trash me-2"></i>Trash</h1>
-        <p class="text-muted mb-0">Recycle Bin — hanya Super Admin. Soft-deleted data dapat dipulihkan atau dihapus permanen.</p>
-    </div>
+<x-ui.page-header
+    title="Trash"
+    subtitle="Recycle Bin — akses berdasarkan izin Trash. Soft-deleted data dapat dipulihkan atau dihapus permanen."
+    icon="bi bi-trash"
+>
     <span class="badge bg-secondary align-self-center">Recycle Bin</span>
-</div>
+</x-ui.page-header>
 
 <ul class="nav nav-tabs mb-3 flex-wrap">
     @foreach($tabLabels as $key => $label)
@@ -111,6 +111,7 @@
                             <td>{{ $item->deletedByUser?->name ?? '-' }}</td>
                             <td><span class="badge bg-danger">Terhapus</span></td>
                             <td class="text-nowrap">
+                                @can('trash.restore')
                                 <form action="{{ route('trash.restore', [$tab, $item->id]) }}" method="POST" class="d-inline"
                                       data-confirm-title="Pulihkan data ini?"
                                       data-confirm="Data dan relasi turunannya akan kembali ke sistem."
@@ -121,6 +122,8 @@
                                         <i class="fas fa-recycle"></i>
                                     </button>
                                 </form>
+                                @endcan
+                                @can('trash.force-delete')
                                 <form action="{{ route('trash.force-delete', [$tab, $item->id]) }}" method="POST" class="d-inline"
                                       data-confirm-title="Data akan dihapus permanen."
                                       data-confirm="Data TIDAK dapat dikembalikan. Lanjutkan?"
@@ -132,6 +135,7 @@
                                         <i class="fas fa-times"></i>
                                     </button>
                                 </form>
+                                @endcan
                             </td>
                         </tr>
                     @empty

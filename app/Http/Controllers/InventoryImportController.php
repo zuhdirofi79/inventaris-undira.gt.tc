@@ -10,6 +10,7 @@ use App\Services\AuditLogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -18,6 +19,11 @@ class InventoryImportController extends Controller
     public function __construct(
         protected AuditLogService $auditLogService,
     ) {}
+
+    public function index(): View
+    {
+        return view('inventory.import');
+    }
 
     public function template(): BinaryFileResponse
     {

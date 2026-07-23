@@ -23,4 +23,13 @@ class StoreProcurementTypeRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'code.required' => 'Kode jenis pengadaan wajib diisi.',
+            'code.unique' => 'Kode jenis pengadaan sudah digunakan.',
+            'name.required' => 'Nama jenis pengadaan wajib diisi.',
+        ];
+    }
 }

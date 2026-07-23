@@ -42,4 +42,27 @@ class StockOpname extends Model
     {
         return $this->hasMany(StockOpnameItem::class);
     }
+
+    public function canStart(): bool
+    {
+        return $this->status === StockOpnameStatus::Draft;
+    }
+
+    public function canScan(): bool
+    {
+        return $this->status === StockOpnameStatus::InProgress;
+    }
+
+    public function canComplete(): bool
+    {
+        return $this->status === StockOpnameStatus::InProgress;
+    }
+
+    public function canDelete(): bool
+    {
+        return in_array($this->status, [
+            StockOpnameStatus::Draft,
+            StockOpnameStatus::InProgress,
+        ], true);
+    }
 }

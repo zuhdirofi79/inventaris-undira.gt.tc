@@ -54,6 +54,8 @@ class InventoryReportService
     /**
      * @return Collection<int, InventoryItem>
      */
+    public const MAX_ROWS = 5000;
+
     public function fetchItems(Request $request): Collection
     {
         return $this->filterService
@@ -68,6 +70,7 @@ class InventoryReportService
                 'supplier:id,name',
                 'vendor:id,name',
             ])
+            ->limit(self::MAX_ROWS)
             ->get()
             ->sortBy([
                 fn (InventoryItem $i) => mb_strtolower($i->room?->floor?->building?->campus?->name ?? 'zzz'),

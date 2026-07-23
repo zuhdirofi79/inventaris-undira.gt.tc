@@ -63,6 +63,15 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
+                <label class="form-label small">Unit Kerja</label>
+                <select id="filterOrgUnit" class="form-select select2-filter">
+                    <option value="">Semua Unit Kerja</option>
+                    @foreach($orgUnits ?? [] as $unit)
+                        <option value="{{ $unit->id }}">{{ $unit->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
                 <label class="form-label small">Status</label>
                 <select id="filterStatus" class="form-select">
                     <option value="">Semua</option>
@@ -151,6 +160,7 @@ const table = $('#inventoryTable').DataTable({
             d.floor_id = $('#filterFloor').val();
             d.room_id = $('#filterRoom').val();
             d.category_id = $('#filterCategory').val();
+            d.org_unit_id = $('#filterOrgUnit').val();
             d.status = $('#filterStatus').val();
             d.condition = $('#filterCondition').val();
         }

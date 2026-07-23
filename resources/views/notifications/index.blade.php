@@ -7,13 +7,12 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-bell me-2"></i>Notifikasi</h1>
+<x-ui.page-header title="Notifikasi" subtitle="Peringatan dan aktivitas sistem" icon="bi bi-bell">
     <form action="{{ route('notifications.read-all') }}" method="POST">
         @csrf
-        <button type="submit" class="btn btn-outline-primary btn-sm"><i class="fas fa-check-double me-1"></i>Tandai Semua Dibaca</button>
+        <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-check2-all me-1"></i>Tandai Semua Dibaca</button>
     </form>
-</div>
+</x-ui.page-header>
 
 <div class="card card-undira">
     <ul class="list-group list-group-flush">

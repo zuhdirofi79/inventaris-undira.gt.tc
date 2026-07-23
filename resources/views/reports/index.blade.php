@@ -7,10 +7,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-chart-bar me-2"></i>Generate Laporan</h1>
-    <p class="text-muted mb-0">Laporan hierarkis dari data inventaris yang sama dengan Dashboard &amp; Data Inventaris.</p>
-</div>
+<x-ui.page-header
+    title="Generate Laporan"
+    subtitle="Laporan hierarkis dari data inventaris yang sama dengan Dashboard & Data Inventaris."
+    icon="bi bi-bar-chart"
+/>
 
 <form action="{{ route('reports.generate') }}" method="POST" id="reportForm" target="_blank">
     @csrf

@@ -11,7 +11,6 @@ use App\Models\Setting;
 use App\Models\SubCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use Picqer\Barcode\BarcodeGeneratorPNG;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class InventoryCodeService
@@ -55,18 +54,9 @@ class InventoryCodeService
         return md5(strtolower(trim($name)).":{$roomId}:{$categoryId}");
     }
 
-    public function generateBarcode(string $inventoryNumber): string
-    {
-        $generator = new BarcodeGeneratorPNG;
-        $barcodeData = $generator->getBarcode($inventoryNumber, $generator::TYPE_CODE_128);
-
-        $safeName = str_replace(['/', '\\'], '-', $inventoryNumber);
-        $path = "inventory/barcodes/{$safeName}.png";
-        Storage::disk('public')->put($path, $barcodeData);
-
-        return $path;
-    }
-
+    /**
+     * QR encodes the public detail URL (scan page), not the raw inventory number.
+     */
     public function generateQrCode(InventoryItem $item): string
     {
         $scanUrl = $this->scanUrl($item->inventory_number);
@@ -88,7 +78,7 @@ class InventoryCodeService
     {
         $base = rtrim((string) Setting::get('inventory.scan_base_url', ''), '/');
         if ($base !== '') {
-            return $base.'/scan/'.$inventoryNumber;
+            return $base.'/scan/'.rawurlencode($inventoryNumber);
         }
 
         return route('inventory.scan', ['inventoryNumber' => $inventoryNumber], true);
@@ -96,42 +86,27 @@ class InventoryCodeService
 
     public function generateAndSaveCodes(InventoryItem $item): InventoryItem
     {
-        if (! $item->barcode) {
-            $item->barcode = $item->inventory_number;
-        }
-
         $item->qr_code_path = $this->generateQrCode($item);
-        $this->generateBarcode($item->barcode ?: $item->inventory_number);
         $item->save();
 
         return $item->fresh();
     }
 
     /**
-     * Ensure QR + barcode files exist (for legacy rows or missing files).
+     * Ensure QR file exists (for legacy rows or missing files).
+     * Does not generate barcodes — barcode feature has been retired.
      */
     public function ensureCodes(InventoryItem $item): InventoryItem
     {
         $disk = Storage::disk('public');
         $needsSave = false;
 
-        if (blank($item->barcode)) {
-            $item->barcode = $item->inventory_number;
-            $needsSave = true;
-        }
-
-        $code = $item->barcode ?: $item->inventory_number;
-        $safeName = str_replace(['/', '\\'], '-', (string) $code);
+        $safeName = str_replace(['/', '\\'], '-', (string) $item->inventory_number);
         $qrPath = $item->qr_code_path ?: "inventory/qrcodes/{$safeName}.svg";
-        $barcodePath = "inventory/barcodes/{$safeName}.png";
 
         if (! $item->qr_code_path || ! $disk->exists($qrPath)) {
             $item->qr_code_path = $this->generateQrCode($item);
             $needsSave = true;
-        }
-
-        if (! $disk->exists($barcodePath)) {
-            $this->generateBarcode($code);
         }
 
         if ($needsSave) {
@@ -139,46 +114,6 @@ class InventoryCodeService
         }
 
         return $item->fresh() ?? $item;
-    }
-
-    public function barcodePath(string $inventoryNumber): string
-    {
-        $safeName = str_replace(['/', '\\'], '-', $inventoryNumber);
-
-        return "inventory/barcodes/{$safeName}.png";
-    }
-
-    /**
-     * Read-only next sequence preview (does NOT consume / increment).
-     *
-     * @return array{last_value: int, next_value: int, next_padded: string}
-     */
-    public function peekNextSequence(int $campusId, ?int $subCategoryId, int $categoryId): array
-    {
-        $classifierType = $subCategoryId ? 'sub_category' : 'category';
-        $classifierId = $subCategoryId ?? $categoryId;
-
-        $row = InventorySequence::query()
-            ->where('campus_id', $campusId)
-            ->where('classifier_type', $classifierType)
-            ->where('classifier_id', $classifierId)
-            ->first();
-
-        $last = $row
-            ? (int) $row->last_value
-            : $this->bootstrapSequenceValue($campusId, $classifierType, $classifierId);
-
-        $next = $last + 1;
-        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
-        if ($padding < 1) {
-            $padding = self::DEFAULT_PADDING;
-        }
-
-        return [
-            'last_value' => $last,
-            'next_value' => $next,
-            'next_padded' => str_pad((string) $next, $padding, '0', STR_PAD_LEFT),
-        ];
     }
 
     /**
@@ -219,6 +154,39 @@ class InventoryCodeService
 
             return (int) $row->last_value;
         });
+    }
+
+    /**
+     * Read-only next sequence preview (does NOT consume / increment).
+     *
+     * @return array{last_value: int, next_value: int, next_padded: string}
+     */
+    public function peekNextSequence(int $campusId, ?int $subCategoryId, int $categoryId): array
+    {
+        $classifierType = $subCategoryId ? 'sub_category' : 'category';
+        $classifierId = $subCategoryId ?? $categoryId;
+
+        $row = InventorySequence::query()
+            ->where('campus_id', $campusId)
+            ->where('classifier_type', $classifierType)
+            ->where('classifier_id', $classifierId)
+            ->first();
+
+        $last = $row
+            ? (int) $row->last_value
+            : $this->bootstrapSequenceValue($campusId, $classifierType, $classifierId);
+
+        $next = $last + 1;
+        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
+        if ($padding < 1) {
+            $padding = self::DEFAULT_PADDING;
+        }
+
+        return [
+            'last_value' => $last,
+            'next_value' => $next,
+            'next_padded' => str_pad((string) $next, $padding, '0', STR_PAD_LEFT),
+        ];
     }
 
     protected function bootstrapSequenceValue(int $campusId, string $classifierType, int $classifierId): int

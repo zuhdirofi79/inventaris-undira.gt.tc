@@ -7,7 +7,7 @@
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <div>
         <h5 class="mb-0">Konfigurasi Inventaris</h5>
-        <p class="text-muted small mb-0">Pusat input inventaris: lokasi → klasifikasi → data barang → QR/Barcode otomatis tersimpan ke ruangan.</p>
+        <p class="text-muted small mb-0">Pusat input inventaris: lokasi → klasifikasi → data barang → QR Code otomatis tersimpan ke ruangan.</p>
     </div>
     @canany(['category.manage', 'inventory.create'])
     <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateConfig" data-bs-toggle="modal" data-bs-target="#modalCreateConfig" data-no-loader="1">

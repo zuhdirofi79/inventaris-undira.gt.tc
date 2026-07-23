@@ -7,6 +7,7 @@ use App\Models\Campus;
 use App\Models\Category;
 use App\Services\InventoryReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -27,7 +28,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function generate(Request $request): View|BinaryFileResponse|Response
+    public function generate(Request $request): View|BinaryFileResponse|Response|RedirectResponse
     {
         $request->validate([
             'format' => ['required', 'in:view,print,excel,pdf,csv'],
@@ -44,6 +45,24 @@ class ReportController extends Controller
             'purchase_date_to' => ['nullable', 'date', 'after_or_equal:purchase_date_from'],
             'search' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $format = (string) $request->input('format');
+        if (in_array($format, ['excel', 'pdf', 'csv'], true)) {
+            abort_unless($request->user()?->can('report.export'), 403);
+        }
+
+        $scopeKeys = [
+            'campus_id', 'building_id', 'floor_id', 'room_id',
+            'category_id', 'sub_category_id', 'status', 'condition',
+            'purchase_year', 'purchase_date_from', 'purchase_date_to', 'search',
+        ];
+        $hasScope = collect($scopeKeys)->contains(fn (string $key) => $request->filled($key));
+
+        if (! $hasScope && in_array($format, ['excel', 'pdf', 'csv', 'print'], true)) {
+            return redirect()
+                ->route('reports.index')
+                ->with('error', 'Pilih minimal satu filter (kampus, kategori, status, atau pencarian) sebelum mengekspor/mencetak laporan.');
+        }
 
         $report = $this->reportService->build($request);
         $stamp = now()->format('Ymd_His');

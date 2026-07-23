@@ -25,4 +25,25 @@ class StoreSubCategoryRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'category_id' => 'Kategori',
+            'code' => 'Kode sub kategori',
+            'name' => 'Nama sub kategori',
+            'slug' => 'Slug sub kategori',
+            'description' => 'Deskripsi',
+            'is_active' => 'Status',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'category_id.required' => 'Kategori wajib dipilih.',
+            'code.required' => 'Kode sub kategori wajib diisi.',
+            'name.required' => 'Nama sub kategori wajib diisi.',
+        ];
+    }
 }

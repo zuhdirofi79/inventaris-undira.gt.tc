@@ -1,17 +1,18 @@
 @extends('layouts.app')
 
-@section('title', 'Scan Barcode - Inventaris UNDIRA')
+@section('title', 'Scan QR - Inventaris UNDIRA')
 
 @section('breadcrumb')
     <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Scan Barcode</li>
+    <li class="breadcrumb-item active">Scan QR</li>
 @endsection
 
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-barcode me-2"></i>Scan Barcode / QR</h1>
-    <p class="text-muted mb-0 small">USB scanner, kamera HP/laptop, atau ketik nomor inventaris — langsung ke detail aset.</p>
-</div>
+<x-ui.page-header
+    title="Scan QR Code"
+    subtitle="USB scanner, kamera HP/laptop, atau ketik nomor inventaris — langsung ke detail aset."
+    icon="bi bi-qr-code-scan"
+/>
 
 <div class="row g-3">
     <div class="col-lg-6">
@@ -20,7 +21,7 @@
             <div class="card-body">
                 <form id="scannerForm" method="POST" action="{{ route('scanner.lookup') }}">
                     @csrf
-                    <label class="form-label">Nomor Inventaris / Barcode</label>
+                    <label class="form-label">Nomor Inventaris / Kode QR</label>
                     <input type="text" name="code" id="scanCode" class="form-control form-control-lg"
                            placeholder="Scan atau ketik lalu Enter" autocomplete="off" autofocus required>
                     <div class="form-text">Scanner USB (keyboard wedge) cukup scan — fokus otomatis di kolom ini.</div>

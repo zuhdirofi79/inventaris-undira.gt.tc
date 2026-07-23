@@ -67,7 +67,7 @@ class TrashController extends Controller
 
     public function index(Request $request): View
     {
-        abort_unless($request->user()?->hasRole('super-admin'), 403);
+        abort_unless($request->user()?->can('trash.view'), 403);
 
         $tab = $request->input('tab', 'kampus');
         if (! array_key_exists($tab, self::TABS)) {
@@ -98,7 +98,7 @@ class TrashController extends Controller
 
     public function restore(Request $request, string $type, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->hasRole('super-admin'), 403);
+        abort_unless($request->user()?->can('trash.restore'), 403);
 
         $model = $this->findTrashed($type, $id);
         $this->trash->restore($model, $request->user());
@@ -108,7 +108,7 @@ class TrashController extends Controller
 
     public function forceDelete(Request $request, string $type, int $id): RedirectResponse
     {
-        abort_unless($request->user()?->hasRole('super-admin'), 403);
+        abort_unless($request->user()?->can('trash.force-delete'), 403);
 
         $model = $this->findTrashed($type, $id);
 

@@ -8,10 +8,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-users me-2"></i>Kelola Users</h1>
-    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="fas fa-plus me-1"></i>Tambah User</button>
-</div>
+<x-ui.page-header title="Kelola Users" subtitle="Manajemen akun dan peran pengguna" icon="bi bi-people">
+    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
+        <i class="bi bi-plus-lg me-1"></i>Tambah User
+    </button>
+</x-ui.page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">
@@ -39,7 +40,7 @@
                     <td>{{ $user->phone ?? '-' }}</td>
                     <td>
                         @foreach($user->roles as $role)
-                            <span class="badge bg-undira-blue me-1">{{ $role->name === 'super-admin' ? 'Super Admin' : $role->name }}</span>
+                            <span class="badge bg-undira-blue me-1">{{ \App\Support\RoleLabels::label($role->name) }}</span>
                         @endforeach
                     </td>
                     <td><span class="badge {{ $user->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $user->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
@@ -87,7 +88,7 @@
                             @if($role->name === 'super-admin' && ! auth()->user()->isPrimarySuperAdmin())
                                 @continue
                             @endif
-                        <div class="form-check"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="form-check-input" id="role{{ $role->id }}"><label class="form-check-label" for="role{{ $role->id }}">{{ $role->name === 'super-admin' ? 'Super Admin' : $role->name }}</label></div>
+                        <div class="form-check"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="form-check-input" id="role{{ $role->id }}"><label class="form-check-label" for="role{{ $role->id }}">{{ \App\Support\RoleLabels::label($role->name) }}</label></div>
                         @endforeach
                     </div>
                     <div class="form-check"><input type="checkbox" name="is_active" value="1" class="form-check-input" id="createActive" checked><label class="form-check-label" for="createActive">Aktif</label></div>
@@ -129,7 +130,7 @@
                         <label class="form-label">Role</label>
                         @if($isPrimary || ! $canChangeRole)
                             @foreach($user->roles as $role)
-                                <div><span class="badge bg-undira-blue">{{ $role->name === 'super-admin' ? 'Super Admin' : $role->name }}</span></div>
+                                <div><span class="badge bg-undira-blue">{{ \App\Support\RoleLabels::label($role->name) }}</span></div>
                                 <input type="hidden" name="roles[]" value="{{ $role->name }}">
                             @endforeach
                             <p class="form-text mb-0">Role akun ini tidak dapat diubah dari formulir ini.</p>
@@ -138,7 +139,7 @@
                                 @if($role->name === 'super-admin' && ! auth()->user()->isPrimarySuperAdmin())
                                     @continue
                                 @endif
-                            <div class="form-check"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="form-check-input" id="erole{{ $user->id }}_{{ $role->id }}" {{ $user->hasRole($role->name) ? 'checked' : '' }}><label class="form-check-label" for="erole{{ $user->id }}_{{ $role->id }}">{{ $role->name === 'super-admin' ? 'Super Admin' : $role->name }}</label></div>
+                            <div class="form-check"><input type="checkbox" name="roles[]" value="{{ $role->name }}" class="form-check-input" id="erole{{ $user->id }}_{{ $role->id }}" {{ $user->hasRole($role->name) ? 'checked' : '' }}><label class="form-check-label" for="erole{{ $user->id }}_{{ $role->id }}">{{ \App\Support\RoleLabels::label($role->name) }}</label></div>
                             @endforeach
                         @endif
                     </div>

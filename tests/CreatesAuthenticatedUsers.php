@@ -5,7 +5,6 @@ namespace Tests;
 use App\Models\User;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Spatie\Permission\Models\Role;
 
 trait CreatesAuthenticatedUsers
 {
@@ -16,33 +15,37 @@ trait CreatesAuthenticatedUsers
         $this->seed(RolePermissionSeeder::class);
     }
 
-    protected function makeSuperAdmin(array $overrides = []): User
+    protected function makeUserWithRole(string $role, array $overrides = []): User
     {
         $this->seedRoles();
 
         $user = User::factory()->create(array_merge([
             'is_active' => true,
+            'email_verified_at' => now(),
         ], $overrides));
 
-        $user->assignRole('super-admin');
+        $user->syncRoles([$role]);
 
         return $user;
     }
 
+    protected function makeSuperAdmin(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('super-admin', $overrides);
+    }
+
+    protected function makeAdmin(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('admin', $overrides);
+    }
+
+    protected function makeStaff(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('staff', $overrides);
+    }
+
     protected function makeViewer(array $overrides = []): User
     {
-        $this->seedRoles();
-
-        $user = User::factory()->create(array_merge([
-            'is_active' => true,
-        ], $overrides));
-
-        if (! Role::query()->where('name', 'viewer')->exists()) {
-            $this->seedRoles();
-        }
-
-        $user->assignRole('viewer');
-
-        return $user;
+        return $this->makeUserWithRole('viewer', $overrides);
     }
 }

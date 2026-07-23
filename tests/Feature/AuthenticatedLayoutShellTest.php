@@ -37,6 +37,9 @@ class AuthenticatedLayoutShellTest extends TestCase
         $this->assertStringContainsString('undira-brand-mark', $html);
         $this->assertStringContainsString('id="sidebarBackdrop"', $html);
         $this->assertStringContainsString('undira-layout.css', $html);
+        $this->assertStringContainsString('undira-ui.css', $html);
+        $this->assertStringContainsString('bootstrap-icons', $html);
+        $this->assertStringContainsString('undira-erp', $html);
         $this->assertStringContainsString('Apply layout mode + saved theme before first paint', $html);
         $this->assertStringContainsString('max-width: 1199.98px', $html);
         $this->assertStringContainsString('max-width: 767.98px', $html);

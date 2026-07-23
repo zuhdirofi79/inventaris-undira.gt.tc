@@ -7,10 +7,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-map-marked-alt me-2"></i>Jelajahi Lokasi</h1>
-    <p class="text-muted mb-0">Pilih kampus untuk melihat gedung, lantai, dan ruangan</p>
-</div>
+<x-ui.page-header
+    title="Jelajahi Lokasi"
+    subtitle="Pilih kampus untuk melihat gedung, lantai, dan ruangan"
+    icon="bi bi-geo-alt"
+/>
 
 <div class="row justify-content-center">
     @forelse($campuses as $campus)

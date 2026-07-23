@@ -8,15 +8,25 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-truck me-2"></i>Supplier</h1>
-    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="fas fa-plus me-1"></i>Tambah</button>
-</div>
+<x-ui.page-header title="Supplier" subtitle="Mitra pengadaan inventaris" icon="bi bi-truck">
+    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
+        <i class="bi bi-plus-lg me-1"></i>Tambah
+    </button>
+</x-ui.page-header>
+
+<x-master-table-toolbar
+    :action="route('suppliers.index')"
+    placeholder="Nama / kontak / email / telepon…"
+    :sort-options="['name' => 'Nama', 'email' => 'Email', 'created_at' => 'Tanggal dibuat']"
+    :export-route="route('suppliers.export', request()->only(['q', 'is_active', 'sort', 'dir']))"
+    :import-route="route('suppliers.import')"
+    :template-route="route('suppliers.import.template')"
+/>
 
 <div class="card card-undira">
     <div class="card-body p-0">
         <table class="table table-hover mb-0">
-            <thead><tr><th>Nama</th><th>Kontak</th><th>Email</th><th>Telepon</th><th>Inventaris</th><th>Aksi</th></tr></thead>
+            <thead><tr><th>Nama</th><th>Kontak</th><th>Email</th><th>Telepon</th><th>Inventaris</th><th>Status</th><th>Aksi</th></tr></thead>
             <tbody>
                 @forelse($suppliers as $supplier)
                 <tr>
@@ -25,6 +35,7 @@
                     <td>{{ $supplier->email ?? '-' }}</td>
                     <td>{{ $supplier->phone ?? '-' }}</td>
                     <td>{{ $supplier->inventory_items_count }}</td>
+                    <td><span class="badge {{ $supplier->is_active ? 'bg-success' : 'bg-secondary' }}">{{ $supplier->is_active ? 'Aktif' : 'Nonaktif' }}</span></td>
                     <td>
                         <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalEdit{{ $supplier->id }}" data-no-loader="1"><i class="fas fa-edit"></i></button>
                         <form action="{{ route('suppliers.destroy', $supplier) }}" method="POST" class="d-inline"
@@ -37,7 +48,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="text-center text-muted py-4">Belum ada supplier.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada supplier.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -58,6 +69,11 @@
                 <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control"></div>
                 <div class="mb-3"><label class="form-label">Telepon</label><input type="text" name="phone" class="form-control"></div>
                 <div class="mb-3"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2"></textarea></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" id="supplierCreateActive" checked>
+                    <label class="form-check-label" for="supplierCreateActive">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
@@ -79,6 +95,11 @@
                 <div class="mb-3"><label class="form-label">Email</label><input type="email" name="email" class="form-control" value="{{ $supplier->email }}"></div>
                 <div class="mb-3"><label class="form-label">Telepon</label><input type="text" name="phone" class="form-control" value="{{ $supplier->phone }}"></div>
                 <div class="mb-3"><label class="form-label">Alamat</label><textarea name="address" class="form-control" rows="2">{{ $supplier->address }}</textarea></div>
+                <div class="form-check">
+                    <input type="hidden" name="is_active" value="0">
+                    <input type="checkbox" name="is_active" value="1" class="form-check-input" id="supplierEditActive{{ $supplier->id }}" {{ $supplier->is_active ? 'checked' : '' }}>
+                    <label class="form-check-label" for="supplierEditActive{{ $supplier->id }}">Aktif</label>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>

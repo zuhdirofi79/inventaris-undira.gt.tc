@@ -2,12 +2,15 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AuditAction;
 use App\Enums\InventoryStatus;
 use App\Enums\MaintenanceStatus;
 use App\Http\Requests\StoreMaintenanceRequest;
+use App\Http\Requests\UpdateMaintenanceRequest;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\Vendor;
+use App\Services\AuditLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -15,6 +18,10 @@ use Illuminate\View\View;
 
 class MaintenanceController extends Controller
 {
+    public function __construct(
+        protected AuditLogService $audit,
+    ) {}
+
     public function index(): View
     {
         $maintenances = Maintenance::query()
@@ -25,17 +32,23 @@ class MaintenanceController extends Controller
         return view('operations.maintenances.index', compact('maintenances'));
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $selectedItem = null;
+        $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
+        if ($selectedId > 0) {
+            $selectedItem = InventoryItem::query()->find($selectedId, ['id', 'inventory_number', 'name']);
+        }
+
         return view('operations.maintenances.create', [
-            'items' => InventoryItem::query()->orderBy('name')->get(['id', 'inventory_number', 'name']),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+            'selectedItem' => $selectedItem,
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
     public function store(StoreMaintenanceRequest $request): RedirectResponse
     {
-        DB::transaction(function () use ($request) {
+        $maintenance = DB::transaction(function () use ($request) {
             $maintenance = Maintenance::query()->create([
                 ...$request->validated(),
                 'status' => $request->input('status', MaintenanceStatus::Scheduled),
@@ -44,7 +57,18 @@ class MaintenanceController extends Controller
             InventoryItem::query()
                 ->where('id', $maintenance->inventory_item_id)
                 ->update(['status' => InventoryStatus::Maintenance]);
+
+            return $maintenance;
         });
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Create,
+            $maintenance,
+            null,
+            $maintenance->only(['inventory_item_id', 'vendor_id', 'service_date', 'next_schedule', 'status', 'cost']),
+            'MAINTENANCE_CREATED',
+        );
 
         return redirect()->route('maintenances.index')->with('success', 'Maintenance berhasil dicatat.');
     }
@@ -60,25 +84,16 @@ class MaintenanceController extends Controller
     {
         return view('operations.maintenances.edit', [
             'maintenance' => $maintenance,
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
-    public function update(Request $request, Maintenance $maintenance): RedirectResponse
+    public function update(UpdateMaintenanceRequest $request, Maintenance $maintenance): RedirectResponse
     {
-        $request->validate([
-            'vendor_id' => ['nullable', 'exists:vendors,id'],
-            'service_date' => ['sometimes', 'required', 'date'],
-            'next_schedule' => ['nullable', 'date'],
-            'cost' => ['nullable', 'numeric', 'min:0'],
-            'description' => ['nullable', 'string'],
-            'status' => ['sometimes', 'required'],
-        ]);
+        $old = $maintenance->only(['vendor_id', 'service_date', 'next_schedule', 'status', 'cost']);
 
         DB::transaction(function () use ($request, $maintenance) {
-            $maintenance->update($request->only([
-                'vendor_id', 'service_date', 'next_schedule', 'cost', 'description', 'status',
-            ]));
+            $maintenance->update($request->validated());
 
             if ($maintenance->status === MaintenanceStatus::Completed) {
                 InventoryItem::query()
@@ -87,11 +102,24 @@ class MaintenanceController extends Controller
             }
         });
 
+        $maintenance->refresh();
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $maintenance,
+            $old,
+            $maintenance->only(['vendor_id', 'service_date', 'next_schedule', 'status', 'cost']),
+            'MAINTENANCE_UPDATED',
+        );
+
         return redirect()->route('maintenances.show', $maintenance)->with('success', 'Maintenance berhasil diperbarui.');
     }
 
     public function destroy(Maintenance $maintenance): RedirectResponse
     {
+        $snapshot = $maintenance->only(['inventory_item_id', 'status', 'service_date']);
+
         DB::transaction(function () use ($maintenance) {
             if (in_array($maintenance->status, [MaintenanceStatus::Scheduled, MaintenanceStatus::InProgress], true)) {
                 InventoryItem::query()
@@ -101,6 +129,15 @@ class MaintenanceController extends Controller
 
             $maintenance->delete();
         });
+
+        $this->audit->log(
+            request()->user(),
+            AuditAction::Delete,
+            null,
+            $snapshot,
+            null,
+            'MAINTENANCE_DELETED',
+        );
 
         return back()->with('success', 'Data maintenance berhasil dihapus.');
     }

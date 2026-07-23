@@ -8,12 +8,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-clipboard-check me-2"></i>Stock Opname</h1>
+<x-ui.page-header title="Stock Opname" subtitle="Pencatatan dan verifikasi stok inventaris" icon="bi bi-clipboard-check">
     @can('stock-opname.create')
-    <a href="{{ route('stock-opnames.create') }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+    <a href="{{ route('stock-opnames.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</div>
+</x-ui.page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

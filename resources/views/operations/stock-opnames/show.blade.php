@@ -15,11 +15,19 @@
     </div>
     <div class="d-flex gap-2 mt-2">
         @can('stock-opname.update')
-        @if($stockOpname->status?->value === 'draft')
+        @if($stockOpname->canStart())
         <form action="{{ route('stock-opnames.start', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-play me-1"></i>Mulai</button></form>
         @endif
-        @if($stockOpname->status?->value === 'in_progress')
+        @if($stockOpname->canComplete())
         <form action="{{ route('stock-opnames.complete', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Selesai</button></form>
+        @endif
+        @endcan
+        @can('stock-opname.delete')
+        @if($stockOpname->canDelete())
+        <form action="{{ route('stock-opnames.destroy', $stockOpname) }}" method="POST" onsubmit="return confirm('Hapus stock opname ini?')">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Hapus</button>
+        </form>
         @endif
         @endcan
     </div>
@@ -32,7 +40,7 @@
 </div>
 
 @can('stock-opname.update')
-@if($stockOpname->status?->value === 'in_progress')
+@if($stockOpname->canScan())
 <div class="card card-undira mb-4">
     <div class="card-header"><h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>Scan Inventaris</h5></div>
     <div class="card-body">
@@ -52,7 +60,7 @@
         <table class="table table-sm mb-0">
             <thead><tr><th>No. Inventaris</th><th>Nama</th><th>Kategori</th><th>Discan</th><th>Status</th></tr></thead>
             <tbody>
-                @forelse($stockOpname->items as $item)
+                @forelse($items as $item)
                 <tr>
                     <td>{{ $item->inventoryItem?->inventory_number }}</td>
                     <td>{{ $item->inventoryItem?->name }}</td>
@@ -66,6 +74,9 @@
             </tbody>
         </table>
     </div>
+    @if($items->hasPages())
+    <div class="card-footer">{{ $items->links() }}</div>
+    @endif
 </div>
 @endsection
 

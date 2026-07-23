@@ -28,11 +28,24 @@ class InventoryQrController extends Controller
                 $query->where('inventory_number', $inventoryNumber)
                     ->orWhere('barcode', $inventoryNumber);
             })
-            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'photos'])
+            ->with([
+                'category',
+                'subCategory',
+                'room.floor.building.campus',
+                'orgUnit',
+                'procurementType',
+                'photos' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('id'),
+                'mutations' => fn ($q) => $q->with(['fromRoom', 'toRoom', 'movedBy'])->latest()->limit(10),
+                'maintenances' => fn ($q) => $q->with('vendor')->latest()->limit(10),
+            ])
             ->firstOrFail();
 
         $this->codeService->ensureCodes($inventory);
-        $inventory->refresh();
+        $inventory->refresh()->loadMissing([
+            'category', 'subCategory', 'room.floor.building.campus',
+            'orgUnit', 'procurementType', 'photos', 'mutations.fromRoom', 'mutations.toRoom',
+            'mutations.movedBy', 'maintenances.vendor',
+        ]);
 
         if (auth()->check()) {
             $this->auditLogService->log(auth()->user(), AuditAction::ScanQr, $inventory, null, null, "Scan QR {$inventoryNumber}");
@@ -63,27 +76,6 @@ class InventoryQrController extends Controller
         ]);
     }
 
-    public function inlineBarcode(InventoryItem $inventory): Response
-    {
-        $this->codeService->ensureCodes($inventory);
-        $inventory->refresh();
-
-        $code = $inventory->barcode ?: $inventory->inventory_number;
-        $path = $this->codeService->barcodePath((string) $code);
-
-        if (! Storage::disk('public')->exists($path)) {
-            abort(404, 'Barcode tidak tersedia.');
-        }
-
-        $filename = str_replace(['/', '\\'], '-', (string) $code).'-barcode.png';
-
-        return response(Storage::disk('public')->get($path), 200, [
-            'Content-Type' => 'image/png',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
-            'Cache-Control' => 'private, max-age=86400',
-        ]);
-    }
-
     public function downloadQr(InventoryItem $inventory): StreamedResponse|RedirectResponse
     {
         $this->codeService->ensureCodes($inventory);
@@ -93,26 +85,18 @@ class InventoryQrController extends Controller
             return back()->with('error', 'QR Code tidak tersedia.');
         }
 
+        $this->auditLogService->log(
+            auth()->user(),
+            AuditAction::Download,
+            $inventory,
+            null,
+            null,
+            'Unduh QR Code '.$inventory->inventory_number,
+        );
+
         $filename = str_replace(['/', '\\'], '-', $inventory->inventory_number).'-qr.svg';
 
         return Storage::disk('public')->download($inventory->qr_code_path, $filename);
-    }
-
-    public function downloadBarcode(InventoryItem $inventory): StreamedResponse|RedirectResponse
-    {
-        $this->codeService->ensureCodes($inventory);
-        $inventory->refresh();
-
-        $code = $inventory->barcode ?: $inventory->inventory_number;
-        $path = $this->codeService->barcodePath($code);
-
-        if (! Storage::disk('public')->exists($path)) {
-            return back()->with('error', 'Barcode tidak tersedia.');
-        }
-
-        $filename = str_replace(['/', '\\'], '-', $code).'-barcode.png';
-
-        return Storage::disk('public')->download($path, $filename);
     }
 
     public function print(InventoryItem $inventory): View
@@ -127,7 +111,16 @@ class InventoryQrController extends Controller
     {
         $this->codeService->generateAndSaveCodes($inventory);
 
-        return back()->with('success', 'QR Code dan Barcode berhasil digenerate ulang.');
+        $this->auditLogService->log(
+            auth()->user(),
+            AuditAction::GenerateQr,
+            $inventory,
+            null,
+            null,
+            'Generate ulang QR Code '.$inventory->inventory_number,
+        );
+
+        return back()->with('success', 'QR Code berhasil digenerate ulang.');
     }
 
     public function labels(Request $request): Response

@@ -22,4 +22,32 @@ class StoreSupplierRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'name' => 'Nama supplier',
+            'contact_person' => 'Kontak person',
+            'phone' => 'Telepon',
+            'email' => 'Email',
+            'address' => 'Alamat',
+            'is_active' => 'Status',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama supplier wajib diisi.',
+            'email.email' => 'Email supplier tidak valid.',
+            'phone.max' => 'Telepon maksimal 50 karakter.',
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'is_active' => $this->boolean('is_active'),
+        ]);
+    }
 }

@@ -24,4 +24,13 @@ class InventoryAttachment extends Model
     {
         return Storage::disk('public')->url($this->path);
     }
+
+    public function typeLabel(): string
+    {
+        return match ($this->type) {
+            'invoice' => 'Invoice',
+            'document' => 'Dokumen',
+            default => (string) $this->type,
+        };
+    }
 }

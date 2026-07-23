@@ -32,7 +32,6 @@
                     <th>No. Inventaris</th>
                     <th>Serial</th>
                     <th>QR</th>
-                    <th>Barcode</th>
                     <th>Status</th>
                     <th>Kondisi</th>
                     <th>Ruangan</th>
@@ -54,7 +53,6 @@
                             <span class="text-muted">-</span>
                         @endif
                     </td>
-                    <td class="text-break"><small>{{ $item->barcode ?? '-' }}</small></td>
                     <td><span class="badge bg-secondary">{{ $item->status?->label() }}</span></td>
                     <td><span class="badge bg-info">{{ $item->condition?->label() }}</span></td>
                     <td>{{ $item->room?->name ?? '-' }}</td>
@@ -93,7 +91,7 @@
             <div class="small text-muted mb-2 text-break">
                 <div>No: {{ $item->inventory_number }}</div>
                 <div>SN: {{ $item->serial_number ?? '-' }}</div>
-                <div>Barcode: {{ $item->barcode ?? '-' }}</div>
+                <div>Serial: {{ $item->serial_number ?? '-' }}</div>
                 <div>{{ $item->room?->floor?->building?->campus?->name }} / {{ $item->room?->floor?->building?->name }} / {{ $item->room?->name }}</div>
             </div>
             <div class="d-flex gap-1 flex-wrap">

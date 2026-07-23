@@ -23,4 +23,13 @@ class StoreOrgUnitRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
         ];
     }
+
+    public function messages(): array
+    {
+        return [
+            'code.required' => 'Kode unit organisasi wajib diisi.',
+            'code.unique' => 'Kode unit organisasi sudah digunakan.',
+            'name.required' => 'Nama unit organisasi wajib diisi.',
+        ];
+    }
 }

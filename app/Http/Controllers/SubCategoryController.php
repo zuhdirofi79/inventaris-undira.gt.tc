@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\AuditAction;
 use App\Http\Requests\StoreSubCategoryRequest;
 use App\Models\Category;
 use App\Models\SubCategory;
+use App\Services\AuditLogService;
 use App\Services\TrashCascadeService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,6 +17,7 @@ class SubCategoryController extends Controller
 {
     public function __construct(
         protected TrashCascadeService $trash,
+        protected AuditLogService $audit,
     ) {}
 
     public function index(Category $category): View
@@ -26,17 +29,36 @@ class SubCategoryController extends Controller
 
     public function store(StoreSubCategoryRequest $request): RedirectResponse
     {
-        SubCategory::query()->create([
+        $subCategory = SubCategory::query()->create([
             ...$request->validated(),
             'slug' => $request->input('slug') ?? Str::slug($request->input('name')),
         ]);
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Create,
+            $subCategory,
+            null,
+            $subCategory->only(['category_id', 'code', 'name', 'slug', 'is_active']),
+            'SUB_CATEGORY_CREATED',
+        );
 
         return back()->with('success', 'Sub kategori berhasil ditambahkan.');
     }
 
     public function update(StoreSubCategoryRequest $request, SubCategory $subCategory): RedirectResponse
     {
+        $old = $subCategory->only(['category_id', 'code', 'name', 'slug', 'is_active']);
         $subCategory->update($request->validated());
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $subCategory,
+            $old,
+            $subCategory->only(['category_id', 'code', 'name', 'slug', 'is_active']),
+            'SUB_CATEGORY_UPDATED',
+        );
 
         return back()->with('success', 'Sub kategori berhasil diperbarui.');
     }

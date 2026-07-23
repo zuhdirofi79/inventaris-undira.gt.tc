@@ -47,6 +47,19 @@ class StoreInventoryRequest extends FormRequest
         ];
     }
 
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama barang wajib diisi.',
+            'category_id.required' => 'Kategori wajib dipilih.',
+            'room_id.required' => 'Ruangan wajib dipilih.',
+            'purchase_date.date' => 'Tanggal pembelian tidak valid.',
+            'price.min' => 'Harga tidak boleh negatif.',
+            'condition.required' => 'Kondisi barang wajib dipilih.',
+            'status.required' => 'Status barang wajib dipilih.',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([

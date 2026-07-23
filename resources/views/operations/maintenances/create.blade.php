@@ -17,11 +17,13 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Inventaris <span class="text-danger">*</span></label>
-                    <select name="inventory_item_id" class="form-select select2" required>
+                    <select name="inventory_item_id" class="form-select select2-inventory" required
+                            data-lookup-url="{{ route('inventory.lookup') }}"
+                            data-placeholder="Ketik nomor / nama inventaris…">
                         <option value="">Pilih Inventaris</option>
-                        @foreach($items as $item)
-                            <option value="{{ $item->id }}" {{ old('inventory_item_id', request('inventory_item_id')) == $item->id ? 'selected' : '' }}>{{ $item->inventory_number }} - {{ $item->name }}</option>
-                        @endforeach
+                        @if($selectedItem)
+                            <option value="{{ $selectedItem->id }}" selected>{{ $selectedItem->inventory_number }} - {{ $selectedItem->name }}</option>
+                        @endif
                     </select>
                 </div>
                 <div class="col-md-6 mb-3">
@@ -68,5 +70,23 @@
 @endsection
 
 @push('scripts')
-<script>$('.select2').select2({ theme: 'bootstrap-5', width: '100%' });</script>
+<script>
+(function () {
+    const $inv = $('.select2-inventory');
+    $inv.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: $inv.data('placeholder'),
+        minimumInputLength: 1,
+        ajax: {
+            url: $inv.data('lookup-url'),
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { q: params.term }; },
+            processResults: function (data) { return data; },
+        },
+    });
+    $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+})();
+</script>
 @endpush

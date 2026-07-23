@@ -3,12 +3,19 @@
 namespace App\Services;
 
 use App\Enums\InventoryStatus;
+use App\Models\Borrowing;
 use App\Models\Building;
 use App\Models\Campus;
 use App\Models\Floor;
 use App\Models\InventoryItem;
+use App\Models\Maintenance;
 use App\Models\Room;
+use App\Models\Supplier;
+use App\Models\Vendor;
+use App\Support\InventarisCache;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Efficient dashboard aggregates from live inventory + location master data.
@@ -21,31 +28,39 @@ class DashboardStatsService
      */
     public function summary(): array
     {
-        $statusCounts = InventoryItem::query()
-            ->toBase()
-            ->selectRaw('status, COUNT(*) as total')
-            ->groupBy('status')
-            ->pluck('total', 'status');
+        return Cache::remember(InventarisCache::key('dashboard.summary'), InventarisCache::TTL, function () {
+            $statusCounts = InventoryItem::query()
+                ->toBase()
+                ->selectRaw('status, COUNT(*) as total')
+                ->groupBy('status')
+                ->pluck('total', 'status');
 
-        return [
-            'total_campuses' => Campus::query()->where('is_active', true)->count(),
-            'total_buildings' => Building::query()->where('is_active', true)->count(),
-            'total_floors' => Floor::query()->where('is_active', true)->count(),
-            'total_rooms' => Room::query()->where('is_active', true)->count(),
-            'total_inventory' => InventoryItem::query()->count(),
-            'active_inventory' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
-            'available' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
-            'borrowed' => (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0),
-            'maintenance' => (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0),
-            'damaged' => (int) ($statusCounts[InventoryStatus::RusakRingan->value] ?? 0)
-                + (int) ($statusCounts[InventoryStatus::RusakBerat->value] ?? 0),
-            'lost' => (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0),
-            'campus_stats' => $this->campusStats(),
-            'category_breakdown' => $this->categorySubcategoryBreakdown(),
-            'campus_category_breakdown' => $this->campusCategoryBreakdown(),
-            'campus_subcategory_breakdown' => $this->campusSubcategoryBreakdown(),
-            'charts' => $this->chartData($statusCounts),
-        ];
+            return [
+                'total_campuses' => Campus::query()->where('is_active', true)->count(),
+                'total_buildings' => Building::query()->where('is_active', true)->count(),
+                'total_floors' => Floor::query()->where('is_active', true)->count(),
+                'total_rooms' => Room::query()->where('is_active', true)->count(),
+                'total_org_units' => \App\Models\OrgUnit::query()->where('is_active', true)->count(),
+                'total_categories' => \App\Models\Category::query()->where('is_active', true)->count(),
+                'total_sub_categories' => \App\Models\SubCategory::query()->where('is_active', true)->count(),
+                'total_users' => \App\Models\User::query()->count(),
+                'total_suppliers' => Supplier::query()->where('is_active', true)->count(),
+                'total_vendors' => Vendor::query()->where('is_active', true)->count(),
+                'total_inventory' => InventoryItem::query()->count(),
+                'active_inventory' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
+                'available' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
+                'borrowed' => (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0),
+                'maintenance' => (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0),
+                'damaged' => (int) ($statusCounts[InventoryStatus::RusakRingan->value] ?? 0)
+                    + (int) ($statusCounts[InventoryStatus::RusakBerat->value] ?? 0),
+                'lost' => (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0),
+                'campus_stats' => $this->campusStats(),
+                'category_breakdown' => $this->categorySubcategoryBreakdown(),
+                'campus_category_breakdown' => $this->campusCategoryBreakdown(),
+                'campus_subcategory_breakdown' => $this->campusSubcategoryBreakdown(),
+                'charts' => $this->chartData($statusCounts),
+            ];
+        });
     }
 
     /**
@@ -53,46 +68,48 @@ class DashboardStatsService
      */
     public function campusStats(): array
     {
-        $campuses = Campus::query()
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get(['id', 'code', 'name']);
+        return Cache::remember(InventarisCache::key('campus.stats'), InventarisCache::TTL, function () {
+            $campuses = Campus::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'code', 'name']);
 
-        if ($campuses->isEmpty()) {
-            return [];
-        }
+            if ($campuses->isEmpty()) {
+                return [];
+            }
 
-        $campusIds = $campuses->pluck('id');
+            $campusIds = $campuses->pluck('id');
 
-        $locationCounts = $this->locationCountsByCampus($campusIds);
-        $inventoryAgg = $this->inventoryAggByCampus($campusIds);
-        $statusByCampus = $this->statusByCampus($campusIds);
-        $categoryByCampus = $this->categoryTotalsByCampus($campusIds);
+            $locationCounts = $this->locationCountsByCampus($campusIds);
+            $inventoryAgg = $this->inventoryAggByCampus($campusIds);
+            $statusByCampus = $this->statusByCampus($campusIds);
+            $categoryByCampus = $this->categoryTotalsByCampus($campusIds);
 
-        return $campuses->map(function (Campus $campus) use ($locationCounts, $inventoryAgg, $statusByCampus, $categoryByCampus) {
-            $id = $campus->id;
-            $loc = $locationCounts[$id] ?? ['buildings' => 0, 'floors' => 0, 'rooms' => 0];
-            $inv = $inventoryAgg[$id] ?? ['total_units' => 0, 'total_inventory' => 0];
-            $status = $statusByCampus[$id] ?? [];
-            $cats = $categoryByCampus[$id] ?? [];
+            return $campuses->map(function (Campus $campus) use ($locationCounts, $inventoryAgg, $statusByCampus, $categoryByCampus) {
+                $id = $campus->id;
+                $loc = $locationCounts[$id] ?? ['buildings' => 0, 'floors' => 0, 'rooms' => 0];
+                $inv = $inventoryAgg[$id] ?? ['total_units' => 0, 'total_inventory' => 0];
+                $status = $statusByCampus[$id] ?? [];
+                $cats = $categoryByCampus[$id] ?? [];
 
-            return [
-                'id' => $id,
-                'name' => $campus->name,
-                'code' => $campus->code,
-                'total_inventory' => (int) $inv['total_inventory'],
-                'total_units' => (int) $inv['total_units'],
-                'buildings' => (int) $loc['buildings'],
-                'floors' => (int) $loc['floors'],
-                'rooms' => (int) $loc['rooms'],
-                'available' => (int) ($status[InventoryStatus::Aktif->value] ?? 0),
-                'borrowed' => (int) ($status[InventoryStatus::Dipinjam->value] ?? 0),
-                'maintenance' => (int) ($status[InventoryStatus::Maintenance->value] ?? 0),
-                'damaged' => (int) ($status[InventoryStatus::RusakRingan->value] ?? 0)
-                    + (int) ($status[InventoryStatus::RusakBerat->value] ?? 0),
-                'categories' => $cats,
-            ];
-        })->values()->all();
+                return [
+                    'id' => $id,
+                    'name' => $campus->name,
+                    'code' => $campus->code,
+                    'total_inventory' => (int) $inv['total_inventory'],
+                    'total_units' => (int) $inv['total_units'],
+                    'buildings' => (int) $loc['buildings'],
+                    'floors' => (int) $loc['floors'],
+                    'rooms' => (int) $loc['rooms'],
+                    'available' => (int) ($status[InventoryStatus::Aktif->value] ?? 0),
+                    'borrowed' => (int) ($status[InventoryStatus::Dipinjam->value] ?? 0),
+                    'maintenance' => (int) ($status[InventoryStatus::Maintenance->value] ?? 0),
+                    'damaged' => (int) ($status[InventoryStatus::RusakRingan->value] ?? 0)
+                        + (int) ($status[InventoryStatus::RusakBerat->value] ?? 0),
+                    'categories' => $cats,
+                ];
+            })->values()->all();
+        });
     }
 
     /**
@@ -270,12 +287,79 @@ class DashboardStatsService
             ];
         }
 
+        $byCondition = InventoryItem::query()
+            ->toBase()
+            ->selectRaw('condition as label_key, COUNT(*) as total')
+            ->groupBy('condition')
+            ->get()
+            ->map(function ($row) {
+                $enum = \App\Enums\InventoryCondition::tryFrom((string) $row->label_key);
+
+                return [
+                    'label' => $enum?->label() ?? str_replace('_', ' ', (string) $row->label_key),
+                    'total' => (int) $row->total,
+                ];
+            })
+            ->values();
+
+        $byOrgUnit = InventoryItem::query()
+            ->leftJoin('org_units', 'org_units.id', '=', 'inventory_items.org_unit_id')
+            ->selectRaw("COALESCE(org_units.name, 'Tanpa Unit Kerja') as label, COUNT(*) as total")
+            ->groupBy('label')
+            ->orderByDesc('total')
+            ->limit(12)
+            ->get();
+
         return [
             'by_campus' => $byCampus,
             'by_category' => $byCategory,
             'by_subcategory' => $bySubcategory,
             'by_status' => $byStatus,
+            'by_condition' => $byCondition,
+            'by_org_unit' => $byOrgUnit,
+            'borrowings_monthly' => $this->monthlySeries(Borrowing::query(), 'borrow_date', 6),
+            'maintenances_monthly' => $this->monthlySeries(Maintenance::query(), 'service_date', 6),
         ];
+    }
+
+    /**
+     * Last N calendar months with zero-filled totals.
+     *
+     * @param  \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @return list<array{label: string, total: int}>
+     */
+    protected function monthlySeries($query, string $dateColumn, int $months = 6): array
+    {
+        $start = now()->subMonths($months - 1)->startOfMonth();
+        $monthExpr = $this->monthKeyExpression($dateColumn);
+
+        $rows = (clone $query)
+            ->where($dateColumn, '>=', $start->toDateString())
+            ->toBase()
+            ->selectRaw("{$monthExpr} as ym, COUNT(*) as total")
+            ->groupBy('ym')
+            ->pluck('total', 'ym');
+
+        $series = [];
+        for ($i = $months - 1; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $key = $month->format('Y-m');
+            $series[] = [
+                'label' => $month->translatedFormat('M Y'),
+                'total' => (int) ($rows[$key] ?? 0),
+            ];
+        }
+
+        return $series;
+    }
+
+    protected function monthKeyExpression(string $column): string
+    {
+        return match (DB::getDriverName()) {
+            'pgsql' => "to_char({$column}, 'YYYY-MM')",
+            'sqlite' => "strftime('%Y-%m', {$column})",
+            default => "DATE_FORMAT({$column}, '%Y-%m')",
+        };
     }
 
     /**

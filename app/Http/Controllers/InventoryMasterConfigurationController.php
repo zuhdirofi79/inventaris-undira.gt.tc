@@ -51,8 +51,8 @@ class InventoryMasterConfigurationController extends Controller
             return redirect()
                 ->route('rooms.show', $roomId)
                 ->with('success', $count > 1
-                    ? "{$count} unit inventaris berhasil ditambahkan ke ruangan (QR & Barcode otomatis)."
-                    : 'Inventaris berhasil ditambahkan ke ruangan (QR & Barcode otomatis).');
+                    ? "{$count} unit inventaris berhasil ditambahkan ke ruangan (QR Code otomatis)."
+                    : 'Inventaris berhasil ditambahkan ke ruangan (QR Code otomatis).');
         }
 
         // Legacy: simpan template konfigurasi saja (tanpa aset fisik)

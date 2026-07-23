@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\PrimarySuperAdminService;
@@ -10,8 +12,6 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Spatie\Permission\Models\Role;
 
@@ -34,20 +34,9 @@ class UserController extends Controller
         return view('admin.users.index', compact('users', 'roles'));
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreUserRequest $request): RedirectResponse
     {
-        $this->authorize('create', User::class);
-
-        $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'unique:users,email'],
-            'password' => ['required', Password::defaults()],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-            'roles' => ['required', 'array', 'min:1'],
-            'roles.*' => ['string', 'exists:roles,name'],
-        ]);
-
+        $data = $request->validated();
         $actor = $request->user();
         $roles = $data['roles'];
 
@@ -55,13 +44,13 @@ class UserController extends Controller
             throw new AuthorizationException('Hanya Primary Super Admin yang dapat membuat akun Super Admin.');
         }
 
-        $user = DB::transaction(function () use ($data, $roles, $request) {
+        $user = DB::transaction(function () use ($data, $roles) {
             $user = User::query()->create([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'phone' => $data['phone'] ?? null,
-                'is_active' => $request->boolean('is_active', true),
+                'is_active' => $data['is_active'] ?? true,
             ]);
 
             $user->syncRoles($roles);
@@ -81,25 +70,14 @@ class UserController extends Controller
         return back()->with('success', 'User berhasil ditambahkan.');
     }
 
-    public function update(Request $request, User $user): RedirectResponse
+    public function update(UpdateUserRequest $request, User $user): RedirectResponse
     {
-        $this->authorize('update', $user);
-
-        $data = $request->validate([
-            'name' => ['sometimes', 'required', 'string', 'max:255'],
-            'email' => ['sometimes', 'required', 'email', Rule::unique('users')->ignore($user->id)],
-            'password' => ['nullable', Password::defaults()],
-            'phone' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['nullable', 'boolean'],
-            'roles' => ['sometimes', 'required', 'array', 'min:1'],
-            'roles.*' => ['string', 'exists:roles,name'],
-        ]);
-
+        $data = $request->validated();
         $actor = $request->user();
         $oldRoles = $user->getRoleNames()->values()->all();
         $oldActive = (bool) $user->is_active;
-        $requestedActive = $request->boolean('is_active');
-        $wantsRoleChange = $request->has('roles');
+        $requestedActive = (bool) ($data['is_active'] ?? false);
+        $wantsRoleChange = array_key_exists('roles', $data);
         $wantsDeactivate = $oldActive && ! $requestedActive;
         $wantsStatusChange = $requestedActive !== $oldActive;
 

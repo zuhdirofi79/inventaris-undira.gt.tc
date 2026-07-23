@@ -6,9 +6,9 @@
   --topbar-height: 64px;
   --sidebar-brand-height: 76px;
   --content-max-width: 1600px;
-  --content-padding-x: 24px;
-  --content-padding-y: 22px;
-  --layout-gap: 24px;
+  --content-padding-x: 28px;
+  --content-padding-y: 28px;
+  --layout-gap: 28px;
   --layout-transition: 200ms ease;
   --undira-brand-bg: #ffffff;
 }

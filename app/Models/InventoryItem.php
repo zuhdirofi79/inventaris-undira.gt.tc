@@ -56,7 +56,6 @@ class InventoryItem extends Model
     protected $appends = [
         'full_location',
         'qr_url',
-        'barcode_url',
     ];
 
     protected function casts(): array
@@ -175,15 +174,6 @@ class InventoryItem extends Model
         return route('inventory.qr', $this, false);
     }
 
-    public function getBarcodeUrlAttribute(): ?string
-    {
-        if (! $this->id || blank($this->barcode ?: $this->inventory_number)) {
-            return null;
-        }
-
-        return route('inventory.barcode', $this, false);
-    }
-
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('status', InventoryStatus::Aktif);
@@ -287,6 +277,7 @@ class InventoryItem extends Model
             ->when($filters['condition'] ?? null, fn (Builder $q, $condition) => $q->condition($condition))
             ->when($filters['category_id'] ?? null, fn (Builder $q, $id) => $q->inCategory((int) $id))
             ->when($filters['sub_category_id'] ?? null, fn (Builder $q, $id) => $q->inSubCategory((int) $id))
+            ->when($filters['org_unit_id'] ?? null, fn (Builder $q, $id) => $q->where('org_unit_id', (int) $id))
             ->when($filters['room_id'] ?? null, fn (Builder $q, $id) => $q->inRoom((int) $id))
             ->when($filters['campus_id'] ?? null, fn (Builder $q, $id) => $q->forCampus((int) $id))
             ->when($filters['building_id'] ?? null, fn (Builder $q, $id) => $q->forBuilding((int) $id))

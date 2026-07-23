@@ -1,0 +1,538 @@
+/* UNDIRA ERP UI layer — Tabler/CoreUI/Metronic-inspired polish on Bootstrap 5
+   Brand: navy (#1A237E) + green (#2E7D32). Does not replace undira.css; extends it. */
+
+:root {
+  --ui-radius: 14px;
+  --ui-radius-sm: 10px;
+  --ui-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(26, 35, 126, 0.06);
+  --ui-shadow-hover: 0 4px 12px rgba(26, 35, 126, 0.1);
+  --ui-border: #E6EAF2;
+  --ui-surface: #ffffff;
+  --ui-canvas: #F3F5F9;
+  --ui-canvas-accent: radial-gradient(1200px 400px at 0% -10%, rgba(46, 125, 50, 0.07), transparent 55%),
+                      radial-gradient(900px 360px at 100% 0%, rgba(26, 35, 126, 0.08), transparent 50%),
+                      var(--ui-canvas);
+  --ui-space: 1.5rem;
+  --ui-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ui-green: #2E7D32;
+  --ui-green-soft: #E8F5E9;
+  --ui-blue: #1A237E;
+  --ui-blue-soft: #EEF0FA;
+  --ui-text: #0F172A;
+  --ui-muted: #64748B;
+}
+
+/* —— App canvas —— */
+body.hold-transition {
+  background: var(--ui-canvas) !important;
+}
+
+.content-wrapper {
+  background: var(--ui-canvas-accent) !important;
+  min-height: 100vh;
+}
+
+.content > .container-fluid {
+  padding-top: 0.25rem;
+  padding-bottom: 2rem;
+}
+
+.content-header {
+  padding: 1rem 0 0.35rem !important;
+}
+
+.breadcrumb-undira {
+  margin-bottom: 0.35rem !important;
+  gap: 0.15rem;
+}
+
+.breadcrumb-undira .breadcrumb-item {
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* —— Page header —— */
+.ui-page-header,
+.page-header-undira {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.5rem !important;
+  padding-bottom: 0.15rem;
+  animation: uiFadeUp 0.45s var(--ui-ease) both;
+}
+
+.ui-page-header__title,
+.page-header-undira h1,
+.ui-page-header h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 1.55rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em;
+  color: var(--ui-blue) !important;
+  margin: 0 !important;
+  line-height: 1.25;
+}
+
+.ui-page-header__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 12px;
+  background: linear-gradient(145deg, var(--ui-green-soft), #fff);
+  color: var(--ui-green);
+  font-size: 1.1rem;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.12);
+}
+
+.ui-page-header__subtitle,
+.page-header-undira .text-muted,
+.page-header-undira > p {
+  color: var(--ui-muted) !important;
+  font-size: 0.9rem;
+  margin-top: 0.35rem;
+  max-width: 42rem;
+}
+
+/* —— Cards / panels —— */
+.card,
+.card-undira,
+.ui-panel {
+  border: 1px solid var(--ui-border) !important;
+  border-radius: var(--ui-radius) !important;
+  box-shadow: var(--ui-shadow) !important;
+  background: var(--ui-surface) !important;
+  transition: box-shadow 0.25s var(--ui-ease), transform 0.25s var(--ui-ease), border-color 0.2s ease;
+}
+
+.card-undira:hover,
+.ui-panel:hover {
+  border-color: #D5DCEC !important;
+}
+
+.card-header,
+.card-header-undira,
+.ui-panel__header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ui-border) !important;
+  padding: 1rem 1.2rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.ui-panel__title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.ui-panel__icon {
+  color: var(--ui-green);
+  font-size: 1.05rem;
+}
+
+.ui-panel__title,
+.card-header h5,
+.card-header-undira h5 {
+  font-size: 0.98rem !important;
+  font-weight: 700 !important;
+  color: var(--ui-blue) !important;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.card-body {
+  padding: 1.15rem 1.25rem !important;
+}
+
+.card-footer {
+  background: #FAFBFD !important;
+  border-top: 1px solid var(--ui-border) !important;
+}
+
+/* —— KPI cards —— */
+.ui-kpi,
+.card-stat {
+  position: relative;
+  overflow: hidden;
+  border-left: none !important;
+  animation: uiFadeUp 0.5s var(--ui-ease) both;
+}
+
+.ui-kpi::before,
+.card-stat::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--ui-green);
+  border-radius: 14px 0 0 14px;
+}
+
+.ui-kpi--blue::before,
+.card-stat.stat-blue::before { background: var(--ui-blue); }
+.ui-kpi--warning::before,
+.card-stat.stat-warning::before { background: #F59E0B; }
+.ui-kpi--danger::before,
+.card-stat.stat-danger::before { background: #EF4444; }
+.ui-kpi--info::before,
+.card-stat.stat-info::before { background: #0EA5E9; }
+
+.ui-kpi__body,
+.card-stat .card-body {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 1.15rem 1.2rem !important;
+}
+
+.ui-kpi__icon,
+.stat-icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  background: var(--ui-green-soft);
+  color: var(--ui-green);
+}
+
+.ui-kpi--blue .ui-kpi__icon,
+.stat-icon.icon-blue { background: var(--ui-blue-soft); color: var(--ui-blue); }
+.ui-kpi--warning .ui-kpi__icon,
+.stat-icon.icon-warning { background: #FEF3C7; color: #D97706; }
+.ui-kpi--danger .ui-kpi__icon,
+.stat-icon.icon-danger { background: #FEE2E2; color: #DC2626; }
+.ui-kpi--info .ui-kpi__icon { background: #E0F2FE; color: #0284C7; }
+
+.ui-kpi__label,
+.card-stat .text-muted.small {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--ui-muted) !important;
+  margin-bottom: 0.2rem;
+}
+
+.ui-kpi__value,
+.card-stat h3 {
+  font-size: 1.55rem !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em;
+  color: var(--ui-text) !important;
+  line-height: 1.1;
+  margin: 0 !important;
+}
+
+.ui-kpi:hover,
+.card-stat:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ui-shadow-hover) !important;
+}
+
+.ui-kpi--link { color: inherit; }
+.ui-kpi--link:hover { color: inherit; }
+
+/* —— Section titles —— */
+.ui-section-title {
+  margin: 1.75rem 0 1rem;
+  animation: uiFadeUp 0.4s var(--ui-ease) both;
+}
+
+.ui-section-title__heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ui-blue);
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.ui-section-title__subtitle {
+  font-size: 0.82rem;
+  color: var(--ui-muted);
+  margin-top: 0.2rem;
+}
+
+/* —— Action tiles —— */
+.ui-action-tile,
+.dashboard-quick-actions .quick-action-card {
+  border-radius: var(--ui-radius) !important;
+  border: 1px solid var(--ui-border) !important;
+  box-shadow: none;
+  background: var(--ui-surface) !important;
+  padding: 1.05rem 1.1rem !important;
+  transition: transform 0.25s var(--ui-ease), box-shadow 0.25s var(--ui-ease), border-color 0.2s ease;
+}
+
+.ui-action-tile:hover,
+.dashboard-quick-actions .quick-action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--ui-shadow-hover) !important;
+  border-color: rgba(46, 125, 50, 0.35) !important;
+}
+
+.ui-action-tile__icon,
+.dashboard-quick-actions .quick-action-icon {
+  width: 2.75rem !important;
+  height: 2.75rem !important;
+  border-radius: 12px !important;
+  background: linear-gradient(145deg, var(--ui-green-soft), #fff) !important;
+  color: var(--ui-green) !important;
+  box-shadow: inset 0 0 0 1px rgba(46, 125, 50, 0.1);
+}
+
+/* —— Forms —— */
+.form-control,
+.form-select {
+  border-radius: var(--ui-radius-sm) !important;
+  border-color: var(--ui-border) !important;
+  padding: 0.55rem 0.85rem !important;
+  min-height: 2.55rem;
+  box-shadow: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: rgba(46, 125, 50, 0.55) !important;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12) !important;
+}
+
+.form-label {
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #334155;
+  margin-bottom: 0.35rem;
+}
+
+/* —— Buttons —— */
+.btn {
+  border-radius: var(--ui-radius-sm) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+  transition: transform 0.15s var(--ui-ease), box-shadow 0.2s ease, background 0.15s ease !important;
+}
+
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
+.btn-undira,
+.btn-success {
+  background: linear-gradient(135deg, #2E7D32, #43A047) !important;
+  border: none !important;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.22);
+}
+
+.btn-outline-primary,
+.btn-outline-success,
+.btn-outline-secondary,
+.btn-outline-warning,
+.btn-outline-danger {
+  background: #fff !important;
+}
+
+/* —— Tables —— */
+.table thead th {
+  background: #F7F9FC !important;
+  font-size: 0.72rem !important;
+  letter-spacing: 0.05em;
+  color: #475569 !important;
+  border-bottom-width: 1px !important;
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+}
+
+.table td {
+  padding-top: 0.85rem !important;
+  padding-bottom: 0.85rem !important;
+  border-color: #EEF2F7 !important;
+}
+
+.table-hover tbody tr {
+  transition: background 0.15s ease;
+}
+
+/* —— Sidebar / navbar polish —— */
+.main-sidebar.sidebar-dark-undira {
+  background: linear-gradient(180deg, #0B1438 0%, #141E52 42%, #18245F 100%) !important;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link {
+  margin: 0.15rem 0.65rem;
+  padding: 0.55rem 0.75rem !important;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link.active {
+  background: linear-gradient(90deg, rgba(46, 125, 50, 0.95), rgba(67, 160, 71, 0.9)) !important;
+  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.28);
+}
+
+.main-header.navbar-undira {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.92) !important;
+  box-shadow: 0 1px 0 var(--ui-border), 0 8px 24px rgba(15, 23, 42, 0.03) !important;
+}
+
+.main-footer {
+  background: transparent !important;
+  border-top: 1px solid var(--ui-border) !important;
+  color: var(--ui-muted);
+  padding: 1rem 1.25rem;
+}
+
+/* —— Master tabs —— */
+.master-tabs-wrap {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  padding: 0.35rem 0.5rem 0;
+  box-shadow: var(--ui-shadow);
+  margin-bottom: 1.25rem !important;
+}
+
+.master-tabs .nav-link {
+  border: none !important;
+  border-radius: 10px 10px 0 0 !important;
+  margin: 0 0.15rem;
+}
+
+.master-tabs .nav-link.active {
+  background: linear-gradient(180deg, #fff, #F8FAFC) !important;
+  color: var(--ui-green) !important;
+  box-shadow: inset 0 -2px 0 var(--ui-green);
+}
+
+/* —— Modals —— */
+.modal-content {
+  border: 1px solid var(--ui-border) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18) !important;
+  overflow: hidden;
+}
+
+.modal-header {
+  border-bottom: 1px solid var(--ui-border) !important;
+  padding: 1.1rem 1.25rem !important;
+}
+
+.modal-footer {
+  border-top: 1px solid var(--ui-border) !important;
+  background: #FAFBFD;
+}
+
+/* —— Empty / toast —— */
+.undira-empty-state {
+  padding: 2.5rem 1.25rem !important;
+}
+
+.toast {
+  border-radius: 12px !important;
+  box-shadow: var(--ui-shadow-hover) !important;
+}
+
+/* —— Filter panels & list groups —— */
+.filter-panel {
+  background: var(--ui-surface);
+  border: 1px solid var(--ui-border);
+  border-radius: var(--ui-radius);
+  box-shadow: var(--ui-shadow);
+  padding: 1.1rem 1.25rem;
+}
+
+.list-group-item {
+  border-color: var(--ui-border) !important;
+  padding: 1rem 1.2rem !important;
+}
+
+.alert {
+  border-radius: var(--ui-radius-sm) !important;
+}
+
+/* —— Motion —— */
+@keyframes uiFadeUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dashboard-real-content.is-visible .ui-kpi:nth-child(1) { animation-delay: 0.02s; }
+.dashboard-real-content.is-visible .row > [class*="col-"] { animation: uiFadeUp 0.45s var(--ui-ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* —— Responsive —— */
+@media (max-width: 767.98px) {
+  .ui-page-header__title,
+  .page-header-undira h1 {
+    font-size: 1.3rem !important;
+  }
+  .ui-kpi__value,
+  .card-stat h3 {
+    font-size: 1.3rem !important;
+  }
+  .content > .container-fluid {
+    padding-left: 0.85rem;
+    padding-right: 0.85rem;
+  }
+}
+
+/* —— Dark mode bridge —— */
+body.dark-mode {
+  --ui-canvas: #12131A;
+  --ui-surface: #1A1B26;
+  --ui-border: rgba(255, 255, 255, 0.08);
+  --ui-text: #E2E8F0;
+  --ui-muted: #94A3B8;
+  --ui-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+body.dark-mode .content-wrapper {
+  background: radial-gradient(900px 360px at 0% 0%, rgba(46, 125, 50, 0.08), transparent 50%),
+              radial-gradient(800px 320px at 100% 0%, rgba(57, 73, 171, 0.12), transparent 45%),
+              #12131A !important;
+}
+
+body.dark-mode .main-header.navbar-undira {
+  background: rgba(26, 27, 38, 0.92) !important;
+}
+
+body.dark-mode .ui-page-header__title,
+body.dark-mode .page-header-undira h1,
+body.dark-mode .ui-panel__title,
+body.dark-mode .ui-section-title__heading {
+  color: #E8ECFF !important;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select,
+body.dark-mode .btn-outline-primary,
+body.dark-mode .btn-outline-success,
+body.dark-mode .btn-outline-secondary {
+  background: #161722 !important;
+  color: var(--ui-text) !important;
+}
+
+body.dark-mode .card-footer,
+body.dark-mode .modal-footer {
+  background: rgba(0, 0, 0, 0.2) !important;
+}

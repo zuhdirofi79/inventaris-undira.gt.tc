@@ -8,12 +8,20 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h1><i class="fas fa-university me-2"></i>Kelola Kampus</h1>
+<x-ui.page-header title="Kelola Kampus" subtitle="Master lokasi kampus" icon="bi bi-building">
     <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
-        <i class="fas fa-plus me-1"></i>Tambah
+        <i class="bi bi-plus-lg me-1"></i>Tambah
     </button>
-</div>
+</x-ui.page-header>
+
+<x-master-table-toolbar
+    :action="route('admin.locations.campuses.index')"
+    placeholder="Kode / nama / slug…"
+    :sort-options="['name' => 'Nama', 'code' => 'Kode', 'created_at' => 'Tanggal dibuat']"
+    :export-route="route('admin.locations.campuses.export', request()->only(['q', 'is_active', 'sort', 'dir']))"
+    :import-route="route('admin.locations.campuses.import')"
+    :template-route="route('admin.locations.campuses.import.template')"
+/>
 
 <div class="card card-undira">
     <div class="card-body p-0">

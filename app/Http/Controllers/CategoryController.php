@@ -16,17 +16,27 @@ use App\Models\PurchaseYear;
 use App\Models\Room;
 use App\Models\RoomFunction;
 use App\Models\Setting;
+use App\Enums\AuditAction;
+use App\Exports\MasterArrayExport;
+use App\Http\Requests\ImportMasterRequest;
+use App\Services\AuditLogService;
 use App\Services\InventoryCodeService;
 use App\Services\TrashCascadeService;
+use App\Support\MasterCsvReader;
+use App\Support\MasterListQuery;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
+use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class CategoryController extends Controller
 {
     public function __construct(
         protected TrashCascadeService $trash,
+        protected AuditLogService $audit,
     ) {}
     public function index(Request $request): View
     {
@@ -36,54 +46,54 @@ class CategoryController extends Controller
             $tab = 'konfigurasi';
         }
 
-        $search = trim((string) $request->input('q', ''));
-
-        $categoriesQuery = Category::query()
-            ->withCount('subCategories', 'inventoryItems')
-            ->orderBy('name');
-        if ($tab === 'klasifikasi' && $search !== '') {
-            $categoriesQuery->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%")
-                    ->orWhere('slug', 'like', "%{$search}%");
-            });
-        }
-        $categories = $categoriesQuery
-            ->paginate(20, ['*'], 'categories_page')
-            ->withQueryString();
-
-        $orgUnitsQuery = OrgUnit::query()
-            ->withCount('inventoryItems')
-            ->orderBy('name');
-        if ($tab === 'units' && $search !== '') {
-            $orgUnitsQuery->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            });
-        }
-        $orgUnits = $orgUnitsQuery
-            ->paginate(20, ['*'], 'units_page')
-            ->withQueryString();
-
-        $procurementQuery = ProcurementType::query()
-            ->withCount('inventoryItems')
-            ->orderBy('name');
-        if ($tab === 'pengadaan' && $search !== '') {
-            $procurementQuery->where(function ($q) use ($search) {
-                $q->where('code', 'like', "%{$search}%")
-                    ->orWhere('name', 'like', "%{$search}%");
-            });
-        }
-        $procurementTypes = $procurementQuery
-            ->paginate(20, ['*'], 'procurement_page')
-            ->withQueryString();
-
+        $categories = null;
+        $orgUnits = null;
+        $procurementTypes = null;
         $configurations = null;
         $configLookups = [];
         $lokasiHub = null;
         $purchaseYears = null;
         $roomFunctions = null;
         $inventoryConditions = null;
+
+        if ($tab === 'klasifikasi') {
+            $categoriesQuery = Category::query()->withCount('subCategories', 'inventoryItems');
+            MasterListQuery::apply(
+                $categoriesQuery,
+                $request,
+                ['code', 'name', 'slug'],
+                ['name' => 'name', 'code' => 'code', 'created_at' => 'created_at'],
+            );
+            $categories = $categoriesQuery
+                ->paginate(20, ['*'], 'categories_page')
+                ->withQueryString();
+        }
+
+        if ($tab === 'units') {
+            $orgUnitsQuery = OrgUnit::query()->withCount('inventoryItems');
+            MasterListQuery::apply(
+                $orgUnitsQuery,
+                $request,
+                ['code', 'name'],
+                ['name' => 'name', 'code' => 'code', 'created_at' => 'created_at'],
+            );
+            $orgUnits = $orgUnitsQuery
+                ->paginate(20, ['*'], 'units_page')
+                ->withQueryString();
+        }
+
+        if ($tab === 'pengadaan') {
+            $procurementQuery = ProcurementType::query()->withCount('inventoryItems');
+            MasterListQuery::apply(
+                $procurementQuery,
+                $request,
+                ['code', 'name'],
+                ['name' => 'name', 'code' => 'code', 'created_at' => 'created_at'],
+            );
+            $procurementTypes = $procurementQuery
+                ->paginate(20, ['*'], 'procurement_page')
+                ->withQueryString();
+        }
 
         if ($tab === 'konfigurasi') {
             $configurations = $this->configurationsQuery($request)
@@ -140,13 +150,109 @@ class CategoryController extends Controller
         ));
     }
 
+    public function export(Request $request): BinaryFileResponse
+    {
+        $query = Category::query();
+        MasterListQuery::apply(
+            $query,
+            $request,
+            ['code', 'name', 'slug'],
+            ['name' => 'name', 'code' => 'code', 'created_at' => 'created_at'],
+        );
+
+        $rows = $query->get()->map(fn (Category $c) => [
+            $c->code,
+            $c->name,
+            $c->slug,
+            $c->description,
+            $c->is_active ? 1 : 0,
+        ]);
+
+        $this->audit->log($request->user(), AuditAction::Export, null, null, [
+            'entity' => 'category',
+            'format' => 'csv',
+            'count' => $rows->count(),
+        ], 'CATEGORY_EXPORTED');
+
+        return Excel::download(
+            new MasterArrayExport(
+                ['code', 'name', 'slug', 'description', 'is_active'],
+                $rows,
+            ),
+            'categories_'.now()->format('Ymd_His').'.csv',
+            \Maatwebsite\Excel\Excel::CSV,
+        );
+    }
+
+    public function importTemplate(): BinaryFileResponse
+    {
+        return Excel::download(
+            new MasterArrayExport(
+                ['code', 'name', 'slug', 'description', 'is_active'],
+                [['FUR', 'Furniture', 'furniture', 'Contoh klasifikasi', 1]],
+            ),
+            'template_categories.csv',
+            \Maatwebsite\Excel\Excel::CSV,
+        );
+    }
+
+    public function import(ImportMasterRequest $request): RedirectResponse
+    {
+        $rows = MasterCsvReader::associativeRows($request->file('file'));
+        if ($rows === []) {
+            return back()->with('error', 'Berkas import kosong atau tidak valid.');
+        }
+
+        $imported = 0;
+
+        DB::transaction(function () use ($rows, &$imported) {
+            foreach ($rows as $data) {
+                if (blank($data['code'] ?? null) || blank($data['name'] ?? null)) {
+                    continue;
+                }
+
+                $name = (string) $data['name'];
+                $slug = filled($data['slug'] ?? null) ? (string) $data['slug'] : Str::slug($name);
+
+                Category::query()->updateOrCreate(
+                    ['code' => $data['code']],
+                    [
+                        'name' => $name,
+                        'slug' => $slug,
+                        'description' => $data['description'] ?? null,
+                        'is_active' => MasterCsvReader::parseActive($data['is_active'] ?? null),
+                    ],
+                );
+                $imported++;
+            }
+        });
+
+        $this->audit->log($request->user(), AuditAction::Import, null, null, [
+            'entity' => 'category',
+            'imported' => $imported,
+        ], 'CATEGORY_IMPORTED');
+
+        return redirect()
+            ->route('categories.index', ['tab' => 'klasifikasi'])
+            ->with('success', "Import klasifikasi selesai. {$imported} baris diproses.");
+    }
+
     public function store(StoreCategoryRequest $request): RedirectResponse
     {
-        Category::query()->create([
+        $category = Category::query()->create([
             ...$request->validated(),
             'slug' => $request->input('slug') ?: Str::slug($request->input('name')),
             'is_active' => $request->boolean('is_active', true),
         ]);
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Create,
+            $category,
+            null,
+            $category->only(['code', 'name', 'slug', 'is_active']),
+            'CATEGORY_CREATED',
+        );
 
         return redirect()
             ->route('categories.index', ['tab' => 'klasifikasi'])
@@ -155,11 +261,22 @@ class CategoryController extends Controller
 
     public function update(StoreCategoryRequest $request, Category $category): RedirectResponse
     {
+        $old = $category->only(['code', 'name', 'slug', 'is_active']);
+
         $category->update([
             ...$request->validated(),
             'slug' => $request->input('slug') ?: Str::slug($request->input('name')),
             'is_active' => $request->boolean('is_active'),
         ]);
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $category,
+            $old,
+            $category->only(['code', 'name', 'slug', 'is_active']),
+            'CATEGORY_UPDATED',
+        );
 
         return redirect()
             ->route('categories.index', ['tab' => 'klasifikasi'])

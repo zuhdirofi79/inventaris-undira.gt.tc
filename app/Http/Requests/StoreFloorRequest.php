@@ -25,6 +25,28 @@ class StoreFloorRequest extends FormRequest
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'building_id' => 'Gedung',
+            'code' => 'Kode lantai',
+            'name' => 'Nama lantai',
+            'floor_number' => 'Nomor lantai',
+            'is_active' => 'Status',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'building_id.required' => 'Gedung wajib dipilih.',
+            'code.required' => 'Kode lantai wajib diisi.',
+            'name.required' => 'Nama lantai wajib diisi.',
+            'floor_number.required' => 'Nomor lantai wajib diisi.',
+            'is_active.required' => 'Status lantai wajib dipilih.',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([

@@ -7,31 +7,32 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h1><i class="fas fa-boxes me-2"></i>Data Inventaris</h1>
-        <p class="text-muted mb-0 small">Pilih kampus → Gedung → Lantai → Ruangan → Unit</p>
+<x-ui.page-header
+    title="Data Inventaris"
+    subtitle="Pilih kampus → Gedung → Lantai → Ruangan → Unit"
+    icon="bi bi-box-seam"
+>
+    @can('inventory.create')
+    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
+        <i class="bi bi-sliders me-1"></i>Buka Konfigurasi Inventaris
+    </a>
+    @endcan
+    <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid-3x3-gap me-1"></i>Per Kategori</a>
+    <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul me-1"></i>Semua Item</a>
+    @can('inventory.view')
+    <a href="{{ route('inventory.trash') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-trash me-1"></i>Trash</a>
+    @endcan
+    @can('inventory.import')
+    <a href="{{ route('inventory.import.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-upload me-1"></i>Import Excel</a>
+    @endcan
+    @can('inventory.export')
+    <div class="btn-group btn-group-sm">
+        <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i><span class="d-none d-sm-inline"> Excel</span></a>
+        <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv"></i><span class="d-none d-sm-inline"> CSV</span></a>
+        <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i><span class="d-none d-sm-inline"> PDF</span></a>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-        @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
-            <i class="fas fa-sliders-h me-1"></i>Buka Konfigurasi Inventaris
-        </a>
-        @endcan
-        <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-th-large me-1"></i>Per Kategori</a>
-        <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Semua Item</a>
-        @can('inventory.view')
-        <a href="{{ route('inventory.trash') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-trash me-1"></i>Trash</a>
-        @endcan
-        @can('inventory.export')
-        <div class="btn-group btn-group-sm">
-            <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="fas fa-file-excel"></i><span class="d-none d-sm-inline"> Excel</span></a>
-            <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="fas fa-file-csv"></i><span class="d-none d-sm-inline"> CSV</span></a>
-            <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="fas fa-file-pdf"></i><span class="d-none d-sm-inline"> PDF</span></a>
-        </div>
-        @endcan
-    </div>
-</div>
+    @endcan
+</x-ui.page-header>
 
 <div class="alert alert-info border-0 shadow-sm mb-3" role="status">
     Penambahan inventaris dilakukan melalui menu <strong>Konfigurasi Inventaris</strong>.

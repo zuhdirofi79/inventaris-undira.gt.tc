@@ -8,10 +8,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-database me-2"></i>Master Data</h1>
-    <p class="text-muted mb-0 small">Single Source of Truth — kode master dikelola di sini, dropdown inventaris membaca data aktif.</p>
-</div>
+<x-ui.page-header
+    title="Master Data"
+    subtitle="Single Source of Truth — kode master dikelola di sini, dropdown inventaris membaca data aktif."
+    icon="bi bi-database"
+/>
 
 <nav class="master-tabs-wrap mb-3" aria-label="Tab Master Data">
     <ul class="nav nav-tabs master-tabs flex-nowrap" role="tablist">
@@ -75,21 +76,15 @@
         <i class="fas fa-plus me-1"></i>Tambah Klasifikasi
     </button>
 </div>
-<form method="GET" action="{{ route('categories.index') }}" class="card card-undira mb-3">
-    <div class="card-body py-2">
-        <input type="hidden" name="tab" value="klasifikasi">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label small mb-0" for="searchKlasifikasi">Cari</label>
-                <input type="text" name="q" id="searchKlasifikasi" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Kode / nama / slug…">
-            </div>
-            <div class="col-md-6">
-                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-search me-1"></i>Cari</button>
-                <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-            </div>
-        </div>
-    </div>
-</form>
+<x-master-table-toolbar
+    :action="route('categories.index')"
+    placeholder="Kode / nama / slug…"
+    :sort-options="['name' => 'Nama', 'code' => 'Kode', 'created_at' => 'Tanggal dibuat']"
+    :export-route="route('categories.export', request()->only(['q', 'is_active', 'sort', 'dir']))"
+    :import-route="route('categories.import')"
+    :template-route="route('categories.import.template')"
+    :hidden="['tab' => 'klasifikasi']"
+/>
 <div class="card card-undira">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -148,21 +143,12 @@
         <i class="fas fa-plus me-1"></i>Tambah Unit
     </button>
 </div>
-<form method="GET" action="{{ route('categories.index') }}" class="card card-undira mb-3">
-    <div class="card-body py-2">
-        <input type="hidden" name="tab" value="units">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label small mb-0" for="searchUnit">Cari</label>
-                <input type="text" name="q" id="searchUnit" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Kode / nama…">
-            </div>
-            <div class="col-md-6">
-                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-search me-1"></i>Cari</button>
-                <a href="{{ route('categories.index', ['tab' => 'units']) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-            </div>
-        </div>
-    </div>
-</form>
+<x-master-table-toolbar
+    :action="route('categories.index')"
+    placeholder="Kode / nama…"
+    :sort-options="['name' => 'Nama', 'code' => 'Kode', 'created_at' => 'Tanggal dibuat']"
+    :hidden="['tab' => 'units']"
+/>
 <div class="card card-undira">
     <div class="card-body p-0">
         <div class="table-responsive">
@@ -219,21 +205,12 @@
         <i class="fas fa-plus me-1"></i>Tambah Jenis Pengadaan
     </button>
 </div>
-<form method="GET" action="{{ route('categories.index') }}" class="card card-undira mb-3">
-    <div class="card-body py-2">
-        <input type="hidden" name="tab" value="pengadaan">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-6">
-                <label class="form-label small mb-0" for="searchPengadaan">Cari</label>
-                <input type="text" name="q" id="searchPengadaan" value="{{ request('q') }}" class="form-control form-control-sm" placeholder="Kode / nama…">
-            </div>
-            <div class="col-md-6">
-                <button type="submit" class="btn btn-sm btn-outline-primary"><i class="fas fa-search me-1"></i>Cari</button>
-                <a href="{{ route('categories.index', ['tab' => 'pengadaan']) }}" class="btn btn-sm btn-outline-secondary">Reset</a>
-            </div>
-        </div>
-    </div>
-</form>
+<x-master-table-toolbar
+    :action="route('categories.index')"
+    placeholder="Kode / nama…"
+    :sort-options="['name' => 'Nama', 'code' => 'Kode', 'created_at' => 'Tanggal dibuat']"
+    :hidden="['tab' => 'pengadaan']"
+/>
 <div class="card card-undira">
     <div class="card-body p-0">
         <div class="table-responsive">

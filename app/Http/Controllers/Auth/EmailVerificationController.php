@@ -63,6 +63,8 @@ class EmailVerificationController extends Controller
 
         $this->otpService->verify($user, $request->input('otp'));
 
+        $this->auditLogService->log($user, AuditAction::VerifyEmail, $user, null, null, 'Email berhasil diverifikasi');
+
         $request->session()->forget('pending_verification_user_id');
 
         Auth::login($user);

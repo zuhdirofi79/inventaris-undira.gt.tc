@@ -8,12 +8,11 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-wrench me-2"></i>Maintenance</h1>
+<x-ui.page-header title="Maintenance" subtitle="Jadwal dan riwayat perawatan inventaris" icon="bi bi-wrench-adjustable">
     @can('maintenance.create')
-    <a href="{{ route('maintenances.create') }}" class="btn btn-undira btn-sm"><i class="fas fa-plus me-1"></i>Tambah</a>
+    <a href="{{ route('maintenances.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</div>
+</x-ui.page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

@@ -11,42 +11,39 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <div class="min-w-0">
-        <h1 class="text-break"><i class="fas fa-box me-2"></i>{{ $inventory->name }}</h1>
-        <p class="text-muted mb-0">
+<x-ui.page-header :title="$inventory->name" icon="bi bi-box-seam">
+    <x-slot:meta>
+        <div class="d-flex flex-wrap align-items-center gap-2">
             <code class="text-break">{{ $inventory->inventory_number }}</code>
-            <span class="badge bg-info ms-1">{{ $inventory->condition?->label() }}</span>
-            <span class="badge bg-secondary ms-1">{{ $inventory->status?->label() }}</span>
+            <x-inventory.condition-badge :condition="$inventory->condition" />
+            <x-inventory.status-badge :status="$inventory->status" />
             @if($inventory->group_key)
-                &middot; <a href="{{ route('inventory.group-units', $inventory->group_key) }}">Lihat semua unit</a>
+                <span>&middot; <a href="{{ route('inventory.group-units', $inventory->group_key) }}">Lihat semua unit</a></span>
             @endif
-        </p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        @can('borrowing.create')
-        <a href="{{ route('borrowings.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-primary btn-sm" title="Buat peminjaman"><i class="fas fa-hand-holding me-1"></i>Pinjam</a>
-        @endcan
-        @can('maintenance.create')
-        <a href="{{ route('maintenances.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-info btn-sm" title="Jadwalkan maintenance"><i class="fas fa-wrench me-1"></i>Maintenance</a>
-        @endcan
-        @can('mutation.create')
-        <a href="{{ route('mutations.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-secondary btn-sm" title="Pindahkan lokasi"><i class="fas fa-exchange-alt me-1"></i>Mutasi</a>
-        @endcan
-        @can('inventory.update')
-        <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm" title="Ubah data"><i class="fas fa-edit me-1"></i>Edit</a>
-        @endcan
-        @can('inventory.delete')
-        <form action="{{ route('inventory.destroy', $inventory) }}" method="POST"
-              data-confirm-title="Pindahkan data ke Trash?"
-              data-confirm="Data masih dapat dipulihkan dari menu Trash."
-              data-confirm-button="Pindahkan ke Trash">
-            @csrf @method('DELETE')
-            <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="fas fa-trash me-1"></i>Hapus</button>
-        </form>
-        @endcan
-    </div>
-</div>
+        </div>
+    </x-slot:meta>
+    @can('borrowing.create')
+    <a href="{{ route('borrowings.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-primary btn-sm" title="Buat peminjaman"><i class="bi bi-hand-index me-1"></i>Pinjam</a>
+    @endcan
+    @can('maintenance.create')
+    <a href="{{ route('maintenances.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-info btn-sm" title="Jadwalkan maintenance"><i class="bi bi-wrench-adjustable me-1"></i>Maintenance</a>
+    @endcan
+    @can('mutation.create')
+    <a href="{{ route('mutations.create', ['inventory_item_id' => $inventory->id]) }}" class="btn btn-outline-secondary btn-sm" title="Pindahkan lokasi"><i class="bi bi-arrow-left-right me-1"></i>Mutasi</a>
+    @endcan
+    @can('inventory.update')
+    <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm" title="Ubah data"><i class="bi bi-pencil-square me-1"></i>Edit</a>
+    @endcan
+    @can('inventory.delete')
+    <form action="{{ route('inventory.destroy', $inventory) }}" method="POST"
+          data-confirm-title="Pindahkan data ke Trash?"
+          data-confirm="Data masih dapat dipulihkan dari menu Trash."
+          data-confirm-button="Pindahkan ke Trash">
+        @csrf @method('DELETE')
+        <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="bi bi-trash me-1"></i>Hapus</button>
+    </form>
+    @endcan
+</x-ui.page-header>
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -55,7 +52,7 @@
             <div class="card-body">
                 <div class="row g-3 detail-grid">
                     <div class="col-md-6"><div class="detail-label">No. Inventaris</div><div class="detail-value text-break"><code>{{ $inventory->inventory_number }}</code></div></div>
-                    <div class="col-md-6"><div class="detail-label">Barcode</div><div class="detail-value text-break">{{ $inventory->barcode ?? '-' }}</div></div>
+                    <div class="col-md-6"><div class="detail-label">Unit Kerja</div><div class="detail-value">{{ $inventory->orgUnit?->name ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Kategori</div><div class="detail-value">{{ $inventory->category?->name ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Sub Kategori</div><div class="detail-value">{{ $inventory->subCategory?->name ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Merek / Tipe</div><div class="detail-value">{{ $inventory->brand ?? '-' }} / {{ $inventory->type ?? '-' }}</div></div>
@@ -101,61 +98,175 @@
         </div>
 
         <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-heartbeat me-2 text-undira-blue"></i>Status</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-heartbeat me-2 text-undira-blue"></i>Status Barang</h5></div>
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-2 align-items-center">
-                    <span class="badge bg-info fs-6">Kondisi: {{ $inventory->condition?->label() }}</span>
-                    <span class="badge bg-secondary fs-6">Status: {{ $inventory->status?->label() }}</span>
+                    <x-inventory.condition-badge :condition="$inventory->condition" class="fs-6" />
+                    <x-inventory.status-badge :status="$inventory->status" class="fs-6" />
+                    @can('inventory.update')
+                    <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-sm btn-outline-warning ms-auto">Ubah status / kondisi</a>
+                    @endcan
                 </div>
             </div>
         </div>
 
-        @if($inventory->photos->isNotEmpty())
         <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-images me-2"></i>Galeri Foto</h5></div>
-            <div class="card-body photo-gallery">
-                <div class="row g-2">
+            <div class="card-header card-header-undira d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-images me-2"></i>Galeri Foto</h5>
+                <span class="badge bg-secondary">{{ $inventory->photos->count() }} foto</span>
+            </div>
+            <div class="card-body">
+                @if($inventory->photos->isNotEmpty())
+                <div class="row g-2 photo-gallery mb-3">
                     @foreach($inventory->photos as $photo)
                     <div class="col-md-3 col-6">
-                        <img src="{{ asset('storage/' . $photo->path) }}" class="img-fluid rounded border" alt="Foto inventaris">
+                        <div class="position-relative border rounded overflow-hidden bg-light">
+                            <img src="{{ asset('storage/' . $photo->path) }}" class="img-fluid w-100" alt="Foto inventaris" style="aspect-ratio:1;object-fit:cover;">
+                            @if($photo->is_primary)
+                                <span class="badge bg-success position-absolute top-0 start-0 m-1">Utama</span>
+                            @endif
+                        </div>
                         @can('inventory.update')
-                        <form action="{{ route('inventory.photos.destroy', [$inventory, $photo]) }}" method="POST" class="mt-1" data-confirm="Hapus foto ini?">
-                            @csrf @method('DELETE')
-                            <button type="submit" class="btn btn-danger btn-sm w-100"><i class="fas fa-trash"></i></button>
-                        </form>
+                        <div class="d-flex gap-1 mt-1">
+                            @unless($photo->is_primary)
+                            <form action="{{ route('inventory.photos.primary', [$inventory, $photo]) }}" method="POST" class="flex-grow-1">
+                                @csrf
+                                <button type="submit" class="btn btn-outline-success btn-sm w-100" title="Jadikan utama">Utama</button>
+                            </form>
+                            @endunless
+                            <form action="{{ route('inventory.photos.destroy', [$inventory, $photo]) }}" method="POST" class="flex-grow-1" data-confirm="Hapus foto ini?">
+                                @csrf @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger btn-sm w-100" title="Hapus"><i class="fas fa-trash"></i></button>
+                            </form>
+                        </div>
                         @endcan
                     </div>
                     @endforeach
                 </div>
-            </div>
-        </div>
-        @endif
+                @else
+                <x-empty-state icon="fa-images" title="Belum ada foto" message="Unggah foto barang untuk dokumentasi visual inventaris." />
+                @endif
 
-        @can('inventory.update')
-        <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-upload me-2"></i>Upload Foto</h5></div>
-            <div class="card-body">
-                <form action="{{ route('inventory.photos.store', $inventory) }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end">
+                @can('inventory.update')
+                <form action="{{ route('inventory.photos.store', $inventory) }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end border-top pt-3">
                     @csrf
-                    <div class="col-md-8">
-                        <label class="form-label">Pilih gambar</label>
-                        <input type="file" name="photo" class="form-control" accept="image/*" required>
+                    <div class="col-md-6">
+                        <label class="form-label" for="inventoryPhotos">Pilih gambar (bisa lebih dari satu)</label>
+                        <input type="file" name="photos[]" id="inventoryPhotos" class="form-control" accept="image/*" multiple required>
                     </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-undira w-100"><i class="fas fa-upload me-1"></i>Upload</button>
+                    <div class="col-md-3">
+                        <div class="form-check mt-4">
+                            <input type="hidden" name="is_primary" value="0">
+                            <input type="checkbox" name="is_primary" value="1" class="form-check-input" id="photoIsPrimary">
+                            <label class="form-check-label" for="photoIsPrimary">Jadikan foto pertama sebagai utama</label>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-undira w-100" data-loading-text="Mengunggah..."><i class="fas fa-upload me-1"></i>Unggah Foto</button>
                     </div>
                 </form>
+                @endcan
             </div>
         </div>
-        @endcan
 
         <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-history me-2"></i>Riwayat Aktivitas</h5></div>
+            <div class="card-header card-header-undira d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-paperclip me-2"></i>Lampiran</h5>
+                <span class="badge bg-secondary">{{ $inventory->attachments->count() }} berkas</span>
+            </div>
+            <div class="card-body">
+                @if($inventory->attachments->isNotEmpty())
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr><th>Nama berkas</th><th>Jenis</th><th>Diunggah</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach($inventory->attachments as $attachment)
+                            <tr>
+                                <td class="text-break">
+                                    <a href="{{ $attachment->url }}" target="_blank" rel="noopener" data-no-loader="1">
+                                        <i class="fas fa-file me-1"></i>{{ $attachment->original_name }}
+                                    </a>
+                                </td>
+                                <td><span class="badge bg-light text-dark border">{{ $attachment->typeLabel() }}</span></td>
+                                <td>{{ $attachment->created_at?->format('d/m/Y H:i') }}</td>
+                                <td class="text-end">
+                                    @can('inventory.update')
+                                    <form action="{{ route('inventory.attachments.destroy', [$inventory, $attachment]) }}" method="POST" class="d-inline" data-confirm="Hapus lampiran ini?">
+                                        @csrf @method('DELETE')
+                                        <button type="submit" class="btn btn-outline-danger btn-sm" title="Hapus"><i class="fas fa-trash"></i></button>
+                                    </form>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @else
+                <x-empty-state icon="fa-paperclip" title="Belum ada lampiran" message="Unggah invoice atau dokumen pendukung inventaris." />
+                @endif
+
+                @can('inventory.update')
+                <form action="{{ route('inventory.attachments.store', $inventory) }}" method="POST" enctype="multipart/form-data" class="row g-2 align-items-end border-top pt-3">
+                    @csrf
+                    <div class="col-md-5">
+                        <label class="form-label" for="attachmentFile">Berkas</label>
+                        <input type="file" name="file" id="attachmentFile" class="form-control" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label" for="attachmentType">Jenis</label>
+                        <select name="type" id="attachmentType" class="form-select" required>
+                            <option value="invoice">Invoice</option>
+                            <option value="manual_book">Manual Book</option>
+                            <option value="warranty">Garansi</option>
+                            <option value="document">Dokumen Pendukung</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-undira w-100" data-loading-text="Mengunggah..."><i class="fas fa-upload me-1"></i>Unggah</button>
+                    </div>
+                </form>
+                @endcan
+            </div>
+        </div>
+
+        <div class="card card-undira mb-3">
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Timeline Inventaris</h5></div>
+            <div class="card-body">
+                @forelse($timeline ?? [] as $event)
+                <div class="d-flex gap-3 mb-3 pb-3 border-bottom">
+                    <div class="text-center" style="min-width:5.5rem;">
+                        <div class="fw-semibold small">{{ $event['date_label'] }}</div>
+                        <div class="text-muted" style="font-size:.75rem;">{{ $event['time_label'] }}</div>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex align-items-center gap-2 mb-1">
+                            <i class="bi {{ $event['icon'] }} text-{{ $event['tone'] }}"></i>
+                            <strong>{{ $event['title'] }}</strong>
+                        </div>
+                        @if(!empty($event['detail']))
+                            <div class="small text-muted">{{ $event['detail'] }}</div>
+                        @endif
+                        @if(!empty($event['actor']))
+                            <div class="small mt-1">oleh <strong>{{ $event['actor'] }}</strong></div>
+                        @endif
+                    </div>
+                </div>
+                @empty
+                <p class="text-muted mb-0">Belum ada riwayat aktivitas.</p>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="card card-undira mb-3">
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-exchange-alt me-2"></i>Riwayat Mutasi</h5></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
                     <table class="table table-sm table-hover table-striped mb-0 table-undira">
                         <thead>
-                            <tr><th>Tanggal</th><th>Dari</th><th>Ke</th><th>Alasan</th><th>Oleh</th></tr>
+                            <tr><th>Tanggal</th><th>Dari</th><th>Ke</th><th>Alasan</th><th>Oleh</th><th></th></tr>
                         </thead>
                         <tbody>
                             @forelse($inventory->mutations as $mutation)
@@ -165,9 +276,80 @@
                                 <td><small>{{ $mutation->toRoom?->full_location ?? '-' }}</small></td>
                                 <td>{{ $mutation->reason ?? '-' }}</td>
                                 <td>{{ $mutation->movedBy?->name ?? '-' }}</td>
+                                <td class="text-end">
+                                    @can('mutation.view')
+                                    <a href="{{ route('mutations.show', $mutation) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
+                                    @endcan
+                                </td>
                             </tr>
                             @empty
-                            <tr><td colspan="5" class="text-center text-muted py-4">Belum ada riwayat mutasi</td></tr>
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Belum ada riwayat mutasi.</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-undira mb-3">
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-hand-holding me-2"></i>Riwayat Peminjaman</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped mb-0 table-undira">
+                        <thead>
+                            <tr><th>Peminjam</th><th>Pinjam</th><th>Kembali</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse($inventory->borrowings as $borrowing)
+                            <tr>
+                                <td>{{ $borrowing->borrower_name }}</td>
+                                <td>{{ $borrowing->borrow_date?->format('d/m/Y') ?? '-' }}</td>
+                                <td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}</td>
+                                <td><span class="badge bg-warning text-dark">{{ $borrowing->status?->label() }}</span></td>
+                                <td class="text-end">
+                                    @can('borrowing.view')
+                                    <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Belum ada riwayat peminjaman.</td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-undira mb-3">
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Riwayat Maintenance</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover table-striped mb-0 table-undira">
+                        <thead>
+                            <tr><th>Tanggal</th><th>Jadwal berikutnya</th><th>Vendor</th><th>Status</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @forelse($inventory->maintenances as $maint)
+                            <tr>
+                                <td>{{ $maint->service_date?->format('d/m/Y') ?? '-' }}</td>
+                                <td>{{ $maint->next_schedule?->format('d/m/Y') ?? '-' }}</td>
+                                <td>{{ $maint->vendor?->name ?? '-' }}</td>
+                                <td><span class="badge bg-info text-dark">{{ $maint->status?->label() }}</span></td>
+                                <td class="text-end">
+                                    @can('maintenance.view')
+                                    <a href="{{ route('maintenances.show', $maint) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
+                                    @endcan
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-4">Belum ada riwayat maintenance.</td>
+                            </tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -178,38 +360,22 @@
 
     <div class="col-lg-4">
         <div class="card card-undira mb-3 text-center">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>QR Code</h5></div>
+            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>QR Code & Label</h5></div>
             <div class="card-body">
                 @if($inventory->qr_url)
                     <img src="{{ $inventory->qr_url }}" alt="QR Code" class="img-fluid mb-2 qr-preview" style="max-width:200px;">
+                    <a href="{{ route('inventory.qr.download', $inventory) }}" class="btn btn-outline-success btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-download me-1"></i>Unduh QR Code</a>
                 @else
                     <div class="empty-state py-3"><i class="fas fa-qrcode fa-3x text-muted mb-2"></i><div class="text-muted">QR belum tersedia</div></div>
-                @endif
-                @if($inventory->qr_url)
-                <a href="{{ route('inventory.qr.download', $inventory) }}" class="btn btn-outline-success btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-download me-1"></i>Unduh QR Code</a>
-                @endif
-            </div>
-        </div>
-
-        <div class="card card-undira mb-3 text-center">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-barcode me-2"></i>Barcode</h5></div>
-            <div class="card-body">
-                @if($inventory->barcode_url)
-                    <img src="{{ $inventory->barcode_url }}" alt="Barcode" class="img-fluid mb-2" style="max-width:100%;height:56px;object-fit:contain;">
-                @endif
-                @if($inventory->barcode)
-                    <div class="mb-3"><code>{{ $inventory->barcode }}</code></div>
-                @endif
-                @if($inventory->barcode_url)
-                <a href="{{ route('inventory.barcode.download', $inventory) }}" class="btn btn-outline-primary btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-download me-1"></i>Unduh Barcode</a>
                 @endif
                 <a href="{{ route('inventory.label.print', $inventory) }}" target="_blank" rel="noopener" class="btn btn-secondary btn-sm w-100 mb-2" data-no-loader="1"><i class="fas fa-print me-1"></i>Cetak Label</a>
                 @can('inventory.update')
                 <form action="{{ route('inventory.codes.regenerate', $inventory) }}" method="POST">
                     @csrf
-                    <button type="submit" class="btn btn-undira btn-sm w-100"><i class="fas fa-sync-alt me-1"></i>Generate Ulang</button>
+                    <button type="submit" class="btn btn-undira btn-sm w-100" data-loading-text="Memproses..."><i class="fas fa-sync-alt me-1"></i>Generate Ulang QR</button>
                 </form>
                 @endcan
+                <p class="text-muted small mt-2 mb-0">QR berisi URL halaman detail inventaris.</p>
             </div>
         </div>
 
@@ -221,34 +387,6 @@
                 <p class="mb-0"><strong>Unit ke:</strong> {{ $inventory->unit_sequence ?? 1 }}</p>
             </div>
         </div>
-
-        @if($inventory->borrowings->isNotEmpty())
-        <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-hand-holding me-2"></i>Peminjaman</h5></div>
-            <ul class="list-group list-group-flush">
-                @foreach($inventory->borrowings->take(5) as $borrowing)
-                <li class="list-group-item small d-flex justify-content-between">
-                    <span>{{ $borrowing->borrower_name }}</span>
-                    <span class="badge bg-warning text-dark">{{ $borrowing->status?->label() }}</span>
-                </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
-
-        @if($inventory->maintenances->isNotEmpty())
-        <div class="card card-undira mb-3">
-            <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-wrench me-2"></i>Maintenance</h5></div>
-            <ul class="list-group list-group-flush">
-                @foreach($inventory->maintenances->take(5) as $maint)
-                <li class="list-group-item small d-flex justify-content-between">
-                    <span>{{ $maint->service_date?->format('d/m/Y') }}</span>
-                    <span class="badge bg-info text-dark">{{ $maint->status?->label() }}</span>
-                </li>
-                @endforeach
-            </ul>
-        </div>
-        @endif
     </div>
 </div>
 @endsection

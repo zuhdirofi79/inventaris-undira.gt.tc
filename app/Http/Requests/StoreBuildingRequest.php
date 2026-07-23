@@ -26,6 +26,28 @@ class StoreBuildingRequest extends FormRequest
         ];
     }
 
+    public function attributes(): array
+    {
+        return [
+            'campus_id' => 'Kampus',
+            'code' => 'Kode gedung',
+            'name' => 'Nama gedung',
+            'slug' => 'Slug gedung',
+            'description' => 'Deskripsi',
+            'is_active' => 'Status',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'campus_id.required' => 'Kampus wajib dipilih.',
+            'code.required' => 'Kode gedung wajib diisi.',
+            'name.required' => 'Nama gedung wajib diisi.',
+            'is_active.required' => 'Status gedung wajib dipilih.',
+        ];
+    }
+
     protected function prepareForValidation(): void
     {
         $this->merge([

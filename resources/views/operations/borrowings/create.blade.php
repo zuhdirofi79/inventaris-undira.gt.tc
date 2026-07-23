@@ -17,14 +17,15 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Inventaris <span class="text-danger">*</span></label>
-                    <select name="inventory_item_id" class="form-select select2" required>
+                    <select name="inventory_item_id" id="inventory_item_id" class="form-select select2-inventory" required
+                            data-lookup-url="{{ route('inventory.lookup', ['status' => $lookupStatus]) }}"
+                            data-placeholder="Ketik nomor / nama inventaris…">
                         <option value="">Pilih Inventaris</option>
-                        @foreach($items as $item)
-                            <option value="{{ $item->id }}" {{ old('inventory_item_id', request('inventory_item_id')) == $item->id ? 'selected' : '' }}>
-                                {{ $item->inventory_number }} - {{ $item->name }}
-                            </option>
-                        @endforeach
+                        @if($selectedItem)
+                            <option value="{{ $selectedItem->id }}" selected>{{ $selectedItem->inventory_number }} - {{ $selectedItem->name }}</option>
+                        @endif
                     </select>
+                    <div class="form-text">Ketik minimal 1 karakter untuk mencari (status aktif).</div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Nama Peminjam <span class="text-danger">*</span></label>
@@ -69,5 +70,22 @@
 @endsection
 
 @push('scripts')
-<script>$('.select2').select2({ theme: 'bootstrap-5', width: '100%' });</script>
+<script>
+(function () {
+    const $el = $('.select2-inventory');
+    $el.select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: $el.data('placeholder'),
+        minimumInputLength: 1,
+        ajax: {
+            url: $el.data('lookup-url'),
+            dataType: 'json',
+            delay: 250,
+            data: function (params) { return { q: params.term }; },
+            processResults: function (data) { return data; },
+        },
+    });
+})();
+</script>
 @endpush

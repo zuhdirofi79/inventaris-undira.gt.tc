@@ -161,7 +161,7 @@ class InventoryMasterConfigurationTest extends TestCase
         foreach ($items as $item) {
             $this->assertSame($roomId, (int) $item->room_id);
             $this->assertNotEmpty($item->inventory_number);
-            $this->assertNotEmpty($item->barcode);
+            $this->assertNotEmpty($item->qr_code_path);
             $this->assertNotEmpty($item->qr_code_path);
         }
 

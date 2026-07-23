@@ -23,4 +23,32 @@ class StoreVendorRequest extends FormRequest
             'is_active' => ['nullable', 'boolean'],
         ];
     }
+
+    public function attributes(): array
+    {
+        return [
+            'name' => 'Nama vendor',
+            'contact_person' => 'Kontak person',
+            'phone' => 'Telepon',
+            'email' => 'Email',
+            'address' => 'Alamat',
+            'service_type' => 'Jenis layanan',
+            'is_active' => 'Status',
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'name.required' => 'Nama vendor wajib diisi.',
+            'email.email' => 'Email vendor tidak valid.',
+        ];
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->merge([
+            'is_active' => $this->boolean('is_active'),
+        ]);
+    }
 }

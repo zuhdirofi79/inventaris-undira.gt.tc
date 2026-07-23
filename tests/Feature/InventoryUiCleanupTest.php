@@ -58,7 +58,7 @@ class InventoryUiCleanupTest extends TestCase
             ->getContent();
 
         $this->assertStringNotContainsString('Total Nilai', $html);
-        $this->assertStringContainsString('Total Inventaris', $html);
+        $this->assertStringContainsString('Jumlah Inventaris', $html);
         $this->assertStringNotContainsString('Nilai Inventaris per Kampus', $html);
         $this->assertStringNotContainsString('chartValueCampus', $html);
     }

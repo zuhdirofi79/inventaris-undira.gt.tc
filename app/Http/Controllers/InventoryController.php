@@ -17,6 +17,7 @@ use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\Vendor;
 use App\Services\AuditLogService;
+use App\Services\DashboardStatsService;
 use App\Services\DashboardTreeService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
@@ -36,6 +37,7 @@ class InventoryController extends Controller
         protected InventoryFilterService $filterService,
         protected LocationHierarchyService $locationHierarchy,
         protected TrashCascadeService $trash,
+        protected DashboardStatsService $dashboardStats,
     ) {}
 
     /**
@@ -49,40 +51,92 @@ class InventoryController extends Controller
                 'buildings as buildings_count' => fn ($q) => $q->where('is_active', true),
             ])
             ->orderBy('name')
-            ->get();
+            ->get(['id', 'code', 'name', 'slug', 'is_active']);
+
+        $campusStats = collect($this->dashboardStats->campusStats())->keyBy('id');
 
         $stats = [];
         foreach ($campuses as $campus) {
-            $base = InventoryItem::query()->forCampus($campus->id);
-
-            $agg = (clone $base)
-                ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
-                ->join('floors', 'floors.id', '=', 'rooms.floor_id')
-                ->join('buildings', 'buildings.id', '=', 'floors.building_id')
-                ->selectRaw('COUNT(inventory_items.id) as total_units')
-                ->selectRaw('COUNT(DISTINCT COALESCE(inventory_items.group_key, inventory_items.name)) as total_items')
-                ->selectRaw('COUNT(DISTINCT floors.id) as floors')
-                ->selectRaw('COUNT(DISTINCT rooms.id) as rooms')
-                ->first();
-
+            $row = $campusStats->get($campus->id, []);
             $stats[$campus->id] = [
-                'total_units' => (int) ($agg->total_units ?? 0),
-                'total_items' => (int) ($agg->total_items ?? 0),
-                'floors' => (int) ($agg->floors ?? 0),
-                'rooms' => (int) ($agg->rooms ?? 0),
-                'available' => (clone $base)->where('status', InventoryStatus::Aktif)->count(),
-                'borrowed' => (clone $base)->where('status', InventoryStatus::Dipinjam)->count(),
-                'maintenance' => (clone $base)->where('status', InventoryStatus::Maintenance)->count(),
-                'damaged' => (clone $base)->whereIn('status', [
-                    InventoryStatus::RusakRingan,
-                    InventoryStatus::RusakBerat,
-                ])->count(),
+                'total_units' => (int) ($row['total_units'] ?? 0),
+                'total_items' => (int) ($row['total_inventory'] ?? 0),
+                'floors' => (int) ($row['floors'] ?? 0),
+                'rooms' => (int) ($row['rooms'] ?? 0),
+                'available' => (int) ($row['available'] ?? 0),
+                'borrowed' => (int) ($row['borrowed'] ?? 0),
+                'maintenance' => (int) ($row['maintenance'] ?? 0),
+                'damaged' => (int) ($row['damaged'] ?? 0),
             ];
         }
 
         return view('inventory.index', [
             'campuses' => $campuses,
             'stats' => $stats,
+        ]);
+    }
+
+    /**
+     * AJAX Select2 lookup — avoids loading all inventory into ops create forms.
+     */
+    public function lookup(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->input('q', ''));
+        $query = InventoryItem::query()
+            ->select(['id', 'inventory_number', 'name', 'room_id', 'status']);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->input('status'));
+        }
+
+        if ($q !== '') {
+            $query->where(function ($builder) use ($q) {
+                $builder->where('inventory_number', 'like', "%{$q}%")
+                    ->orWhere('name', 'like', "%{$q}%")
+                    ->orWhere('barcode', 'like', "%{$q}%");
+            });
+        }
+
+        $items = $query->orderBy('inventory_number')->limit(30)->get();
+
+        return response()->json([
+            'results' => $items->map(fn (InventoryItem $item) => [
+                'id' => $item->id,
+                'text' => $item->inventory_number.' - '.$item->name,
+                'room_id' => $item->room_id,
+            ]),
+        ]);
+    }
+
+    /**
+     * AJAX Select2 lookup for destination rooms (mutations).
+     */
+    public function lookupRooms(Request $request): JsonResponse
+    {
+        $q = trim((string) $request->input('q', ''));
+        $query = Room::query()
+            ->where('is_active', true)
+            ->with(['floor.building.campus'])
+            ->select(['id', 'floor_id', 'code', 'name']);
+
+        if ($q !== '') {
+            $query->where(function ($builder) use ($q) {
+                $builder->where('name', 'like', "%{$q}%")
+                    ->orWhere('code', 'like', "%{$q}%")
+                    ->orWhereHas('floor.building.campus', function ($loc) use ($q) {
+                        $loc->where('name', 'like', "%{$q}%")
+                            ->orWhere('code', 'like', "%{$q}%");
+                    });
+            });
+        }
+
+        $rooms = $query->orderBy('name')->limit(30)->get();
+
+        return response()->json([
+            'results' => $rooms->map(fn (Room $room) => [
+                'id' => $room->id,
+                'text' => $room->full_location,
+            ]),
         ]);
     }
 
@@ -128,12 +182,17 @@ class InventoryController extends Controller
     {
         $itemsQuery = InventoryItem::query()
             ->forCampus($campus->id)
+            ->select([
+                'id', 'name', 'inventory_number', 'group_key', 'unit_sequence',
+                'status', 'condition', 'room_id', 'category_id', 'sub_category_id',
+            ])
             ->with([
-                'category',
-                'subCategory',
-                'supplier',
-                'vendor',
-                'room.floor.building.campus',
+                'category:id,code,name',
+                'subCategory:id,category_id,code,name',
+                'room:id,floor_id,code,name',
+                'room.floor:id,building_id,code,name,floor_number',
+                'room.floor.building:id,campus_id,code,name',
+                'room.floor.building.campus:id,code,name',
             ]);
 
         $items = $this->filterService
@@ -168,11 +227,16 @@ class InventoryController extends Controller
     {
         $itemsQuery = InventoryItem::query()
             ->where('category_id', $category->id)
+            ->select([
+                'id', 'name', 'inventory_number', 'group_key', 'unit_sequence',
+                'status', 'condition', 'room_id', 'category_id', 'sub_category_id',
+            ])
             ->with([
-                'subCategory',
-                'supplier',
-                'vendor',
-                'room.floor.building.campus',
+                'subCategory:id,category_id,code,name',
+                'room:id,floor_id,code,name',
+                'room.floor:id,building_id,code,name,floor_number',
+                'room.floor.building:id,campus_id,code,name',
+                'room.floor.building.campus:id,code,name',
             ]);
 
         $items = $this->filterService
@@ -211,9 +275,10 @@ class InventoryController extends Controller
 
         return view('inventory.items', [
             'locationData' => $this->locationTree(),
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
-            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'orgUnits' => OrgUnit::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -255,12 +320,17 @@ class InventoryController extends Controller
         $inventory->load([
             'category', 'subCategory', 'room.floor.building.campus',
             'orgUnit', 'procurementType',
-            'supplier', 'vendor', 'photos', 'attachments',
-            'mutations.fromRoom', 'mutations.toRoom', 'mutations.movedBy',
-            'borrowings', 'maintenances.vendor', 'creator', 'updater',
+            'supplier', 'vendor', 'creator', 'updater',
+            'photos' => fn ($q) => $q->orderByDesc('is_primary')->orderBy('id'),
+            'attachments' => fn ($q) => $q->latest()->limit(50),
+            'mutations' => fn ($q) => $q->with(['fromRoom', 'toRoom', 'movedBy'])->latest()->limit(25),
+            'borrowings' => fn ($q) => $q->with('approvedBy')->latest()->limit(25),
+            'maintenances' => fn ($q) => $q->with('vendor')->latest()->limit(25),
         ]);
 
-        return view('inventory.show', compact('inventory'));
+        $timeline = app(\App\Services\InventoryHistoryService::class)->timeline($inventory);
+
+        return view('inventory.show', compact('inventory', 'timeline'));
     }
 
     public function edit(InventoryItem $inventory): View
@@ -329,9 +399,11 @@ class InventoryController extends Controller
     public function bulkRelocate(BulkRelocateInventoryRequest $request): RedirectResponse
     {
         $toRoom = Room::query()->findOrFail($request->input('to_room_id'));
+        $ids = $request->input('inventory_ids', []);
 
-        DB::transaction(function () use ($request, $toRoom) {
-            $items = InventoryItem::query()->whereIn('id', $request->input('inventory_ids'))->get();
+        $moved = DB::transaction(function () use ($request, $toRoom, $ids) {
+            $items = InventoryItem::query()->whereIn('id', $ids)->get();
+            $count = 0;
 
             foreach ($items as $item) {
                 $fromRoomId = $item->room_id;
@@ -349,8 +421,27 @@ class InventoryController extends Controller
                     'room_id' => $toRoom->id,
                     'updated_by' => $request->user()->id,
                 ]);
+                $count++;
             }
+
+            return $count;
         });
+
+        $this->auditLogService->log(
+            $request->user(),
+            AuditAction::Update,
+            null,
+            null,
+            [
+                'to_room_id' => $toRoom->id,
+                'inventory_ids' => $ids,
+                'affected_count' => $moved,
+                'reason' => $request->input('reason'),
+            ],
+            'INVENTORY_BULK_RELOCATED',
+            $request->input('reason'),
+            $moved,
+        );
 
         return back()->with('success', 'Inventaris berhasil dipindahkan.');
     }
@@ -406,12 +497,12 @@ class InventoryController extends Controller
     protected function formLookups(): array
     {
         return [
-            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(),
+            'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'locationData' => $this->locationTree(),
-            'orgUnits' => OrgUnit::query()->where('is_active', true)->orderBy('name')->get(),
-            'procurementTypes' => ProcurementType::query()->where('is_active', true)->orderBy('name')->get(),
-            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(),
+            'orgUnits' => OrgUnit::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'procurementTypes' => ProcurementType::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ];
     }
 

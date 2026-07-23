@@ -8,9 +8,7 @@
 @endsection
 
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-history me-2"></i>Audit Log</h1>
-</div>
+<x-ui.page-header title="Audit Log" subtitle="Jejak aktivitas dan perubahan data" icon="bi bi-clock-history" />
 
 <div class="filter-panel mb-4">
     <form method="GET" class="row g-3">
