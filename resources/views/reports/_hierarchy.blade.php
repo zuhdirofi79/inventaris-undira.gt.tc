@@ -1,4 +1,9 @@
 {{-- Professional grouped inventory tables (print / PDF / preview) --}}
+@php
+    $orientation = $meta['orientation'] ?? 'portrait';
+    $isLandscape = $orientation === 'landscape';
+    $eam = $eam ?? app(\App\Services\Reports\EamReportService::class);
+@endphp
 
 @forelse($tree as $campusNode)
     <section class="rpt-campus">
@@ -23,40 +28,12 @@
                                 <span class="tag">Subkategori</span> {{ $subNode['label'] }}
                             </div>
 
-                            <div class="rpt-table-wrap">
-                                <table class="rpt-table">
-                                    <thead>
-                                        <tr>
-                                            <th class="rpt-col-no">No</th>
-                                            <th class="rpt-col-inv">Nomor Inventaris</th>
-                                            <th class="rpt-col-name">Nama Barang</th>
-                                            <th class="rpt-col-cat">Kategori</th>
-                                            <th class="rpt-col-sub">Subkategori</th>
-                                            <th class="rpt-col-brand">Merk</th>
-                                            <th class="rpt-col-sn">Serial Number</th>
-                                            <th class="rpt-col-cond">Kondisi</th>
-                                            <th class="rpt-col-status">Status</th>
-                                            <th class="rpt-col-pic">PIC</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($subNode['items'] as $item)
-                                            <tr>
-                                                <td class="rpt-col-no">{{ str_pad((string) $loop->iteration, 3, '0', STR_PAD_LEFT) }}</td>
-                                                <td class="rpt-col-inv">{{ $item->inventory_number }}</td>
-                                                <td class="rpt-col-name">{{ $item->name }}</td>
-                                                <td class="rpt-col-cat">{{ $categoryNode['label'] }}</td>
-                                                <td class="rpt-col-sub">{{ $subNode['label'] }}</td>
-                                                <td class="rpt-col-brand">{{ $item->brand ?: '—' }}</td>
-                                                <td class="rpt-col-sn">{{ $item->serial_number ?: '—' }}</td>
-                                                <td class="rpt-col-cond">{{ $item->condition?->label() ?? '—' }}</td>
-                                                <td class="rpt-col-status">{{ $item->status?->label() ?? '—' }}</td>
-                                                <td class="rpt-col-pic">{{ $item->picDisplayName() ?: '—' }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            </div>
+                            @include('reports._flat-table', [
+                                'items' => collect($subNode['items']),
+                                'meta' => $meta,
+                                'eam' => $eam,
+                                'startNo' => 0,
+                            ])
                         @endforeach
                     @endforeach
 

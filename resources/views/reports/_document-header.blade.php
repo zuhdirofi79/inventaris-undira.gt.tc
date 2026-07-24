@@ -13,7 +13,7 @@
 <header class="rpt-header">
     <table class="rpt-header-table">
         <tr>
-            <td style="width:60px;">
+            <td style="width:56px;">
                 @if($logoSrc)
                     <img class="rpt-logo" src="{{ $logoSrc }}" alt="Logo UNDIRA">
                 @endif
@@ -21,12 +21,11 @@
             <td>
                 <p class="rpt-org">{{ $meta['organization'] ?? 'Universitas Dian Nusantara' }}</p>
                 <h1 class="rpt-title">{{ $meta['report_title'] ?? 'Laporan Inventaris' }}</h1>
-                @if(!empty($meta['title']) && ($meta['title'] ?? '') !== ($meta['report_title'] ?? ''))
-                    <p style="margin:2px 0 0;font-size:10pt;font-weight:700;">{{ $meta['title'] }}</p>
-                @endif
+                <p class="rpt-subtitle">{{ $meta['title'] ?? 'Laporan Inventaris' }}</p>
                 <div class="rpt-meta">
-                    <p class="rpt-meta-row"><strong>Tanggal Cetak:</strong> {{ $meta['printed_date'] ?? ($meta['printed_at'] ?? '-') }}</p>
-                    <p class="rpt-meta-row"><strong>Jam Cetak:</strong> {{ $meta['printed_time'] ?? '-' }} WIB</p>
+                    <p class="rpt-meta-row"><strong>Jenis laporan:</strong> {{ $meta['title'] ?? '-' }} ({{ $orientation === 'landscape' ? 'Landscape' : 'Portrait' }})</p>
+                    <p class="rpt-meta-row"><strong>Tanggal cetak:</strong> {{ $meta['printed_date'] ?? ($meta['printed_at'] ?? '-') }}</p>
+                    <p class="rpt-meta-row"><strong>Jam cetak:</strong> {{ $meta['printed_time'] ?? '-' }} WIB</p>
                     <p class="rpt-meta-row"><strong>Dicetak oleh:</strong> {{ $meta['user_name'] ?? '-' }}</p>
                 </div>
             </td>

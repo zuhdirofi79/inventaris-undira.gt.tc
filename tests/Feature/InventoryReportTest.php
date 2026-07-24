@@ -120,6 +120,75 @@ class InventoryReportTest extends TestCase
             ->assertHeader('content-type', 'application/pdf');
     }
 
+    public function test_pdf_portrait_and_landscape_differ_in_layout_and_paper(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        [$campus, $room, $category, $sub] = $this->seedLocationWithCategory();
+
+        InventoryItem::query()->create([
+            'name' => 'Meja Kerja Panjang Sekali Nama Barang Report',
+            'inventory_number' => 'CBB-UNDIRA-26-FUR-MJA-000999',
+            'barcode' => 'CBB-UNDIRA-26-FUR-MJA-000999',
+            'serial_number' => 'SN-VERY-LONG-SERIAL-XYZ-001',
+            'brand' => 'MerkPanjang',
+            'room_id' => $room->id,
+            'category_id' => $category->id,
+            'sub_category_id' => $sub->id,
+            'condition' => 'bagus',
+            'status' => 'aktif',
+            'price' => 1500000,
+            'quantity' => 1,
+            'responsible_person' => 'PIC Nama Sangat Panjang Untuk Uji Potong',
+        ]);
+
+        $portrait = $this->actingAs($admin)
+            ->post(route('reports.export', 'lengkap'), [
+                'format' => 'pdf-portrait',
+                'orientation' => 'portrait',
+                'campus_id' => $campus->id,
+            ])
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $landscape = $this->actingAs($admin)
+            ->post(route('reports.export', 'lengkap'), [
+                'format' => 'pdf-landscape',
+                'orientation' => 'landscape',
+                'campus_id' => $campus->id,
+            ])
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->assertNotSame($portrait->getContent(), $landscape->getContent());
+
+        $request = \Illuminate\Http\Request::create('/reports/lengkap/export', 'POST', [
+            'campus_id' => $campus->id,
+        ]);
+        $request->setUserResolver(fn () => $admin);
+
+        $docPortrait = app(\App\Services\Reports\EamReportService::class)
+            ->buildInventoryDocument($request, \App\Enums\InventoryReportType::Complete, 'portrait');
+        $htmlPortrait = view('exports.inventory-pdf', $docPortrait)->render();
+        $this->assertStringContainsString('rpt-table--portrait', $htmlPortrait);
+        $this->assertStringNotContainsString('Serial Number', $htmlPortrait);
+        $this->assertStringNotContainsString('>Merk<', $htmlPortrait);
+
+        $docLandscape = app(\App\Services\Reports\EamReportService::class)
+            ->buildInventoryDocument($request, \App\Enums\InventoryReportType::Complete, 'landscape');
+        $htmlLandscape = view('exports.inventory-pdf', $docLandscape)->render();
+        $this->assertStringContainsString('rpt-table--landscape', $htmlLandscape);
+        $this->assertStringContainsString('Serial Number', $htmlLandscape);
+        $this->assertStringContainsString('Merk', $htmlLandscape);
+        $this->assertStringContainsString('Nilai', $htmlLandscape);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.inventory-pdf', $docLandscape);
+        $pdf->setPaper('a4', 'landscape');
+        $dompdf = $pdf->getDomPDF();
+        $dompdf->render();
+        $canvas = $dompdf->getCanvas();
+        $this->assertGreaterThan($canvas->get_height(), $canvas->get_width());
+    }
+
     public function test_viewer_can_load_cascade_buildings_for_report(): void
     {
         $viewer = $this->makeViewer();

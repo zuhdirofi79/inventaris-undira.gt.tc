@@ -1,56 +1,74 @@
-{{-- Flat asset register table with QR (lengkap / rusak / nonaktif / dihapus / dll) --}}
+{{-- Inventory asset table — portrait (compact) vs landscape (full) --}}
 @php
     /** @var \Illuminate\Support\Collection|\App\Models\InventoryItem[] $items */
     $eam = $eam ?? app(\App\Services\Reports\EamReportService::class);
+    $orientation = $meta['orientation'] ?? 'portrait';
+    $isLandscape = $orientation === 'landscape';
+    $startNo = (int) ($startNo ?? 0);
+    $colspan = $isLandscape ? 14 : 7;
 @endphp
 
 <div class="rpt-table-wrap">
-    <table class="rpt-table">
+    <table class="rpt-table rpt-table--{{ $isLandscape ? 'landscape' : 'portrait' }}">
         <thead>
             <tr>
                 <th class="rpt-col-no">No</th>
-                <th style="width:5%;">QR</th>
+                <th class="rpt-col-qr">QR</th>
                 <th class="rpt-col-inv">Nomor Inventaris</th>
                 <th class="rpt-col-name">Nama Barang</th>
-                <th class="rpt-col-cat">Kategori</th>
-                <th class="rpt-col-sub">Subkategori</th>
-                <th class="rpt-col-brand">Merk</th>
-                <th class="rpt-col-sn">Serial Number</th>
-                <th style="width:14%;">Lokasi</th>
-                <th class="rpt-col-pic">PIC</th>
+                @if($isLandscape)
+                    <th class="rpt-col-cat">Kategori</th>
+                    <th class="rpt-col-sub">Subkategori</th>
+                    <th class="rpt-col-brand">Merk</th>
+                    <th class="rpt-col-sn">Serial Number</th>
+                @endif
+                <th class="rpt-col-loc">Lokasi</th>
+                @if($isLandscape)
+                    <th class="rpt-col-pic">PIC</th>
+                @endif
                 <th class="rpt-col-status">Status</th>
                 <th class="rpt-col-cond">Kondisi</th>
-                <th style="width:7%;">Tgl Pengadaan</th>
-                <th style="width:8%;">Nilai</th>
+                @if($isLandscape)
+                    <th class="rpt-col-date">Tgl Pengadaan</th>
+                    <th class="rpt-col-nilai">Nilai</th>
+                @endif
             </tr>
         </thead>
         <tbody>
             @forelse($items as $item)
-                @php $row = $eam->mapInventoryRow($item, $loop->iteration); @endphp
+                @php $row = $eam->mapInventoryRow($item, $startNo + $loop->iteration); @endphp
                 <tr>
-                    <td class="rpt-col-no">{{ $row['no'] }}</td>
-                    <td style="text-align:center;">
+                    <td class="rpt-col-no rpt-cell">{{ $row['no'] }}</td>
+                    <td class="rpt-col-qr rpt-qr-cell">
                         @if($row['qr'])
-                            <img src="{{ $row['qr'] }}" alt="QR" width="28" height="28" style="width:28px;height:28px;">
+                            <img class="rpt-qr" src="{{ $row['qr'] }}" alt="QR">
                         @else
                             —
                         @endif
                     </td>
-                    <td>{{ $row['inventory_number'] }}</td>
-                    <td>{{ $row['name'] }}</td>
-                    <td>{{ $row['category'] }}</td>
-                    <td>{{ $row['sub_category'] }}</td>
-                    <td>{{ $row['brand'] }}</td>
-                    <td>{{ $row['serial_number'] }}</td>
-                    <td>{{ $row['location'] }}</td>
-                    <td>{{ $row['pic'] }}</td>
-                    <td>{{ $row['status'] }}</td>
-                    <td>{{ $row['condition'] }}</td>
-                    <td>{{ $row['purchase_date'] }}</td>
-                    <td>{{ $row['price_formatted'] }}</td>
+                    <td class="rpt-col-inv rpt-cell">{{ $row['inventory_number'] }}</td>
+                    <td class="rpt-col-name rpt-cell">{{ $row['name'] }}</td>
+                    @if($isLandscape)
+                        <td class="rpt-col-cat rpt-cell">{{ $row['category'] }}</td>
+                        <td class="rpt-col-sub rpt-cell">{{ $row['sub_category'] }}</td>
+                        <td class="rpt-col-brand rpt-cell">{{ $row['brand'] }}</td>
+                        <td class="rpt-col-sn rpt-cell">{{ $row['serial_number'] }}</td>
+                    @endif
+                    <td class="rpt-col-loc rpt-cell">{{ $row['location'] }}</td>
+                    @if($isLandscape)
+                        <td class="rpt-col-pic rpt-cell">{{ $row['pic'] }}</td>
+                    @endif
+                    <td class="rpt-col-status rpt-cell">{{ $row['status'] }}</td>
+                    <td class="rpt-col-cond rpt-cell">{{ $row['condition'] }}</td>
+                    @if($isLandscape)
+                        <td class="rpt-col-date rpt-cell">{{ $row['purchase_date'] }}</td>
+                        <td class="rpt-col-nilai rpt-cell">{{ $row['price_formatted'] }}</td>
+                    @endif
                 </tr>
             @empty
-                <tr><td colspan="14">Tidak ada data inventaris sesuai filter.</td></tr>
+                <tr>
+                    <td colspan="{{ $colspan }}" class="rpt-cell">Tidak ada data inventaris sesuai filter.</td>
+                </tr>
             @endforelse
         </tbody>
     </table>

@@ -227,7 +227,10 @@
         form.method = 'POST';
         form.action = exportUrl;
         form.target = '_blank';
-        const params = formParams({ format, _token: csrf });
+        const extra = { format, _token: csrf };
+        if (format === 'pdf-landscape') extra.orientation = 'landscape';
+        if (format === 'pdf-portrait' || format === 'pdf') extra.orientation = 'portrait';
+        const params = formParams(extra);
         for (const [k, v] of params.entries()) {
             const input = document.createElement('input');
             input.type = 'hidden';

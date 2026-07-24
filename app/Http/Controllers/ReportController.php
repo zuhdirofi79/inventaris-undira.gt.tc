@@ -299,9 +299,10 @@ class ReportController extends Controller
         }
 
         if (in_array($format, ['pdf', 'pdf-portrait', 'pdf-landscape'], true)) {
-            return Pdf::loadView('exports.inventory-pdf', $doc)
-                ->setPaper('a4', $orientation)
-                ->download("laporan_{$slug}_{$orientation}_{$stamp}.pdf");
+            $pdf = Pdf::loadView('exports.inventory-pdf', $doc);
+            $pdf->setPaper('a4', $orientation);
+
+            return $pdf->download("laporan_{$slug}_{$orientation}_{$stamp}.pdf");
         }
 
         $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tgl Pengadaan', 'Nilai'];

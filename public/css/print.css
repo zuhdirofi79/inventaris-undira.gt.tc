@@ -1,13 +1,10 @@
 /**
  * Inventaris UNDIRA — professional print / PDF report stylesheet.
+ * Media layers: base (shared) → screen → print → pdf overrides (inline in PDF blade).
  * Do NOT include dashboard / AdminLTE styles here.
  */
 
-@page {
-    size: A4;
-    margin: 12mm 10mm 14mm 10mm;
-}
-
+/* —— Base (shared by screen, print, PDF) —— */
 * {
     box-sizing: border-box;
 }
@@ -18,15 +15,21 @@ html, body {
     color: #111;
     background: #fff;
     font-family: DejaVu Sans, Poppins, "Segoe UI", Arial, sans-serif;
-    font-size: 9pt;
-    line-height: 1.35;
+    font-size: 9px;
+    line-height: 1.3;
 }
 
 .rpt-doc {
     width: 100%;
 }
 
-/* —— Header (first page) —— */
+.rpt-cell {
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+}
+
+/* —— Document header —— */
 .rpt-header {
     border-bottom: 2px solid #1a1a1a;
     padding-bottom: 6px;
@@ -45,21 +48,22 @@ html, body {
 }
 
 .rpt-logo {
-    width: 52px;
+    width: 48px;
     height: auto;
     display: block;
 }
 
 .rpt-org {
-    font-size: 11pt;
+    font-size: 12px;
     font-weight: 700;
     color: #111;
-    margin: 0 0 1px;
-    letter-spacing: 0.2px;
+    margin: 0 0 2px;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
 }
 
 .rpt-title {
-    font-size: 16pt;
+    font-size: 14px;
     font-weight: 700;
     color: #111;
     margin: 0;
@@ -67,9 +71,15 @@ html, body {
     text-transform: uppercase;
 }
 
+.rpt-subtitle {
+    margin: 2px 0 0;
+    font-size: 11px;
+    font-weight: 700;
+}
+
 .rpt-meta {
     margin-top: 4px;
-    font-size: 8pt;
+    font-size: 9px;
     color: #333;
 }
 
@@ -86,13 +96,13 @@ html, body {
     margin: 6px 0 8px;
     border: 1px solid #999;
     padding: 4px 6px;
-    font-size: 8pt;
+    font-size: 8px;
 }
 
 .rpt-filters-title {
     font-weight: 700;
     margin: 0 0 3px;
-    font-size: 9pt;
+    font-size: 10px;
 }
 
 .rpt-filters-grid {
@@ -115,12 +125,12 @@ html, body {
     font-weight: 700;
 }
 
-/* —— Summary strip —— */
+/* —— Summary —— */
 .rpt-summary {
     width: 100%;
     border-collapse: collapse;
     margin: 0 0 10px;
-    font-size: 8pt;
+    font-size: 8px;
 }
 
 .rpt-summary th,
@@ -132,14 +142,15 @@ html, body {
 }
 
 .rpt-summary th {
-    background: #e8e8e8;
+    background: #4a4a4a;
+    color: #fff;
     font-weight: 700;
-    font-size: 7.5pt;
+    font-size: 8px;
 }
 
 .rpt-summary td {
     font-weight: 700;
-    font-size: 9pt;
+    font-size: 9px;
 }
 
 /* —— Hierarchy headings —— */
@@ -149,7 +160,7 @@ html, body {
 }
 
 .rpt-h-campus {
-    font-size: 12pt;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.4px;
@@ -161,7 +172,7 @@ html, body {
 }
 
 .rpt-h-building {
-    font-size: 11pt;
+    font-size: 11px;
     font-weight: 700;
     border-bottom: 1.5px solid #333;
     margin: 8px 0 3px;
@@ -170,14 +181,14 @@ html, body {
 }
 
 .rpt-h-floor {
-    font-size: 10pt;
+    font-size: 10px;
     font-weight: 700;
     margin: 6px 0 2px;
     page-break-after: avoid;
 }
 
 .rpt-h-room {
-    font-size: 9.5pt;
+    font-size: 10px;
     font-weight: 700;
     background: #efefef;
     border-left: 3px solid #333;
@@ -187,39 +198,36 @@ html, body {
 }
 
 .rpt-h-category {
-    font-size: 9pt;
+    font-size: 9px;
     font-weight: 700;
     margin: 4px 0 1px;
     page-break-after: avoid;
 }
 
-.rpt-h-category .tag {
-    color: #444;
-    font-weight: 400;
-}
-
-.rpt-h-sub {
-    font-size: 9pt;
-    font-weight: 700;
-    margin: 3px 0 2px;
-    page-break-after: avoid;
-}
-
+.rpt-h-category .tag,
 .rpt-h-sub .tag {
     color: #555;
     font-weight: 400;
 }
 
+.rpt-h-sub {
+    font-size: 9px;
+    font-weight: 700;
+    margin: 3px 0 2px;
+    page-break-after: avoid;
+}
+
 /* —— Data table —— */
 .rpt-table-wrap {
-    margin: 0 0 4px;
+    margin: 0 0 6px;
+    width: 100%;
 }
 
 .rpt-table {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 8pt;
+    font-size: 8px;
 }
 
 .rpt-table thead {
@@ -232,59 +240,106 @@ html, body {
 
 .rpt-table tr {
     page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .rpt-table th {
     background: #4a4a4a;
     color: #fff;
     font-weight: 700;
-    font-size: 7.5pt;
+    font-size: 8px;
     text-align: left;
     border: 0.5pt solid #333;
-    padding: 2px 3px;
+    padding: 3px 3px;
+    vertical-align: middle;
 }
 
 .rpt-table td {
     border: 0.5pt solid #999;
-    padding: 2px 3px;
-    vertical-align: top;
+    padding: 3px 3px;
+    vertical-align: middle;
     color: #111;
-    word-wrap: break-word;
-}
-
-.rpt-table tbody tr:nth-child(even) td {
-    background: #f3f3f3;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
 }
 
 .rpt-table tbody tr:nth-child(odd) td {
     background: #fff;
 }
 
-.rpt-col-no { width: 4%; text-align: center; }
-.rpt-col-inv { width: 14%; }
-.rpt-col-name { width: 16%; }
-.rpt-col-cat { width: 9%; }
-.rpt-col-sub { width: 9%; }
-.rpt-col-brand { width: 8%; }
-.rpt-col-sn { width: 10%; }
-.rpt-col-cond { width: 8%; }
-.rpt-col-status { width: 9%; }
-.rpt-col-pic { width: 13%; }
+.rpt-table tbody tr:nth-child(even) td {
+    background: #f0f0f0;
+}
 
-.rpt-landscape .rpt-col-no { width: 3%; }
-.rpt-landscape .rpt-col-inv { width: 13%; }
-.rpt-landscape .rpt-col-name { width: 15%; }
-.rpt-landscape .rpt-col-cat { width: 9%; }
-.rpt-landscape .rpt-col-sub { width: 9%; }
-.rpt-landscape .rpt-col-brand { width: 9%; }
-.rpt-landscape .rpt-col-sn { width: 11%; }
-.rpt-landscape .rpt-col-cond { width: 8%; }
-.rpt-landscape .rpt-col-status { width: 10%; }
-.rpt-landscape .rpt-col-pic { width: 13%; }
+.rpt-qr {
+    display: block;
+    margin: 0 auto;
+    width: 18mm;
+    height: 18mm;
+    max-width: 18mm;
+    max-height: 18mm;
+}
+
+.rpt-qr-cell {
+    text-align: center;
+    vertical-align: middle !important;
+    padding: 2px !important;
+}
+
+/* Portrait column widths (7 cols) */
+.rpt-table--portrait .rpt-col-no { width: 5%; text-align: center; }
+.rpt-table--portrait .rpt-col-qr { width: 12%; }
+.rpt-table--portrait .rpt-col-inv { width: 18%; }
+.rpt-table--portrait .rpt-col-name { width: 18%; }
+.rpt-table--portrait .rpt-col-loc { width: 27%; }
+.rpt-table--portrait .rpt-col-status { width: 10%; }
+.rpt-table--portrait .rpt-col-cond { width: 10%; }
+.rpt-table--portrait .rpt-qr {
+    width: 18mm;
+    height: 18mm;
+    max-width: 18mm;
+    max-height: 18mm;
+}
+
+/* Landscape column widths (14 cols) — fill page width */
+.rpt-table--landscape .rpt-col-no { width: 3%; text-align: center; }
+.rpt-table--landscape .rpt-col-qr { width: 7%; }
+.rpt-table--landscape .rpt-col-inv { width: 10%; }
+.rpt-table--landscape .rpt-col-name { width: 9%; }
+.rpt-table--landscape .rpt-col-cat { width: 7%; }
+.rpt-table--landscape .rpt-col-sub { width: 7%; }
+.rpt-table--landscape .rpt-col-brand { width: 6%; }
+.rpt-table--landscape .rpt-col-sn { width: 8%; }
+.rpt-table--landscape .rpt-col-loc { width: 11%; }
+.rpt-table--landscape .rpt-col-pic { width: 7%; }
+.rpt-table--landscape .rpt-col-status { width: 5%; }
+.rpt-table--landscape .rpt-col-cond { width: 5%; }
+.rpt-table--landscape .rpt-col-date { width: 6%; }
+.rpt-table--landscape .rpt-col-nilai { width: 5%; }
+.rpt-table--landscape .rpt-qr {
+    width: 18mm;
+    height: 18mm;
+    max-width: 18mm;
+    max-height: 18mm;
+}
+
+.rpt-table--landscape {
+    font-size: 7.5px;
+}
+
+.rpt-table--landscape th {
+    font-size: 7.5px;
+    padding: 2px 2px;
+}
+
+.rpt-table--landscape td {
+    padding: 2px 2px;
+}
 
 /* —— Section totals —— */
 .rpt-total {
-    font-size: 8pt;
+    font-size: 8px;
     border: 1px solid #888;
     background: #f7f7f7;
     padding: 2px 5px;
@@ -292,30 +347,16 @@ html, body {
     page-break-inside: avoid;
 }
 
-.rpt-total-room {
-    border-style: dashed;
-}
-
-.rpt-total-building {
-    background: #ececec;
-    font-weight: 700;
-}
-
+.rpt-total-room { border-style: dashed; }
+.rpt-total-building { background: #ececec; font-weight: 700; }
 .rpt-total-campus {
     background: #e0e0e0;
     font-weight: 700;
     border: 1.5px solid #333;
     margin-bottom: 8px;
 }
-
-.rpt-total strong {
-    font-weight: 700;
-}
-
-.rpt-total .sep {
-    margin: 0 6px;
-    color: #777;
-}
+.rpt-total strong { font-weight: 700; }
+.rpt-total .sep { margin: 0 6px; color: #777; }
 
 /* —— Grand total —— */
 .rpt-grand {
@@ -323,11 +364,11 @@ html, body {
     border: 1.5px solid #222;
     padding: 5px 6px;
     page-break-inside: avoid;
-    font-size: 8pt;
+    font-size: 9px;
 }
 
 .rpt-grand-title {
-    font-size: 10pt;
+    font-size: 11px;
     font-weight: 700;
     margin: 0 0 4px;
     text-transform: uppercase;
@@ -343,15 +384,15 @@ html, body {
     padding: 1px 3px;
 }
 
-/* —— Page footer ( DomPDF fixed / browser print) —— */
+/* —— Page footer —— */
 .rpt-page-footer {
     position: fixed;
     left: 0;
     right: 0;
     bottom: 0;
-    height: 12mm;
+    height: 10mm;
     border-top: 1px solid #666;
-    font-size: 8pt;
+    font-size: 8px;
     color: #333;
     padding-top: 2px;
 }
@@ -365,22 +406,18 @@ html, body {
     border: none;
     padding: 0;
     vertical-align: top;
-    font-size: 8pt;
+    font-size: 8px;
 }
 
-.rpt-page-footer .left { text-align: left; width: 40%; }
-.rpt-page-footer .center { text-align: center; width: 30%; }
-.rpt-page-footer .right { text-align: right; width: 30%; }
+.rpt-page-footer .left { text-align: left; width: 34%; }
+.rpt-page-footer .center { text-align: center; width: 33%; }
+.rpt-page-footer .right { text-align: right; width: 33%; }
 
-.rpt-pagenum:before {
-    content: "Halaman " counter(page) " / " counter(pages);
-}
-
-/* Browser print helpers */
 .no-print {
     display: none !important;
 }
 
+/* —— Screen preview —— */
 @media screen {
     body.rpt-screen {
         background: #ececec;
@@ -388,16 +425,20 @@ html, body {
     }
 
     .rpt-doc {
-        max-width: 210mm;
         margin: 0 auto;
         background: #fff;
-        padding: 12mm 10mm 18mm;
-        box-shadow: none;
         border: 1px solid #ccc;
+        box-shadow: none;
+    }
+
+    .rpt-doc.rpt-portrait {
+        max-width: 210mm;
+        padding: 10mm;
     }
 
     .rpt-doc.rpt-landscape {
         max-width: 297mm;
+        padding: 8mm;
     }
 
     .rpt-toolbar {
@@ -416,6 +457,7 @@ html, body {
     }
 }
 
+/* —— Browser print —— */
 @media print {
     body {
         background: #fff !important;
@@ -428,6 +470,7 @@ html, body {
         border: none !important;
         padding: 0 !important;
         margin: 0 !important;
+        width: 100% !important;
     }
 
     .no-print {
@@ -436,5 +479,13 @@ html, body {
 
     a[href]:after {
         content: none !important;
+    }
+
+    .rpt-table thead {
+        display: table-header-group;
+    }
+
+    .rpt-table tr {
+        page-break-inside: avoid;
     }
 }
