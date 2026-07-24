@@ -53,12 +53,6 @@
             <div class="fs-3 fw-bold">{{ number_format($cards['non_aktif'] ?? 0) }}</div>
         </div></div>
     </div>
-    <div class="col-12 col-md-6 col-xl">
-        <div class="card card-undira h-100"><div class="card-body py-3">
-            <div class="text-muted small text-uppercase fw-bold">Total Nilai Aset</div>
-            <div class="fs-4 fw-bold">Rp {{ number_format($cards['nilai_aset'] ?? 0, 0, ',', '.') }}</div>
-        </div></div>
-    </div>
 </div>
 
 <div class="row g-3">

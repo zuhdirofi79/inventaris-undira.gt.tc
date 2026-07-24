@@ -69,7 +69,7 @@ enum InventoryReportType: string
     {
         return match ($this) {
             self::Dashboard => 'Ringkasan eksekutif dan akses cepat ke seluruh jenis laporan.',
-            self::Complete => 'Seluruh inventaris dengan kolom aset lengkap termasuk QR dan nilai.',
+            self::Complete => 'Seluruh inventaris dengan kolom aset lengkap termasuk QR.',
             self::ByCampus => 'Laporan hierarkis Kampus → Gedung → Lantai → Ruangan → Kategori.',
             self::ByBuilding => 'Inventaris seluruh ruangan dalam gedung terpilih.',
             self::ByFloor => 'Inventaris seluruh ruangan dalam lantai terpilih.',

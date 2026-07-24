@@ -5,7 +5,7 @@
     $orientation = $meta['orientation'] ?? 'portrait';
     $isLandscape = $orientation === 'landscape';
     $startNo = (int) ($startNo ?? 0);
-    $colspan = $isLandscape ? 14 : 7;
+    $colspan = $isLandscape ? 13 : 7;
 @endphp
 
 <div class="rpt-table-wrap">
@@ -30,7 +30,6 @@
                 <th class="rpt-col-cond">Kondisi</th>
                 @if($isLandscape)
                     <th class="rpt-col-date">Tgl Pengadaan</th>
-                    <th class="rpt-col-nilai">Nilai</th>
                 @endif
             </tr>
         </thead>
@@ -62,7 +61,6 @@
                     <td class="rpt-col-cond rpt-cell">{{ $row['condition'] }}</td>
                     @if($isLandscape)
                         <td class="rpt-col-date rpt-cell">{{ $row['purchase_date'] }}</td>
-                        <td class="rpt-col-nilai rpt-cell">{{ $row['price_formatted'] }}</td>
                     @endif
                 </tr>
             @empty

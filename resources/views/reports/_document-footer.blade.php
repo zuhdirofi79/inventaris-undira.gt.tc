@@ -8,8 +8,7 @@
         </tr>
         <tr>
             <td>Grand Total Maintenance: <strong>{{ number_format($summary['maintenance'] ?? 0) }}</strong></td>
-            <td>Grand Total Dipinjam: <strong>{{ number_format($summary['dipinjam'] ?? 0) }}</strong></td>
-            <td>Grand Total Nilai Aset: <strong>Rp {{ number_format($summary['nilai_aset'] ?? 0, 0, ',', '.') }}</strong></td>
+            <td colspan="2">Grand Total Dipinjam: <strong>{{ number_format($summary['dipinjam'] ?? 0) }}</strong></td>
         </tr>
     </table>
 </section>

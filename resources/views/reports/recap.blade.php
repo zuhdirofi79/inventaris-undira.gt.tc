@@ -36,12 +36,6 @@
         </div></div>
     </div>
     @endforeach
-    <div class="col-12 col-xl-4">
-        <div class="card card-undira h-100"><div class="card-body py-3">
-            <div class="small text-muted text-uppercase fw-bold">Total Nilai Aset</div>
-            <div class="fs-4 fw-bold">Rp {{ number_format($cards['nilai_aset'] ?? 0, 0, ',', '.') }}</div>
-        </div></div>
-    </div>
 </div>
 
 <div class="row g-3">

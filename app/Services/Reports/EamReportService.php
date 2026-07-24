@@ -281,7 +281,6 @@ class EamReportService
                 InventoryStatus::PerluPenggantian->value,
             ]
         ))->count();
-        $nilai = (float) ((clone $base)->sum('price') ?? 0);
 
         $byCampus = (clone $base)
             ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
@@ -335,7 +334,6 @@ class EamReportService
                 'rusak' => $rusak,
                 'maintenance' => $maintenance,
                 'non_aktif' => $nonAktif,
-                'nilai_aset' => $nilai,
             ],
             'charts' => [
                 'campus' => $byCampus,
@@ -357,7 +355,6 @@ class EamReportService
     public function summarizeCollection(Collection $items): array
     {
         $summary = $this->hierarchy->buildSummary($items);
-        $summary['nilai_aset'] = (float) $items->sum(fn (InventoryItem $i) => (float) ($i->price ?? 0));
         $summary['non_aktif'] = $items->filter(function (InventoryItem $i) {
             $status = $i->status;
 
@@ -434,8 +431,6 @@ class EamReportService
             'status' => $item->status?->label() ?? '—',
             'condition' => $item->condition?->label() ?? '—',
             'purchase_date' => $item->purchase_date?->format('d/m/Y') ?? '—',
-            'price' => (float) ($item->price ?? 0),
-            'price_formatted' => 'Rp '.number_format((float) ($item->price ?? 0), 0, ',', '.'),
             'id' => $item->id,
         ];
     }

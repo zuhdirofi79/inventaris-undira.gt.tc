@@ -302,21 +302,20 @@ html, body {
     max-height: 18mm;
 }
 
-/* Landscape column widths (14 cols) — fill page width */
+/* Landscape column widths (13 cols) — fill page width */
 .rpt-table--landscape .rpt-col-no { width: 3%; text-align: center; }
 .rpt-table--landscape .rpt-col-qr { width: 7%; }
-.rpt-table--landscape .rpt-col-inv { width: 10%; }
-.rpt-table--landscape .rpt-col-name { width: 9%; }
+.rpt-table--landscape .rpt-col-inv { width: 11%; }
+.rpt-table--landscape .rpt-col-name { width: 11%; }
 .rpt-table--landscape .rpt-col-cat { width: 7%; }
 .rpt-table--landscape .rpt-col-sub { width: 7%; }
-.rpt-table--landscape .rpt-col-brand { width: 6%; }
-.rpt-table--landscape .rpt-col-sn { width: 8%; }
-.rpt-table--landscape .rpt-col-loc { width: 11%; }
-.rpt-table--landscape .rpt-col-pic { width: 7%; }
+.rpt-table--landscape .rpt-col-brand { width: 7%; }
+.rpt-table--landscape .rpt-col-sn { width: 9%; }
+.rpt-table--landscape .rpt-col-loc { width: 12%; }
+.rpt-table--landscape .rpt-col-pic { width: 8%; }
 .rpt-table--landscape .rpt-col-status { width: 5%; }
 .rpt-table--landscape .rpt-col-cond { width: 5%; }
-.rpt-table--landscape .rpt-col-date { width: 6%; }
-.rpt-table--landscape .rpt-col-nilai { width: 5%; }
+.rpt-table--landscape .rpt-col-date { width: 8%; }
 .rpt-table--landscape .rpt-qr {
     width: 18mm;
     height: 18mm;

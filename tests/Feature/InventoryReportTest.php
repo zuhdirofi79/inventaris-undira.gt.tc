@@ -179,7 +179,7 @@ class InventoryReportTest extends TestCase
         $this->assertStringContainsString('rpt-table--landscape', $htmlLandscape);
         $this->assertStringContainsString('Serial Number', $htmlLandscape);
         $this->assertStringContainsString('Merk', $htmlLandscape);
-        $this->assertStringContainsString('Nilai', $htmlLandscape);
+        $this->assertStringNotContainsString('Nilai', $htmlLandscape);
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.inventory-pdf', $docLandscape);
         $pdf->setPaper('a4', 'landscape');

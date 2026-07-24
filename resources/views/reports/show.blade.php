@@ -79,7 +79,6 @@
             {key:'status', label:'Status'},
             {key:'condition', label:'Kondisi'},
             {key:'purchase_date', label:'Tgl Pengadaan'},
-            {key:'price_formatted', label:'Nilai'},
         ],
         borrowing: [
             {key:'no', label:'No'},
@@ -210,8 +209,7 @@
                     }).join('') + '</tr>';
                 }).join(''));
             }
-            const s = json.summary || {};
-            $('#reportSummaryText').text(`Total: ${json.meta?.total ?? 0}` + (s.nilai_aset != null ? ` · Nilai halaman: Rp ${Number(s.nilai_aset||0).toLocaleString('id-ID')}` : ''));
+            $('#reportSummaryText').text(`Total: ${json.meta?.total ?? 0}`);
             $('#reportPageInfo').text(`Halaman ${json.meta?.current_page || 1} / ${lastPage}`);
             $('#btnPrevPage').prop('disabled', page <= 1);
             $('#btnNextPage').prop('disabled', page >= lastPage);
