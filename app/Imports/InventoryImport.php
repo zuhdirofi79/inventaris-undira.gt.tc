@@ -10,6 +10,7 @@ use App\Models\ProcurementType;
 use App\Models\Room;
 use App\Models\SubCategory;
 use App\Models\Supplier;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Services\InventoryCodeService;
 use Illuminate\Support\Collection;
@@ -101,6 +102,8 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 ? Vendor::query()->firstOrCreate(['name' => $data['vendor_name']])
                 : null;
 
+            $pic = $this->resolvePic($data);
+
             $this->preview[] = [
                 'row' => $rowNumber,
                 'name' => $data['name'],
@@ -108,13 +111,14 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 'room' => $room->name,
                 'status' => $data['status'],
                 'condition' => $data['condition'],
+                'pic' => $pic?->name,
             ];
 
             if ($this->previewOnly) {
                 continue;
             }
 
-            DB::transaction(function () use ($data, $campus, $category, $subCategory, $procurement, $room, $supplier, $vendor) {
+            DB::transaction(function () use ($data, $campus, $category, $subCategory, $procurement, $room, $supplier, $vendor, $pic) {
                 $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
                 $quantity = (int) ($data['quantity'] ?? 1);
                 $purchaseYear = (int) $data['purchase_year'];
@@ -146,7 +150,8 @@ class InventoryImport implements ToCollection, WithHeadingRow
                         'price' => $data['price'] ?? null,
                         'condition' => $data['condition'],
                         'status' => $data['status'],
-                        'responsible_person' => $data['responsible_person'] ?? null,
+                        'pic_id' => $pic?->id,
+                        'responsible_person' => $pic?->name ?? ($data['responsible_person'] ?? null),
                         'supplier_id' => $supplier?->id,
                         'vendor_id' => $vendor?->id,
                         'warranty_info' => $data['warranty_info'] ?? null,
@@ -165,6 +170,26 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 }
             });
         }
+    }
+
+    /**
+     * Match PIC by email or name. Missing/invalid values are ignored (import continues).
+     *
+     * @param  array<string, mixed>  $data
+     */
+    protected function resolvePic(array $data): ?User
+    {
+        $picValue = trim((string) ($data['pic'] ?? $data['pic_email'] ?? $data['pic_name'] ?? ''));
+        if ($picValue === '') {
+            return null;
+        }
+
+        return User::query()
+            ->where(function ($q) use ($picValue) {
+                $q->where('email', $picValue)
+                    ->orWhere('name', $picValue);
+            })
+            ->first();
     }
 
     public function hasErrors(): bool

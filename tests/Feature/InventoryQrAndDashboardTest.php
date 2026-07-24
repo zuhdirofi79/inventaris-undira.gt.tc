@@ -146,16 +146,22 @@ class InventoryQrAndDashboardTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Total Inventaris');
-        $response->assertSee('Total Unit Kerja');
-        $response->assertSee('Total User');
-        $response->assertSee('Inventaris per Kondisi');
-        $response->assertSee('Inventaris per Unit Kerja');
+        $response->assertSee('Kondisi Baik');
+        $response->assertSee('Preventive Due');
+        $response->assertSee('Inventaris per Kampus');
+        $response->assertSee('Inventaris per Kategori');
+        $response->assertSee('Borrowing Trend');
+        $response->assertSee('Maintenance Trend');
+        $response->assertSee('chartBorrowing', false);
+        $response->assertDontSee('Total Nilai');
 
         $summary = app(DashboardStatsService::class)->summary();
         $this->assertGreaterThanOrEqual(1, $summary['total_inventory']);
         $this->assertGreaterThanOrEqual(1, $summary['total_campuses']);
+        $this->assertArrayHasKey('widgets', $summary);
+        $this->assertArrayHasKey('good_condition', $summary['widgets']);
         $this->assertArrayHasKey('by_condition', $summary['charts']);
-        $this->assertArrayHasKey('by_org_unit', $summary['charts']);
+        $this->assertArrayHasKey('by_status', $summary['charts']);
         $this->assertNotEmpty($summary['charts']['by_campus']);
     }
 

@@ -72,8 +72,7 @@ class InventoryPurgeCommandTest extends TestCase
         ]);
         InventorySequence::query()->create([
             'campus_id' => $campus->id,
-            'classifier_type' => SubCategory::class,
-            'classifier_id' => $sub->id,
+            'sub_category_id' => $sub->id,
             'last_value' => 12,
         ]);
 

@@ -2,13 +2,19 @@
 
 @section('title', 'Detail Jadwal - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenance-schedules.index') }}">Jadwal Preventif</a></li>
-    <li class="breadcrumb-item active">#{{ $schedule->id }}</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Jadwal #{{ $schedule->id }}" subtitle="{{ $schedule->inventoryItem?->inventory_number }} · {{ $schedule->inventoryItem?->name }}" icon="bi bi-calendar2-check">
+<x-page-header
+    title="Jadwal #{{ $schedule->id }}"
+    subtitle="{{ $schedule->inventoryItem?->inventory_number }} · {{ $schedule->inventoryItem?->name }}"
+    icon="bi bi-calendar2-check"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Jadwal Preventif', 'url' => route('maintenance-schedules.index')],
+        ['label' => '#'.$schedule->id],
+    ]"
+    :back-route="route('maintenance-schedules.index')"
+    back-label="Jadwal Preventif"
+>
     @can('maintenance.update')
     <a href="{{ route('maintenance-schedules.edit', $schedule) }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
     <form action="{{ route('maintenance-schedules.advance', $schedule) }}" method="POST" class="d-inline" onsubmit="return confirm('Tandai siklus selesai dan geser tanggal berikutnya?');">
@@ -19,15 +25,19 @@
     @can('maintenance.create')
     <a href="{{ route('maintenances.create', ['inventory_item_id' => $schedule->inventory_item_id]) }}" class="btn btn-outline-info btn-sm">Buat Work Order</a>
     @endcan
-</x-ui.page-header>
+</x-page-header>
+
+@if(session('success'))
+    <div class="alert alert-success">{{ session('success') }}</div>
+@endif
 
 <div class="row g-3">
     <div class="col-lg-7">
-        <div class="card card-undira">
+        <div class="card card-undira mb-3">
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-4">Jenis</dt><dd class="col-sm-8">{{ $schedule->maintenance_type?->label() }}</dd>
-                    <dt class="col-sm-4">Interval</dt><dd class="col-sm-8">{{ $schedule->intervalLabel() }}</dd>
+                    <dt class="col-sm-4">Maintenance Interval</dt><dd class="col-sm-8">{{ $schedule->intervalLabel() }}</dd>
                     <dt class="col-sm-4">Tanggal berikutnya</dt>
                     <dd class="col-sm-8">
                         <strong>{{ $schedule->next_maintenance_date?->format('d/m/Y') }}</strong>
@@ -37,10 +47,18 @@
                             <span class="badge bg-warning text-dark ms-1">Hari ini</span>
                         @endif
                     </dd>
-                    <dt class="col-sm-4">Pengingat</dt><dd class="col-sm-8">{{ $schedule->remind_before_days }} hari sebelumnya</dd>
-                    <dt class="col-sm-4">Mulai diingatkan</dt><dd class="col-sm-8">{{ $schedule->reminderStartsAt()->format('d/m/Y') }}</dd>
+                    <dt class="col-sm-4">Reminder</dt><dd class="col-sm-8">{{ $schedule->remind_before_days }} hari sebelumnya (mulai {{ $schedule->reminderStartsAt()->format('d/m/Y') }})</dd>
                     <dt class="col-sm-4">PIC</dt><dd class="col-sm-8">{{ $schedule->responsible_pic ?: '—' }}</dd>
-                    <dt class="col-sm-4">Terakhir selesai</dt><dd class="col-sm-8">{{ $schedule->last_completed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</dd>
+                    <dt class="col-sm-4">Last Maintenance</dt>
+                    <dd class="col-sm-8">
+                        @if($lastMaintenance)
+                            <a href="{{ $lastMaintenance['url'] }}">{{ $lastMaintenance['maintenance_number'] }}</a>
+                            <div class="small text-muted">{{ $lastMaintenance['service_date'] }} · {{ $lastMaintenance['type_label'] }} · {{ $lastMaintenance['status_label'] }}</div>
+                        @else
+                            —
+                        @endif
+                    </dd>
+                    <dt class="col-sm-4">Terakhir selesai (siklus)</dt><dd class="col-sm-8">{{ $schedule->last_completed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</dd>
                     <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ $schedule->is_active ? 'Aktif' : 'Nonaktif' }}</dd>
                     <dt class="col-sm-4">Catatan</dt><dd class="col-sm-8">{{ $schedule->notes ?: '—' }}</dd>
                 </dl>
@@ -54,6 +72,31 @@
                 </form>
             </div>
             @endcan
+        </div>
+
+        <div class="card card-undira">
+            <div class="card-header"><h5 class="mb-0">Timeline Maintenance</h5></div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    @forelse($timeline as $ev)
+                        <li class="d-flex gap-2 border-bottom py-2">
+                            <span class="badge bg-{{ $ev['tone'] ?? 'secondary' }} align-self-start">{{ $ev['date'] ?? '' }}</span>
+                            <div>
+                                <div class="fw-semibold">
+                                    @if(!empty($ev['url']))
+                                        <a href="{{ $ev['url'] }}">{{ $ev['title'] }}</a>
+                                    @else
+                                        {{ $ev['title'] }}
+                                    @endif
+                                </div>
+                                <div class="small text-muted">{{ $ev['subtitle'] ?? '' }} @if(!empty($ev['meta']))· {{ $ev['meta'] }}@endif</div>
+                            </div>
+                        </li>
+                    @empty
+                        <li class="text-muted">Belum ada peristiwa.</li>
+                    @endforelse
+                </ul>
+            </div>
         </div>
     </div>
     <div class="col-lg-5">

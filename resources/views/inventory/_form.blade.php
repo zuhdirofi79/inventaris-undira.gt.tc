@@ -125,8 +125,14 @@
                         </select>
                     </div>
                     <div class="col-12 col-md-6">
-                        <label class="form-label">Penanggung Jawab</label>
-                        <input type="text" name="responsible_person" class="form-control" value="{{ old('responsible_person', $item?->responsible_person) }}">
+                        <label class="form-label">PIC</label>
+                        <select name="pic_id" id="inventory_pic_id" class="form-select select2-pic" data-placeholder="Pilih PIC (Opsional)">
+                            <option value="">Pilih PIC (Opsional)</option>
+                            @foreach($users ?? [] as $user)
+                                <option value="{{ $user->id }}" @selected(old('pic_id', $item?->pic_id) == $user->id)>{{ $user->name }}</option>
+                            @endforeach
+                        </select>
+                        <div class="form-text">Opsional — dapat dikosongkan.</div>
                     </div>
                     <div class="col-12">
                         <label class="form-label">Deskripsi / Spesifikasi</label>

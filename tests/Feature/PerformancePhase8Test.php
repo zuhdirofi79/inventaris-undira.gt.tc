@@ -70,7 +70,7 @@ class PerformancePhase8Test extends TestCase
 
         foreach ([route('borrowings.create'), route('mutations.create'), route('maintenances.create')] as $url) {
             $html = $this->actingAs($admin)->get($url)->assertOk()->getContent();
-            $this->assertStringContainsString('select2-inventory', $html);
+            $this->assertStringContainsString('data-inventory-selector', $html);
             $this->assertStringNotContainsString('INV-HEAVY-1 - Barang Heavy', $html);
         }
     }

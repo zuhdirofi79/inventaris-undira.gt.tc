@@ -2,15 +2,17 @@
 
 @section('title', 'Laporan - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item active">Laporan</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Generate Laporan"
-    subtitle="Laporan hierarkis dari data inventaris yang sama dengan Dashboard & Data Inventaris."
+    subtitle="Laporan resmi inventaris UNDIRA — PDF/Excel siap cetak, hemat kertas, terstruktur per lokasi."
     icon="bi bi-bar-chart"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Laporan'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 />
 
 <form action="{{ route('reports.generate') }}" method="POST" id="reportForm" target="_blank">
@@ -102,11 +104,13 @@
                     <label class="form-label" for="format">Format Output <span class="text-danger">*</span></label>
                     <select name="format" id="format" class="form-select" required>
                         <option value="view">Tampil di Browser</option>
-                        <option value="print">Cetak (Print)</option>
-                        <option value="pdf">PDF</option>
+                        <option value="print">Cetak Browser (Print)</option>
+                        <option value="pdf-portrait">PDF Portrait (A4)</option>
+                        <option value="pdf-landscape">PDF Landscape (A4)</option>
                         <option value="excel">Excel (.xlsx)</option>
                         <option value="csv">CSV</option>
                     </select>
+                    <div class="form-text">Gunakan Landscape jika kolom terasa sempit. Layout laporan resmi — bukan tampilan website.</div>
                 </div>
                 <div class="col-md-4 d-flex align-items-end">
                     <div class="form-check mb-2">

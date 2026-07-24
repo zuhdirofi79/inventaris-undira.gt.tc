@@ -2,19 +2,25 @@
 
 @section('title', 'Kelola Lantai - ' . $building->name)
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('admin.locations.campuses.index') }}">Kelola Kampus</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.locations.buildings.index', $building->campus) }}">{{ $building->campus->name }}</a></li>
-    <li class="breadcrumb-item active">{{ $building->name }}</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h1><i class="fas fa-layer-group me-2"></i>Lantai: {{ $building->name }}</h1>
+<x-page-header
+    :title="'Lantai: ' . $building->name"
+    subtitle="Kelola lantai pada gedung ini"
+    icon="bi bi-layers"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Kelola Kampus', 'url' => route('admin.locations.campuses.index')],
+        ['label' => $building->campus->name, 'url' => route('admin.locations.buildings.index', $building->campus)],
+        ['label' => $building->name],
+    ]"
+    :back-route="route('admin.locations.buildings.index', $building->campus)"
+    :back-label="$building->campus->name"
+    :list-back="true"
+>
     <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
-        <i class="fas fa-plus me-1"></i>Tambah Lantai
+        <i class="bi bi-plus-lg me-1"></i>Tambah Lantai
     </button>
-</div>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

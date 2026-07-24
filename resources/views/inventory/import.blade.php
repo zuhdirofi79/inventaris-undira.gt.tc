@@ -2,16 +2,19 @@
 
 @section('title', 'Import Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Import</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-file-import me-2"></i>Import Inventaris</h1>
-    <p class="text-muted mb-0">Upload file Excel untuk mengimport data inventaris secara massal.</p>
-</div>
+<x-page-header
+    title="Import Inventaris"
+    subtitle="Upload file Excel untuk mengimport data inventaris secara massal."
+    icon="bi bi-upload"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Import'],
+    ]"
+    :back-route="route('inventory.index')"
+    back-label="Data Inventaris"
+/>
 
 <div class="row">
     <div class="col-lg-5">

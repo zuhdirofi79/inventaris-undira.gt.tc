@@ -2,17 +2,22 @@
 
 @section('title', 'Peminjaman - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Peminjaman</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Peminjaman" subtitle="Kelola peminjaman inventaris" icon="bi bi-hand-index">
+<x-page-header
+    title="Peminjaman"
+    subtitle="Kelola peminjaman inventaris"
+    icon="bi bi-hand-index"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Peminjaman'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     @can('borrowing.create')
     <a href="{{ route('borrowings.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

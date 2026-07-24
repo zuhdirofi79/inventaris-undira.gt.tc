@@ -2,15 +2,17 @@
 
 @section('title', 'Data Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item active">Data Inventaris</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Data Inventaris"
     subtitle="Pilih kampus → Gedung → Lantai → Ruangan → Unit"
     icon="bi bi-box-seam"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 >
     @can('inventory.create')
     <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
@@ -32,7 +34,7 @@
         <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i><span class="d-none d-sm-inline"> PDF</span></a>
     </div>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <div class="alert alert-info border-0 shadow-sm mb-3" role="status">
     Penambahan inventaris dilakukan melalui menu <strong>Konfigurasi Inventaris</strong>.

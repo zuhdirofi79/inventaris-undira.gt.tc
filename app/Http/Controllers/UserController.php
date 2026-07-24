@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
+use App\Http\Requests\ResetUserPasswordRequest;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
@@ -24,14 +25,33 @@ class UserController extends Controller
         $this->primaryAdmin->ensureBound();
     }
 
-    public function index(): View
+    public function index(Request $request): View
     {
         $this->authorize('viewAny', User::class);
 
-        $users = User::query()->with('roles')->orderBy('name')->paginate(20);
+        $search = trim((string) $request->query('q', ''));
+        $roleFilter = (string) $request->query('role', '');
+        $statusFilter = (string) $request->query('status', '');
+
+        $users = User::query()
+            ->with('roles')
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where(function ($inner) use ($search) {
+                    $inner->where('name', 'like', '%'.$search.'%')
+                        ->orWhere('email', 'like', '%'.$search.'%');
+                });
+            })
+            ->when($roleFilter !== '', function ($query) use ($roleFilter) {
+                $query->role($roleFilter);
+            })
+            ->when($statusFilter === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($statusFilter === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->orderBy('name')
+            ->get();
+
         $roles = Role::query()->orderBy('name')->get();
 
-        return view('admin.users.index', compact('users', 'roles'));
+        return view('admin.users.index', compact('users', 'roles', 'search', 'roleFilter', 'statusFilter'));
     }
 
     public function store(StoreUserRequest $request): RedirectResponse
@@ -45,14 +65,17 @@ class UserController extends Controller
         }
 
         $user = DB::transaction(function () use ($data, $roles) {
-            $user = User::query()->create([
+            $user = new User([
                 'name' => $data['name'],
                 'email' => $data['email'],
                 'password' => $data['password'],
                 'phone' => $data['phone'] ?? null,
                 'is_active' => $data['is_active'] ?? true,
+                'must_change_password' => false,
+                'email_verified_at' => now(),
             ]);
-
+            $user->setDefaultPasswordValue($data['password']);
+            $user->save();
             $user->syncRoles($roles);
 
             return $user;
@@ -63,8 +86,14 @@ class UserController extends Controller
             AuditAction::Create,
             $user,
             null,
-            ['roles' => $roles, 'is_active' => (bool) $user->is_active],
-            in_array('super-admin', $roles, true) ? 'SUPER_ADMIN_CREATED' : 'USER_CREATED'
+            [
+                'name' => $user->name,
+                'email' => $user->email,
+                'roles' => $roles,
+                'is_active' => (bool) $user->is_active,
+            ],
+            in_array('super-admin', $roles, true) ? 'SUPER_ADMIN_CREATED' : 'USER_CREATED',
+            'User dibuat oleh '.$actor->email
         );
 
         return back()->with('success', 'User berhasil ditambahkan.');
@@ -148,10 +177,6 @@ class UserController extends Controller
             $payload = collect($data)->except(['password', 'roles'])->all();
             $user->update($payload);
 
-            if (! empty($data['password'])) {
-                $user->update(['password' => $data['password']]);
-            }
-
             if ($wantsRoleChange && isset($data['roles']) && ! $user->isPrimarySuperAdmin()) {
                 $user->syncRoles($data['roles']);
             }
@@ -161,24 +186,111 @@ class UserController extends Controller
         $newRoles = $user->getRoleNames()->values()->all();
 
         $description = 'USER_UPDATED';
-        if (in_array('super-admin', $oldRoles, true) && ! in_array('super-admin', $newRoles, true)) {
-            $description = 'SUPER_ADMIN_DEMOTED';
-        } elseif ($user->isSuperAdmin() && $oldRoles !== $newRoles) {
-            $description = 'SUPER_ADMIN_UPDATED';
-        } elseif ($oldActive && ! $user->is_active && in_array('super-admin', $oldRoles, true)) {
-            $description = 'SUPER_ADMIN_DEACTIVATED';
+        if ($oldRoles !== $newRoles) {
+            $description = 'USER_ROLE_CHANGED';
+            if (in_array('super-admin', $oldRoles, true) && ! in_array('super-admin', $newRoles, true)) {
+                $description = 'SUPER_ADMIN_DEMOTED';
+            } elseif ($user->isSuperAdmin()) {
+                $description = 'SUPER_ADMIN_UPDATED';
+            }
+        } elseif ($oldActive && ! $user->is_active) {
+            $description = in_array('super-admin', $oldRoles, true)
+                ? 'SUPER_ADMIN_DEACTIVATED'
+                : 'USER_DEACTIVATED';
+        } elseif (! $oldActive && $user->is_active) {
+            $description = 'USER_ACTIVATED';
         }
 
         $this->audit->log(
             $actor,
             AuditAction::Update,
             $user,
-            ['roles' => $oldRoles, 'is_active' => $oldActive],
+            ['roles' => $oldRoles, 'is_active' => $oldActive, 'name' => $user->name],
             ['roles' => $newRoles, 'is_active' => (bool) $user->is_active],
-            $description
+            $description,
+            'User diperbarui oleh '.$actor->email
         );
 
         return back()->with('success', 'User berhasil diperbarui.');
+    }
+
+    public function toggleStatus(Request $request, User $user): RedirectResponse
+    {
+        $actor = $request->user();
+        $this->authorize('changeStatus', $user);
+
+        if ($user->isPrimarySuperAdmin()) {
+            $this->audit->log(
+                $actor,
+                AuditAction::Update,
+                $user,
+                ['is_active' => true],
+                null,
+                'PRIMARY_ADMIN_DEACTIVATION_BLOCKED',
+                'Akun Primary Super Admin tidak dapat dinonaktifkan.'
+            );
+            abort(403, 'Akun Primary Super Admin tidak dapat dinonaktifkan.');
+        }
+
+        if ($actor->id === $user->id) {
+            abort(403, 'Tidak dapat menonaktifkan akun sendiri.');
+        }
+
+        if ($user->isSuperAdmin() && ! $actor->isPrimarySuperAdmin()) {
+            abort(403, 'Hanya Primary Super Admin yang dapat mengubah status Super Admin.');
+        }
+
+        $old = (bool) $user->is_active;
+        $user->update(['is_active' => ! $old]);
+
+        $this->audit->log(
+            $actor,
+            AuditAction::Update,
+            $user,
+            ['is_active' => $old],
+            ['is_active' => (bool) $user->is_active],
+            $user->is_active ? 'USER_ACTIVATED' : 'USER_DEACTIVATED',
+            ($user->is_active ? 'User diaktifkan' : 'User dinonaktifkan').' oleh '.$actor->email
+        );
+
+        return back()->with('success', $user->is_active ? 'User berhasil diaktifkan.' : 'User berhasil dinonaktifkan.');
+    }
+
+    public function resetPassword(ResetUserPasswordRequest $request, User $user): RedirectResponse
+    {
+        $data = $request->validated();
+        $actor = $request->user();
+
+        if ($user->isPrimarySuperAdmin() && ! $actor->isPrimarySuperAdmin()) {
+            abort(403, 'Hanya Primary Super Admin yang dapat mereset password akun utama.');
+        }
+
+        if ($user->isSuperAdmin() && ! $actor->isPrimarySuperAdmin() && $actor->id !== $user->id) {
+            abort(403, 'Hanya Primary Super Admin yang dapat mereset password Super Admin lain.');
+        }
+
+        $mustChange = (bool) ($data['must_change_password'] ?? false);
+
+        $user->password = $data['password'];
+        $user->must_change_password = $mustChange;
+        $user->password_changed_at = null;
+        $user->setDefaultPasswordValue($data['password']);
+        $user->save();
+
+        $this->audit->log(
+            $actor,
+            AuditAction::ResetPassword,
+            $user,
+            null,
+            [
+                'must_change_password' => $mustChange,
+                'target_email' => $user->email,
+            ],
+            'USER_PASSWORD_RESET',
+            'Password direset oleh '.$actor->email.($mustChange ? ' (wajib ganti saat login)' : '')
+        );
+
+        return back()->with('success', 'Password user berhasil direset.');
     }
 
     public function destroy(Request $request, User $user): RedirectResponse
@@ -236,7 +348,8 @@ class UserController extends Controller
             null,
             $snapshot,
             null,
-            $wasSuper ? 'SUPER_ADMIN_DELETED' : 'USER_DELETED'
+            $wasSuper ? 'SUPER_ADMIN_DELETED' : 'USER_DELETED',
+            'User soft-deleted oleh '.$actor->email
         );
 
         return back()->with('success', 'User berhasil dihapus.');

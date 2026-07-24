@@ -2,25 +2,30 @@
 
 @section('title', 'Unit Grup - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    @if($items->isNotEmpty() && $items->first()->category)
-    <li class="breadcrumb-item"><a href="{{ route('inventory.category', $items->first()->category) }}">{{ $items->first()->category->name }}</a></li>
-    @endif
-    <li class="breadcrumb-item active">Unit Grup</li>
-@endsection
-
 @section('content')
-@php $sample = $items->first(); @endphp
-<div class="page-header-undira">
-    <h1><i class="fas fa-layer-group me-2"></i>{{ $sample?->name ?? 'Unit dalam Grup' }}</h1>
-    <p class="text-muted mb-0">
-        {{ $items->count() }} unit individual
-        @if($sample?->category)
-            &middot; {{ $sample->category->name }}
-        @endif
-    </p>
-</div>
+@php
+    $sample = $items->first();
+    $groupBreadcrumbs = [
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+    ];
+    if ($sample?->category) {
+        $groupBreadcrumbs[] = ['label' => $sample->category->name, 'url' => route('inventory.category', $sample->category)];
+    }
+    $groupBreadcrumbs[] = ['label' => 'Unit Grup'];
+    $groupBackRoute = $sample?->category
+        ? route('inventory.category', $sample->category)
+        : route('inventory.index');
+    $groupBackLabel = $sample?->category?->name ?? 'Data Inventaris';
+@endphp
+<x-page-header
+    :title="$sample?->name ?? 'Unit dalam Grup'"
+    :subtitle="$items->count().' unit individual'.($sample?->category ? ' · '.$sample->category->name : '')"
+    icon="bi bi-layers"
+    :breadcrumbs="$groupBreadcrumbs"
+    :back-route="$groupBackRoute"
+    :back-label="$groupBackLabel"
+/>
 
 <div class="card card-undira d-none d-md-block">
     <div class="card-body p-0">

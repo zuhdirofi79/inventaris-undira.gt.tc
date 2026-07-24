@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Borrowing;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class OverdueBorrowingNotification extends Notification
+class OverdueBorrowingNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

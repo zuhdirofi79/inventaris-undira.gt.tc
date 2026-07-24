@@ -2,13 +2,20 @@
 
 @section('title', 'Detail Audit Log - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('audit-logs.index') }}">Audit Log</a></li>
-    <li class="breadcrumb-item active">Detail</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira"><h1><i class="fas fa-history me-2"></i>Detail Audit Log</h1></div>
+<x-page-header
+    title="Detail Audit Log"
+    subtitle="Rincian jejak aktivitas sistem"
+    icon="bi bi-clock-history"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Audit Log', 'url' => route('audit-logs.index')],
+        ['label' => 'Detail'],
+    ]"
+    :back-route="route('audit-logs.index')"
+    back-label="Audit Log"
+    :list-back="true"
+/>
 
 <div class="row">
     <div class="col-lg-6">

@@ -27,7 +27,7 @@ class InventoryController extends Controller
     {
         $items = $this->filterService
             ->apply($request)
-            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'procurementType'])
+            ->with(['category', 'subCategory', 'room.floor.building.campus', 'orgUnit', 'procurementType', 'pic'])
             ->orderBy('inventory_number')
             ->paginate($request->input('per_page', 15));
 
@@ -38,7 +38,7 @@ class InventoryController extends Controller
     {
         $inventoryItem->load([
             'category', 'subCategory', 'room.floor.building.campus',
-            'orgUnit', 'procurementType', 'supplier', 'vendor', 'photos',
+            'orgUnit', 'procurementType', 'supplier', 'vendor', 'photos', 'pic',
         ]);
 
         return response()->json($inventoryItem);
@@ -61,6 +61,10 @@ class InventoryController extends Controller
         unset($data['quantity']);
 
         $groupKey = $this->codeService->generateGroupKey($data['name'], $room->id, $category->id);
+
+        if (! empty($data['pic_id'])) {
+            $data['responsible_person'] = \App\Models\User::query()->whereKey($data['pic_id'])->value('name');
+        }
 
         $items = DB::transaction(function () use ($data, $campus, $category, $subCategory, $procurement, $purchaseYear, $quantity, $groupKey, $request) {
             $created = [];
@@ -104,13 +108,21 @@ class InventoryController extends Controller
         $data = $this->syncProcurementFunding($request->validated());
         unset($data['quantity']);
 
+        if (array_key_exists('pic_id', $data)) {
+            $picId = $data['pic_id'] ?: null;
+            $data['pic_id'] = $picId;
+            $data['responsible_person'] = $picId
+                ? \App\Models\User::query()->whereKey($picId)->value('name')
+                : null;
+        }
+
         $inventoryItem->update([
             ...$data,
             'quantity' => 1,
             'updated_by' => $request->user()->id,
         ]);
 
-        return response()->json($inventoryItem->fresh()->load(['category', 'room', 'orgUnit', 'procurementType']));
+        return response()->json($inventoryItem->fresh()->load(['category', 'room', 'orgUnit', 'procurementType', 'pic']));
     }
 
     public function destroy(InventoryItem $inventoryItem): JsonResponse

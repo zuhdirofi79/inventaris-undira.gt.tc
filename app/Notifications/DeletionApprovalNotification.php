@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\DeletionApproval;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class DeletionApprovalNotification extends Notification
+class DeletionApprovalNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

@@ -7,15 +7,23 @@ use Illuminate\Database\Seeder;
 
 class SuperAdminSeeder extends Seeder
 {
+    public const EMAIL = 'azwar.syifa.mufiqi@undira.ac.id';
+
+    public const DEFAULT_PASSWORD = 'SuperAdmin@123';
+
     public function run(): void
     {
-        $email = 'azwar.syifa.mufiqi@undira.ac.id';
+        $user = User::query()->withTrashed()->firstOrNew(['email' => self::EMAIL]);
 
-        $user = User::query()->firstOrNew(['email' => $email]);
+        if ($user->trashed()) {
+            $user->restore();
+        }
 
-        // Password only on first create — never overwrite an existing hash on reseed.
+        // Password + default_password only on first create — never overwrite on reseed.
         if (! $user->exists) {
-            $user->password = 'Undira@2026';
+            $user->password = self::DEFAULT_PASSWORD;
+            $user->setDefaultPasswordValue(self::DEFAULT_PASSWORD);
+            $user->must_change_password = false;
         }
 
         $user->fill([

@@ -2,13 +2,19 @@
 
 @section('title', 'Audit Log - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Admin</li>
-    <li class="breadcrumb-item active">Audit Log</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Audit Log" subtitle="Jejak aktivitas dan perubahan data" icon="bi bi-clock-history" />
+<x-page-header
+    title="Audit Log"
+    subtitle="Jejak aktivitas dan perubahan data"
+    icon="bi bi-clock-history"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Admin', 'url' => route('audit-logs.index')],
+        ['label' => 'Audit Log'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+/>
 
 <div class="filter-panel mb-4">
     <form method="GET" class="row g-3">

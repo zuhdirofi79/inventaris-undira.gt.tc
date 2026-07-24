@@ -2,16 +2,24 @@
 
 @section('title', $inventory->inventory_number . ' - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    @if($inventory->category)
-    <li class="breadcrumb-item"><a href="{{ route('inventory.category', $inventory->category) }}">{{ $inventory->category->name }}</a></li>
-    @endif
-    <li class="breadcrumb-item active">{{ $inventory->inventory_number }}</li>
-@endsection
-
 @section('content')
-<x-ui.page-header :title="$inventory->name" icon="bi bi-box-seam">
+@php
+    $showBreadcrumbs = [
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.items')],
+    ];
+    if ($inventory->category) {
+        $showBreadcrumbs[] = ['label' => $inventory->category->name, 'url' => route('inventory.category', $inventory->category)];
+    }
+    $showBreadcrumbs[] = ['label' => $inventory->inventory_number];
+@endphp
+<x-page-header
+    :title="$inventory->name"
+    icon="bi bi-box-seam"
+    :breadcrumbs="$showBreadcrumbs"
+    :back-route="route('inventory.items')"
+    back-label="Data Inventaris"
+>
     <x-slot:meta>
         <div class="d-flex flex-wrap align-items-center gap-2">
             <code class="text-break">{{ $inventory->inventory_number }}</code>
@@ -43,7 +51,7 @@
         <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="bi bi-trash me-1"></i>Hapus</button>
     </form>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -91,7 +99,7 @@
                     <div class="col-md-6"><div class="detail-label">Sumber Dana</div><div class="detail-value">{{ $inventory->funding_source ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Supplier</div><div class="detail-value">{{ $inventory->supplier?->name ?? '-' }}</div></div>
                     <div class="col-md-6"><div class="detail-label">Vendor</div><div class="detail-value">{{ $inventory->vendor?->name ?? '-' }}</div></div>
-                    <div class="col-md-6"><div class="detail-label">Penanggung Jawab</div><div class="detail-value">{{ $inventory->responsible_person ?? '-' }}</div></div>
+                    <div class="col-md-6"><div class="detail-label">PIC</div><div class="detail-value">{{ $inventory->picDisplayName() ?? 'Belum ditentukan' }}</div></div>
                     <div class="col-12"><div class="detail-label">Garansi</div><div class="detail-value">{{ $inventory->warranty_info ?? '-' }} @if($inventory->warranty_expiry) <span class="text-muted">(s/d {{ $inventory->warranty_expiry->format('d/m/Y') }})</span> @endif</div></div>
                 </div>
             </div>
@@ -232,7 +240,7 @@
             </div>
         </div>
 
-        <div class="card card-undira mb-3">
+        <div class="card card-undira mb-3" id="timeline">
             <div class="card-header card-header-undira"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Timeline Inventaris</h5></div>
             <div class="card-body">
                 @forelse($timeline ?? [] as $event)
@@ -434,7 +442,7 @@
     </div>
 
     <div class="col-lg-4">
-        <div class="card card-undira mb-3 text-center">
+        <div class="card card-undira mb-3 text-center" id="qr-section">
             <div class="card-header card-header-undira"><h5 class="mb-0"><i class="fas fa-qrcode me-2"></i>QR Code & Label</h5></div>
             <div class="card-body">
                 @if($inventory->qr_url)

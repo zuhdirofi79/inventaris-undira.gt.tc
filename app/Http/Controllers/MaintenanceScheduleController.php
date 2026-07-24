@@ -6,17 +6,20 @@ use App\Enums\MaintenanceIntervalUnit;
 use App\Enums\MaintenanceType;
 use App\Http\Requests\StoreMaintenanceScheduleRequest;
 use App\Http\Requests\UpdateMaintenanceScheduleRequest;
-use App\Models\InventoryItem;
 use App\Models\MaintenanceSchedule;
+use App\Services\InventorySearchService;
 use App\Services\MaintenanceScheduleService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use RuntimeException;
 
 class MaintenanceScheduleController extends Controller
 {
     public function __construct(
         protected MaintenanceScheduleService $schedules,
+        protected InventorySearchService $inventorySearch,
     ) {}
 
     public function index(Request $request): View
@@ -55,26 +58,76 @@ class MaintenanceScheduleController extends Controller
 
     public function create(Request $request): View
     {
-        $selectedItem = null;
         $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
-        if ($selectedId > 0) {
-            $selectedItem = InventoryItem::query()->find($selectedId, ['id', 'inventory_number', 'name', 'responsible_person']);
-        }
+        $type = (string) old('maintenance_type', MaintenanceType::Preventive->value);
+        $preview = $selectedId > 0
+            ? $this->schedules->previewForInventory($selectedId, $type)
+            : null;
 
         return view('operations.maintenance-schedules.create', [
-            'selectedItem' => $selectedItem,
+            'preview' => $preview,
+            'maintenanceContext' => $preview['inventory'] ?? null,
             'types' => MaintenanceType::cases(),
             'units' => MaintenanceIntervalUnit::cases(),
+            'previewUrl' => route('maintenance-schedules.preview'),
+            'suggestNextUrl' => route('maintenance-schedules.suggest-next'),
+        ]);
+    }
+
+    /**
+     * AJAX: inventory selected → last maintenance, interval/reminder/PIC suggestions, timeline, duplicate flag.
+     */
+    public function preview(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'inventory_item_id' => ['required', 'integer', 'min:1'],
+            'maintenance_type' => ['nullable', 'string'],
+        ]);
+
+        return response()->json(
+            $this->schedules->previewForInventory(
+                (int) $data['inventory_item_id'],
+                $data['maintenance_type'] ?? MaintenanceType::Preventive->value
+            )
+        );
+    }
+
+    /**
+     * AJAX: recompute next maintenance date from interval.
+     */
+    public function suggestNext(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'inventory_item_id' => ['required', 'integer', 'min:1'],
+            'interval_value' => ['required', 'integer', 'min:1', 'max:3650'],
+            'interval_unit' => ['required', 'string'],
+            'remind_before_days' => ['nullable', 'integer', 'in:7,14,30'],
+        ]);
+
+        $next = $this->schedules->suggestNextDate(
+            (int) $data['inventory_item_id'],
+            (int) $data['interval_value'],
+            $data['interval_unit']
+        );
+        $remind = (int) ($data['remind_before_days'] ?? 7);
+
+        return response()->json([
+            'next_maintenance_date' => $next->toDateString(),
+            'reminder_starts_at' => $next->copy()->subDays($remind)->toDateString(),
         ]);
     }
 
     public function store(StoreMaintenanceScheduleRequest $request): RedirectResponse
     {
-        $schedule = $this->schedules->create($request->validated(), $request->user());
+        try {
+            $schedule = $this->schedules->create($request->validated(), $request->user());
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['maintenance_type' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('maintenance-schedules.show', $schedule)
-            ->with('success', 'Jadwal pemeliharaan preventif berhasil dibuat.');
+            ->with('success', 'Jadwal pemeliharaan preventif berhasil dibuat. Tanggal berikutnya: '.$schedule->next_maintenance_date?->format('d/m/Y').'.');
     }
 
     public function show(MaintenanceSchedule $maintenance_schedule): View
@@ -83,6 +136,14 @@ class MaintenanceScheduleController extends Controller
 
         return view('operations.maintenance-schedules.show', [
             'schedule' => $maintenance_schedule,
+            'timeline' => $this->schedules->buildTimeline(
+                (int) $maintenance_schedule->inventory_item_id,
+                $maintenance_schedule
+            ),
+            'lastMaintenance' => $this->schedules->previewForInventory(
+                (int) $maintenance_schedule->inventory_item_id,
+                $maintenance_schedule->maintenance_type?->value
+            )['last_maintenance'] ?? null,
         ]);
     }
 
@@ -94,12 +155,17 @@ class MaintenanceScheduleController extends Controller
             'schedule' => $maintenance_schedule,
             'types' => MaintenanceType::cases(),
             'units' => MaintenanceIntervalUnit::cases(),
+            'suggestNextUrl' => route('maintenance-schedules.suggest-next'),
         ]);
     }
 
     public function update(UpdateMaintenanceScheduleRequest $request, MaintenanceSchedule $maintenance_schedule): RedirectResponse
     {
-        $this->schedules->update($maintenance_schedule, $request->validated(), $request->user());
+        try {
+            $this->schedules->update($maintenance_schedule, $request->validated(), $request->user());
+        } catch (RuntimeException $e) {
+            return back()->withInput()->withErrors(['maintenance_type' => $e->getMessage()]);
+        }
 
         return redirect()
             ->route('maintenance-schedules.show', $maintenance_schedule)

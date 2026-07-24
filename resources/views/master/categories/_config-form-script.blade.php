@@ -185,15 +185,40 @@
             if (typeof window.undiraHidePageOverlay === 'function') {
                 window.undiraHidePageOverlay();
             }
+            initPicSelect($(this));
         });
 
         $('#modalCreateConfig').on('hidden.bs.modal', function () {
             const $form = $('#formCreateConfig');
             if (!$form.length) return;
+            destroyPicSelect($form);
             $form[0].reset();
             const api = $form.find('.config-form').data('api');
             if (api) api.resetCascade();
         });
+
+        function initPicSelect($modal) {
+            const $select = $modal.find('.select2-pic');
+            if (!$select.length || !$.fn.select2) return;
+            if ($select.hasClass('select2-hidden-accessible')) {
+                $select.select2('destroy');
+            }
+            $select.select2({
+                theme: 'bootstrap-5',
+                width: '100%',
+                allowClear: true,
+                placeholder: $select.data('placeholder') || 'Pilih PIC (Opsional)',
+                dropdownParent: $modal,
+            });
+        }
+
+        function destroyPicSelect($scope) {
+            const $select = $scope.find('.select2-pic');
+            if ($select.length && $select.hasClass('select2-hidden-accessible')) {
+                $select.val(null).trigger('change');
+                $select.select2('destroy');
+            }
+        }
 
         $('.btn-edit-config').on('click', async function () {
             let cfg = $(this).attr('data-config');

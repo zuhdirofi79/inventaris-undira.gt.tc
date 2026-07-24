@@ -2,17 +2,22 @@
 
 @section('title', 'Stock Opname - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Stock Opname</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Stock Opname" subtitle="Pencatatan dan verifikasi stok inventaris" icon="bi bi-clipboard-check">
+<x-page-header
+    title="Stock Opname"
+    subtitle="Pencatatan dan verifikasi stok inventaris"
+    icon="bi bi-clipboard-check"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Stock Opname'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     @can('stock-opname.create')
     <a href="{{ route('stock-opnames.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

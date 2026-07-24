@@ -2,17 +2,23 @@
 
 @section('title', 'Supplier - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Master Data</li>
-    <li class="breadcrumb-item active">Supplier</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Supplier" subtitle="Mitra pengadaan inventaris" icon="bi bi-truck">
+<x-page-header
+    title="Supplier"
+    subtitle="Mitra pengadaan inventaris"
+    icon="bi bi-truck"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Master Data', 'url' => route('categories.index')],
+        ['label' => 'Supplier'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
         <i class="bi bi-plus-lg me-1"></i>Tambah
     </button>
-</x-ui.page-header>
+</x-page-header>
 
 <x-master-table-toolbar
     :action="route('suppliers.index')"

@@ -2,17 +2,22 @@
 
 @section('title', 'Mutasi - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Mutasi</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Mutasi Inventaris" subtitle="Pindahkan lokasi inventaris antar ruangan" icon="bi bi-arrow-left-right">
+<x-page-header
+    title="Mutasi Inventaris"
+    subtitle="Pindahkan lokasi inventaris antar ruangan"
+    icon="bi bi-arrow-left-right"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Mutasi'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     @can('mutation.create')
     <a href="{{ route('mutations.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah</a>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

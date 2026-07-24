@@ -40,6 +40,7 @@ class InventoryItem extends Model
         'room_id',
         'org_unit_id',
         'responsible_person',
+        'pic_id',
         'supplier_id',
         'vendor_id',
         'warranty_info',
@@ -108,6 +109,11 @@ class InventoryItem extends Model
         return $this->belongsTo(Vendor::class);
     }
 
+    public function pic(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pic_id');
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -116,6 +122,37 @@ class InventoryItem extends Model
     public function updater(): BelongsTo
     {
         return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    /**
+     * Display name for PIC: prefer linked user, fallback to legacy free-text.
+     */
+    public function picDisplayName(): ?string
+    {
+        $name = $this->pic?->name ?? $this->responsible_person;
+
+        return filled($name) ? (string) $name : null;
+    }
+
+    public function locationDisplayName(): string
+    {
+        $room = $this->room;
+        if (! $room) {
+            return '—';
+        }
+
+        $floor = $room->floor;
+        $building = $floor?->building;
+        $campus = $building?->campus;
+
+        $parts = array_filter([
+            $campus?->name,
+            $building?->name,
+            $floor?->name,
+            trim(($room->code ? $room->code.' ' : '').$room->name),
+        ]);
+
+        return $parts !== [] ? implode(' · ', $parts) : '—';
     }
 
     public function photos(): HasMany
@@ -215,17 +252,38 @@ class InventoryItem extends Model
 
     public function scopeForCampus(Builder $query, int $campusId): Builder
     {
-        return $query->whereHas('room.floor.building', fn (Builder $q) => $q->where('campus_id', $campusId));
+        return $query->whereIn('room_id', function ($q) use ($campusId) {
+            $q->select('rooms.id')
+                ->from('rooms')
+                ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+                ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+                ->where('buildings.campus_id', $campusId)
+                ->whereNull('rooms.deleted_at')
+                ->whereNull('floors.deleted_at')
+                ->whereNull('buildings.deleted_at');
+        });
     }
 
     public function scopeForBuilding(Builder $query, int $buildingId): Builder
     {
-        return $query->whereHas('room.floor', fn (Builder $q) => $q->where('building_id', $buildingId));
+        return $query->whereIn('room_id', function ($q) use ($buildingId) {
+            $q->select('rooms.id')
+                ->from('rooms')
+                ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+                ->where('floors.building_id', $buildingId)
+                ->whereNull('rooms.deleted_at')
+                ->whereNull('floors.deleted_at');
+        });
     }
 
     public function scopeForFloor(Builder $query, int $floorId): Builder
     {
-        return $query->whereHas('room', fn (Builder $q) => $q->where('floor_id', $floorId));
+        return $query->whereIn('room_id', function ($q) use ($floorId) {
+            $q->select('id')
+                ->from('rooms')
+                ->where('floor_id', $floorId)
+                ->whereNull('deleted_at');
+        });
     }
 
     public function scopeBySupplier(Builder $query, int $supplierId): Builder
@@ -267,6 +325,7 @@ class InventoryItem extends Model
                 ->orWhere('serial_number', 'like', "%{$term}%")
                 ->orWhere('barcode', 'like', "%{$term}%")
                 ->orWhere('responsible_person', 'like', "%{$term}%")
+                ->orWhereHas('pic', fn (Builder $picQuery) => $picQuery->where('name', 'like', "%{$term}%"))
                 ->orWhereHas('category', fn (Builder $categoryQuery) => $categoryQuery->where('name', 'like', "%{$term}%"))
                 ->orWhereHas('room', fn (Builder $roomQuery) => $roomQuery
                     ->where('name', 'like', "%{$term}%")
@@ -283,15 +342,20 @@ class InventoryItem extends Model
             ->when($filters['category_id'] ?? null, fn (Builder $q, $id) => $q->inCategory((int) $id))
             ->when($filters['sub_category_id'] ?? null, fn (Builder $q, $id) => $q->inSubCategory((int) $id))
             ->when($filters['org_unit_id'] ?? null, fn (Builder $q, $id) => $q->where('org_unit_id', (int) $id))
+            ->when($filters['pic_id'] ?? null, fn (Builder $q, $id) => $q->where('pic_id', (int) $id))
             ->when($filters['room_id'] ?? null, fn (Builder $q, $id) => $q->inRoom((int) $id))
             ->when($filters['campus_id'] ?? null, fn (Builder $q, $id) => $q->forCampus((int) $id))
             ->when($filters['building_id'] ?? null, fn (Builder $q, $id) => $q->forBuilding((int) $id))
             ->when($filters['floor_id'] ?? null, fn (Builder $q, $id) => $q->forFloor((int) $id))
             ->when($filters['supplier_id'] ?? null, fn (Builder $q, $id) => $q->bySupplier((int) $id))
             ->when($filters['vendor_id'] ?? null, fn (Builder $q, $id) => $q->byVendor((int) $id))
+            ->when($filters['procurement_type_id'] ?? null, fn (Builder $q, $id) => $q->where('procurement_type_id', (int) $id))
+            ->when($filters['inventory_number'] ?? null, fn (Builder $q, $v) => $q->where('inventory_number', 'like', '%'.$v.'%'))
+            ->when($filters['name'] ?? null, fn (Builder $q, $v) => $q->where('name', 'like', '%'.$v.'%'))
+            ->when($filters['serial_number'] ?? null, fn (Builder $q, $v) => $q->where('serial_number', 'like', '%'.$v.'%'))
             ->when($filters['purchase_year'] ?? null, fn (Builder $q, $year) => $q->purchaseYear((int) $year))
             ->when($filters['group_key'] ?? null, fn (Builder $q, $key) => $q->byGroupKey($key))
-            ->when($filters['brand'] ?? null, fn (Builder $q, $brand) => $q->where('brand', $brand))
+            ->when($filters['brand'] ?? null, fn (Builder $q, $brand) => $q->where('brand', 'like', '%'.$brand.'%'))
             ->when($filters['funding_source'] ?? null, fn (Builder $q, $source) => $q->where('funding_source', $source))
             ->when(isset($filters['price_min']), fn (Builder $q) => $q->where('price', '>=', $filters['price_min']))
             ->when(isset($filters['price_max']), fn (Builder $q) => $q->where('price', '<=', $filters['price_max']))

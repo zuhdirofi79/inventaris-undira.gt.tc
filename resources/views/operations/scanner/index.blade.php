@@ -2,16 +2,17 @@
 
 @section('title', 'Scan QR - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Scan QR</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Scan QR Code"
     subtitle="USB scanner, kamera HP/laptop, atau ketik nomor inventaris — langsung ke detail aset."
     icon="bi bi-qr-code-scan"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Scan QR'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 />
 
 <div class="row g-3">

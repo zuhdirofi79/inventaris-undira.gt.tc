@@ -2,17 +2,34 @@
 
 @section('title', ($maintenance->maintenance_number ?? 'Maintenance').' - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">{{ $maintenance->maintenance_number }}</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="{{ $maintenance->maintenance_number }}" subtitle="{{ $maintenance->inventoryItem?->inventory_number }} · {{ $maintenance->inventoryItem?->name }}" icon="bi bi-wrench-adjustable">
+<x-page-header
+    title="{{ $maintenance->maintenance_number }}"
+    subtitle="{{ $maintenance->inventoryItem?->inventory_number }} · {{ $maintenance->inventoryItem?->name }}"
+    icon="bi bi-wrench-adjustable"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => $maintenance->maintenance_number],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+>
     @can('maintenance.update')
-    <a href="{{ route('maintenances.edit', $maintenance) }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
+        @if($maintenance->status?->isOpen())
+        <a href="{{ route('maintenances.complete', $maintenance) }}" class="btn btn-undira btn-sm"><i class="bi bi-check2-circle me-1"></i>Selesaikan Perbaikan</a>
+        @endif
+        <a href="{{ route('maintenances.edit', $maintenance) }}" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
     @endcan
-</x-ui.page-header>
+    @can('maintenance.approve')
+        @if($maintenance->status?->value === 'pending_approval')
+        <form action="{{ route('maintenance-approvals.approve', $maintenance) }}" method="POST" class="d-inline">
+            @csrf
+            <button class="btn btn-success btn-sm" onclick="return confirm('Approve perbaikan ini?')">Approve</button>
+        </form>
+        @endif
+    @endcan
+</x-page-header>
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -24,8 +41,13 @@
                     <dt class="col-sm-4">Jenis</dt><dd class="col-sm-8">{{ $maintenance->maintenance_type?->label() ?? '—' }}</dd>
                     <dt class="col-sm-4">Prioritas</dt><dd class="col-sm-8">{{ $maintenance->priority?->label() ?? '—' }}</dd>
                     <dt class="col-sm-4">Tanggal</dt><dd class="col-sm-8">{{ $maintenance->service_date?->format('d/m/Y') }}</dd>
-                    <dt class="col-sm-4">Teknisi</dt><dd class="col-sm-8">{{ $maintenance->technician ?: '—' }}</dd>
+                    <dt class="col-sm-4">Teknisi</dt><dd class="col-sm-8">{{ $maintenance->technicianUser?->name ?? ($maintenance->technician ?: '—') }}</dd>
+                    <dt class="col-sm-4">Jenis Kerusakan</dt><dd class="col-sm-8">{{ $maintenance->damage_type ?: '—' }}</dd>
+                    <dt class="col-sm-4">Analisa</dt><dd class="col-sm-8">{{ $maintenance->analysis ?: '—' }}</dd>
+                    <dt class="col-sm-4">Pekerjaan</dt><dd class="col-sm-8">{{ $maintenance->work_performed ?: '—' }}</dd>
                     <dt class="col-sm-4">Vendor</dt><dd class="col-sm-8">{{ $maintenance->vendor?->name ?? '—' }}</dd>
+                    <dt class="col-sm-4">Estimasi Selesai</dt><dd class="col-sm-8">{{ $maintenance->estimated_completion?->format('d/m/Y') ?? '—' }}</dd>
+                    <dt class="col-sm-4">Durasi</dt><dd class="col-sm-8">{{ $maintenance->durationHours() !== null ? $maintenance->durationHours().' jam' : '—' }}</dd>
                     <dt class="col-sm-4">Estimasi / Aktual</dt>
                     <dd class="col-sm-8">
                         {{ $maintenance->estimated_cost ? 'Rp '.number_format($maintenance->estimated_cost, 0, ',', '.') : '—' }}
@@ -34,8 +56,18 @@
                     </dd>
                     <dt class="col-sm-4">Hasil</dt><dd class="col-sm-8">{{ $maintenance->result?->label() ?? '—' }}</dd>
                     <dt class="col-sm-4">Selesai</dt><dd class="col-sm-8">{{ $maintenance->completed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</dd>
+                    <dt class="col-sm-4">Approval</dt>
+                    <dd class="col-sm-8">
+                        @if($maintenance->approved_at)
+                            Disetujui {{ $maintenance->approver?->name }} · {{ $maintenance->approved_at->format('d/m/Y H:i') }}
+                        @elseif($maintenance->rejection_reason)
+                            Revisi: {{ $maintenance->rejection_reason }}
+                        @else
+                            —
+                        @endif
+                    </dd>
                     <dt class="col-sm-4">Deskripsi</dt><dd class="col-sm-8">{{ $maintenance->description ?: '—' }}</dd>
-                    <dt class="col-sm-4">Parts</dt><dd class="col-sm-8">{{ $maintenance->parts_replaced ?: '—' }}</dd>
+                    <dt class="col-sm-4">Sparepart</dt><dd class="col-sm-8">{{ $maintenance->parts_replaced ?: '—' }}</dd>
                     <dt class="col-sm-4">Catatan</dt><dd class="col-sm-8">{{ $maintenance->notes ?: '—' }}</dd>
                 </dl>
             </div>

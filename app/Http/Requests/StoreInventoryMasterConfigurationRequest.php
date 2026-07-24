@@ -46,6 +46,7 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
             'brand' => ['nullable', 'string', 'max:100'],
             'price' => ['nullable', 'numeric', 'min:0'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'pic_id' => ['nullable', 'exists:users,id'],
         ];
     }
 
@@ -163,6 +164,7 @@ class StoreInventoryMasterConfigurationRequest extends FormRequest
             'is_active' => $this->boolean('is_active'),
             'create_assets' => $this->boolean('create_assets', true),
             'price' => $this->filled('price') ? $this->input('price') : null,
+            'pic_id' => $this->filled('pic_id') ? $this->input('pic_id') : null,
         ]);
     }
 }

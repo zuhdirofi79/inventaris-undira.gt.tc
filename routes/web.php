@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\ForcePasswordChangeController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
@@ -17,15 +18,19 @@ use App\Http\Controllers\DeletionApprovalController;
 use App\Http\Controllers\FloorController;
 use App\Http\Controllers\FloorManagementController;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\LocationExploreController;
 use App\Http\Controllers\InventoryExportController;
 use App\Http\Controllers\InventoryImportController;
 use App\Http\Controllers\InventoryAttachmentController;
 use App\Http\Controllers\InventoryPhotoController;
 use App\Http\Controllers\InventoryQrController;
+use App\Http\Controllers\InventorySelectorController;
 use App\Http\Controllers\DamagedInventoryController;
 use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\MaintenanceApprovalController;
 use App\Http\Controllers\MaintenanceDashboardController;
 use App\Http\Controllers\MaintenanceReportController;
+use App\Http\Controllers\TeknisiDashboardController;
 use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MutationController;
 use App\Http\Controllers\OrgUnitController;
@@ -84,8 +89,13 @@ Route::post('/reset-password', [ForgotPasswordController::class, 'reset'])
     ->middleware('throttle:5,1')
     ->name('password.update');
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+    Route::get('/password/force-change', [ForcePasswordChangeController::class, 'edit'])->name('password.force.edit');
+    Route::put('/password/force-change', [ForcePasswordChangeController::class, 'update'])
+        ->middleware('throttle:10,1')
+        ->name('password.force.update');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/dashboard/tree', [DashboardController::class, 'tree'])->name('dashboard.tree');
@@ -108,6 +118,21 @@ Route::middleware('auth')->group(function () {
         Route::get('/buildings/{building}', [BuildingController::class, 'show'])->name('buildings.show');
         Route::get('/floors/{floor}', [FloorController::class, 'show'])->name('floors.show');
         Route::get('/rooms/{room}', [RoomController::class, 'show'])->name('rooms.show');
+
+        Route::prefix('locations/explore')->name('locations.explore.')->group(function () {
+            Route::get('/stats', [LocationExploreController::class, 'stats'])->name('stats');
+            Route::get('/campuses', [LocationExploreController::class, 'campuses'])->name('campuses');
+            Route::get('/campuses/{campus}/buildings', [LocationExploreController::class, 'buildings'])->name('buildings');
+            Route::get('/buildings/{building}/floors', [LocationExploreController::class, 'floors'])->name('floors');
+            Route::get('/floors/{floor}/rooms', [LocationExploreController::class, 'rooms'])->name('rooms');
+            Route::get('/rooms/{room}/categories', [LocationExploreController::class, 'categories'])->name('categories');
+            Route::get('/rooms/{room}/categories/{category}/sub-categories', [LocationExploreController::class, 'subCategories'])->name('sub-categories');
+            Route::get('/rooms/{room}/categories/{category}/sub-categories/{subCategory}/items', [LocationExploreController::class, 'items'])
+                ->whereNumber('subCategory')
+                ->name('items');
+            Route::get('/search', [LocationExploreController::class, 'search'])->name('search');
+            Route::get('/filter-options', [LocationExploreController::class, 'filterOptions'])->name('filter-options');
+        });
     });
 
     // Static inventory paths MUST be registered before /inventory/{inventory}
@@ -133,12 +158,37 @@ Route::middleware('auth')->group(function () {
         Route::get('/inventory', [InventoryController::class, 'index'])->name('inventory.index');
         Route::get('/inventory/lookup', [InventoryController::class, 'lookup'])->name('inventory.lookup');
         Route::get('/inventory/lookup-rooms', [InventoryController::class, 'lookupRooms'])->name('inventory.lookup-rooms');
+
+        Route::prefix('inventory/selector')->name('inventory.selector.')->group(function () {
+            Route::get('/campuses', [InventorySelectorController::class, 'campuses'])->name('campuses');
+            Route::get('/buildings', [InventorySelectorController::class, 'buildings'])->name('buildings');
+            Route::get('/floors', [InventorySelectorController::class, 'floors'])->name('floors');
+            Route::get('/rooms', [InventorySelectorController::class, 'rooms'])->name('rooms');
+            Route::get('/categories', [InventorySelectorController::class, 'categories'])->name('categories');
+            Route::get('/sub-categories', [InventorySelectorController::class, 'subCategories'])->name('sub-categories');
+            Route::get('/items', [InventorySelectorController::class, 'items'])->name('items');
+            Route::get('/search', [InventorySelectorController::class, 'search'])->name('search');
+            Route::get('/items/{item}/maintenance-context', [InventorySelectorController::class, 'maintenanceContext'])
+                ->name('maintenance-context');
+            Route::get('/items/{item}', [InventorySelectorController::class, 'show'])->name('show');
+            Route::post('/resolve-code', [InventorySelectorController::class, 'resolveCode'])
+                ->middleware('throttle:60,1')
+                ->name('resolve-code');
+        });
+
         Route::get('/inventory/items', [InventoryController::class, 'items'])->name('inventory.items');
         Route::get('/inventory/trash', [InventoryController::class, 'trash'])->name('inventory.trash');
         Route::get('/inventory/group/{groupKey}', [InventoryController::class, 'groupUnits'])->name('inventory.group-units');
         Route::get('/inventory/by-category', [InventoryController::class, 'categories'])->name('inventory.categories');
         Route::get('/inventory/categories/{category}', [InventoryController::class, 'byCategory'])->name('inventory.category');
         Route::get('/inventory/campuses/{campus}', [InventoryController::class, 'byCampus'])->name('inventory.campus');
+        Route::get('/inventory/campuses/{campus}/buildings/{building}/floors', [InventoryController::class, 'campusFloors'])->name('inventory.campus.floors');
+        Route::get('/inventory/campuses/{campus}/floors/{floor}/rooms', [InventoryController::class, 'campusRooms'])->name('inventory.campus.rooms');
+        Route::get('/inventory/campuses/{campus}/rooms/{room}/categories', [InventoryController::class, 'campusRoomCategories'])->name('inventory.campus.categories');
+        Route::get('/inventory/campuses/{campus}/rooms/{room}/categories/{category}/sub-categories', [InventoryController::class, 'campusRoomSubCategories'])->name('inventory.campus.sub-categories');
+        Route::get('/inventory/campuses/{campus}/rooms/{room}/categories/{category}/sub-categories/{subCategory}/items', [InventoryController::class, 'campusSubCategoryItems'])
+            ->whereNumber('subCategory')
+            ->name('inventory.campus.sub-category-items');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
         Route::get('/inventory/{inventory}/qr', [InventoryQrController::class, 'inlineQr'])->name('inventory.qr');
         Route::get('/inventory/{inventory}/qr/download', [InventoryQrController::class, 'downloadQr'])->name('inventory.qr.download');
@@ -244,9 +294,6 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:location.manage')->prefix('admin/locations')->name('admin.locations.')->group(function () {
         Route::get('/campuses', [CampusManagementController::class, 'index'])->name('campuses.index');
-        Route::get('/campuses/export', [CampusManagementController::class, 'export'])->name('campuses.export');
-        Route::get('/campuses/import/template', [CampusManagementController::class, 'importTemplate'])->name('campuses.import.template');
-        Route::post('/campuses/import', [CampusManagementController::class, 'import'])->name('campuses.import');
         Route::post('/campuses', [CampusManagementController::class, 'store'])->name('campuses.store');
         Route::put('/campuses/{campus}', [CampusManagementController::class, 'update'])->name('campuses.update');
         Route::delete('/campuses/{campus}', [CampusManagementController::class, 'destroy'])->name('campuses.destroy');
@@ -286,6 +333,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/maintenances/scan/lookup', [MaintenanceController::class, 'scanLookup'])
             ->middleware('throttle:60,1')
             ->name('maintenances.scan.lookup');
+        Route::get('/maintenances/start-repair', [MaintenanceController::class, 'startRepairForm'])->name('maintenances.start-repair');
+        Route::post('/maintenances/start-repair', [MaintenanceController::class, 'startRepair'])->name('maintenances.start-repair.store');
         Route::get('/maintenances/create', [MaintenanceController::class, 'create'])->name('maintenances.create');
         Route::post('/maintenances', [MaintenanceController::class, 'store'])->name('maintenances.store');
     });
@@ -293,12 +342,20 @@ Route::middleware('auth')->group(function () {
         Route::get('/maintenances', [MaintenanceController::class, 'index'])->name('maintenances.index');
         Route::get('/maintenances/{maintenance}', [MaintenanceController::class, 'show'])->name('maintenances.show');
         Route::get('/maintenance-dashboard', [MaintenanceDashboardController::class, 'index'])->name('maintenance-dashboard.index');
+        Route::get('/teknisi-dashboard', [TeknisiDashboardController::class, 'index'])->name('teknisi-dashboard.index');
         Route::get('/maintenance-reports', [MaintenanceReportController::class, 'index'])->name('maintenance-reports.index');
         Route::post('/maintenance-reports/generate', [MaintenanceReportController::class, 'generate'])->name('maintenance-reports.generate');
     });
     Route::middleware('permission:maintenance.update')->group(function () {
         Route::get('/maintenances/{maintenance}/edit', [MaintenanceController::class, 'edit'])->name('maintenances.edit');
         Route::put('/maintenances/{maintenance}', [MaintenanceController::class, 'update'])->name('maintenances.update');
+        Route::get('/maintenances/{maintenance}/complete', [MaintenanceController::class, 'completeRepairForm'])->name('maintenances.complete');
+        Route::post('/maintenances/{maintenance}/complete', [MaintenanceController::class, 'completeRepair'])->name('maintenances.complete.store');
+    });
+    Route::middleware('permission:maintenance.approve')->group(function () {
+        Route::get('/maintenance-approvals', [MaintenanceApprovalController::class, 'index'])->name('maintenance-approvals.index');
+        Route::post('/maintenance-approvals/{maintenance}/approve', [MaintenanceApprovalController::class, 'approve'])->name('maintenance-approvals.approve');
+        Route::post('/maintenance-approvals/{maintenance}/reject', [MaintenanceApprovalController::class, 'reject'])->name('maintenance-approvals.reject');
     });
     Route::middleware('permission:maintenance.delete')->group(function () {
         Route::delete('/maintenances/{maintenance}', [MaintenanceController::class, 'destroy'])->name('maintenances.destroy');
@@ -307,6 +364,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:maintenance.create')->group(function () {
         Route::get('/maintenance-schedules/create', [MaintenanceScheduleController::class, 'create'])->name('maintenance-schedules.create');
         Route::post('/maintenance-schedules', [MaintenanceScheduleController::class, 'store'])->name('maintenance-schedules.store');
+        Route::get('/maintenance-schedules/preview', [MaintenanceScheduleController::class, 'preview'])->name('maintenance-schedules.preview');
+        Route::get('/maintenance-schedules/suggest-next', [MaintenanceScheduleController::class, 'suggestNext'])->name('maintenance-schedules.suggest-next');
     });
     Route::middleware('permission:maintenance.view')->group(function () {
         Route::get('/maintenance-schedules', [MaintenanceScheduleController::class, 'index'])->name('maintenance-schedules.index');
@@ -366,6 +425,12 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('permission:report.view')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+        Route::get('/reports/{type}', [ReportController::class, 'show'])->name('reports.show')
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus|rekapitulasi');
+        Route::get('/reports/{type}/data', [ReportController::class, 'data'])->name('reports.data')
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus');
+        Route::post('/reports/{type}/export', [ReportController::class, 'export'])->name('reports.export')
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus');
         Route::post('/reports/generate', [ReportController::class, 'generate'])->name('reports.generate');
     });
 
@@ -388,6 +453,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/admin/users', [UserController::class, 'index'])->name('admin.users.index');
         Route::post('/admin/users', [UserController::class, 'store'])->name('admin.users.store');
         Route::put('/admin/users/{user}', [UserController::class, 'update'])->name('admin.users.update');
+        Route::post('/admin/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('admin.users.toggle-status');
+        Route::post('/admin/users/{user}/reset-password', [UserController::class, 'resetPassword'])->name('admin.users.reset-password');
         Route::delete('/admin/users/{user}', [UserController::class, 'destroy'])->name('admin.users.destroy');
     });
 

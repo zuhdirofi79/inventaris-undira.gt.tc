@@ -10,6 +10,7 @@ use App\Http\Requests\UpdateBorrowingRequest;
 use App\Models\Borrowing;
 use App\Models\InventoryItem;
 use App\Services\AuditLogService;
+use App\Services\InventorySearchService;
 use App\Services\NotificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class BorrowingController extends Controller
     public function __construct(
         protected AuditLogService $audit,
         protected NotificationService $notifications,
+        protected InventorySearchService $inventorySearch,
     ) {}
 
     public function index(): View
@@ -35,17 +37,16 @@ class BorrowingController extends Controller
 
     public function create(Request $request): View
     {
-        $selectedItem = null;
         $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
-        if ($selectedId > 0) {
-            $selectedItem = InventoryItem::query()
-                ->where('status', InventoryStatus::Aktif)
-                ->find($selectedId, ['id', 'inventory_number', 'name']);
+        $selectedDetail = $selectedId > 0 ? $this->inventorySearch->detail($selectedId) : null;
+
+        // Prefill only when still borrowable; borrowed items show via QR warning path instead.
+        if ($selectedDetail && ($selectedDetail['borrowable'] ?? false) !== true) {
+            $selectedDetail = null;
         }
 
         return view('operations.borrowings.create', [
-            'selectedItem' => $selectedItem,
-            'lookupStatus' => InventoryStatus::Aktif->value,
+            'selectedDetail' => $selectedDetail,
         ]);
     }
 

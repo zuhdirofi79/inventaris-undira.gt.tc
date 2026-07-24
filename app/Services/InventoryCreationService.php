@@ -93,6 +93,10 @@ class InventoryCreationService
             $name = trim((string) $asset['name']);
             $groupKey = $this->codes->generateGroupKey($name, $room->id, $category->id);
             $condition = $this->mapCondition($conditionMaster);
+            $picId = ! empty($asset['pic_id']) ? (int) $asset['pic_id'] : null;
+            $picName = $picId
+                ? User::query()->whereKey($picId)->value('name')
+                : null;
 
             $items = collect();
             for ($i = 0; $i < $quantity; $i++) {
@@ -122,6 +126,8 @@ class InventoryCreationService
                         ? $asset['price']
                         : null,
                     'notes' => $asset['notes'] ?? null,
+                    'pic_id' => $picId,
+                    'responsible_person' => $picName,
                     'unit' => $asset['unit'] ?? 'Unit',
                     'condition' => $condition,
                     'status' => InventoryStatus::Aktif,

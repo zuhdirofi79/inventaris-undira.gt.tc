@@ -21,6 +21,8 @@ use App\Policies\MaintenancePolicy;
 use App\Policies\MaintenanceSchedulePolicy;
 use App\Policies\StockOpnamePolicy;
 use App\Policies\UserPolicy;
+use App\View\Components\PageHeader;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -40,6 +42,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         InventoryItem::observe(InventoryItemObserver::class);
+
+        Blade::component('page-header', PageHeader::class);
+        Blade::component('ui.page-header', PageHeader::class);
 
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(InventoryItem::class, InventoryItemPolicy::class);

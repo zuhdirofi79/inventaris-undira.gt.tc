@@ -12,6 +12,7 @@ use App\Models\StockOpname;
 use App\Models\User;
 use App\Notifications\BorrowingCreatedNotification;
 use App\Notifications\DeletionApprovalNotification;
+use App\Notifications\MaintenanceApprovalNotification;
 use App\Notifications\MaintenanceDueNotification;
 use App\Notifications\MaintenanceScheduleReminderNotification;
 use App\Notifications\OverdueBorrowingNotification;
@@ -26,7 +27,7 @@ class NotificationService
      *
      * @var list<string>
      */
-    private const OPERATOR_ROLES = ['super-admin', 'admin', 'staff'];
+    private const OPERATOR_ROLES = ['super-admin', 'admin', 'staff', 'teknisi'];
 
     public function notifyWarrantyExpiring(User $user, InventoryItem $item, int $daysRemaining): bool
     {
@@ -125,6 +126,43 @@ class NotificationService
             }
 
             $user->notify(new DeletionApprovalNotification($approval, $event));
+            $count++;
+        }
+
+        return $count;
+    }
+
+    public function notifyMaintenanceApproval(Maintenance $maintenance, string $event, ?string $reason = null): int
+    {
+        $maintenance->loadMissing(['inventoryItem', 'technicianUser', 'creator']);
+        $count = 0;
+
+        $recipients = match ($event) {
+            'submitted' => $this->usersWithPermission('maintenance.approve'),
+            'approved', 'rejected' => collect([
+                $maintenance->technicianUser,
+                $maintenance->creator,
+            ])->filter()->unique('id')->values(),
+            default => collect(),
+        };
+
+        foreach ($recipients as $user) {
+            if (! $user instanceof User || ! $user->is_active) {
+                continue;
+            }
+
+            $exists = $user->notifications()
+                ->where('type', MaintenanceApprovalNotification::class)
+                ->where('created_at', '>=', now()->subDay())
+                ->where('data->maintenance_id', $maintenance->id)
+                ->where('data->event', $event)
+                ->exists();
+
+            if ($exists) {
+                continue;
+            }
+
+            $user->notify(new MaintenanceApprovalNotification($maintenance, $event, $reason));
             $count++;
         }
 

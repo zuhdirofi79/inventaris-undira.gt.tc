@@ -90,6 +90,8 @@ class DashboardPhase5Test extends TestCase
 
         $this->assertStringContainsString('Aksi Cepat', $html);
         $this->assertStringContainsString('Jumlah Inventaris', $html);
+        $this->assertStringContainsString('Total Inventaris', $html);
+        $this->assertStringContainsString('Kondisi Baik', $html);
         $this->assertStringContainsString('Barang Aktif', $html);
         $this->assertStringContainsString('Barang Hilang', $html);
         $this->assertStringContainsString('Jumlah Supplier', $html);

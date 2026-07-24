@@ -2,13 +2,20 @@
 
 @section('title', 'Buat Stock Opname - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('stock-opnames.index') }}">Stock Opname</a></li>
-    <li class="breadcrumb-item active">Buat</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira"><h1><i class="fas fa-plus me-2"></i>Buat Stock Opname</h1></div>
+<x-page-header
+    title="Buat Stock Opname"
+    subtitle="Buat sesi pencatatan stok untuk kampus yang dipilih"
+    icon="bi bi-plus-lg"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Stock Opname', 'url' => route('stock-opnames.index')],
+        ['label' => 'Buat'],
+    ]"
+    :back-route="route('stock-opnames.index')"
+    back-label="Daftar Stock Opname"
+    :list-back="true"
+/>
 
 <form action="{{ route('stock-opnames.store') }}" method="POST">
     @csrf

@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\Maintenance;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class MaintenanceDueNotification extends Notification
+class MaintenanceDueNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

@@ -2,20 +2,27 @@
 
 @section('title', 'Edit Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    @if($inventory->category)
-    <li class="breadcrumb-item"><a href="{{ route('inventory.category', $inventory->category) }}">{{ $inventory->category->name }}</a></li>
-    @endif
-    <li class="breadcrumb-item"><a href="{{ route('inventory.show', $inventory) }}">{{ $inventory->inventory_number }}</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-edit me-2"></i>Edit Inventaris</h1>
-    <p class="text-muted mb-0"><code>{{ $inventory->inventory_number }}</code> &middot; {{ $inventory->name }}</p>
-</div>
+@php
+    $editBreadcrumbs = [
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.items')],
+    ];
+    if ($inventory->category) {
+        $editBreadcrumbs[] = ['label' => $inventory->category->name, 'url' => route('inventory.category', $inventory->category)];
+    }
+    $editBreadcrumbs[] = ['label' => $inventory->inventory_number, 'url' => route('inventory.show', $inventory)];
+    $editBreadcrumbs[] = ['label' => 'Edit'];
+@endphp
+<x-page-header
+    title="Edit Inventaris"
+    :subtitle="$inventory->inventory_number.' · '.$inventory->name"
+    icon="bi bi-pencil-square"
+    :breadcrumbs="$editBreadcrumbs"
+    :back-route="route('inventory.items')"
+    back-label="Data Inventaris"
+    :list-back="true"
+/>
 
 <div class="alert alert-info border-0 shadow-sm">
     Lokasi inventaris tidak diubah dari halaman ini.
@@ -44,4 +51,17 @@
     'selectedCategoryId' => old('category_id', $inventory->category_id),
     'selectedSubCategoryId' => old('sub_category_id', $inventory->sub_category_id),
 ])
+<script>
+(function () {
+    const $pic = $('#inventory_pic_id');
+    if ($pic.length && $.fn.select2) {
+        $pic.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            allowClear: true,
+            placeholder: $pic.data('placeholder') || 'Pilih PIC (Opsional)',
+        });
+    }
+})();
+</script>
 @endpush

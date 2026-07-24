@@ -2,16 +2,19 @@
 
 @section('title', 'Scan QR Maintenance - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">Scan QR</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Scan Inventory QR Code"
     subtitle="Arahkan kamera ke QR pada label inventaris. QR berisi nomor inventaris saja."
     icon="bi bi-qr-code-scan"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Scan QR'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+    :list-back="true"
 />
 
 <div class="row g-3">
@@ -59,15 +62,34 @@
                             <dt class="col-sm-4">Kampus</dt><dd class="col-sm-8" id="fCampus"></dd>
                             <dt class="col-sm-4">Gedung / Lantai / Ruang</dt><dd class="col-sm-8" id="fLocation"></dd>
                             <dt class="col-sm-4">PIC</dt><dd class="col-sm-8" id="fPic"></dd>
+                            <dt class="col-sm-4">Kondisi</dt><dd class="col-sm-8" id="fCondition"></dd>
+                            <dt class="col-sm-4">Garansi</dt><dd class="col-sm-8" id="fWarranty"></dd>
                             <dt class="col-sm-4">Status</dt><dd class="col-sm-8" id="fStatus"></dd>
                             <dt class="col-sm-4">Tahun / Pengadaan</dt><dd class="col-sm-8" id="fProc"></dd>
                         </dl>
                     </div>
                 </div>
+                <div class="row g-3 mt-2">
+                    <div class="col-md-4">
+                        <h6 class="mb-2">Work Order Terbaru</h6>
+                        <div id="fLatestWo" class="small border rounded p-2 bg-light text-muted">—</div>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="mb-2">Jadwal Pemeliharaan</h6>
+                        <ul id="fSchedules" class="list-unstyled small mb-0"></ul>
+                    </div>
+                    <div class="col-md-4">
+                        <h6 class="mb-2">Riwayat Maintenance</h6>
+                        <ul id="fHistory" class="list-unstyled small mb-0"></ul>
+                    </div>
+                </div>
             </div>
-            <div class="card-footer d-flex gap-2">
-                <a href="#" id="btnContinue" class="btn btn-undira btn-lg flex-grow-1">
-                    <i class="bi bi-wrench-adjustable me-1"></i>Lanjut Form Pemeliharaan
+            <div class="card-footer d-flex flex-wrap gap-2">
+                <a href="#" id="btnStartRepair" class="btn btn-undira btn-lg flex-grow-1">
+                    <i class="bi bi-tools me-1"></i>Mulai Perbaikan
+                </a>
+                <a href="#" id="btnContinue" class="btn btn-outline-primary">
+                    <i class="bi bi-wrench-adjustable me-1"></i>Form WO
                 </a>
                 <a href="{{ route('maintenances.index') }}" class="btn btn-outline-secondary">Batal</a>
             </div>
@@ -102,8 +124,47 @@
         document.getElementById('fCampus').textContent = item.campus || '—';
         document.getElementById('fLocation').textContent = [item.building, item.floor, item.room].filter(Boolean).join(' / ') || '—';
         document.getElementById('fPic').textContent = item.pic || '—';
+        document.getElementById('fCondition').textContent = item.condition_label || '—';
+        document.getElementById('fWarranty').textContent = item.warranty_label || '—';
         document.getElementById('fStatus').textContent = item.status_label || item.status || '—';
         document.getElementById('fProc').textContent = [item.purchase_year || '—', item.procurement_type || '—'].join(' · ');
+
+        var latest = item.latest_work_order;
+        var latestEl = document.getElementById('fLatestWo');
+        if (latest) {
+            latestEl.className = 'small border rounded p-2 bg-light';
+            latestEl.innerHTML = '<div class="fw-semibold">' + (latest.maintenance_number || '') + '</div>' +
+                '<div>' + (latest.type_label || '') + ' · ' + (latest.status_label || '') + '</div>' +
+                '<div class="text-muted">' + (latest.service_date || '—') + '</div>';
+        } else {
+            latestEl.className = 'small border rounded p-2 bg-light text-muted';
+            latestEl.textContent = 'Belum ada work order.';
+        }
+
+        function fillUl(id, rows, emptyText, mapFn) {
+            var ul = document.getElementById(id);
+            ul.innerHTML = '';
+            if (!rows || !rows.length) {
+                ul.innerHTML = '<li class="text-muted">' + emptyText + '</li>';
+                return;
+            }
+            rows.forEach(function (row) {
+                var li = document.createElement('li');
+                li.className = 'border-bottom py-1';
+                li.innerHTML = mapFn(row);
+                ul.appendChild(li);
+            });
+        }
+
+        fillUl('fSchedules', item.maintenance_schedules, 'Tidak ada jadwal aktif.', function (sch) {
+            return '<a href="' + (sch.url || '#') + '">' + (sch.type_label || '—') + '</a>' +
+                '<div class="text-muted">Berikutnya: ' + (sch.next_maintenance_date || '—') + '</div>';
+        });
+        fillUl('fHistory', item.maintenance_history, 'Belum ada riwayat.', function (row) {
+            return '<a href="' + (row.url || '#') + '">' + (row.maintenance_number || '—') + '</a>' +
+                '<div class="text-muted">' + (row.service_date || '—') + ' · ' + (row.status_label || '—') + '</div>';
+        });
+
         const img = document.getElementById('assetPhoto');
         const empty = document.getElementById('assetPhotoEmpty');
         if (item.photo_url) {
@@ -115,6 +176,10 @@
             empty.classList.remove('d-none');
         }
         document.getElementById('btnContinue').href = item.create_url;
+        var startBtn = document.getElementById('btnStartRepair');
+        if (startBtn) {
+            startBtn.href = item.start_repair_url || ('{{ url('/maintenances/start-repair') }}?inventory_item_id=' + item.id);
+        }
         card.classList.remove('d-none');
     }
 

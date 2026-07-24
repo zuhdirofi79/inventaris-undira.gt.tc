@@ -14,6 +14,7 @@ use App\Models\ProcurementType;
 use App\Models\PurchaseYear;
 use App\Models\Room;
 use App\Models\RoomFunction;
+use App\Models\User;
 use App\Enums\AuditAction;
 use App\Exports\MasterArrayExport;
 use App\Http\Requests\ImportMasterRequest;
@@ -108,6 +109,7 @@ class CategoryController extends Controller
                 'purchaseYears' => PurchaseYear::query()->where('is_active', true)->orderByDesc('year')->get(['id', 'year']),
                 'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
                 'conditions' => InventoryConditionMaster::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->get(['id', 'code', 'name']),
+                'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             ];
         }
 
@@ -337,21 +339,22 @@ class CategoryController extends Controller
     }
 
     /**
-     * Attach global sequence preview (read-only, shared across all configurations).
+     * Attach per-configuration sequence preview (campus + sub_category scope).
      *
      * @param  \Illuminate\Contracts\Pagination\LengthAwarePaginator<int, InventoryMasterConfiguration>  $configurations
      */
     protected function attachSequencePreviews($configurations): void
     {
-        $peek = app(InventoryCodeService::class)->peekNextSequence();
-        $padding = app(InventoryCodeService::class)->padding();
+        $codes = app(InventoryCodeService::class);
+        $padding = $codes->padding();
 
-        $configurations->getCollection()->transform(function (InventoryMasterConfiguration $c) use ($peek, $padding) {
+        $configurations->getCollection()->transform(function (InventoryMasterConfiguration $c) use ($codes, $padding) {
+            $peek = $codes->peekNextSequence((int) $c->campus_id, (int) $c->sub_category_id);
             $c->setAttribute('sequence_last', $peek['last_value']);
             $c->setAttribute('sequence_next', $peek['next_value']);
             $c->setAttribute('sequence_next_padded', $peek['next_padded']);
             $c->setAttribute('sequence_last_padded', str_pad((string) $peek['last_value'], $padding, '0', STR_PAD_LEFT));
-            $c->setAttribute('sequence_scope', 'global');
+            $c->setAttribute('sequence_scope', 'campus_sub_category');
 
             return $c;
         });

@@ -2,13 +2,20 @@
 
 @section('title', 'Edit Jadwal Pemeliharaan - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenance-schedules.index') }}">Jadwal Preventif</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Edit Jadwal" subtitle="{{ $schedule->inventoryItem?->inventory_number }}" icon="bi bi-calendar2-week" />
+<x-page-header
+    title="Edit Jadwal"
+    subtitle="{{ $schedule->inventoryItem?->inventory_number }}"
+    icon="bi bi-calendar2-week"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Jadwal Preventif', 'url' => route('maintenance-schedules.index')],
+        ['label' => 'Edit'],
+    ]"
+    :back-route="route('maintenance-schedules.index')"
+    back-label="Jadwal Preventif"
+    :list-back="true"
+/>
 
 <form action="{{ route('maintenance-schedules.update', $schedule) }}" method="POST">
     @csrf

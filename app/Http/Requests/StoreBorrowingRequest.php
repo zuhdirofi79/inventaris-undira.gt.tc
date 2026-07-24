@@ -3,10 +3,13 @@
 namespace App\Http\Requests;
 
 use App\Enums\BorrowingStatus;
+use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
+use App\Models\InventoryItem;
 use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreBorrowingRequest extends FormRequest
 {
@@ -27,6 +30,32 @@ class StoreBorrowingRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'status' => ['nullable', Rule::enum(BorrowingStatus::class)],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $id = (int) $this->input('inventory_item_id');
+            if ($id < 1 || $validator->errors()->has('inventory_item_id')) {
+                return;
+            }
+
+            $item = InventoryItem::query()->find($id, ['id', 'status', 'name', 'inventory_number']);
+            if (! $item) {
+                return;
+            }
+
+            $status = $item->status instanceof InventoryStatus
+                ? $item->status
+                : InventoryStatus::tryFrom((string) $item->status);
+
+            if (! $status?->isBorrowable()) {
+                $validator->errors()->add(
+                    'inventory_item_id',
+                    'Inventaris tidak dapat dipinjam (status: '.($status?->label() ?? 'tidak valid').'). Hanya status Aktif yang boleh dipinjam.',
+                );
+            }
+        });
     }
 
     public function messages(): array

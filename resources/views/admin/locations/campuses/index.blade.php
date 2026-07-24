@@ -2,25 +2,28 @@
 
 @section('title', 'Kelola Kampus - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Admin</li>
-    <li class="breadcrumb-item active">Kelola Kampus</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Kelola Kampus" subtitle="Master lokasi kampus" icon="bi bi-building">
+<x-page-header
+    title="Kelola Kampus"
+    subtitle="Master lokasi kampus Universitas Dian Nusantara"
+    icon="bi bi-building"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Master Data', 'url' => route('categories.index')],
+        ['label' => 'Kampus'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
         <i class="bi bi-plus-lg me-1"></i>Tambah
     </button>
-</x-ui.page-header>
+</x-page-header>
 
 <x-master-table-toolbar
     :action="route('admin.locations.campuses.index')"
     placeholder="Kode / nama / slug…"
     :sort-options="['name' => 'Nama', 'code' => 'Kode', 'created_at' => 'Tanggal dibuat']"
-    :export-route="route('admin.locations.campuses.export', request()->only(['q', 'is_active', 'sort', 'dir']))"
-    :import-route="route('admin.locations.campuses.import')"
-    :template-route="route('admin.locations.campuses.import.template')"
 />
 
 <div class="card card-undira">

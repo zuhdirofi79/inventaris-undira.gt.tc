@@ -2,13 +2,19 @@
 
 @section('title', 'Settings - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Admin</li>
-    <li class="breadcrumb-item active">Settings</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Pengaturan Sistem" subtitle="Konfigurasi aplikasi inventaris" icon="bi bi-gear" />
+<x-page-header
+    title="Pengaturan Sistem"
+    subtitle="Konfigurasi aplikasi inventaris"
+    icon="bi bi-gear"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Admin', 'url' => route('admin.settings.index')],
+        ['label' => 'Settings'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+/>
 
 <form action="{{ route('admin.settings.update') }}" method="POST">
     @csrf @method('PUT')

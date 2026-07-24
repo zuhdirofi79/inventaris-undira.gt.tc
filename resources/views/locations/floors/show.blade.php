@@ -2,53 +2,65 @@
 
 @section('title', $floor->name . ' - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('campuses.index') }}">Jelajahi Lokasi</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('campuses.show', $floor->building->campus) }}">{{ $floor->building->campus->name }}</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('buildings.show', $floor->building) }}">{{ $floor->building->name }}</a></li>
-    <li class="breadcrumb-item active">{{ $floor->name }}</li>
-@endsection
-
 @php
     $campus = $floor->building->campus;
     $building = $floor->building;
 @endphp
 
+@push('styles')
+@include('locations.partials.explore-styles')
+@endpush
+
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
-    <div>
-        <h1 class="mb-1"><i class="fas fa-layer-group me-2"></i>{{ $floor->name }}</h1>
-        <p class="text-muted mb-0 small">
-            {{ $campus->name }} &middot; {{ $building->name }} &middot; Lantai {{ $floor->floor_number }}
-            &middot; <span id="roomCountLabel">{{ $floor->rooms->count() }}</span> Ruangan
-        </p>
+<x-page-header
+    :title="$floor->name"
+    icon="bi bi-layers"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Jelajahi Lokasi', 'url' => route('campuses.index')],
+        ['label' => $campus->name, 'url' => route('campuses.show', $campus)],
+        ['label' => $building->name, 'url' => route('buildings.show', $building)],
+        ['label' => $floor->name],
+    ]"
+    :back-route="route('buildings.show', $building)"
+    back-label="Lantai"
+    :list-back="true"
+>
+    <x-slot:meta>
+        {{ $campus->name }} &middot; {{ $building->name }} &middot; Lantai {{ $floor->floor_number }}
+        &middot; <span id="roomCountLabel">{{ $floor->rooms->count() }}</span> Ruangan
+    </x-slot:meta>
+    <x-slot:actions>
+        @can('location.manage')
+        <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateRoom" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Ruangan
+        </button>
+        @endcan
+    </x-slot:actions>
+</x-page-header>
+
+<div class="lex-search-wrap">
+    <label class="form-label small mb-1" for="lexRoomSearch">Cari Ruangan</label>
+    <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+        <input type="search" id="lexRoomSearch" class="form-control" placeholder="Nama, kode, atau fungsi ruangan…" autocomplete="off">
     </div>
-    @can('location.manage')
-    <button type="button" class="btn btn-undira btn-sm" id="btnOpenCreateRoom" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
-        <i class="fas fa-plus me-1"></i>Tambah Ruangan
-    </button>
-    @endcan
 </div>
 
-<div class="row g-3" id="roomCardGrid">
+<div class="lex-grid lex-grid--4" id="roomCardGrid">
     @forelse($floor->rooms as $room)
         @include('locations.floors._room-card', ['room' => $room, 'canManageRooms' => $canManageRooms, 'floor' => $floor])
     @empty
-    <div class="col-12" id="roomEmptyState">
-        <div class="empty-state card card-undira">
-            <div class="card-body">
-                <i class="fas fa-door-open"></i>
-                <p class="fw-semibold mb-1">Belum ada ruangan di lantai ini</p>
-                @can('location.manage')
-                <p class="mb-2">Tambahkan ruangan agar inventaris dapat ditempatkan.</p>
-                <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
-                    <i class="fas fa-plus me-1"></i>Tambah Ruangan
-                </button>
-                @else
-                <p class="mb-0">Belum ada data ruangan aktif.</p>
-                @endcan
-            </div>
-        </div>
+    <div class="lex-empty" id="roomEmptyState">
+        <p class="fw-semibold mb-1">Belum ada ruangan di lantai ini</p>
+        @can('location.manage')
+        <p class="mb-2">Tambahkan ruangan agar inventaris dapat ditempatkan.</p>
+        <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalRoomForm" data-no-loader="1">
+            <i class="bi bi-plus-lg me-1"></i>Tambah Ruangan
+        </button>
+        @else
+        <p class="mb-0">Belum ada data ruangan aktif.</p>
+        @endcan
     </div>
     @endforelse
 </div>
@@ -150,18 +162,18 @@
     const inventoryCreateUrl = @json($inventoryCreateUrl);
 
     const typeIcons = {
-        'Kelas': 'fa-chalkboard-teacher',
-        'Lab': 'fa-flask',
-        'Kantor': 'fa-briefcase',
-        'Aula': 'fa-users',
-        'Perpustakaan': 'fa-book',
-        'Meeting Room': 'fa-handshake',
-        'Gudang': 'fa-warehouse',
-        'Lainnya': 'fa-door-open'
+        'Kelas': 'bi-easel',
+        'Lab': 'bi-flask',
+        'Kantor': 'bi-briefcase',
+        'Aula': 'bi-people',
+        'Perpustakaan': 'bi-book',
+        'Meeting Room': 'bi-people',
+        'Gudang': 'bi-archive',
+        'Lainnya': 'bi-door-open'
     };
 
     function roomIcon(type) {
-        return typeIcons[type] || 'fa-door-open';
+        return typeIcons[type] || 'bi-door-open';
     }
 
     function escapeHtml(str) {
@@ -176,11 +188,8 @@
         if (n === 0) {
             if (!$('#roomEmptyState').length) {
                 $('#roomCardGrid').html(`
-                    <div class="col-12" id="roomEmptyState">
-                        <div class="empty-state card card-undira"><div class="card-body">
-                            <i class="fas fa-door-open"></i>
-                            <p class="fw-semibold mb-1">Belum ada ruangan di lantai ini</p>
-                        </div></div>
+                    <div class="lex-empty" id="roomEmptyState">
+                        <p class="fw-semibold mb-1">Belum ada ruangan di lantai ini</p>
                     </div>`);
             }
         } else {
@@ -189,71 +198,72 @@
     }
 
     function buildCard(room) {
-        const icon = roomIcon(room.room_type);
-        const statusBadge = room.is_active
-            ? '<span class="badge bg-success">Aktif</span>'
-            : '<span class="badge bg-secondary">Nonaktif</span>';
+        const filterText = escapeHtml(String(room.name || '') + ' ' + String(room.code || '') + ' ' + String(room.room_type || '')).toLowerCase();
         const typeBadge = room.room_type
-            ? `<span class="badge bg-undira-blue">${escapeHtml(room.room_type)}</span>`
+            ? `<span class="lex-badge lex-badge--soft">${escapeHtml(room.room_type)}</span>`
             : '';
-        const inventBtn = inventoryCreateUrl
-            ? `<a href="${inventoryCreateUrl}&room_id=${room.id}" class="btn btn-sm btn-outline-success" title="Tambah inventaris via Konfigurasi"><i class="fas fa-plus"></i></a>`
-            : '';
-
-        const actions = `
-            <li><a class="dropdown-item" href="${room.urls.show}"><i class="fas fa-eye me-2 text-primary"></i>Detail</a></li>
-            <li><a class="dropdown-item" href="${room.urls.show}"><i class="fas fa-boxes me-2 text-undira-green"></i>Kelola Inventaris</a></li>
-            <li><hr class="dropdown-divider"></li>
-            <li><button type="button" class="dropdown-item btn-edit-room"
-                data-id="${room.id}"
-                data-code="${escapeHtml(room.code)}"
-                data-name="${escapeHtml(room.name)}"
-                data-type="${escapeHtml(room.room_type || '')}"
-                data-capacity="${room.capacity ?? ''}"
-                data-active="${room.is_active ? 1 : 0}"
-                data-notes="${escapeHtml(room.notes || '')}"
-                data-update="${room.urls.update}">
-                <i class="fas fa-edit me-2 text-warning"></i>Edit</button></li>
-            <li><button type="button" class="dropdown-item btn-dup-room" data-url="${room.urls.duplicate}">
-                <i class="fas fa-copy me-2 text-secondary"></i>Duplikasi Ruangan</button></li>
-            <li><button type="button" class="dropdown-item text-danger btn-del-room"
-                data-id="${room.id}" data-name="${escapeHtml(room.name)}" data-url="${room.urls.destroy}"
-                data-count="${room.inventory_items_count || 0}">
-                <i class="fas fa-trash me-2"></i>Hapus</button></li>`;
+        const inactive = room.is_active ? '' : '<span class="badge bg-secondary">Nonaktif</span>';
+        const manage = `
+            <div class="dropdown room-explore-actions" style="pointer-events: auto; position: relative; z-index: 3;">
+                <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi" data-no-loader="1">
+                    <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow">
+                    <li><a class="dropdown-item" href="${room.urls.show}"><i class="bi bi-eye me-2 text-primary"></i>Detail</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><button type="button" class="dropdown-item btn-edit-room"
+                        data-id="${room.id}"
+                        data-code="${escapeHtml(room.code)}"
+                        data-name="${escapeHtml(room.name)}"
+                        data-type="${escapeHtml(room.room_type || '')}"
+                        data-capacity="${room.capacity ?? ''}"
+                        data-active="${room.is_active ? 1 : 0}"
+                        data-notes="${escapeHtml(room.notes || '')}"
+                        data-update="${room.urls.update}">
+                        <i class="bi bi-pencil me-2 text-warning"></i>Edit</button></li>
+                    <li><button type="button" class="dropdown-item btn-dup-room" data-url="${room.urls.duplicate}">
+                        <i class="bi bi-copy me-2 text-secondary"></i>Duplikasi Ruangan</button></li>
+                    <li><button type="button" class="dropdown-item text-danger btn-del-room"
+                        data-id="${room.id}" data-name="${escapeHtml(room.name)}" data-url="${room.urls.destroy}"
+                        data-count="${room.inventory_items_count || 0}">
+                        <i class="bi bi-trash me-2"></i>Hapus</button></li>
+                </ul>
+            </div>`;
 
         return `
-        <div class="col-12 col-sm-6 col-md-6 col-lg-4 col-xl-3 room-card-col" data-room-id="${room.id}">
-            <div class="card room-explore-card card-undira">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <span class="room-explore-icon"><i class="fas ${icon}"></i></span>
-                        <div class="d-flex align-items-center gap-1">
-                            ${typeBadge}
-                            <div class="dropdown room-explore-actions">
-                                <button class="btn btn-sm btn-light border" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Aksi">
-                                    <i class="fas fa-ellipsis-v"></i>
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end shadow">${actions}</ul>
-                            </div>
+        <div class="lex-filter-card room-card-col" data-room-id="${room.id}" data-filter-text="${filterText}">
+            <div class="lex-card position-relative" style="--lex-accent: #0d9488; cursor: default;">
+                <a href="${room.urls.show}" class="text-decoration-none text-reset stretched-link" style="z-index: 1;" aria-label="Buka ${escapeHtml(room.name)}"></a>
+                <div class="lex-card__top" style="position: relative; z-index: 2; pointer-events: none;">
+                    <span class="lex-card__icon" aria-hidden="true"><i class="bi ${roomIcon(room.room_type)}"></i></span>
+                    <div class="min-w-0 flex-grow-1">
+                        <h2 class="lex-card__title">${escapeHtml(room.name)}</h2>
+                        <div class="lex-card__meta">
+                            ${room.code ? `<span class="lex-badge lex-badge--code">${escapeHtml(room.code)}</span>` : ''}
+                            ${typeBadge}${inactive}
                         </div>
                     </div>
-                    <h6 class="room-card-title text-break">${escapeHtml(room.name)}</h6>
-                    <p class="room-card-code small"><code>${escapeHtml(room.code)}</code></p>
-                    <div class="d-flex flex-wrap gap-1 mb-2">
-                        <span class="badge bg-secondary"><i class="fas fa-box me-1"></i>${room.inventory_items_count || 0} Item</span>
-                        <span class="badge bg-light text-dark"><i class="fas fa-user-friends me-1"></i>Kap. ${room.capacity ?? '-'}</span>
-                        ${statusBadge}
+                    ${manage}
+                </div>
+                <div class="lex-stats" style="position: relative; z-index: 2; pointer-events: none;">
+                    <div class="lex-stat">
+                        <span class="lex-stat__icon"><i class="bi bi-info-circle"></i></span>
+                        <span>
+                            <span class="lex-stat__label">Fungsi</span>
+                            <span class="lex-stat__value" style="font-size:.8rem">${escapeHtml(room.room_type || '—')}</span>
+                        </span>
                     </div>
-                    <div class="d-flex flex-wrap gap-1">
-                        <a href="${room.urls.show}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
-                        ${inventBtn}
-                        <button type="button" class="btn btn-sm btn-outline-warning btn-edit-room"
-                            data-id="${room.id}" data-code="${escapeHtml(room.code)}" data-name="${escapeHtml(room.name)}"
-                            data-type="${escapeHtml(room.room_type || '')}" data-capacity="${room.capacity ?? ''}"
-                            data-active="${room.is_active ? 1 : 0}" data-notes="${escapeHtml(room.notes || '')}"
-                            data-update="${room.urls.update}" title="Edit"><i class="fas fa-edit"></i></button>
+                    <div class="lex-stat">
+                        <span class="lex-stat__icon"><i class="bi bi-box-seam"></i></span>
+                        <span>
+                            <span class="lex-stat__label">Inventaris</span>
+                            <span class="lex-stat__value">${room.inventory_items_count || 0}</span>
+                        </span>
                     </div>
                 </div>
+                <span class="lex-cta" style="position: relative; z-index: 2; pointer-events: none;">
+                    Lihat Isi Ruangan <i class="bi bi-arrow-right" aria-hidden="true"></i>
+                </span>
             </div>
         </div>`;
     }
@@ -433,4 +443,17 @@
 })();
 </script>
 @endcan
+<script>
+(function () {
+    const input = document.getElementById('lexRoomSearch');
+    if (!input) return;
+    input.addEventListener('input', function () {
+        const q = (input.value || '').trim().toLowerCase();
+        document.querySelectorAll('#roomCardGrid .lex-filter-card').forEach(function (card) {
+            const hay = card.getAttribute('data-filter-text') || '';
+            card.classList.toggle('lex-hidden', q !== '' && hay.indexOf(q) === -1);
+        });
+    });
+})();
+</script>
 @endpush

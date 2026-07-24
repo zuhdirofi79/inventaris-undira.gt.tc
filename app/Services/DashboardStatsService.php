@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
 use App\Models\Building;
@@ -23,6 +24,10 @@ use Illuminate\Support\Facades\DB;
  */
 class DashboardStatsService
 {
+    public function __construct(
+        protected MaintenanceScheduleService $schedules,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -35,6 +40,28 @@ class DashboardStatsService
                 ->groupBy('status')
                 ->pluck('total', 'status');
 
+            $conditionCounts = InventoryItem::query()
+                ->toBase()
+                ->selectRaw('condition as cond, COUNT(*) as total')
+                ->groupBy('condition')
+                ->pluck('total', 'cond');
+
+            $scheduleSummary = $this->schedules->summaryCounts();
+            $goodCondition = (int) ($conditionCounts[InventoryCondition::Baru->value] ?? 0)
+                + (int) ($conditionCounts[InventoryCondition::Bagus->value] ?? 0);
+            $minorDamage = (int) ($conditionCounts[InventoryCondition::RusakRingan->value] ?? 0);
+            $majorDamage = (int) ($conditionCounts[InventoryCondition::RusakBerat->value] ?? 0);
+            $borrowed = (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0);
+            $maintenance = (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0);
+            $lost = (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0);
+            $auctioned = (int) ($statusCounts[InventoryStatus::Dilelang->value] ?? 0);
+            $destroyed = (int) ($statusCounts[InventoryStatus::Dimusnahkan->value] ?? 0);
+            $active = (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0);
+            $damaged = collect(InventoryStatus::damagedValues())
+                ->sum(fn (string $value) => (int) ($statusCounts[$value] ?? 0));
+            $totalInventory = (int) array_sum($statusCounts->all());
+            $preventiveDue = (int) ($scheduleSummary['due_today'] + $scheduleSummary['due_this_week']);
+
             return [
                 'total_campuses' => Campus::query()->where('is_active', true)->count(),
                 'total_buildings' => Building::query()->where('is_active', true)->count(),
@@ -46,20 +73,32 @@ class DashboardStatsService
                 'total_users' => \App\Models\User::query()->count(),
                 'total_suppliers' => Supplier::query()->where('is_active', true)->count(),
                 'total_vendors' => Vendor::query()->where('is_active', true)->count(),
-                'total_inventory' => InventoryItem::query()->count(),
-                'active_inventory' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
-                'available' => (int) ($statusCounts[InventoryStatus::Aktif->value] ?? 0),
-                'borrowed' => (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0),
-                'maintenance' => (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0),
-                'damaged' => (int) ($statusCounts[InventoryStatus::RusakRingan->value] ?? 0)
-                    + (int) ($statusCounts[InventoryStatus::RusakBerat->value] ?? 0)
-                    + (int) ($statusCounts[InventoryStatus::TidakDapatDiperbaiki->value] ?? 0)
-                    + (int) ($statusCounts[InventoryStatus::PerluPenggantian->value] ?? 0),
-                'lost' => (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0),
+                'total_inventory' => $totalInventory,
+                'active_inventory' => $active,
+                'available' => $active,
+                'borrowed' => $borrowed,
+                'maintenance' => $maintenance,
+                'damaged' => $damaged,
+                'lost' => $lost,
+                'good_condition' => $goodCondition,
+                'minor_damage' => $minorDamage,
+                'major_damage' => $majorDamage,
+                'preventive_due' => $preventiveDue,
+                'auctioned' => $auctioned,
+                'destroyed' => $destroyed,
+                'widgets' => [
+                    'total_inventory' => $totalInventory,
+                    'good_condition' => $goodCondition,
+                    'minor_damage' => $minorDamage,
+                    'major_damage' => $majorDamage,
+                    'borrowed' => $borrowed,
+                    'maintenance' => $maintenance,
+                    'preventive_due' => $preventiveDue,
+                    'lost' => $lost,
+                    'auctioned' => $auctioned,
+                    'destroyed' => $destroyed,
+                ],
                 'campus_stats' => $this->campusStats(),
-                'category_breakdown' => $this->categorySubcategoryBreakdown(),
-                'campus_category_breakdown' => $this->campusCategoryBreakdown(),
-                'campus_subcategory_breakdown' => $this->campusSubcategoryBreakdown(),
                 'charts' => $this->chartData($statusCounts),
             ];
         });
@@ -106,8 +145,8 @@ class DashboardStatsService
                     'available' => (int) ($status[InventoryStatus::Aktif->value] ?? 0),
                     'borrowed' => (int) ($status[InventoryStatus::Dipinjam->value] ?? 0),
                     'maintenance' => (int) ($status[InventoryStatus::Maintenance->value] ?? 0),
-                    'damaged' => (int) ($status[InventoryStatus::RusakRingan->value] ?? 0)
-                        + (int) ($status[InventoryStatus::RusakBerat->value] ?? 0),
+                    'damaged' => collect(InventoryStatus::damagedValues())
+                        ->sum(fn (string $value) => (int) ($status[$value] ?? 0)),
                     'categories' => $cats,
                 ];
             })->values()->all();
@@ -272,14 +311,6 @@ class DashboardStatsService
             ->orderByDesc('total')
             ->get();
 
-        $bySubcategory = InventoryItem::query()
-            ->join('sub_categories', 'inventory_items.sub_category_id', '=', 'sub_categories.id')
-            ->selectRaw('sub_categories.name as label, COUNT(*) as total')
-            ->groupBy('sub_categories.name')
-            ->orderByDesc('total')
-            ->limit(15)
-            ->get();
-
         $byStatus = [];
         foreach ($statusCounts as $key => $total) {
             $enum = InventoryStatus::tryFrom((string) $key);
@@ -295,7 +326,7 @@ class DashboardStatsService
             ->groupBy('condition')
             ->get()
             ->map(function ($row) {
-                $enum = \App\Enums\InventoryCondition::tryFrom((string) $row->label_key);
+                $enum = InventoryCondition::tryFrom((string) $row->label_key);
 
                 return [
                     'label' => $enum?->label() ?? str_replace('_', ' ', (string) $row->label_key),
@@ -304,21 +335,11 @@ class DashboardStatsService
             })
             ->values();
 
-        $byOrgUnit = InventoryItem::query()
-            ->leftJoin('org_units', 'org_units.id', '=', 'inventory_items.org_unit_id')
-            ->selectRaw("COALESCE(org_units.name, 'Tanpa Unit Kerja') as label, COUNT(*) as total")
-            ->groupBy('label')
-            ->orderByDesc('total')
-            ->limit(12)
-            ->get();
-
         return [
             'by_campus' => $byCampus,
             'by_category' => $byCategory,
-            'by_subcategory' => $bySubcategory,
             'by_status' => $byStatus,
             'by_condition' => $byCondition,
-            'by_org_unit' => $byOrgUnit,
             'borrowings_monthly' => $this->monthlySeries(Borrowing::query(), 'borrow_date', 6),
             'maintenances_monthly' => $this->monthlySeries(Maintenance::query(), 'service_date', 6),
         ];

@@ -2,13 +2,19 @@
 
 @section('title', 'Detail Mutasi - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('mutations.index') }}">Mutasi</a></li>
-    <li class="breadcrumb-item active">Detail</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira"><h1><i class="fas fa-exchange-alt me-2"></i>Detail Mutasi</h1></div>
+<x-page-header
+    title="Detail Mutasi"
+    subtitle="{{ $mutation->inventoryItem?->inventory_number }} · {{ $mutation->inventoryItem?->name }}"
+    icon="bi bi-arrow-left-right"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Mutasi', 'url' => route('mutations.index')],
+        ['label' => 'Detail'],
+    ]"
+    :back-route="route('mutations.index')"
+    back-label="Daftar Mutasi"
+/>
 
 <div class="card card-undira">
     <div class="card-body">

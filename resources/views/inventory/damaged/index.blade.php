@@ -2,16 +2,17 @@
 
 @section('title', 'Barang Rusak - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Barang Rusak</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Daftar Barang Rusak"
     subtitle="Rusak ringan/berat, tidak dapat diperbaiki, dan perlu penggantian. Hapus hanya Primary Super Admin."
     icon="bi bi-exclamation-triangle"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Barang Rusak'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 />
 
 <form method="GET" class="card card-undira mb-3">
@@ -55,7 +56,7 @@
                         <td><code>{{ $item->inventory_number }}</code></td>
                         <td>{{ $item->name }}</td>
                         <td class="small">{{ $item->room?->floor?->building?->campus?->name }} · {{ $item->room?->name }}</td>
-                        <td>{{ $item->responsible_person ?: '—' }}</td>
+                        <td>{{ $item->picDisplayName() ?: '—' }}</td>
                         <td><span class="badge text-bg-danger">{{ $item->status?->label() }}</span></td>
                         <td class="text-nowrap">
                             <a href="{{ route('inventory.show', $item) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>

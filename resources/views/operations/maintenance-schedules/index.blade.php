@@ -2,18 +2,24 @@
 
 @section('title', 'Jadwal Pemeliharaan - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">Jadwal Preventif</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Jadwal Pemeliharaan Preventif" subtitle="Interval perawatan + pengingat otomatis ke Notification Center" icon="bi bi-calendar2-check">
+<x-page-header
+    title="Jadwal Pemeliharaan Preventif"
+    subtitle="Interval perawatan + pengingat otomatis ke Notification Center"
+    icon="bi bi-calendar2-check"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Jadwal Preventif'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+>
     @can('maintenance.create')
     <a href="{{ route('maintenance-schedules.create') }}" class="btn btn-undira btn-sm"><i class="bi bi-plus-lg me-1"></i>Tambah Jadwal</a>
     @endcan
     <a href="{{ route('maintenances.index') }}" class="btn btn-outline-secondary btn-sm">Work Order</a>
-</x-ui.page-header>
+</x-page-header>
 
 <div class="row g-3 mb-3">
     <div class="col-md-3">

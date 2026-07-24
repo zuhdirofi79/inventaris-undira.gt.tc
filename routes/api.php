@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController as ApiAuthController;
 use App\Http\Controllers\Api\DashboardController as ApiDashboardController;
 use App\Http\Controllers\Api\InventoryController as ApiInventoryController;
 use App\Http\Controllers\Api\LocationController as ApiLocationController;
+use App\Http\Controllers\InventorySelectorController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -29,6 +30,8 @@ Route::prefix('v1')->group(function () {
         Route::middleware('permission:inventory.view')->group(function () {
             Route::get('/inventory/scan/{inventoryNumber}', [ApiInventoryController::class, 'scan'])
                 ->name('api.inventory.scan');
+            Route::get('/inventory/search', [InventorySelectorController::class, 'search'])
+                ->name('api.inventory.search');
             Route::get('/inventory', [ApiInventoryController::class, 'index'])
                 ->name('api.inventory.index');
             Route::get('/inventory/{inventoryItem}', [ApiInventoryController::class, 'show'])

@@ -25,10 +25,9 @@ class InventoryReportTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('reports.index'))
             ->assertOk()
-            ->assertSee('Generate Laporan')
-            ->assertSee('Kampus')
-            ->assertSee('Gedung')
-            ->assertSee('Sub Kategori');
+            ->assertSee('Dashboard Laporan')
+            ->assertSee('Inventaris Lengkap')
+            ->assertSee('Rekapitulasi Inventaris');
     }
 
     public function test_report_builds_hierarchy_from_inventory_items(): void

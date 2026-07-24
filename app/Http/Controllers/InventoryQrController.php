@@ -102,7 +102,7 @@ class InventoryQrController extends Controller
     public function print(InventoryItem $inventory): View
     {
         $this->codeService->ensureCodes($inventory);
-        $inventory->refresh()->load(['category', 'room.floor.building.campus']);
+        $inventory->refresh()->load(['category', 'room.floor.building.campus', 'pic']);
 
         return view('inventory.print-label', compact('inventory'));
     }

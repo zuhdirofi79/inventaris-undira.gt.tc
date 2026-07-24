@@ -2,18 +2,22 @@
 
 @section('title', 'Sub Kategori - ' . $category->name)
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('categories.index') }}">Kategori</a></li>
-    <li class="breadcrumb-item active">{{ $category->name }}</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <div>
-        <h1><i class="fas fa-tag me-2"></i>Sub Kategori: {{ $category->name }}</h1>
-    </div>
-    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="fas fa-plus me-1"></i>Tambah</button>
-</div>
+<x-page-header
+    :title="'Sub Kategori: ' . $category->name"
+    subtitle="Kelola sub klasifikasi inventaris"
+    icon="bi bi-tag"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Master Data', 'url' => route('categories.index')],
+        ['label' => $category->name],
+    ]"
+    :back-route="route('categories.index', ['tab' => 'klasifikasi'])"
+    back-label="Master Data"
+    :list-back="true"
+>
+    <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1"><i class="bi bi-plus-lg me-1"></i>Tambah</button>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

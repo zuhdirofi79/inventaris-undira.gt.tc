@@ -60,7 +60,7 @@ class LocationMasterSyncTest extends TestCase
         $browse->assertSee('Ruang Sync 901');
         $browse->assertSee('GT-901');
         $browse->assertSee('Lab');
-        $browse->assertSee('Kap. 40');
+        $browse->assertSee('Inventaris');
 
         // Hierarchy service (filters / inventaris tree)
         $tree = app(LocationHierarchyService::class)->activeTree($campus->id);

@@ -9,8 +9,7 @@ class InventorySequence extends Model
 {
     protected $fillable = [
         'campus_id',
-        'classifier_type',
-        'classifier_id',
+        'sub_category_id',
         'last_value',
     ];
 
@@ -24,5 +23,10 @@ class InventorySequence extends Model
     public function campus(): BelongsTo
     {
         return $this->belongsTo(Campus::class);
+    }
+
+    public function subCategory(): BelongsTo
+    {
+        return $this->belongsTo(SubCategory::class);
     }
 }

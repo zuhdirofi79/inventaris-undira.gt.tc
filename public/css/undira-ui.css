@@ -41,6 +41,10 @@ body.hold-transition {
   padding: 1rem 0 0.35rem !important;
 }
 
+.content-header--legacy-breadcrumb {
+  padding-bottom: 0 !important;
+}
+
 .breadcrumb-undira {
   margin-bottom: 0.35rem !important;
   gap: 0.15rem;
@@ -62,6 +66,39 @@ body.hold-transition {
   margin-bottom: 1.5rem !important;
   padding-bottom: 0.15rem;
   animation: uiFadeUp 0.45s var(--ui-ease) both;
+}
+
+.page-header-enterprise {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  background: var(--ui-surface, #fff);
+  border: 1px solid var(--ui-border, #E6EAF2);
+  border-radius: var(--ui-radius, 14px);
+  box-shadow: var(--ui-shadow, 0 4px 18px rgba(15, 23, 42, 0.04));
+  padding: 1rem 1.15rem 1.05rem !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.page-header-enterprise__breadcrumb .breadcrumb {
+  margin-bottom: 0 !important;
+}
+
+.page-header-enterprise__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.page-header-enterprise__actions {
+  flex-shrink: 0;
+}
+
+.page-header-enterprise .page-header-back {
+  white-space: nowrap;
 }
 
 .ui-page-header__title,
@@ -99,6 +136,34 @@ body.hold-transition {
   font-size: 0.9rem;
   margin-top: 0.35rem;
   max-width: 42rem;
+}
+
+@media (max-width: 767.98px) {
+  .page-header-enterprise {
+    padding: 0.85rem 0.9rem !important;
+  }
+
+  .page-header-enterprise__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .page-header-enterprise__actions {
+    width: 100%;
+  }
+
+  .page-header-enterprise__actions .btn,
+  .page-header-enterprise__actions .btn-group {
+    width: 100%;
+  }
+
+  .page-header-enterprise__actions .btn-group > .btn {
+    flex: 1 1 auto;
+  }
+
+  .page-header-enterprise .page-header-back {
+    order: 99;
+  }
 }
 
 /* —— Cards / panels —— */

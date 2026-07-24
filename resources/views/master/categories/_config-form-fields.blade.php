@@ -137,11 +137,21 @@
         <label class="form-label">Satuan</label>
         <input type="text" name="unit" id="{{ $p }}_unit" class="form-control" value="{{ old('unit', 'Unit') }}" placeholder="Unit">
     </div>
-    <div class="col-md-4">
+    <div class="col-md-6">
         <label class="form-label">Merek</label>
         <input type="text" name="brand" id="{{ $p }}_brand" class="form-control" value="{{ old('brand') }}">
     </div>
-    <div class="col-md-8">
+    <div class="col-md-6">
+        <label class="form-label">PIC</label>
+        <select name="pic_id" id="{{ $p }}_pic_id" class="form-select select2-pic" data-placeholder="Pilih PIC (Opsional)">
+            <option value="">Pilih PIC (Opsional)</option>
+            @foreach(($lookups['users'] ?? []) as $user)
+                <option value="{{ $user->id }}" @selected(old('pic_id') == $user->id)>{{ $user->name }}</option>
+            @endforeach
+        </select>
+        <div class="form-text">Opsional — Person In Charge inventaris.</div>
+    </div>
+    <div class="col-12">
         <label class="form-label">Catatan</label>
         <input type="text" name="notes" id="{{ $p }}_notes" class="form-control" value="{{ old('notes') }}">
     </div>
@@ -157,7 +167,7 @@
     <div class="col-md-6">
         <label class="form-label">Nomor Urut Berikutnya (preview)</label>
         <input type="text" class="form-control cfg-sequence-preview" id="{{ $p }}_sequence_preview" readonly placeholder="000001" tabindex="-1">
-        <div class="form-text">Sequence global dikonsumsi saat inventaris disimpan. Format nomor: Kampus-Pengadaan-Tahun-Kategori-Sub-Urut. QR berisi nomor inventaris.</div>
+        <div class="form-text">Nomor urut per kombinasi Kampus + SubKategori (tidak global, tidak recycle). Format: Kampus-Pengadaan-Tahun-Kategori-Sub-Urut. QR berisi nomor inventaris.</div>
     </div>
 
     <div class="col-12">

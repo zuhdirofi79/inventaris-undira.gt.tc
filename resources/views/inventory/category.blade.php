@@ -2,24 +2,24 @@
 
 @section('title', $category->name . ' - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">{{ $category->name }}</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-start flex-wrap gap-2">
-    <div>
-        <h1><i class="fas fa-folder-open me-2"></i>{{ $category->name }}</h1>
-        <p class="text-muted mb-0 small">Kampus → Gedung → Lantai → Ruangan → Item</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1, 'category_id' => $category->id]) }}" class="btn btn-undira btn-sm"><i class="fas fa-sliders-h me-1"></i>Konfigurasi Inventaris</a>
-        @endcan
-        <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Kategori</a>
-    </div>
-</div>
+<x-page-header
+    :title="$category->name"
+    subtitle="Kampus → Gedung → Lantai → Ruangan → Item"
+    icon="bi bi-folder2-open"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Per Kategori', 'url' => route('inventory.categories')],
+        ['label' => $category->name],
+    ]"
+    :back-route="route('inventory.categories')"
+    back-label="Per Kategori"
+>
+    @can('inventory.create')
+    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1, 'category_id' => $category->id]) }}" class="btn btn-undira btn-sm"><i class="bi bi-sliders me-1"></i>Konfigurasi Inventaris</a>
+    @endcan
+</x-page-header>
 
 <div class="row g-2 g-md-3 mb-3">
     <div class="col-6 col-md-3"><div class="card card-undira card-stat"><div class="card-body py-3"><div class="text-muted small">Total Unit</div><div class="fs-4 fw-bold">{{ number_format($summary['total_units']) }}</div></div></div></div>

@@ -4,9 +4,10 @@ namespace App\Notifications;
 
 use App\Models\InventoryItem;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class WarrantyExpiringNotification extends Notification
+class WarrantyExpiringNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

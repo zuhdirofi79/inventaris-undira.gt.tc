@@ -4,8 +4,8 @@ namespace App\Services;
 
 use App\Models\Campus;
 use App\Models\Category;
-use App\Models\InventoryGlobalSequence;
 use App\Models\InventoryItem;
+use App\Models\InventorySequence;
 use App\Models\ProcurementType;
 use App\Models\Setting;
 use App\Models\SubCategory;
@@ -17,16 +17,14 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
  * Official UNDIRA inventory numbering:
  * {CAMPUS}-{PROCUREMENT}-{YY}-{CATEGORY}-{SUBCATEGORY}-{######}
  *
- * Running number is GLOBAL (never resets). Inventory numbers are immutable after create.
+ * Running number is scoped by campus_id + sub_category_id (never global, never recycled).
  */
 class InventoryCodeService
 {
     public const DEFAULT_PADDING = 6;
 
-    public const GLOBAL_SEQUENCE_ID = 1;
-
     /**
-     * Generate official inventory number from master codes + global sequence.
+     * Generate official inventory number from master codes + scoped sequence.
      */
     public function generateInventoryNumber(
         Campus $campus,
@@ -45,7 +43,7 @@ class InventoryCodeService
         }
 
         $year2 = str_pad((string) ($purchaseYear % 100), 2, '0', STR_PAD_LEFT);
-        $sequence = $this->allocateGlobalSequence();
+        $sequence = $this->allocateSequence((int) $campus->id, (int) $subCategory->id);
         $padding = $this->padding();
 
         return implode('-', [
@@ -154,23 +152,32 @@ class InventoryCodeService
     }
 
     /**
-     * Allocate next global sequence (never reused, never resets).
+     * Allocate next sequence for campus + sub_category (never reused, never resets).
+     * Uses lockForUpdate inside a transaction to prevent race duplicates.
      */
-    public function allocateGlobalSequence(): int
+    public function allocateSequence(int $campusId, int $subCategoryId): int
     {
-        return (int) DB::transaction(function () {
-            $row = InventoryGlobalSequence::query()
-                ->whereKey(self::GLOBAL_SEQUENCE_ID)
+        if ($campusId < 1 || $subCategoryId < 1) {
+            throw new \InvalidArgumentException('campus_id dan sub_category_id wajib untuk alokasi sequence.');
+        }
+
+        return (int) DB::transaction(function () use ($campusId, $subCategoryId) {
+            $row = InventorySequence::query()
+                ->where('campus_id', $campusId)
+                ->where('sub_category_id', $subCategoryId)
                 ->lockForUpdate()
                 ->first();
 
             if (! $row) {
-                InventoryGlobalSequence::query()->create([
-                    'id' => self::GLOBAL_SEQUENCE_ID,
+                InventorySequence::query()->create([
+                    'campus_id' => $campusId,
+                    'sub_category_id' => $subCategoryId,
                     'last_value' => 0,
                 ]);
-                $row = InventoryGlobalSequence::query()
-                    ->whereKey(self::GLOBAL_SEQUENCE_ID)
+
+                $row = InventorySequence::query()
+                    ->where('campus_id', $campusId)
+                    ->where('sub_category_id', $subCategoryId)
                     ->lockForUpdate()
                     ->firstOrFail();
             }
@@ -183,46 +190,46 @@ class InventoryCodeService
     }
 
     /**
-     * Read-only next global sequence preview (does NOT consume).
+     * Read-only next sequence preview for campus + sub_category (does NOT consume).
      *
-     * @return array{last_value: int, next_value: int, next_padded: string}
+     * @return array{last_value: int, next_value: int, next_padded: string, campus_id: int|null, sub_category_id: int|null}
      */
     public function peekNextSequence(?int $campusId = null, ?int $subCategoryId = null, ?int $categoryId = null): array
     {
-        $last = (int) (InventoryGlobalSequence::query()->find(self::GLOBAL_SEQUENCE_ID)?->last_value ?? 0);
-        $next = $last + 1;
         $padding = $this->padding();
+
+        if (! $campusId || ! $subCategoryId) {
+            return [
+                'last_value' => 0,
+                'next_value' => 1,
+                'next_padded' => str_pad('1', $padding, '0', STR_PAD_LEFT),
+                'campus_id' => $campusId,
+                'sub_category_id' => $subCategoryId,
+            ];
+        }
+
+        $last = (int) (InventorySequence::query()
+            ->where('campus_id', $campusId)
+            ->where('sub_category_id', $subCategoryId)
+            ->value('last_value') ?? 0);
+
+        $next = $last + 1;
 
         return [
             'last_value' => $last,
             'next_value' => $next,
             'next_padded' => str_pad((string) $next, $padding, '0', STR_PAD_LEFT),
+            'campus_id' => $campusId,
+            'sub_category_id' => $subCategoryId,
         ];
     }
 
     /**
-     * Reset global counter (renumber command only).
+     * Reset all scoped counters (renumber / purge only).
      */
-    public function resetGlobalSequence(int $lastValue = 0): void
+    public function resetAllSequences(): void
     {
-        DB::transaction(function () use ($lastValue) {
-            $row = InventoryGlobalSequence::query()
-                ->whereKey(self::GLOBAL_SEQUENCE_ID)
-                ->lockForUpdate()
-                ->first();
-
-            if (! $row) {
-                InventoryGlobalSequence::query()->create([
-                    'id' => self::GLOBAL_SEQUENCE_ID,
-                    'last_value' => $lastValue,
-                ]);
-
-                return;
-            }
-
-            $row->last_value = $lastValue;
-            $row->save();
-        });
+        InventorySequence::query()->update(['last_value' => 0]);
     }
 
     public function padding(): int

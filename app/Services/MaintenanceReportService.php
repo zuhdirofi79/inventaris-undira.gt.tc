@@ -249,7 +249,7 @@ class MaintenanceReportService
             ->groupBy('inventory_item_id');
 
         $items = InventoryItem::query()
-            ->with(['category', 'room.floor.building.campus'])
+            ->with(['category', 'room.floor.building.campus', 'pic'])
             ->leftJoinSub($woCounts, 'wo', 'wo.inventory_item_id', '=', 'inventory_items.id')
             ->where(function ($q) {
                 $q->whereIn('inventory_items.status', [
@@ -275,7 +275,7 @@ class MaintenanceReportService
             $item->room?->floor?->building?->campus?->name,
             $item->status?->label(),
             (int) ($item->wo_count ?? 0),
-            $item->responsible_person,
+            $item->picDisplayName(),
         ])->all();
 
         return [

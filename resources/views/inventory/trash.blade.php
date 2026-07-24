@@ -2,16 +2,19 @@
 
 @section('title', 'Trash Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Trash</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-trash me-2"></i>Inventaris Terhapus</h1>
-    <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-arrow-left me-1"></i>Kembali</a>
-</div>
+<x-page-header
+    title="Inventaris Terhapus"
+    subtitle="Data soft-deleted yang masih dapat dipulihkan."
+    icon="bi bi-trash"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Trash'],
+    ]"
+    :back-route="route('inventory.index')"
+    back-label="Data Inventaris"
+/>
 
 <div class="card card-undira">
     <div class="card-body p-0">

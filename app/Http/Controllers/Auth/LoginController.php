@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\LoginRequest;
 use App\Services\AuditLogService;
+use App\Support\UserAgentParser;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -51,7 +52,25 @@ class LoginController extends Controller
 
         $request->session()->regenerate();
 
-        $this->auditLogService->log($user, AuditAction::Login, $user, null, null, 'User login');
+        $ua = $request->userAgent();
+        $user->forceFill([
+            'last_login_at' => now(),
+            'last_login_ip' => $request->ip(),
+            'last_login_user_agent' => $ua,
+            'last_login_device' => UserAgentParser::device($ua),
+        ])->save();
+
+        $this->auditLogService->log($user, AuditAction::Login, $user, null, [
+            'ip' => $request->ip(),
+            'browser' => UserAgentParser::browser($ua),
+            'device' => UserAgentParser::device($ua),
+        ], 'User login');
+
+        if ($user->must_change_password) {
+            return redirect()
+                ->route('password.force.edit')
+                ->with('warning', 'Anda wajib mengganti password sebelum melanjutkan.');
+        }
 
         return redirect()->intended(route('dashboard'));
     }

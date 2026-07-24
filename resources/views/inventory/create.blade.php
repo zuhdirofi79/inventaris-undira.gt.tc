@@ -2,16 +2,20 @@
 
 @section('title', 'Tambah Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Tambah</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-plus me-2"></i>Tambah Inventaris</h1>
-    <p class="text-muted mb-0 small">Nomor inventaris, QR, dan barcode dibuat otomatis saat simpan.</p>
-</div>
+<x-page-header
+    title="Tambah Inventaris"
+    subtitle="Nomor inventaris, QR, dan barcode dibuat otomatis saat simpan."
+    icon="bi bi-plus-lg"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Tambah'],
+    ]"
+    :back-route="route('inventory.index')"
+    back-label="Data Inventaris"
+    :list-back="true"
+/>
 
 <form action="{{ route('inventory.store') }}" method="POST" class="inventory-form">
     @csrf

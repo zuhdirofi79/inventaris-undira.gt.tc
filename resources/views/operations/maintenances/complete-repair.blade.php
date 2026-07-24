@@ -1,0 +1,59 @@
+@extends('layouts.app')
+
+@section('title', 'Selesaikan Perbaikan - Inventaris UNDIRA')
+
+@section('content')
+<x-page-header
+    title="Selesaikan Perbaikan"
+    subtitle="Setelah disimpan, status inventaris menjadi Menunggu Approval Admin (bukan Aktif)."
+    icon="bi bi-check2-circle"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Work Order', 'url' => route('maintenances.index')],
+        ['label' => $maintenance->maintenance_number, 'url' => route('maintenances.show', $maintenance)],
+        ['label' => 'Selesaikan'],
+    ]"
+    :back-route="route('maintenances.show', $maintenance)"
+    back-label="Detail Work Order"
+/>
+
+<div class="alert alert-warning border-0 shadow-sm">
+    Inventaris <strong>{{ $maintenance->inventoryItem?->inventory_number }}</strong> belum akan Aktif.
+    Admin harus menyetujui terlebih dahulu.
+</div>
+
+<form action="{{ route('maintenances.complete.store', $maintenance) }}" method="POST" enctype="multipart/form-data" data-page-shortcut-save>
+    @csrf
+    <div class="card card-undira mb-3">
+        <div class="card-header"><h5 class="mb-0">Form Penyelesaian</h5></div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Tanggal Selesai <span class="text-danger">*</span></label>
+                    <input type="date" name="completed_at" class="form-control" value="{{ old('completed_at', now()->toDateString()) }}" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Biaya</label>
+                    <input type="number" step="0.01" min="0" name="cost" class="form-control" value="{{ old('cost', $maintenance->cost) }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Pekerjaan <span class="text-danger">*</span></label>
+                    <textarea name="work_performed" class="form-control" rows="4" required>{{ old('work_performed', $maintenance->work_performed) }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Catatan</label>
+                    <textarea name="notes" class="form-control" rows="2">{{ old('notes', $maintenance->notes) }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label">Upload Foto Sesudah</label>
+                    <input type="file" name="photos_after[]" class="form-control" accept="image/*" multiple>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer d-flex gap-2">
+            <button type="submit" class="btn btn-undira"><i class="bi bi-send me-1"></i>Ajukan Approval</button>
+            <a href="{{ route('maintenances.show', $maintenance) }}" class="btn btn-outline-secondary">Batal</a>
+        </div>
+    </div>
+</form>
+@endsection

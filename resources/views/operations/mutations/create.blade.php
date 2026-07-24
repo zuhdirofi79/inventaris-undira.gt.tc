@@ -2,30 +2,33 @@
 
 @section('title', 'Tambah Mutasi - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('mutations.index') }}">Mutasi</a></li>
-    <li class="breadcrumb-item active">Tambah</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira"><h1><i class="fas fa-plus me-2"></i>Tambah Mutasi</h1></div>
+<x-page-header
+    title="Tambah Mutasi"
+    subtitle="Pilih inventaris dan ruangan tujuan untuk memindahkan aset"
+    icon="bi bi-plus-lg"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Mutasi', 'url' => route('mutations.index')],
+        ['label' => 'Tambah'],
+    ]"
+    :back-route="route('mutations.index')"
+    back-label="Daftar Mutasi"
+    :list-back="true"
+/>
 
 <form action="{{ route('mutations.store') }}" method="POST">
     @csrf
     <div class="card card-undira">
         <div class="card-body">
             <div class="mb-3">
-                <label class="form-label">Inventaris <span class="text-danger">*</span></label>
-                <select name="inventory_item_id" id="inventory_item_id" class="form-select select2-inventory" required
-                        data-lookup-url="{{ route('inventory.lookup') }}"
-                        data-placeholder="Ketik nomor / nama inventaris…">
-                    <option value="">Pilih Inventaris</option>
-                    @if($selectedItem)
-                        <option value="{{ $selectedItem->id }}" selected data-room="{{ $selectedItem->room_id }}">
-                            {{ $selectedItem->inventory_number }} - {{ $selectedItem->name }}
-                        </option>
-                    @endif
-                </select>
+                <x-inventory-selector
+                    name="inventory_item_id"
+                    id="mutation-inventory-selector"
+                    :selected-id="$selectedItem?->id"
+                    :selected-label="$selectedItem ? ($selectedItem->inventory_number.' - '.$selectedItem->name) : null"
+                    modes="both"
+                />
             </div>
             <div class="mb-3">
                 <label class="form-label">Pindah ke Ruangan <span class="text-danger">*</span></label>
@@ -73,7 +76,6 @@
             },
         });
     }
-    bindAjaxSelect($('.select2-inventory'));
     bindAjaxSelect($('.select2-room'));
 })();
 </script>

@@ -2,18 +2,21 @@
 
 @section('title', 'Trash - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item active">Trash</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Trash"
     subtitle="Recycle Bin — akses berdasarkan izin Trash. Soft-deleted data dapat dipulihkan atau dihapus permanen."
     icon="bi bi-trash"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Admin', 'url' => route('trash.index')],
+        ['label' => 'Trash'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 >
     <span class="badge bg-secondary align-self-center">Recycle Bin</span>
-</x-ui.page-header>
+</x-page-header>
 
 <ul class="nav nav-tabs mb-3 flex-wrap">
     @foreach($tabLabels as $key => $label)

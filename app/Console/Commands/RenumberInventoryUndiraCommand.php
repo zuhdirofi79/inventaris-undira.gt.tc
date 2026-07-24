@@ -12,7 +12,7 @@ use Illuminate\Support\Facades\Storage;
  * One-time regenerate of all inventory numbers to UNDIRA official format + QR payloads.
  *
  * Format: {CAMPUS}-{PROCUREMENT}-{YY}-{CATEGORY}-{SUB}-{######}
- * Sequence is GLOBAL.
+ * Sequence is scoped by campus_id + sub_category_id.
  */
 class RenumberInventoryUndiraCommand extends Command
 {
@@ -70,23 +70,14 @@ class RenumberInventoryUndiraCommand extends Command
                 continue;
             }
 
-            try {
-                // Sequence preview only — real allocate happens in force pass.
-                $plan[] = [
-                    'item' => $item,
-                    'campus' => $campus,
-                    'procurement' => $procurement,
-                    'year' => $year,
-                    'category' => $category,
-                    'sub' => $sub,
-                ];
-            } catch (\Throwable $e) {
-                $failures[] = [
-                    'id' => $item->id,
-                    'old' => $item->inventory_number,
-                    'reason' => $e->getMessage(),
-                ];
-            }
+            $plan[] = [
+                'item' => $item,
+                'campus' => $campus,
+                'procurement' => $procurement,
+                'year' => $year,
+                'category' => $category,
+                'sub' => $sub,
+            ];
         }
 
         if ($failures !== []) {
@@ -108,16 +99,18 @@ class RenumberInventoryUndiraCommand extends Command
         $this->info('Eligible items: '.count($plan).' / '.$items->count());
 
         if ($dryRun) {
-            $seq = 0;
+            /** @var array<string, int> $counters */
+            $counters = [];
             foreach ($plan as $row) {
-                $seq++;
+                $key = $row['campus']->id.':'.$row['sub']->id;
+                $counters[$key] = ($counters[$key] ?? 0) + 1;
                 $preview = $codes->formatInventoryNumber(
                     $row['campus'],
                     $row['procurement'],
                     $row['year'],
                     $row['category'],
                     $row['sub'],
-                    $seq,
+                    $counters[$key],
                 );
                 $this->line("  {$row['item']->inventory_number} → {$preview}");
             }
@@ -127,7 +120,7 @@ class RenumberInventoryUndiraCommand extends Command
         }
 
         DB::transaction(function () use ($plan, $codes) {
-            $codes->resetGlobalSequence(0);
+            $codes->resetAllSequences();
 
             // Phase 1: temporary unique numbers to avoid unique collisions.
             foreach ($plan as $row) {
@@ -137,7 +130,7 @@ class RenumberInventoryUndiraCommand extends Command
                 $item->saveQuietly();
             }
 
-            // Phase 2: assign official numbers + QR.
+            // Phase 2: assign official numbers + QR (scoped allocate).
             foreach ($plan as $row) {
                 /** @var InventoryItem $item */
                 $item = $row['item']->fresh();

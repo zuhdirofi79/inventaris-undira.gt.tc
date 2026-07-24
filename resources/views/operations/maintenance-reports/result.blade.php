@@ -2,13 +2,19 @@
 
 @section('title', $report['title'].' - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenance-reports.index') }}">Laporan Maintenance</a></li>
-    <li class="breadcrumb-item active">Hasil</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="{{ $report['title'] }}" subtitle="{{ $report['meta']['count'] ?? 0 }} baris" icon="bi bi-table">
+<x-page-header
+    title="{{ $report['title'] }}"
+    subtitle="{{ $report['meta']['count'] ?? 0 }} baris"
+    icon="bi bi-table"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Laporan Pemeliharaan', 'url' => route('maintenance-reports.index')],
+        ['label' => 'Hasil'],
+    ]"
+    :back-route="route('maintenance-reports.index')"
+    back-label="Laporan Pemeliharaan"
+>
     <a href="{{ route('maintenance-reports.index') }}" class="btn btn-outline-secondary btn-sm">Filter ulang</a>
     <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline">
         @csrf
@@ -40,7 +46,7 @@
         <input type="hidden" name="format" value="pdf">
         <button class="btn btn-outline-danger btn-sm">PDF</button>
     </form>
-</x-ui.page-header>
+</x-page-header>
 
 @if(isset($report['meta']['total_cost']))
 <div class="alert alert-light border">Total biaya aktual: <strong>Rp {{ number_format($report['meta']['total_cost'], 0, ',', '.') }}</strong></div>

@@ -2,36 +2,36 @@
 
 @section('title', $stockOpname->title . ' - Stock Opname')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('stock-opnames.index') }}">Stock Opname</a></li>
-    <li class="breadcrumb-item active">{{ $stockOpname->title }}</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap">
-    <div>
-        <h1><i class="fas fa-clipboard-check me-2"></i>{{ $stockOpname->title }}</h1>
-        <p class="text-muted mb-0">{{ $stockOpname->campus?->name }} &middot; Status: <span class="badge bg-secondary">{{ $stockOpname->status?->label() ?? $stockOpname->status }}</span></p>
-    </div>
-    <div class="d-flex gap-2 mt-2">
-        @can('stock-opname.update')
-        @if($stockOpname->canStart())
-        <form action="{{ route('stock-opnames.start', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-play me-1"></i>Mulai</button></form>
-        @endif
-        @if($stockOpname->canComplete())
-        <form action="{{ route('stock-opnames.complete', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Selesai</button></form>
-        @endif
-        @endcan
-        @can('stock-opname.delete')
-        @if($stockOpname->canDelete())
-        <form action="{{ route('stock-opnames.destroy', $stockOpname) }}" method="POST" onsubmit="return confirm('Hapus stock opname ini?')">
-            @csrf @method('DELETE')
-            <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Hapus</button>
-        </form>
-        @endif
-        @endcan
-    </div>
-</div>
+<x-page-header
+    title="{{ $stockOpname->title }}"
+    subtitle="{{ $stockOpname->campus?->name }} · Status: {{ $stockOpname->status?->label() ?? $stockOpname->status }}"
+    icon="bi bi-clipboard-check"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Stock Opname', 'url' => route('stock-opnames.index')],
+        ['label' => $stockOpname->title],
+    ]"
+    :back-route="route('stock-opnames.index')"
+    back-label="Daftar Stock Opname"
+>
+    @can('stock-opname.update')
+    @if($stockOpname->canStart())
+    <form action="{{ route('stock-opnames.start', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-primary btn-sm"><i class="fas fa-play me-1"></i>Mulai</button></form>
+    @endif
+    @if($stockOpname->canComplete())
+    <form action="{{ route('stock-opnames.complete', $stockOpname) }}" method="POST">@csrf<button type="submit" class="btn btn-success btn-sm"><i class="fas fa-check me-1"></i>Selesai</button></form>
+    @endif
+    @endcan
+    @can('stock-opname.delete')
+    @if($stockOpname->canDelete())
+    <form action="{{ route('stock-opnames.destroy', $stockOpname) }}" method="POST" onsubmit="return confirm('Hapus stock opname ini?')">
+        @csrf @method('DELETE')
+        <button type="submit" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash me-1"></i>Hapus</button>
+    </form>
+    @endif
+    @endcan
+</x-page-header>
 
 <div class="row mb-4">
     <div class="col-md-4"><div class="card card-undira card-stat"><div class="card-body"><div class="text-muted small">Total Discan</div><h3>{{ $stats['total_scanned'] }}</h3></div></div></div>

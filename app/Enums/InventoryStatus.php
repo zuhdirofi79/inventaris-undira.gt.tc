@@ -10,8 +10,12 @@ enum InventoryStatus: string
     case Hilang = 'hilang';
     case Dipinjam = 'dipinjam';
     case Maintenance = 'maintenance';
+    case MenungguApproval = 'menunggu_approval';
+    case RevisiPerbaikan = 'revisi_perbaikan';
     case TidakDapatDiperbaiki = 'tidak_dapat_diperbaiki';
     case PerluPenggantian = 'perlu_penggantian';
+    case Dilelang = 'dilelang';
+    case Dimusnahkan = 'dimusnahkan';
 
     public function label(): string
     {
@@ -21,9 +25,13 @@ enum InventoryStatus: string
             self::RusakBerat => 'Rusak Berat',
             self::Hilang => 'Hilang',
             self::Dipinjam => 'Dipinjam',
-            self::Maintenance => 'Dalam Pemeliharaan',
+            self::Maintenance => 'Dalam Perbaikan',
+            self::MenungguApproval => 'Menunggu Approval Admin',
+            self::RevisiPerbaikan => 'Revisi Perbaikan',
             self::TidakDapatDiperbaiki => 'Tidak Dapat Diperbaiki',
             self::PerluPenggantian => 'Perlu Penggantian',
+            self::Dilelang => 'Lelang',
+            self::Dimusnahkan => 'Musnah',
         };
     }
 
@@ -35,24 +43,65 @@ enum InventoryStatus: string
         return match ($this) {
             self::Aktif => 'active',
             self::Dipinjam => 'borrowed',
-            self::Maintenance => 'maintenance',
+            self::Maintenance, self::MenungguApproval, self::RevisiPerbaikan => 'maintenance',
             self::RusakRingan, self::RusakBerat, self::TidakDapatDiperbaiki, self::PerluPenggantian => 'damaged',
-            self::Hilang => 'inactive',
+            self::Hilang, self::Dilelang, self::Dimusnahkan => 'inactive',
         };
     }
 
     public function isDamagedList(): bool
     {
-        return in_array($this, [
-            self::RusakRingan,
-            self::RusakBerat,
-            self::TidakDapatDiperbaiki,
-            self::PerluPenggantian,
-        ], true);
+        return in_array($this, self::damagedCases(), true);
+    }
+
+    public function isTerminal(): bool
+    {
+        return in_array($this, self::terminalCases(), true);
     }
 
     public function isBorrowable(): bool
     {
         return $this === self::Aktif;
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function damagedCases(): array
+    {
+        return [
+            self::RusakRingan,
+            self::RusakBerat,
+            self::TidakDapatDiperbaiki,
+            self::PerluPenggantian,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function damagedValues(): array
+    {
+        return array_map(fn (self $s) => $s->value, self::damagedCases());
+    }
+
+    /**
+     * @return list<self>
+     */
+    public static function terminalCases(): array
+    {
+        return [
+            self::Hilang,
+            self::Dilelang,
+            self::Dimusnahkan,
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function terminalValues(): array
+    {
+        return array_map(fn (self $s) => $s->value, self::terminalCases());
     }
 }

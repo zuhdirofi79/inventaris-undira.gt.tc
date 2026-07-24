@@ -2,32 +2,32 @@
 
 @section('title', 'Semua Item Inventaris - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Semua Item</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h1><i class="fas fa-list me-2"></i>Semua Item</h1>
-        <p class="text-muted mb-0 small">Daftar flat dengan filter &amp; DataTables</p>
+<x-page-header
+    title="Semua Item"
+    subtitle="Daftar flat dengan filter & DataTables"
+    icon="bi bi-list-ul"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Semua Item'],
+    ]"
+    :back-route="route('inventory.index')"
+    back-label="Data Inventaris"
+>
+    <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-building me-1"></i>Per Kampus</a>
+    <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid-3x3-gap me-1"></i>Per Kategori</a>
+    @can('inventory.create')
+    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="bi bi-sliders me-1"></i>Konfigurasi Inventaris</a>
+    @endcan
+    @can('inventory.export')
+    <div class="btn-group btn-group-sm">
+        <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i></a>
+        <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv"></i></a>
+        <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i></a>
     </div>
-    <div class="d-flex gap-2 flex-wrap">
-        <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-university me-1"></i>Per Kampus</a>
-        <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-th-large me-1"></i>Per Kategori</a>
-        @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-sliders-h me-1"></i>Konfigurasi Inventaris</a>
-        @endcan
-        @can('inventory.export')
-        <div class="btn-group btn-group-sm">
-            <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="fas fa-file-excel"></i></a>
-            <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="fas fa-file-csv"></i></a>
-            <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="fas fa-file-pdf"></i></a>
-        </div>
-        @endcan
-    </div>
-</div>
+    @endcan
+</x-page-header>
 
 <div class="filter-panel">
     <form id="filterForm">
@@ -72,6 +72,15 @@
                 </select>
             </div>
             <div class="col-6 col-md-3">
+                <label class="form-label small">PIC</label>
+                <select id="filterPic" class="form-select select2-filter">
+                    <option value="">Semua PIC</option>
+                    @foreach($users ?? [] as $user)
+                        <option value="{{ $user->id }}">{{ $user->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-3">
                 <label class="form-label small">Status</label>
                 <select id="filterStatus" class="form-select">
                     <option value="">Semua</option>
@@ -106,6 +115,7 @@
                         <th>No. Inventaris</th>
                         <th>Nama</th>
                         <th>Kategori</th>
+                        <th>PIC</th>
                         <th>Lokasi</th>
                         <th>Status</th>
                         <th>Kondisi</th>
@@ -161,6 +171,7 @@ const table = $('#inventoryTable').DataTable({
             d.room_id = $('#filterRoom').val();
             d.category_id = $('#filterCategory').val();
             d.org_unit_id = $('#filterOrgUnit').val();
+            d.pic_id = $('#filterPic').val();
             d.status = $('#filterStatus').val();
             d.condition = $('#filterCondition').val();
         }
@@ -169,6 +180,9 @@ const table = $('#inventoryTable').DataTable({
         { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },
         { data: 'name' },
         { data: 'category', render: c => c?.name || '-' },
+        { data: 'pic_name', orderable: false, render: name => name
+            ? `<span>${name}</span>`
+            : `<span class="badge bg-secondary">Belum Ada PIC</span>` },
         { data: 'full_location', render: d => `<small>${d || '-'}</small>` },
         { data: 'status', render: s => { const label = (typeof s === 'object' && s?.label) ? s.label : (s || '-'); return `<span class="badge bg-secondary">${label}</span>`; }},
         { data: 'condition', render: c => { const label = (typeof c === 'object' && c?.label) ? c.label : (c || '-'); return `<span class="badge bg-info">${label}</span>`; }},

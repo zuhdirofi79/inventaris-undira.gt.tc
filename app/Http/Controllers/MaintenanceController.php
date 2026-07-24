@@ -7,12 +7,16 @@ use App\Enums\MaintenancePriority;
 use App\Enums\MaintenanceResult;
 use App\Enums\MaintenanceStatus;
 use App\Enums\MaintenanceType;
+use App\Http\Requests\CompleteRepairRequest;
+use App\Http\Requests\StartRepairRequest;
 use App\Http\Requests\StoreMaintenanceRequest;
 use App\Http\Requests\UpdateMaintenanceRequest;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AuditLogService;
+use App\Services\InventorySearchService;
 use App\Services\MaintenanceWorkflowService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -25,6 +29,7 @@ class MaintenanceController extends Controller
     public function __construct(
         protected AuditLogService $audit,
         protected MaintenanceWorkflowService $workflow,
+        protected InventorySearchService $inventorySearch,
     ) {}
 
     public function index(Request $request): View
@@ -67,55 +72,46 @@ class MaintenanceController extends Controller
             'code' => ['required', 'string', 'max:255'],
         ]);
 
-        $code = trim($data['code']);
+        $result = $this->inventorySearch->resolveCodeForMaintenance($data['code']);
 
-        $item = InventoryItem::query()
-            ->where(function ($query) use ($code) {
-                $query->where('inventory_number', $code)
-                    ->orWhere('barcode', $code);
-            })
-            ->first();
-
-        if (! $item) {
-            return response()->json(['found' => false, 'message' => 'Inventaris tidak ditemukan.'], 404);
+        if (! ($result['found'] ?? false)) {
+            return response()->json([
+                'found' => false,
+                'message' => $result['message'] ?? 'Inventaris tidak ditemukan.',
+            ], 404);
         }
 
-        $this->audit->log(
-            $request->user(),
-            AuditAction::ScanQr,
-            $item,
-            null,
-            ['code' => $code, 'context' => 'maintenance_scan'],
-            "Scan QR untuk maintenance {$code}",
-            reason: 'maintenance_scan',
-            affectedCount: 1,
-        );
+        $ctx = $result['item'];
+        $item = InventoryItem::query()->find($ctx['id']);
+
+        if ($item) {
+            $this->audit->log(
+                $request->user(),
+                AuditAction::ScanQr,
+                $item,
+                null,
+                ['code' => $data['code'], 'context' => 'maintenance_scan'],
+                'Scan QR untuk maintenance '.$this->inventorySearch->normalizeCode($data['code']),
+                reason: 'maintenance_scan',
+                affectedCount: 1,
+            );
+        }
 
         return response()->json([
             'found' => true,
-            'item' => $this->workflow->assetCard($item),
+            'item' => $this->workflow->assetCardFromContext($ctx),
         ]);
     }
 
     public function create(Request $request): View
     {
-        $selectedItem = null;
-        $assetCard = null;
         $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
-        if ($selectedId > 0) {
-            $selectedItem = InventoryItem::query()->with([
-                'category', 'subCategory', 'procurementType',
-                'room.floor.building.campus',
-                'photos' => fn ($q) => $q->orderByDesc('is_primary')->limit(1),
-            ])->find($selectedId);
-            if ($selectedItem) {
-                $assetCard = $this->workflow->assetCard($selectedItem);
-            }
-        }
+        $maintenanceContext = $selectedId > 0
+            ? $this->inventorySearch->maintenanceContext($selectedId)
+            : null;
 
         return view('operations.maintenances.create', [
-            'selectedItem' => $selectedItem,
-            'assetCard' => $assetCard,
+            'maintenanceContext' => $maintenanceContext,
             'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'types' => MaintenanceType::cases(),
             'priorities' => MaintenancePriority::cases(),
@@ -141,7 +137,69 @@ class MaintenanceController extends Controller
 
         return redirect()
             ->route('maintenances.show', $maintenance)
-            ->with('success', 'Work order pemeliharaan berhasil dibuat. Status inventaris: Dalam Pemeliharaan.');
+            ->with('success', 'Work order pemeliharaan berhasil dibuat. Status inventaris: Dalam Perbaikan.');
+    }
+
+    public function startRepairForm(Request $request): View
+    {
+        $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
+        abort_unless($selectedId > 0, 404);
+
+        $item = InventoryItem::query()
+            ->with(['category', 'subCategory', 'room.floor.building.campus', 'pic'])
+            ->findOrFail($selectedId);
+
+        return view('operations.maintenances.start-repair', [
+            'item' => $item,
+            'assetCard' => $this->workflow->assetCard($item),
+            'technicians' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+        ]);
+    }
+
+    public function startRepair(StartRepairRequest $request): RedirectResponse
+    {
+        $payload = collect($request->validated())->except(['photos_before'])->all();
+
+        try {
+            $maintenance = $this->workflow->startRepair(
+                $payload,
+                $request->user(),
+                $request->file('photos_before', []) ?? [],
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('maintenances.show', $maintenance)
+            ->with('success', 'Perbaikan dimulai. Status inventaris: Dalam Perbaikan.');
+    }
+
+    public function completeRepairForm(Maintenance $maintenance): View
+    {
+        abort_unless($maintenance->status?->isOpen(), 422, 'Work order tidak dapat diselesaikan.');
+
+        $maintenance->load(['inventoryItem', 'photos']);
+
+        return view('operations.maintenances.complete-repair', compact('maintenance'));
+    }
+
+    public function completeRepair(CompleteRepairRequest $request, Maintenance $maintenance): RedirectResponse
+    {
+        try {
+            $maintenance = $this->workflow->submitForApproval(
+                $maintenance,
+                $request->validated(),
+                $request->user(),
+                $request->file('photos_after', []) ?? [],
+            );
+        } catch (RuntimeException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
+        }
+
+        return redirect()
+            ->route('maintenances.show', $maintenance)
+            ->with('success', 'Perbaikan diajukan. Status inventaris: Menunggu Approval Admin.');
     }
 
     public function show(Maintenance $maintenance): View
@@ -155,6 +213,8 @@ class MaintenanceController extends Controller
             'photos',
             'statusHistories.changedBy',
             'creator',
+            'technicianUser',
+            'approver',
         ]);
 
         return view('operations.maintenances.show', [

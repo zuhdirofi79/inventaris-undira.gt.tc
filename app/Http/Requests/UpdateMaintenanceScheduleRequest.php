@@ -5,9 +5,11 @@ namespace App\Http\Requests;
 use App\Enums\MaintenanceIntervalUnit;
 use App\Enums\MaintenanceType;
 use App\Models\MaintenanceSchedule;
+use App\Services\MaintenanceScheduleService;
 use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateMaintenanceScheduleRequest extends FormRequest
 {
@@ -33,6 +35,35 @@ class UpdateMaintenanceScheduleRequest extends FormRequest
             'notes' => ['nullable', 'string'],
             'is_active' => ['nullable', 'boolean'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            if ($validator->errors()->isNotEmpty()) {
+                return;
+            }
+
+            /** @var MaintenanceSchedule $schedule */
+            $schedule = $this->route('maintenance_schedule');
+            $itemId = (int) $this->input('inventory_item_id', $schedule->inventory_item_id);
+            $type = (string) $this->input('maintenance_type', $schedule->maintenance_type?->value);
+            $active = $this->has('is_active')
+                ? $this->boolean('is_active')
+                : (bool) $schedule->is_active;
+
+            if (! $active) {
+                return;
+            }
+
+            $dup = app(MaintenanceScheduleService::class)->findDuplicateActive($itemId, $type, $schedule->id);
+            if ($dup) {
+                $validator->errors()->add(
+                    'maintenance_type',
+                    'Jadwal aktif jenis ini sudah ada untuk inventaris tersebut (jadwal #'.$dup->id.').'
+                );
+            }
+        });
     }
 
     public function messages(): array

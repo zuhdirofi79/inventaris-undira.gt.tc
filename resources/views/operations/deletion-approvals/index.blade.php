@@ -2,15 +2,18 @@
 
 @section('title', 'Persetujuan Hapus - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Persetujuan Hapus</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira">
-    <h1><i class="fas fa-trash-alt me-2"></i>Persetujuan Penghapusan</h1>
-</div>
+<x-page-header
+    title="Persetujuan Penghapusan"
+    subtitle="Tinjau dan setujui atau tolak permintaan penghapusan inventaris"
+    icon="bi bi-trash"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Persetujuan Hapus'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+/>
 
 <div class="card card-undira">
     <div class="card-body p-0">

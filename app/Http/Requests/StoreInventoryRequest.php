@@ -36,6 +36,7 @@ class StoreInventoryRequest extends FormRequest
             'condition' => ['required', Rule::enum(InventoryCondition::class)],
             'status' => ['required', Rule::enum(InventoryStatus::class)],
             'responsible_person' => ['nullable', 'string', 'max:255'],
+            'pic_id' => ['nullable', 'exists:users,id'],
             'org_unit_id' => ['nullable', ActiveExists::rule('org_units')],
             'supplier_id' => ['nullable', ActiveExists::rule('suppliers')],
             'vendor_id' => ['nullable', ActiveExists::rule('vendors')],
@@ -60,6 +61,7 @@ class StoreInventoryRequest extends FormRequest
             'price.min' => 'Harga tidak boleh negatif.',
             'condition.required' => 'Kondisi barang wajib dipilih.',
             'status.required' => 'Status barang wajib dipilih.',
+            'pic_id.exists' => 'PIC yang dipilih tidak valid.',
         ];
     }
 
@@ -71,6 +73,7 @@ class StoreInventoryRequest extends FormRequest
         $this->merge([
             'price' => $this->filled('price') ? $this->input('price') : null,
             'depreciation_value' => $this->filled('depreciation_value') ? $this->input('depreciation_value') : null,
+            'pic_id' => $this->filled('pic_id') ? $this->input('pic_id') : null,
         ]);
     }
 }

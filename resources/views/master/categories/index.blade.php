@@ -2,16 +2,17 @@
 
 @section('title', 'Master Data - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Master Data</li>
-    <li class="breadcrumb-item active">Hub</li>
-@endsection
-
 @section('content')
-<x-ui.page-header
+<x-page-header
     title="Master Data"
     subtitle="Single Source of Truth — kode master dikelola di sini, dropdown inventaris membaca data aktif."
     icon="bi bi-database"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Master Data'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
 />
 
 <nav class="master-tabs-wrap mb-3" aria-label="Tab Master Data">

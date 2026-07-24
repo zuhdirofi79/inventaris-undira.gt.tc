@@ -107,7 +107,7 @@ class PrimarySuperAdminProtectionTest extends TestCase
             ->delete(route('admin.users.destroy', $other))
             ->assertRedirect();
 
-        $this->assertDatabaseMissing('users', ['id' => $other->id]);
+        $this->assertSoftDeleted('users', ['id' => $other->id]);
     }
 
     public function test_other_super_admin_cannot_delete_another_super_admin(): void

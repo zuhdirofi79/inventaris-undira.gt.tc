@@ -48,18 +48,23 @@ class InventoryExportController extends Controller
 
     public function pdf(Request $request): Response
     {
-        $report = $this->reportService->build($request);
+        $orientation = $request->input('orientation', 'portrait') === 'landscape' ? 'landscape' : 'portrait';
+        $report = $this->reportService->build($request, $orientation);
 
         $this->auditLogService->log(
             $request->user(),
             AuditAction::Export,
             null,
             null,
-            ['format' => 'pdf', 'count' => $report['summary']['total_items'] ?? 0]
+            [
+                'format' => 'pdf',
+                'orientation' => $orientation,
+                'count' => $report['summary']['total_items'] ?? 0,
+            ]
         );
 
         return Pdf::loadView('exports.inventory-pdf', $report)
-            ->setPaper('a4', 'portrait')
-            ->download('inventory_'.now()->format('Ymd_His').'.pdf');
+            ->setPaper('a4', $orientation)
+            ->download('inventory_'.$orientation.'_'.now()->format('Ymd_His').'.pdf');
     }
 }

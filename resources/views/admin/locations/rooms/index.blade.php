@@ -2,20 +2,26 @@
 
 @section('title', 'Kelola Ruangan - ' . $floor->name)
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('admin.locations.campuses.index') }}">Kelola Kampus</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.locations.buildings.index', $floor->building->campus) }}">{{ $floor->building->campus->name }}</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('admin.locations.floors.index', $floor->building) }}">{{ $floor->building->name }}</a></li>
-    <li class="breadcrumb-item active">{{ $floor->name }}</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <h1><i class="fas fa-door-open me-2"></i>Ruangan: {{ $floor->name }}</h1>
+<x-page-header
+    :title="'Ruangan: ' . $floor->name"
+    subtitle="Kelola ruangan pada lantai ini"
+    icon="bi bi-door-open"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Kelola Kampus', 'url' => route('admin.locations.campuses.index')],
+        ['label' => $floor->building->campus->name, 'url' => route('admin.locations.buildings.index', $floor->building->campus)],
+        ['label' => $floor->building->name, 'url' => route('admin.locations.floors.index', $floor->building)],
+        ['label' => $floor->name],
+    ]"
+    :back-route="route('admin.locations.floors.index', $floor->building)"
+    :back-label="$floor->building->name"
+    :list-back="true"
+>
     <button type="button" class="btn btn-undira btn-sm" data-bs-toggle="modal" data-bs-target="#modalCreate" data-no-loader="1">
-        <i class="fas fa-plus me-1"></i>Tambah Ruangan
+        <i class="bi bi-plus-lg me-1"></i>Tambah Ruangan
     </button>
-</div>
+</x-page-header>
 
 <div class="card card-undira">
     <div class="card-body p-0">

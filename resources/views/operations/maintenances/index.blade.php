@@ -2,13 +2,18 @@
 
 @section('title', 'Maintenance - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item">Operasi</li>
-    <li class="breadcrumb-item active">Maintenance</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Pemeliharaan Aset" subtitle="Work order terikat inventaris — mulai dari scan QR" icon="bi bi-wrench-adjustable">
+<x-page-header
+    title="Pemeliharaan Aset"
+    subtitle="Work order terikat inventaris — mulai dari scan QR"
+    icon="bi bi-wrench-adjustable"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     @can('maintenance.create')
     <a href="{{ route('maintenances.scan') }}" class="btn btn-undira btn-lg px-4">
         <i class="bi bi-qr-code-scan me-2"></i>Scan Inventory QR Code
@@ -20,7 +25,7 @@
     <a href="{{ route('maintenance-schedules.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-calendar2-check me-1"></i>Jadwal Preventif</a>
     <a href="{{ route('maintenance-reports.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-file-earmark-bar-graph me-1"></i>Laporan</a>
     @endcan
-</x-ui.page-header>
+</x-page-header>
 
 <form method="GET" class="card card-undira mb-3">
     <div class="card-body row g-2 align-items-end">

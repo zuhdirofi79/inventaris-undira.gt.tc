@@ -124,11 +124,10 @@ class InventoryMasterConfigurationController extends Controller
         }
 
         $sequence = null;
-        if (! empty($data['campus_id']) && ! empty($data['category_id'])) {
+        if (! empty($data['campus_id']) && ! empty($data['sub_category_id'])) {
             $sequence = $this->inventoryCodes->peekNextSequence(
                 (int) $data['campus_id'],
-                isset($data['sub_category_id']) ? (int) $data['sub_category_id'] : null,
-                (int) $data['category_id'],
+                (int) $data['sub_category_id'],
             );
         }
 
@@ -292,6 +291,7 @@ class InventoryMasterConfigurationController extends Controller
                 ? $data['price']
                 : null,
             'notes' => $data['notes'] ?? null,
+            'pic_id' => ! empty($data['pic_id']) ? (int) $data['pic_id'] : null,
         ];
     }
 

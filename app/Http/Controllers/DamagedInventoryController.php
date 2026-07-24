@@ -42,9 +42,11 @@ class DamagedInventoryController extends Controller
                 $q->where(function ($inner) use ($term) {
                     $inner->where('inventory_number', 'like', $term)
                         ->orWhere('name', 'like', $term)
-                        ->orWhere('responsible_person', 'like', $term);
+                        ->orWhere('responsible_person', 'like', $term)
+                        ->orWhereHas('pic', fn ($pic) => $pic->where('name', 'like', $term));
                 });
             })
+            ->with(['room.floor.building.campus', 'pic'])
             ->latest('updated_at')
             ->paginate(25)
             ->withQueryString();

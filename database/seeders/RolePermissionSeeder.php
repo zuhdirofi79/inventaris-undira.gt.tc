@@ -22,6 +22,7 @@ class RolePermissionSeeder extends Seeder
         'inventory.import',
         'inventory.export',
         'inventory.restore',
+        'inventory.scan',
         'location.view',
         'location.manage',
         'category.manage',
@@ -43,6 +44,7 @@ class RolePermissionSeeder extends Seeder
         'maintenance.create',
         'maintenance.update',
         'maintenance.delete',
+        'maintenance.approve',
         'stock-opname.view',
         'stock-opname.create',
         'stock-opname.update',
@@ -74,6 +76,20 @@ class RolePermissionSeeder extends Seeder
     ];
 
     /**
+     * Teknisi — scan QR + work order maintenance (tanpa master data / setting / mutasi / pengadaan).
+     *
+     * @var list<string>
+     */
+    private array $teknisiPermissions = [
+        'inventory.view',
+        'inventory.scan',
+        'maintenance.view',
+        'maintenance.create',
+        'maintenance.update',
+        'location.view',
+    ];
+
+    /**
      * Staff — operasional harian (tanpa master data / admin sistem / hapus permanen).
      *
      * @var list<string>
@@ -83,6 +99,7 @@ class RolePermissionSeeder extends Seeder
         'inventory.create',
         'inventory.update',
         'inventory.export',
+        'inventory.scan',
         'location.view',
         'report.view',
         'report.export',
@@ -159,6 +176,12 @@ class RolePermissionSeeder extends Seeder
                 ->pluck('name')
                 ->all()
         );
+
+        $teknisi = Role::firstOrCreate([
+            'name' => 'teknisi',
+            'guard_name' => 'web',
+        ]);
+        $teknisi->syncPermissions($this->teknisiPermissions);
 
         $staff = Role::firstOrCreate([
             'name' => 'staff',

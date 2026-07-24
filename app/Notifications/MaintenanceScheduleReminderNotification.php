@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\MaintenanceSchedule;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
@@ -12,7 +13,7 @@ use Illuminate\Notifications\Notification;
  * Channel today: database (Notification Center / bell).
  * Email is prepared via toMail() — enable by adding 'mail' to via() when SMTP is ready.
  */
-class MaintenanceScheduleReminderNotification extends Notification
+class MaintenanceScheduleReminderNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 

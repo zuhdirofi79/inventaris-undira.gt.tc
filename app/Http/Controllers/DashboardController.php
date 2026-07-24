@@ -22,8 +22,13 @@ class DashboardController extends Controller
         protected DashboardStatsService $statsService,
     ) {}
 
-    public function index(): View
+    public function index(): View|\Illuminate\Http\RedirectResponse
     {
+        $user = auth()->user();
+        if ($user?->hasRole('teknisi') && ! $user->hasAnyRole(['super-admin', 'admin', 'staff'])) {
+            return redirect()->route('teknisi-dashboard.index');
+        }
+
         $stats = $this->statsService->summary();
 
         $recentItems = InventoryItem::query()
@@ -72,6 +77,20 @@ class DashboardController extends Controller
     protected function quickActions(): array
     {
         $actions = [
+            [
+                'label' => 'Jelajahi Lokasi',
+                'description' => 'Navigasi hierarki aset',
+                'icon' => 'fa-map-marked-alt',
+                'url' => route('campuses.index'),
+                'permission' => 'location.view',
+            ],
+            [
+                'label' => 'Preventive',
+                'description' => 'Jadwal perawatan berkala',
+                'icon' => 'fa-calendar-check',
+                'url' => route('maintenance-schedules.index'),
+                'permission' => 'maintenance.view',
+            ],
             [
                 'label' => 'Lihat Inventaris',
                 'description' => 'Daftar aset aktif',

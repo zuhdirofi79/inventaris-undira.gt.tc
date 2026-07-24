@@ -11,6 +11,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -20,6 +21,8 @@ use Illuminate\Support\Collection;
  */
 class InventoryReportService
 {
+    public const MAX_ROWS = 5000;
+
     public function __construct(
         protected InventoryFilterService $filterService,
     ) {}
@@ -29,14 +32,15 @@ class InventoryReportService
      *     items: Collection<int, InventoryItem>,
      *     tree: list<array<string, mixed>>,
      *     summary: array<string, mixed>,
-     *     filters: array<string, string|null>,
-     *     meta: array{printed_at: string, user_name: string, title: string}
+     *     filters: array<string, string>,
+     *     meta: array<string, mixed>
      * }
      */
-    public function build(Request $request): array
+    public function build(Request $request, string $orientation = 'portrait'): array
     {
         $items = $this->fetchItems($request);
         $tree = $this->buildTree($items);
+        $now = now();
 
         return [
             'items' => $items,
@@ -44,9 +48,15 @@ class InventoryReportService
             'summary' => $this->buildSummary($items),
             'filters' => $this->describeFilters($request),
             'meta' => [
-                'printed_at' => now()->translatedFormat('d F Y H:i'),
+                'printed_at' => $now->translatedFormat('d F Y H:i'),
+                'printed_date' => $now->translatedFormat('d F Y'),
+                'printed_time' => $now->format('H:i'),
                 'user_name' => $request->user()?->name ?? 'Sistem',
                 'title' => 'Laporan Inventaris Universitas Dian Nusantara',
+                'report_title' => 'Laporan Inventaris',
+                'organization' => 'Universitas Dian Nusantara',
+                'system' => 'Sistem Inventaris',
+                'orientation' => in_array($orientation, ['portrait', 'landscape'], true) ? $orientation : 'portrait',
             ],
         ];
     }
@@ -54,8 +64,6 @@ class InventoryReportService
     /**
      * @return Collection<int, InventoryItem>
      */
-    public const MAX_ROWS = 5000;
-
     public function fetchItems(Request $request): Collection
     {
         return $this->filterService
@@ -69,6 +77,7 @@ class InventoryReportService
                 'room.floor.building.campus:id,code,name',
                 'supplier:id,name',
                 'vendor:id,name',
+                'pic:id,name',
             ])
             ->limit(self::MAX_ROWS)
             ->get()
@@ -167,13 +176,12 @@ class InventoryReportService
 
             $roomNode['categories'][$categoryKey]['sub_categories'][$subKey]['items'][] = $item;
 
-            $price = 0.0;
-            $this->bumpTotals($roomNode['categories'][$categoryKey]['sub_categories'][$subKey]['totals'], $price);
-            $this->bumpTotals($roomNode['categories'][$categoryKey]['totals'], $price);
-            $this->bumpTotals($roomNode['totals'], $price);
-            $this->bumpTotals($campuses[$campusKey]['buildings'][$buildingKey]['floors'][$floorKey]['totals'], $price);
-            $this->bumpTotals($campuses[$campusKey]['buildings'][$buildingKey]['totals'], $price);
-            $this->bumpTotals($campuses[$campusKey]['totals'], $price);
+            $this->bumpTotals($roomNode['categories'][$categoryKey]['sub_categories'][$subKey]['totals'], $item);
+            $this->bumpTotals($roomNode['categories'][$categoryKey]['totals'], $item);
+            $this->bumpTotals($roomNode['totals'], $item);
+            $this->bumpTotals($campuses[$campusKey]['buildings'][$buildingKey]['floors'][$floorKey]['totals'], $item);
+            $this->bumpTotals($campuses[$campusKey]['buildings'][$buildingKey]['totals'], $item);
+            $this->bumpTotals($campuses[$campusKey]['totals'], $item);
 
             $catName = $item->category?->name ?? 'Lainnya';
             $roomNode['by_category'][$catName] = ($roomNode['by_category'][$catName] ?? 0) + 1;
@@ -250,22 +258,28 @@ class InventoryReportService
             ->map->count()
             ->all();
 
-        $rusak = $items->filter(function (InventoryItem $i) {
-            $status = $i->status;
-            $condition = $i->condition;
+        $rusak = $items->filter(fn (InventoryItem $i) => $this->isDamaged($i))->count();
 
-            return in_array($status, [InventoryStatus::RusakRingan, InventoryStatus::RusakBerat], true)
-                || in_array($condition, [InventoryCondition::RusakRingan, InventoryCondition::RusakBerat], true);
-        })->count();
+        $maintenanceStatuses = [
+            InventoryStatus::Maintenance->value,
+            InventoryStatus::MenungguApproval->value,
+            InventoryStatus::RevisiPerbaikan->value,
+        ];
+        $maintenance = $items->filter(
+            fn (InventoryItem $i) => in_array($i->status?->value, $maintenanceStatuses, true)
+        )->count();
 
         return [
             'total_items' => $items->count(),
+            'campus_count' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building?->campus_id)->filter()->unique()->count(),
+            'building_count' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building_id)->filter()->unique()->count(),
+            'room_count' => $items->map(fn (InventoryItem $i) => $i->room_id)->filter()->unique()->count(),
             'by_category' => $byCategory,
             'by_status' => $byStatus,
             'by_condition' => $byCondition,
             'aktif' => (int) ($byStatus[InventoryStatus::Aktif->value] ?? 0),
             'dipinjam' => (int) ($byStatus[InventoryStatus::Dipinjam->value] ?? 0),
-            'maintenance' => (int) ($byStatus[InventoryStatus::Maintenance->value] ?? 0),
+            'maintenance' => $maintenance,
             'rusak' => $rusak,
             'category_named' => [
                 'Furniture' => $this->countCategoryLike($byCategory, ['furniture', 'furnitur']),
@@ -277,7 +291,9 @@ class InventoryReportService
     }
 
     /**
-     * @return array<string, string|null>
+     * Human-readable filters for report header (empty → "Semua").
+     *
+     * @return array<string, string>
      */
     public function describeFilters(Request $request): array
     {
@@ -299,41 +315,77 @@ class InventoryReportService
         $sub = $request->filled('sub_category_id')
             ? SubCategory::query()->find($request->integer('sub_category_id'))?->name
             : null;
+        $pic = $request->filled('pic_id')
+            ? User::query()->find($request->integer('pic_id'))?->name
+            : null;
 
         $status = $request->input('status');
         $condition = $request->input('condition');
 
-        return array_filter([
-            'Kampus' => $campus,
-            'Gedung' => $building,
-            'Lantai' => $floor,
-            'Ruangan' => $room,
-            'Kategori' => $category,
-            'Sub Kategori' => $sub,
-            'Status' => $status ? (InventoryStatus::tryFrom($status)?->label() ?? $status) : null,
-            'Kondisi' => $condition ? (InventoryCondition::tryFrom($condition)?->label() ?? $condition) : null,
-            'Tahun Beli' => $request->input('purchase_year'),
-            'Tgl Dari' => $request->input('purchase_date_from'),
-            'Tgl Sampai' => $request->input('purchase_date_to'),
-            'Pencarian' => $request->input('search'),
-            'Sertakan Trash' => $request->boolean('include_trash') ? 'Ya' : null,
-        ], fn ($v) => filled($v));
+        $filters = [
+            'Kampus' => $campus ?: 'Semua',
+            'Gedung' => $building ?: 'Semua',
+            'Lantai' => $floor ?: 'Semua',
+            'Ruangan' => $room ?: 'Semua',
+            'Kategori' => $category ?: 'Semua',
+            'Sub Kategori' => $sub ?: 'Semua',
+            'Status' => $status ? (InventoryStatus::tryFrom((string) $status)?->label() ?? (string) $status) : 'Semua',
+            'Kondisi' => $condition ? (InventoryCondition::tryFrom((string) $condition)?->label() ?? (string) $condition) : 'Semua',
+        ];
+
+        if ($pic) {
+            $filters['PIC'] = $pic;
+        }
+        if ($request->filled('purchase_year')) {
+            $filters['Tahun Beli'] = (string) $request->input('purchase_year');
+        }
+        if ($request->filled('purchase_date_from')) {
+            $filters['Tgl Dari'] = (string) $request->input('purchase_date_from');
+        }
+        if ($request->filled('purchase_date_to')) {
+            $filters['Tgl Sampai'] = (string) $request->input('purchase_date_to');
+        }
+        if ($request->filled('search')) {
+            $filters['Pencarian'] = (string) $request->input('search');
+        }
+        if ($request->boolean('include_trash')) {
+            $filters['Sertakan Trash'] = 'Ya';
+        }
+
+        return $filters;
     }
 
     /**
-     * @return array{count: int}
+     * @return array{count: int, aktif: int, rusak: int}
      */
     protected function emptyTotals(): array
     {
-        return ['count' => 0];
+        return ['count' => 0, 'aktif' => 0, 'rusak' => 0];
     }
 
     /**
-     * @param  array{count: int}  $totals
+     * @param  array{count: int, aktif: int, rusak: int}  $totals
      */
-    protected function bumpTotals(array &$totals, float $price = 0.0): void
+    protected function bumpTotals(array &$totals, InventoryItem $item): void
     {
         $totals['count']++;
+
+        if ($item->status === InventoryStatus::Aktif) {
+            $totals['aktif']++;
+        }
+
+        if ($this->isDamaged($item)) {
+            $totals['rusak']++;
+        }
+    }
+
+    protected function isDamaged(InventoryItem $item): bool
+    {
+        $status = $item->status;
+        $condition = $item->condition;
+
+        return ($status instanceof InventoryStatus && $status->isDamagedList())
+            || in_array($condition, [InventoryCondition::RusakRingan, InventoryCondition::RusakBerat], true);
     }
 
     /**

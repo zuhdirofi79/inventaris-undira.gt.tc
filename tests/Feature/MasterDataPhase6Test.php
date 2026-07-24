@@ -129,7 +129,7 @@ class MasterDataPhase6Test extends TestCase
         ]);
     }
 
-    public function test_campus_export_template_and_import(): void
+    public function test_campus_index_has_no_import_export_ui_and_routes_are_gone(): void
     {
         $admin = $this->makeAdmin();
 
@@ -139,29 +139,67 @@ class MasterDataPhase6Test extends TestCase
             'slug' => 'kampus-satu',
             'is_active' => true,
         ]);
-
-        $this->actingAs($admin)
-            ->get(route('admin.locations.campuses.index', ['q' => 'Satu']))
-            ->assertOk()
-            ->assertSee('Kampus Satu');
-
-        $this->actingAs($admin)
-            ->get(route('admin.locations.campuses.import.template'))
-            ->assertOk();
-
-        $csv = "code,name,slug,description,is_active\n"
-            ."C2,Kampus Dua,kampus-dua,Baru,1\n";
-        $file = UploadedFile::fake()->createWithContent('campuses.csv', $csv);
-
-        $this->actingAs($admin)
-            ->post(route('admin.locations.campuses.import'), ['file' => $file])
-            ->assertRedirect();
-
-        $this->assertDatabaseHas('campuses', [
+        Campus::query()->create([
             'code' => 'C2',
             'name' => 'Kampus Dua',
             'slug' => 'kampus-dua',
+            'is_active' => false,
         ]);
+
+        $this->actingAs($admin)
+            ->get(route('admin.locations.campuses.index', ['q' => 'Satu', 'is_active' => '1', 'sort' => 'name', 'dir' => 'asc']))
+            ->assertOk()
+            ->assertSee('Kampus Satu')
+            ->assertDontSee('Kampus Dua')
+            ->assertSee('Tambah')
+            ->assertSee('Terapkan')
+            ->assertSee('Reset')
+            ->assertDontSee('Export CSV')
+            ->assertDontSee('>Template</', false)
+            ->assertDontSee('modalMasterImport', false)
+            ->assertDontSee('fa-file-import')
+            ->assertDontSee('fa-file-export');
+
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.locations.campuses.export'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.locations.campuses.import'));
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.locations.campuses.import.template'));
+
+        // Former export/import paths are gone. Some URIs collide with campuses/{campus} (PUT/DELETE) → 405.
+        $this->actingAs($admin)->get('/admin/locations/campuses/export')->assertStatus(405);
+        $this->actingAs($admin)->get('/admin/locations/campuses/import/template')->assertNotFound();
+        $this->actingAs($admin)->post('/admin/locations/campuses/import', [])->assertStatus(405);
+    }
+
+    public function test_campus_crud_manual_still_works(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)
+            ->post(route('admin.locations.campuses.store'), [
+                'code' => 'CBB',
+                'name' => 'Kampus Baru',
+                'description' => 'Deskripsi',
+                'is_active' => '1',
+            ])
+            ->assertRedirect();
+
+        $campus = Campus::query()->where('code', 'CBB')->first();
+        $this->assertNotNull($campus);
+        $this->assertSame('Kampus Baru', $campus->name);
+        $this->assertTrue((bool) $campus->is_active);
+
+        $this->actingAs($admin)
+            ->put(route('admin.locations.campuses.update', $campus), [
+                'code' => 'CBB',
+                'name' => 'Kampus Diedit',
+                'description' => 'Diubah',
+                'is_active' => '0',
+            ])
+            ->assertRedirect();
+
+        $campus->refresh();
+        $this->assertSame('Kampus Diedit', $campus->name);
+        $this->assertFalse((bool) $campus->is_active);
     }
 
     public function test_viewer_cannot_access_supplier_export(): void

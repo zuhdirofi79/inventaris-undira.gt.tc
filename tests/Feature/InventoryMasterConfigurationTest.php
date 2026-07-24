@@ -96,19 +96,21 @@ class InventoryMasterConfigurationTest extends TestCase
         $this->assertSame($before['last_value'], $after['last_value']);
     }
 
-    public function test_sequence_is_global_and_monotonic(): void
+    public function test_sequence_is_scoped_by_campus_and_subcategory_and_monotonic(): void
     {
         $this->seed(InventorySettingSeeder::class);
         Setting::set('inventory.sequence_padding', '6', 'inventory');
 
+        [$campus, $category, $sub] = $this->seedMinimalMasters();
         $service = app(InventoryCodeService::class);
-        $n1 = $service->allocateGlobalSequence();
-        $n2 = $service->allocateGlobalSequence();
+
+        $n1 = $service->allocateSequence($campus->id, $sub->id);
+        $n2 = $service->allocateSequence($campus->id, $sub->id);
 
         $this->assertSame(1, $n1);
         $this->assertSame(2, $n2);
 
-        $peek = $service->peekNextSequence();
+        $peek = $service->peekNextSequence($campus->id, $sub->id);
         $this->assertSame(3, $peek['next_value']);
     }
 
@@ -208,15 +210,16 @@ class InventoryMasterConfigurationTest extends TestCase
     {
         $this->seed(InventorySettingSeeder::class);
         Setting::set('inventory.sequence_padding', '6', 'inventory');
+        [$campus, $category, $sub] = $this->seedMinimalMasters();
 
         $service = app(InventoryCodeService::class);
-        $this->assertSame(1, $service->allocateGlobalSequence());
-        $this->assertSame(2, $service->allocateGlobalSequence());
+        $this->assertSame(1, $service->allocateSequence($campus->id, $sub->id));
+        $this->assertSame(2, $service->allocateSequence($campus->id, $sub->id));
 
         // Soft-deleting assets must never free sequence slots (last_value stays).
-        $next = $service->allocateGlobalSequence();
+        $next = $service->allocateSequence($campus->id, $sub->id);
         $this->assertSame(3, $next);
-        $peek = $service->peekNextSequence();
+        $peek = $service->peekNextSequence($campus->id, $sub->id);
         $this->assertSame(3, $peek['last_value']);
         $this->assertSame(4, $peek['next_value']);
     }

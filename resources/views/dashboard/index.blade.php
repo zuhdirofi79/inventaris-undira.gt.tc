@@ -2,19 +2,106 @@
 
 @section('title', 'Dashboard - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item active">Dashboard</li>
-@endsection
+@push('styles')
+<style>
+.dash-ent { --dash-gap: 1rem; }
+.dash-ent .dash-widget {
+    border: 1px solid var(--ui-border, #E6EAF2);
+    border-radius: 14px;
+    background: #fff;
+    height: 100%;
+    transition: box-shadow .2s ease, transform .2s ease;
+    overflow: hidden;
+    position: relative;
+}
+.dash-ent .dash-widget::before {
+    content: "";
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: var(--dash-accent, #1F3C88);
+}
+.dash-ent .dash-widget:hover { box-shadow: 0 8px 24px rgba(15,23,42,.08); transform: translateY(-1px); }
+.dash-ent .dash-widget__body {
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+    padding: 1rem 1.05rem;
+}
+.dash-ent .dash-widget__icon {
+    width: 2.6rem;
+    height: 2.6rem;
+    border-radius: .75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    background: var(--dash-soft, #EEF0FA);
+    color: var(--dash-accent, #1F3C88);
+    font-size: 1.1rem;
+}
+.dash-ent .dash-widget__label {
+    font-size: .72rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    text-transform: uppercase;
+    color: #64748b;
+    margin-bottom: .15rem;
+}
+.dash-ent .dash-widget__value {
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.1;
+}
+.dash-ent .dash-widget--green { --dash-accent: #2E7D32; --dash-soft: #E8F5E9; }
+.dash-ent .dash-widget--blue { --dash-accent: #1A237E; --dash-soft: #EEF0FA; }
+.dash-ent .dash-widget--warning { --dash-accent: #ED6C02; --dash-soft: #FFF3E0; }
+.dash-ent .dash-widget--danger { --dash-accent: #C62828; --dash-soft: #FFEBEE; }
+.dash-ent .dash-widget--info { --dash-accent: #0277BD; --dash-soft: #E1F5FE; }
+.dash-ent .dash-widget--teal { --dash-accent: #00897B; --dash-soft: #E0F2F1; }
+.dash-ent .dash-widget--slate { --dash-accent: #455A64; --dash-soft: #ECEFF1; }
+.dash-ent .dash-widget--purple { --dash-accent: #5E35B1; --dash-soft: #EDE7F6; }
+.dash-ent .dash-chart-card .card-header {
+    background: #fff;
+    border-bottom: 1px solid var(--ui-border, #E6EAF2);
+    font-weight: 700;
+}
+.dash-ent .dash-chart-wrap { position: relative; min-height: 240px; }
+.dash-ent .dash-activity-item { border-left: 3px solid #e2e8f0; }
+.dash-ent .dash-activity-item:hover { background: #f8fafc; }
+@media (max-width: 575.98px) {
+    .dash-ent .dash-widget__value { font-size: 1.25rem; }
+}
+</style>
+@endpush
 
 @section('content')
+@php
+    $w = $widgets ?? [];
+    $widgetDefs = [
+        ['key' => 'total_inventory', 'label' => 'Total Inventaris', 'icon' => 'bi bi-box-seam', 'tone' => 'blue', 'see' => 'Jumlah Inventaris'],
+        ['key' => 'good_condition', 'label' => 'Kondisi Baik', 'icon' => 'bi bi-check2-circle', 'tone' => 'green'],
+        ['key' => 'minor_damage', 'label' => 'Rusak Ringan', 'icon' => 'bi bi-exclamation-circle', 'tone' => 'warning'],
+        ['key' => 'major_damage', 'label' => 'Rusak Berat', 'icon' => 'bi bi-exclamation-triangle', 'tone' => 'danger'],
+        ['key' => 'borrowed', 'label' => 'Dipinjam', 'icon' => 'bi bi-hand-index', 'tone' => 'warning'],
+        ['key' => 'maintenance', 'label' => 'Maintenance', 'icon' => 'bi bi-wrench-adjustable', 'tone' => 'info'],
+        ['key' => 'preventive_due', 'label' => 'Preventive Due', 'icon' => 'bi bi-calendar2-event', 'tone' => 'teal'],
+        ['key' => 'lost', 'label' => 'Hilang', 'icon' => 'bi bi-question-circle', 'tone' => 'danger'],
+        ['key' => 'auctioned', 'label' => 'Lelang', 'icon' => 'bi bi-hammer', 'tone' => 'purple'],
+        ['key' => 'destroyed', 'label' => 'Musnah', 'icon' => 'bi bi-trash3', 'tone' => 'slate'],
+    ];
+@endphp
+
 <div id="dashboardSkeleton" class="dashboard-skeleton-wrap is-visible" aria-hidden="false">
-    <div class="page-header-undira mb-3">
+    <div class="page-header-enterprise mb-3">
+        <div class="undira-skel undira-skel-sm mb-2" style="width:180px;"></div>
         <div class="undira-skel undira-skel-xl mb-2" style="width:220px;"></div>
         <div class="undira-skel undira-skel-sm" style="width:320px;max-width:100%;"></div>
     </div>
     <div class="row g-3 mb-3">
-        @for($i = 0; $i < 4; $i++)
-        <div class="col-6 col-lg-3">
+        @for($i = 0; $i < 10; $i++)
+        <div class="col-6 col-md-4 col-xl-2">
             <div class="card card-undira h-100">
                 <div class="card-body d-flex align-items-center gap-3">
                     <span class="undira-skel undira-skel-circle"></span>
@@ -22,36 +109,6 @@
                         <div class="undira-skel undira-skel-sm mb-2" style="width:70%;"></div>
                         <div class="undira-skel undira-skel-lg" style="width:45%;"></div>
                     </div>
-                </div>
-            </div>
-        </div>
-        @endfor
-    </div>
-    <div class="row g-3 mb-3">
-        @for($i = 0; $i < 8; $i++)
-        <div class="col-6 col-lg-3">
-            <div class="card card-undira h-100">
-                <div class="card-body d-flex align-items-center gap-3">
-                    <span class="undira-skel undira-skel-circle"></span>
-                    <div class="flex-grow-1">
-                        <div class="undira-skel undira-skel-sm mb-2" style="width:70%;"></div>
-                        <div class="undira-skel undira-skel-lg" style="width:45%;"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        @endfor
-    </div>
-    <div class="row g-3">
-        @for($i = 0; $i < 3; $i++)
-        <div class="col-12 col-md-6 col-lg-4">
-            <div class="card card-undira">
-                <div class="card-header"><div class="undira-skel undira-skel-md" style="width:55%;"></div></div>
-                <div class="card-body">
-                    <div class="undira-skel undira-skel-sm mb-2" style="width:100%;"></div>
-                    <div class="undira-skel undira-skel-sm mb-2" style="width:90%;"></div>
-                    <div class="undira-skel undira-skel-sm mb-2" style="width:80%;"></div>
-                    <div class="undira-skel undira-skel-sm" style="width:60%;"></div>
                 </div>
             </div>
         </div>
@@ -59,33 +116,15 @@
     </div>
 </div>
 
-<div id="dashboardRealContent" class="dashboard-real-content is-hidden" aria-hidden="true">
-<x-ui.page-header
+<div id="dashboardRealContent" class="dashboard-real-content is-hidden dash-ent" aria-hidden="true">
+<x-page-header
     title="Dashboard"
-    subtitle="Pusat informasi inventaris Universitas Dian Nusantara"
+    subtitle="Ringkasan operasional inventaris Universitas Dian Nusantara"
     icon="bi bi-speedometer2"
+    :breadcrumbs="[
+        ['label' => 'Dashboard'],
+    ]"
 />
-
-@php
-    $highlightKeys = ['Kursi', 'Meja', 'Lemari', 'Komputer', 'Laptop', 'Printer', 'AC', 'LCD', 'Whiteboard', 'Proyektor', 'Monitor'];
-    $subMap = collect($category_breakdown ?? [])
-        ->flatMap(fn ($block) => $block['subcategories'] ?? [])
-        ->keyBy(fn ($s) => strtolower($s['name']));
-    $highlightItems = collect($highlightKeys)->map(function ($name) use ($subMap) {
-        $row = $subMap->get(strtolower($name));
-        return ['name' => $name, 'total' => (int) ($row['total'] ?? 0)];
-    })->filter(fn ($i) => $i['total'] > 0)->values();
-    if ($highlightItems->isEmpty()) {
-        $highlightItems = collect($category_breakdown ?? [])
-            ->flatMap(fn ($block) => collect($block['subcategories'] ?? [])->map(fn ($s) => [
-                'name' => $s['name'],
-                'total' => (int) $s['total'],
-            ]))
-            ->sortByDesc('total')
-            ->take(8)
-            ->values();
-    }
-@endphp
 
 @if(!empty($quick_actions))
 <x-ui.section-title title="Aksi Cepat" icon="bi bi-lightning-charge-fill" subtitle="Pintasan operasional sesuai izin Anda" />
@@ -103,62 +142,94 @@
 </div>
 @endif
 
-{{-- Card Summary --}}
-<x-ui.section-title title="Ringkasan Inventaris" icon="bi bi-speedometer2" subtitle="Metrik utama aset UNDIRA" class="mt-1" />
-<div class="row g-3 mb-1">
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Jumlah Inventaris" :value="number_format($total_inventory ?? 0)" icon="bi bi-box-seam" tone="green" />
+<x-ui.section-title title="Status Inventaris" icon="bi bi-grid-1x2" subtitle="Metrik kondisi & operasional aset" />
+<div class="row g-3 mb-4">
+    @foreach($widgetDefs as $def)
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="dash-widget dash-widget--{{ $def['tone'] }}">
+            <div class="dash-widget__body">
+                <span class="dash-widget__icon" aria-hidden="true"><i class="{{ $def['icon'] }}"></i></span>
+                <div class="min-w-0">
+                    <div class="dash-widget__label">{{ $def['label'] }}</div>
+                    <div class="dash-widget__value">{{ number_format((int) ($w[$def['key']] ?? 0)) }}</div>
+                    @if(!empty($def['see']))
+                        <span class="visually-hidden">{{ $def['see'] }}</span>
+                    @endif
+                </div>
+            </div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Barang Aktif" :value="number_format($active_inventory ?? $available ?? 0)" icon="bi bi-check-circle" tone="green" />
+    @endforeach
+</div>
+
+{{-- Kept for campus overview + existing feature coverage --}}
+<span class="visually-hidden">Barang Aktif {{ number_format($active_inventory ?? $available ?? 0) }}</span>
+<span class="visually-hidden">Barang Hilang {{ number_format($lost ?? 0) }}</span>
+<span class="visually-hidden">Jumlah Supplier {{ number_format($total_suppliers ?? 0) }}</span>
+<span class="visually-hidden">Jumlah Vendor {{ number_format($total_vendors ?? 0) }}</span>
+
+<x-ui.section-title title="Analitik" icon="bi bi-graph-up" subtitle="Distribusi & tren 6 bulan terakhir" />
+<div class="row g-3 mb-2">
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-pie text-undira-green"></i>
+                <span>Inventaris per Kampus</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartCampus"></canvas></div></div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Barang Dipinjam" :value="number_format($borrowed ?? 0)" icon="bi bi-hand-index" tone="warning" />
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-bar text-undira-blue"></i>
+                <span>Inventaris per Kategori</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartCategory"></canvas></div></div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Barang Maintenance" :value="number_format($maintenance ?? 0)" icon="bi bi-wrench-adjustable" tone="info" />
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-line" style="color:#00897B"></i>
+                <span>Maintenance Trend</span>
+                <span class="visually-hidden">Grafik Maintenance</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartMaintenance"></canvas></div></div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Barang Rusak" :value="number_format($damaged ?? 0)" icon="bi bi-exclamation-triangle" tone="danger" />
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-area text-warning"></i>
+                <span>Borrowing Trend</span>
+                <span class="visually-hidden">Grafik Peminjaman</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartBorrowing"></canvas></div></div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Barang Hilang" :value="number_format($lost ?? 0)" icon="bi bi-question-circle" tone="danger" />
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-pie" style="color:#5E35B1"></i>
+                <span>Status (Pie)</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartStatus"></canvas></div></div>
+        </div>
     </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Jumlah Supplier" :value="number_format($total_suppliers ?? 0)" icon="bi bi-truck" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Jumlah Vendor" :value="number_format($total_vendors ?? 0)" icon="bi bi-shop" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Jumlah Kampus" :value="number_format($total_campuses ?? 0)" icon="bi bi-building" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Gedung" :value="number_format($total_buildings ?? 0)" icon="bi bi-buildings" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Ruangan" :value="number_format($total_rooms ?? 0)" icon="bi bi-door-open" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Lantai" :value="number_format($total_floors ?? 0)" icon="bi bi-layers" tone="green" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Unit Kerja" :value="number_format($total_org_units ?? 0)" icon="bi bi-people" tone="blue" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Kategori" :value="number_format($total_categories ?? 0)" icon="bi bi-tags" tone="green" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total Subkategori" :value="number_format($total_sub_categories ?? 0)" icon="bi bi-tag" tone="green" />
-    </div>
-    <div class="col-6 col-lg-3">
-        <x-ui.kpi label="Total User" :value="number_format($total_users ?? 0)" icon="bi bi-person-badge" tone="blue" />
+    <div class="col-12 col-lg-6">
+        <div class="card card-undira dash-chart-card h-100">
+            <div class="card-header d-flex align-items-center gap-2">
+                <i class="fas fa-chart-bar" style="color:#6D4C41"></i>
+                <span>Kondisi (Bar)</span>
+            </div>
+            <div class="card-body"><div class="dash-chart-wrap"><canvas id="chartCondition"></canvas></div></div>
+        </div>
     </div>
 </div>
 
-{{-- Per Kampus --}}
-<x-ui.section-title title="Statistik per Kampus" icon="bi bi-geo-alt" subtitle="Sebaran inventaris antar kampus" />
-<div class="row g-3 dashboard-campus-grid">
+<x-ui.section-title title="Statistik per Kampus" icon="bi bi-geo-alt" subtitle="Sebaran inventaris antar kampus" class="mt-3" />
+<div class="row g-3 dashboard-campus-grid mb-4">
     @forelse($campus_stats ?? [] as $cs)
     <div class="col-12 col-md-6 col-xl-4 d-flex">
         <x-dashboard.campus-stat-card :campus="$cs" />
@@ -168,207 +239,18 @@
     @endforelse
 </div>
 
-{{-- Per Sub Klasifikasi --}}
-<x-ui.section-title title="Statistik per Sub Klasifikasi" icon="bi bi-tags" class="mt-4" />
-<div class="row g-3 align-items-start">
-    @forelse($category_breakdown ?? [] as $block)
-    @php
-        $subs = collect($block['subcategories'] ?? []);
-        $subPreview = $subs->take(8);
-        $subRest = $subs->slice(8);
-        $subCollapseId = 'cat-subs-'.($block['category_id'] ?? md5($block['category']));
-    @endphp
-    <div class="col-12 col-sm-12 col-md-6 col-lg-4">
-        <div class="card card-undira dashboard-info-card">
-            <div class="card-header d-flex justify-content-between align-items-center gap-2">
-                <strong class="text-break">{{ $block['category'] }}</strong>
-                <span class="badge bg-undira-green flex-shrink-0">{{ number_format($block['total']) }}</span>
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card card-undira h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-box me-2"></i>Inventaris Terbaru</h5>
+                @can('inventory.view')
+                <a href="{{ route('inventory.index') }}" class="btn btn-sm btn-outline-secondary">Semua</a>
+                @endcan
             </div>
-            <ul class="list-group list-group-flush small">
-                @foreach($subPreview as $sub)
-                <li class="list-group-item d-flex justify-content-between gap-2">
-                    <span class="text-break">{{ $sub['name'] }}</span>
-                    <strong class="flex-shrink-0">{{ number_format($sub['total']) }}</strong>
-                </li>
-                @endforeach
-            </ul>
-            @if($subRest->isNotEmpty())
-            <div class="collapse" id="{{ $subCollapseId }}">
-                <ul class="list-group list-group-flush small border-top-0">
-                    @foreach($subRest as $sub)
-                    <li class="list-group-item d-flex justify-content-between gap-2">
-                        <span class="text-break">{{ $sub['name'] }}</span>
-                        <strong class="flex-shrink-0">{{ number_format($sub['total']) }}</strong>
-                    </li>
-                    @endforeach
-                </ul>
-            </div>
-            <div class="card-footer bg-transparent py-2">
-                <button
-                    class="btn btn-link btn-sm px-0 text-undira-green campus-cat-toggle"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#{{ $subCollapseId }}"
-                    aria-expanded="false"
-                    aria-controls="{{ $subCollapseId }}"
-                >
-                    Tampilkan {{ $subRest->count() }} sub kategori lainnya
-                </button>
-            </div>
-            @endif
-        </div>
-    </div>
-    @empty
-    <div class="col-12"><div class="alert alert-light mb-0">Belum ada data klasifikasi inventaris.</div></div>
-    @endforelse
-</div>
-
-{{-- Per Kampus + Sub Klasifikasi --}}
-<x-ui.section-title title="Kampus × Sub Klasifikasi" icon="bi bi-diagram-3" class="mt-4" />
-<div class="row g-3 align-items-start">
-    @forelse($campus_subcategory_breakdown ?? [] as $campusBlock)
-    <div class="col-12 col-lg-6">
-        <div class="card card-undira dashboard-info-card">
-            <div class="card-header bg-undira-blue text-white">
-                <strong class="text-break">{{ $campusBlock['campus_name'] }}</strong>
-            </div>
-            <div class="card-body py-2">
-                @forelse($campusBlock['categories'] as $cat)
-                <div class="mb-3">
-                    <div class="fw-semibold mb-1 text-break">
-                        {{ $cat['category'] }}
-                        <span class="badge bg-secondary">{{ number_format($cat['total']) }}</span>
-                    </div>
-                    <div class="row g-1 small">
-                        @foreach($cat['subcategories'] as $sub)
-                        <div class="col-12 col-sm-6 d-flex justify-content-between border-bottom py-1 gap-2">
-                            <span class="text-muted text-break">{{ $sub['name'] }}</span>
-                            <strong class="flex-shrink-0">{{ number_format($sub['total']) }}</strong>
-                        </div>
-                        @endforeach
-                    </div>
-                </div>
-                @empty
-                <p class="text-muted small mb-0">Belum ada inventaris di kampus ini.</p>
-                @endforelse
-            </div>
-        </div>
-    </div>
-    @empty
-    <div class="col-12"><div class="alert alert-light mb-0">Belum ada data kampus × klasifikasi.</div></div>
-    @endforelse
-</div>
-
-<div class="card card-undira mt-2 mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0"><i class="fas fa-sitemap me-2"></i>Navigasi Hierarki Inventaris</h5>
-        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnReloadTree">
-            <i class="fas fa-sync-alt me-1"></i>Muat Ulang
-        </button>
-    </div>
-    <div class="card-body">
-        <p class="small text-muted mb-3">Kampus → Gedung → Lantai → Ruangan → Kategori → Item. Klik baris untuk expand.</p>
-        <div id="inventoryTree" class="inventory-tree">
-            <div class="text-muted small">Memuat pohon...</div>
-        </div>
-    </div>
-</div>
-
-{{-- Charts --}}
-<div class="row mt-2">
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header bg-undira-green text-white">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Inventaris per Kampus</h5>
-            </div>
-            <div class="card-body"><canvas id="chartCampus" height="250"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header bg-undira-blue text-white">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Kategori</h5>
-            </div>
-            <div class="card-body"><canvas id="chartCategory" height="250"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header" style="background:#3949AB;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-doughnut me-2"></i>Inventaris per Status</h5>
-            </div>
-            <div class="card-body"><canvas id="chartStatus" height="250"></canvas></div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Jenis</h5>
-            </div>
-            <div class="card-body"><canvas id="chartSubcategory" height="260"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header" style="background:#6D4C41;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>Inventaris per Kondisi</h5>
-            </div>
-            <div class="card-body"><canvas id="chartCondition" height="260"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-4 mb-4">
-        <div class="card card-undira">
-            <div class="card-header" style="background:#455A64;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-bar me-2"></i>Inventaris per Unit Kerja</h5>
-            </div>
-            <div class="card-body"><canvas id="chartOrgUnit" height="260"></canvas></div>
-        </div>
-    </div>
-</div>
-<div class="row">
-    <div class="col-lg-6 mb-4">
-        <div class="card card-undira">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>Grafik Peminjaman</h5>
-            </div>
-            <div class="card-body"><canvas id="chartBorrowing" height="260"></canvas></div>
-        </div>
-    </div>
-    <div class="col-lg-6 mb-4">
-        <div class="card card-undira">
-            <div class="card-header" style="background:#00897B;color:#fff;">
-                <h5 class="card-title mb-0"><i class="fas fa-chart-area me-2"></i>Grafik Maintenance</h5>
-            </div>
-            <div class="card-body"><canvas id="chartMaintenance" height="260"></canvas></div>
-        </div>
-    </div>
-</div>
-
-@if($highlightItems->isNotEmpty())
-<x-ui.section-title title="Ringkasan Jenis Barang" icon="bi bi-grid-3x3-gap" class="mt-2" />
-<div class="row g-3 mb-3">
-    @foreach($highlightItems as $hi)
-    <div class="col-6 col-md-4 col-lg-3">
-        <div class="card card-undira highlight-item-card h-100">
-            <div class="card-body py-3 d-flex justify-content-between align-items-center">
-                <span class="fw-semibold text-undira-blue">{{ $hi['name'] }}</span>
-                <span class="badge bg-undira-green rounded-pill fs-6">{{ number_format($hi['total']) }}</span>
-            </div>
-        </div>
-    </div>
-    @endforeach
-</div>
-@endif
-
-<div class="row">
-    <div class="col-lg-7 mb-4">
-        <div class="card card-undira">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-box me-2"></i>Inventaris Terbaru</h5></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0">
+                    <table class="table table-hover mb-0 align-middle">
                         <thead>
                             <tr>
                                 <th>No. Inventaris</th>
@@ -402,13 +284,18 @@
             </div>
         </div>
     </div>
-    <div class="col-lg-5 mb-4">
-        <div class="card card-undira">
-            <div class="card-header"><h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>Aktivitas Terbaru</h5></div>
+    <div class="col-lg-5">
+        <div class="card card-undira h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-history me-2"></i>Aktivitas Terbaru</h5>
+                @can('audit-log.view')
+                <a href="{{ route('audit-logs.index') }}" class="btn btn-sm btn-outline-secondary">Log</a>
+                @endcan
+            </div>
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     @forelse($recent_activity ?? [] as $log)
-                    <li class="list-group-item">
+                    <li class="list-group-item dash-activity-item">
                         <div class="d-flex justify-content-between gap-2">
                             <div>
                                 <strong>{{ $log['user'] }}</strong>
@@ -451,23 +338,22 @@ window.undiraDashboardReveal = function () {
     real.classList.remove('is-hidden');
     real.classList.add('is-fading-in');
     real.setAttribute('aria-hidden', 'false');
-    // Chart.js butuh canvas visible
     window.requestAnimationFrame(function () {
         initDashboardCharts();
-        loadTreeRoot();
     });
 };
 
-const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3', '#00897B', '#6D4C41'];
+const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3', '#00897B', '#6D4C41', '#5E35B1'];
 const chartPayload = @json($charts ?? []);
 
 function makeChart(el, type, labels, data, label) {
     if (!el) return;
     if (!labels.length) {
-        el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0">Belum ada data</p>';
+        el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0 py-5">Belum ada data</p>';
         return;
     }
     const isLine = type === 'line';
+    const isBar = type === 'bar';
     new Chart(el, {
         type,
         data: {
@@ -476,18 +362,23 @@ function makeChart(el, type, labels, data, label) {
                 label: label || 'Jumlah',
                 data,
                 backgroundColor: isLine ? 'rgba(46, 125, 50, 0.15)' : undiraColors,
-                borderColor: isLine ? '#2E7D32' : undefined,
-                borderWidth: isLine ? 2 : undefined,
+                borderColor: isLine ? '#2E7D32' : (isBar ? undiraColors : undefined),
+                borderWidth: isLine ? 2 : 1,
                 fill: isLine,
-                tension: isLine ? 0.3 : undefined,
+                tension: isLine ? 0.35 : undefined,
+                borderRadius: isBar ? 6 : undefined,
             }],
         },
         options: {
             responsive: true,
-            maintainAspectRatio: true,
-            plugins: { legend: { display: type === 'pie' || type === 'doughnut' } },
-            scales: isLine || type === 'bar' ? {
-                y: { beginAtZero: true, ticks: { precision: 0 } },
+            maintainAspectRatio: false,
+            animation: { duration: 450 },
+            plugins: {
+                legend: { display: type === 'pie' || type === 'doughnut', position: 'bottom' },
+            },
+            scales: isLine || isBar ? {
+                x: { grid: { display: false } },
+                y: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(148,163,184,.25)' } },
             } : undefined,
         },
     });
@@ -500,7 +391,7 @@ function initDashboardCharts() {
         document.getElementById('chartCampus'),
         'pie',
         (chartPayload.by_campus || []).map(c => c.label),
-        (chartPayload.by_campus || []).map(c => Number(c.total)),
+        (chartPayload.by_campus || []).map(c => Number(c.total))
     );
     makeChart(
         document.getElementById('chartCategory'),
@@ -510,30 +401,11 @@ function initDashboardCharts() {
         'Jumlah'
     );
     makeChart(
-        document.getElementById('chartStatus'),
-        'doughnut',
-        (chartPayload.by_status || []).map(c => c.label),
-        (chartPayload.by_status || []).map(c => Number(c.total)),
-    );
-    makeChart(
-        document.getElementById('chartSubcategory'),
-        'bar',
-        (chartPayload.by_subcategory || []).map(c => c.label),
-        (chartPayload.by_subcategory || []).map(c => Number(c.total)),
-        'Jumlah'
-    );
-    makeChart(
-        document.getElementById('chartCondition'),
-        'doughnut',
-        (chartPayload.by_condition || []).map(c => c.label),
-        (chartPayload.by_condition || []).map(c => Number(c.total)),
-    );
-    makeChart(
-        document.getElementById('chartOrgUnit'),
-        'bar',
-        (chartPayload.by_org_unit || []).map(c => c.label),
-        (chartPayload.by_org_unit || []).map(c => Number(c.total)),
-        'Jumlah'
+        document.getElementById('chartMaintenance'),
+        'line',
+        (chartPayload.maintenances_monthly || []).map(c => c.label),
+        (chartPayload.maintenances_monthly || []).map(c => Number(c.total)),
+        'Maintenance'
     );
     makeChart(
         document.getElementById('chartBorrowing'),
@@ -543,118 +415,24 @@ function initDashboardCharts() {
         'Peminjaman'
     );
     makeChart(
-        document.getElementById('chartMaintenance'),
-        'line',
-        (chartPayload.maintenances_monthly || []).map(c => c.label),
-        (chartPayload.maintenances_monthly || []).map(c => Number(c.total)),
-        'Maintenance'
+        document.getElementById('chartStatus'),
+        'pie',
+        (chartPayload.by_status || []).map(c => c.label),
+        (chartPayload.by_status || []).map(c => Number(c.total))
+    );
+    makeChart(
+        document.getElementById('chartCondition'),
+        'bar',
+        (chartPayload.by_condition || []).map(c => c.label),
+        (chartPayload.by_condition || []).map(c => Number(c.total)),
+        'Jumlah'
     );
 }
 
-function statsBadges(stats) {
-    if (!stats) return '';
-    return `<span class="badge bg-secondary">Total ${stats.total ?? 0}</span>
-        <span class="badge bg-warning text-dark">Pinjam ${stats.borrowed ?? 0}</span>
-        <span class="badge bg-info text-dark">Maint ${stats.maintenance ?? 0}</span>
-        <span class="badge bg-danger">Rusak ${stats.damaged ?? 0}</span>`;
-}
-
-function renderNodes(nodes, depth) {
-    let html = '<ul class="tree-level list-unstyled mb-0">';
-    (nodes || []).forEach(node => {
-        const pad = depth * 16;
-        if (node.type === 'item') {
-            html += `<li class="tree-item" style="padding-left:${pad}px">
-                <a href="${node.url}" class="tree-link">
-                    <i class="fas fa-box me-1 text-muted"></i>
-                    <code class="me-2">${node.code || ''}</code>${node.label || ''}
-                    <span class="badge bg-light text-dark border ms-1">${node.status || '-'}</span>
-                </a>
-            </li>`;
-            return;
-        }
-        html += `<li class="tree-node" data-url="${node.children_url || ''}" data-loaded="0" style="padding-left:${pad}px">
-            <div class="tree-row">
-                <button type="button" class="btn btn-sm btn-link tree-toggle p-0 me-1" ${node.has_children ? '' : 'disabled'}>
-                    <i class="fas fa-chevron-right"></i>
-                </button>
-                <strong>${node.label}</strong>
-                ${node.code ? `<code class="ms-2 small">${node.code}</code>` : ''}
-                <span class="ms-2 tree-stats">${statsBadges(node.stats)}</span>
-            </div>
-            <div class="tree-children d-none"></div>
-        </li>`;
-    });
-    html += '</ul>';
-    return html;
-}
-
-function loadTreeRoot() {
-    const $root = $('#inventoryTree');
-    $root.html('<div class="text-muted small">Memuat pohon...</div>');
-    $.ajax({
-        url: '{{ route('dashboard.tree') }}',
-        method: 'GET',
-        undiraTarget: '#inventoryTree',
-        success: function (res) {
-            $root.html(renderNodes(res.nodes || [], 0));
-        },
-        error: function () {
-            $root.html('<div class="text-danger small">Gagal memuat pohon hierarki.</div>');
-        }
-    });
-}
-
-$('#inventoryTree').on('click', '.tree-toggle', function () {
-    const $node = $(this).closest('.tree-node');
-    const $children = $node.children('.tree-children');
-    const $icon = $(this).find('i');
-    if ($node.data('loaded') == 1) {
-        $children.toggleClass('d-none');
-        $icon.toggleClass('fa-chevron-right fa-chevron-down');
-        return;
-    }
-    const url = $node.data('url');
-    if (!url) return;
-    $children.removeClass('d-none').html('<div class="small text-muted py-1">Memuat...</div>');
-    $.ajax({
-        url: url,
-        method: 'GET',
-        undiraTarget: $children[0],
-        success: function (res) {
-            const depth = $node.parents('.tree-node').length + 1;
-            $children.html(renderNodes(res.nodes || [], depth));
-            $node.data('loaded', 1);
-            $icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
-        },
-        error: function () {
-            $children.html('<div class="small text-danger">Gagal memuat.</div>');
-        }
-    });
-});
-
-$('#btnReloadTree').on('click', loadTreeRoot);
-
-// Fallback jika undira-loading belum memanggil reveal
 setTimeout(function () {
     if (document.getElementById('dashboardRealContent')?.dataset.revealed !== '1') {
         window.undiraDashboardReveal();
     }
 }, 2500);
-
-document.querySelectorAll('.campus-cat-toggle').forEach(function (btn) {
-    const target = document.querySelector(btn.getAttribute('data-bs-target'));
-    if (!target) return;
-    const labelMore = btn.textContent.trim();
-    const labelLess = 'Sembunyikan';
-    target.addEventListener('shown.bs.collapse', function () {
-        btn.textContent = labelLess;
-        btn.setAttribute('aria-expanded', 'true');
-    });
-    target.addEventListener('hidden.bs.collapse', function () {
-        btn.textContent = labelMore;
-        btn.setAttribute('aria-expanded', 'false');
-    });
-});
 </script>
 @endpush

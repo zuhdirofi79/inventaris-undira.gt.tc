@@ -2,14 +2,20 @@
 
 @section('title', 'Edit Pemeliharaan - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.show', $maintenance) }}">{{ $maintenance->maintenance_number }}</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Edit Work Order" subtitle="{{ $maintenance->maintenance_number }} · {{ $maintenance->inventoryItem?->inventory_number }}" icon="bi bi-wrench-adjustable" />
+<x-page-header
+    title="Edit Work Order"
+    subtitle="{{ $maintenance->maintenance_number }} · {{ $maintenance->inventoryItem?->inventory_number }}"
+    icon="bi bi-wrench-adjustable"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Edit'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+    :list-back="true"
+/>
 
 @if(session('error'))
     <div class="alert alert-danger">{{ session('error') }}</div>

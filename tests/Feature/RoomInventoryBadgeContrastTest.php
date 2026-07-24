@@ -35,7 +35,7 @@ class RoomInventoryBadgeContrastTest extends TestCase
     }
 
     /**
-     * @return array{room: Room, category: Category}
+     * @return array{room: Room, category: Category, sub: SubCategory}
      */
     protected function makeRoomWithCategory(): array
     {
@@ -54,17 +54,15 @@ class RoomInventoryBadgeContrastTest extends TestCase
         $category = Category::query()->create([
             'code' => 'FUR', 'name' => 'Furniture', 'slug' => 'furniture-badge', 'is_active' => true,
         ]);
+        $sub = SubCategory::query()->create([
+            'category_id' => $category->id, 'code' => 'KR', 'name' => 'Kursi', 'slug' => 'kursi-badge', 'is_active' => true,
+        ]);
 
-        return compact('room', 'category');
+        return compact('room', 'category', 'sub');
     }
 
-    protected function makeItem(Room $room, Category $category, array $overrides = []): InventoryItem
+    protected function makeItem(Room $room, Category $category, SubCategory $sub, array $overrides = []): InventoryItem
     {
-        $sub = SubCategory::query()->firstOrCreate(
-            ['category_id' => $category->id, 'code' => 'KR'],
-            ['name' => 'Kursi', 'slug' => 'kursi-badge', 'is_active' => true]
-        );
-
         return InventoryItem::query()->create(array_merge([
             'inventory_number' => 'INV-'.uniqid(),
             'name' => 'Kursi Kuliah',
@@ -79,39 +77,38 @@ class RoomInventoryBadgeContrastTest extends TestCase
         ], $overrides));
     }
 
-    public function test_room_inventory_table_shows_readable_condition_and_status_badges(): void
+    public function test_room_page_shows_category_accordion_and_items_api_returns_badge_tones(): void
     {
         $admin = $this->makeAdmin();
-        ['room' => $room, 'category' => $category] = $this->makeRoomWithCategory();
-        $this->makeItem($room, $category);
+        ['room' => $room, 'category' => $category, 'sub' => $sub] = $this->makeRoomWithCategory();
+        $this->makeItem($room, $category, $sub);
 
-        $html = $this->actingAs($admin)
+        $this->actingAs($admin)
             ->get(route('rooms.show', $room))
             ->assertOk()
-            ->assertSee('Inventaris di Ruangan')
-            ->assertSee('Kursi Kuliah')
+            ->assertSee('Isi Ruangan')
             ->assertSee('Furniture')
-            ->assertSee('Bagus')
-            ->assertSee('Aktif')
-            ->assertDontSee('Total Nilai', false)
-            ->getContent();
+            ->assertSee('Kursi')
+            ->assertDontSee('Kursi Kuliah')
+            ->assertDontSee('Total Nilai', false);
 
-        $this->assertStringContainsString('room-inventory-table', $html);
-        $this->assertStringContainsString('inventory-condition-badge', $html);
-        $this->assertStringContainsString('condition-good', $html);
-        $this->assertStringContainsString('inventory-status-badge', $html);
-        $this->assertStringContainsString('status-active', $html);
-        $this->assertStringNotContainsString('badge-condition-', $html);
-        $this->assertStringNotContainsString('badge-status-', $html);
-        $this->assertStringNotContainsString('inventory-condition-badge text-white', $html);
-        $this->assertStringNotContainsString('inventory-status-badge text-white', $html);
+        $row = $this->actingAs($admin)
+            ->getJson(route('locations.explore.items', [$room, $category, $sub->id]))
+            ->assertOk()
+            ->json('rows.0');
+
+        $this->assertSame('Kursi Kuliah', $row['name']);
+        $this->assertSame('Bagus', $row['condition_label']);
+        $this->assertSame('Aktif', $row['status_label']);
+        $this->assertSame('good', $row['condition_tone']);
+        $this->assertSame('active', $row['status_tone']);
     }
 
-    public function test_borrowed_and_damaged_use_semantic_classes(): void
+    public function test_borrowed_and_damaged_use_semantic_tones(): void
     {
         $admin = $this->makeAdmin();
-        ['room' => $room, 'category' => $category] = $this->makeRoomWithCategory();
-        $this->makeItem($room, $category, [
+        ['room' => $room, 'category' => $category, 'sub' => $sub] = $this->makeRoomWithCategory();
+        $this->makeItem($room, $category, $sub, [
             'inventory_number' => 'INV-BORROW',
             'name' => 'Meja Pinjam',
             'group_key' => 'group-meja',
@@ -119,13 +116,16 @@ class RoomInventoryBadgeContrastTest extends TestCase
             'status' => InventoryStatus::Dipinjam->value,
         ]);
 
-        $html = $this->actingAs($admin)->get(route('rooms.show', $room))->assertOk()->getContent();
+        $row = $this->actingAs($admin)
+            ->getJson(route('locations.explore.items', [$room, $category, $sub->id]))
+            ->assertOk()
+            ->json('rows.0');
 
-        $this->assertStringContainsString('Meja Pinjam', $html);
-        $this->assertStringContainsString('Dipinjam', $html);
-        $this->assertStringContainsString('Rusak Ringan', $html);
-        $this->assertStringContainsString('status-borrowed', $html);
-        $this->assertStringContainsString('condition-damaged', $html);
+        $this->assertSame('Meja Pinjam', $row['name']);
+        $this->assertSame('Dipinjam', $row['status_label']);
+        $this->assertSame('Rusak Ringan', $row['condition_label']);
+        $this->assertSame('borrowed', $row['status_tone']);
+        $this->assertSame('damaged', $row['condition_tone']);
     }
 
     public function test_enum_badge_tones_are_stable(): void

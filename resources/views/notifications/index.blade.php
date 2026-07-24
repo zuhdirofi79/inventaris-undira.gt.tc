@@ -2,17 +2,23 @@
 
 @section('title', 'Notifikasi - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item active">Notifikasi</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Notifikasi" subtitle="Peringatan dan aktivitas sistem" icon="bi bi-bell">
+<x-page-header
+    title="Notifikasi"
+    subtitle="Peringatan dan aktivitas sistem"
+    icon="bi bi-bell"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Notifikasi'],
+    ]"
+    :back-route="route('dashboard')"
+    back-label="Dashboard"
+>
     <form action="{{ route('notifications.read-all') }}" method="POST">
         @csrf
         <button type="submit" class="btn btn-outline-primary btn-sm"><i class="bi bi-check2-all me-1"></i>Tandai Semua Dibaca</button>
     </form>
-</x-ui.page-header>
+</x-page-header>
 
 <div class="card card-undira">
     <ul class="list-group list-group-flush">

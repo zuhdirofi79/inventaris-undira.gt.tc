@@ -2,15 +2,21 @@
 
 @section('title', 'Laporan Maintenance - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">Laporan</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Laporan Pemeliharaan" subtitle="Riwayat, biaya, preventif, performa vendor/teknisi, aset bermasalah" icon="bi bi-file-earmark-bar-graph">
-    <a href="{{ route('maintenance-dashboard.index') }}" class="btn btn-outline-primary btn-sm">Dashboard</a>
-</x-ui.page-header>
+<x-page-header
+    title="Laporan Pemeliharaan"
+    subtitle="Riwayat, biaya, preventif, performa vendor/teknisi, aset bermasalah"
+    icon="bi bi-file-earmark-bar-graph"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Laporan'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+>
+    <a href="{{ route('maintenance-dashboard.index') }}" class="btn btn-outline-primary btn-sm">Dashboard Maintenance</a>
+</x-page-header>
 
 <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="card card-undira">
     @csrf

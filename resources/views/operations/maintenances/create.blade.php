@@ -2,67 +2,64 @@
 
 @section('title', 'Tambah Pemeliharaan - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">Tambah</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Form Pemeliharaan" subtitle="Inventaris akan berstatus Dalam Pemeliharaan (tidak dapat dipinjam)" icon="bi bi-wrench-adjustable">
-    <a href="{{ route('maintenances.scan') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</a>
-</x-ui.page-header>
+<x-page-header
+    title="Buat Work Order"
+    subtitle="Pilih inventaris (lokasi / nomor / QR / barcode / serial). Ringkasan kondisi, garansi, jadwal, dan riwayat muncul otomatis."
+    icon="bi bi-wrench-adjustable"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Tambah'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+    :list-back="true"
+>
+    <a href="{{ route('maintenances.scan') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-qr-code-scan me-1"></i>Halaman Scan</a>
+</x-page-header>
 
 @if(session('error'))
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
 
-@if($assetCard)
-<div class="card card-undira mb-3">
-    <div class="card-header"><h5 class="mb-0">Identitas Inventaris</h5></div>
-    <div class="card-body">
-        <div class="row g-3">
-            <div class="col-md-2 text-center">
-                @if(!empty($assetCard['photo_url']))
-                    <img src="{{ $assetCard['photo_url'] }}" alt="" class="img-fluid rounded border" style="max-height:120px;">
-                @else
-                    <div class="text-muted small py-4">Tanpa foto</div>
-                @endif
-            </div>
-            <div class="col-md-10">
-                <dl class="row mb-0 small">
-                    <dt class="col-sm-3">No. Inventaris</dt><dd class="col-sm-9"><code>{{ $assetCard['inventory_number'] }}</code></dd>
-                    <dt class="col-sm-3">Nama</dt><dd class="col-sm-9">{{ $assetCard['name'] }}</dd>
-                    <dt class="col-sm-3">Kategori / Sub</dt><dd class="col-sm-9">{{ $assetCard['category'] }} / {{ $assetCard['sub_category'] ?: '—' }}</dd>
-                    <dt class="col-sm-3">Lokasi</dt><dd class="col-sm-9">{{ collect([$assetCard['campus'], $assetCard['building'], $assetCard['floor'], $assetCard['room']])->filter()->implode(' / ') }}</dd>
-                    <dt class="col-sm-3">PIC</dt><dd class="col-sm-9">{{ $assetCard['pic'] ?: '—' }}</dd>
-                    <dt class="col-sm-3">Status</dt><dd class="col-sm-9">{{ $assetCard['status_label'] }}</dd>
-                    <dt class="col-sm-3">Tahun / Pengadaan</dt><dd class="col-sm-9">{{ $assetCard['purchase_year'] ?: '—' }} · {{ $assetCard['procurement_type'] ?: '—' }}</dd>
-                </dl>
-            </div>
-        </div>
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
     </div>
-</div>
 @endif
 
-<form action="{{ route('maintenances.store') }}" method="POST" enctype="multipart/form-data">
+<form action="{{ route('maintenances.store') }}" method="POST" enctype="multipart/form-data" id="maintenanceForm">
     @csrf
+    <div class="card card-undira mb-3">
+        <div class="card-header">
+            <strong>1. Pilih Inventaris</strong>
+            <div class="small text-muted fw-normal mt-1">
+                Metode 1: Kampus → Gedung → Lantai → Ruangan → Kategori → Sub → Barang.
+                Metode 2: cari nomor / nama / scan QR / barcode / serial.
+            </div>
+        </div>
+        <div class="card-body">
+            <x-inventory-selector
+                name="inventory_item_id"
+                id="maintenance-inventory-selector"
+                :selected-id="$maintenanceContext['id'] ?? null"
+                :selected-label="isset($maintenanceContext) ? ($maintenanceContext['inventory_number'].' — '.$maintenanceContext['name']) : null"
+                modes="both"
+                show-qr-scan
+                resolve-maintenance
+                help-text="Ketik minimal 2 karakter (nomor, nama, barcode, serial) atau scan QR — inventaris terbuka otomatis."
+                label="Inventaris"
+            />
+        </div>
+    </div>
+
+    <x-inventory-maintenance-context :context="$maintenanceContext" />
+
     <div class="card card-undira">
+        <div class="card-header"><strong>2. Detail Work Order</strong></div>
         <div class="card-body">
             <div class="row">
-                @unless($selectedItem)
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Inventaris <span class="text-danger">*</span></label>
-                    <select name="inventory_item_id" class="form-select select2-inventory" required
-                            data-lookup-url="{{ route('inventory.lookup') }}"
-                            data-placeholder="Ketik nomor / nama inventaris…">
-                        <option value="">Pilih Inventaris</option>
-                    </select>
-                    <div class="form-text">Lebih cepat: gunakan Scan QR.</div>
-                </div>
-                @else
-                    <input type="hidden" name="inventory_item_id" value="{{ $selectedItem->id }}">
-                @endunless
-
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Jenis Pemeliharaan <span class="text-danger">*</span></label>
                     <select name="maintenance_type" class="form-select" required>
@@ -138,7 +135,7 @@
             </div>
         </div>
         <div class="card-footer">
-            <button type="submit" class="btn btn-undira btn-lg"><i class="fas fa-save me-1"></i>Simpan Pemeliharaan</button>
+            <button type="submit" class="btn btn-undira btn-lg"><i class="fas fa-save me-1"></i>Simpan Work Order</button>
             <a href="{{ route('maintenances.index') }}" class="btn btn-outline-secondary">Batal</a>
         </div>
     </div>
@@ -146,24 +143,9 @@
 @endsection
 
 @push('scripts')
+<script src="{{ asset('js/inventory-maintenance-context.js') }}?v={{ @filemtime(public_path('js/inventory-maintenance-context.js')) ?: time() }}"></script>
 <script>
 (function () {
-    const $inv = $('.select2-inventory');
-    if ($inv.length) {
-        $inv.select2({
-            theme: 'bootstrap-5',
-            width: '100%',
-            placeholder: $inv.data('placeholder'),
-            minimumInputLength: 1,
-            ajax: {
-                url: $inv.data('lookup-url'),
-                dataType: 'json',
-                delay: 250,
-                data: function (params) { return { q: params.term }; },
-                processResults: function (data) { return data; },
-            },
-        });
-    }
     $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
 })();
 </script>

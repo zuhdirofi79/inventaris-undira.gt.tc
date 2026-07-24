@@ -2,17 +2,23 @@
 
 @section('title', 'Dashboard Maintenance - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('maintenances.index') }}">Maintenance</a></li>
-    <li class="breadcrumb-item active">Dashboard</li>
-@endsection
-
 @section('content')
-<x-ui.page-header title="Dashboard Pemeliharaan" subtitle="Ringkasan work order, jadwal preventif, biaya, dan tren" icon="bi bi-speedometer2">
+<x-page-header
+    title="Dashboard Pemeliharaan"
+    subtitle="Ringkasan work order, jadwal preventif, biaya, dan tren"
+    icon="bi bi-speedometer2"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Pemeliharaan Aset', 'url' => route('maintenances.index')],
+        ['label' => 'Dashboard Maintenance'],
+    ]"
+    :back-route="route('maintenances.index')"
+    back-label="Pemeliharaan Aset"
+>
     <a href="{{ route('maintenances.scan') }}" class="btn btn-undira btn-sm"><i class="bi bi-qr-code-scan me-1"></i>Scan QR</a>
     <a href="{{ route('maintenance-schedules.index') }}" class="btn btn-outline-primary btn-sm">Jadwal</a>
     <a href="{{ route('maintenance-reports.index') }}" class="btn btn-outline-secondary btn-sm">Laporan</a>
-</x-ui.page-header>
+</x-page-header>
 
 <div class="row g-3 mb-3">
     @php

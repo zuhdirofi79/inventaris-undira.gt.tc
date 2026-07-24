@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Inventaris UNDIRA')</title>
-
-    <link rel="icon" type="image/png" href="{{ asset('images/favicon.png') }}">
-    <link rel="apple-touch-icon" href="{{ asset('images/logo-undira.png') }}">
+    @include('partials.favicon')
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -147,16 +145,23 @@
                     <li class="nav-header">UTAMA</li>
 
                     <li class="nav-item">
+                        @if(auth()->user()->hasRole('teknisi') && ! auth()->user()->hasAnyRole(['super-admin', 'admin', 'staff']))
+                        <a href="{{ route('teknisi-dashboard.index') }}" class="nav-link {{ request()->routeIs('teknisi-dashboard.*') ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-tachometer-alt"></i>
+                            <p>Dashboard Teknisi</p>
+                        </a>
+                        @else
                         <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-tachometer-alt"></i>
                             <p>Dashboard</p>
                         </a>
+                        @endif
                     </li>
 
                     @can('location.view')
                     <li class="nav-item">
                         <a href="{{ route('campuses.index') }}"
-                           class="nav-link {{ request()->routeIs('campuses.*', 'buildings.*', 'floors.*', 'rooms.*') && ! request()->routeIs('admin.*') ? 'active' : '' }}">
+                           class="nav-link {{ request()->routeIs('campuses.*', 'buildings.*', 'floors.*', 'rooms.*', 'locations.explore.*') && ! request()->routeIs('admin.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-map-marked-alt"></i>
                             <p>Jelajahi Lokasi</p>
                         </a>
@@ -194,13 +199,21 @@
                     </li>
                     @endif
 
-                    @if(auth()->user()->can('category.manage') || auth()->user()->can('unit.manage') || auth()->user()->can('procurement.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage') || auth()->user()->can('location.manage'))
-                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*','admin.locations.*') ? 'menu-open' : '' }}">
+                    @if(auth()->user()->can('category.manage') || auth()->user()->can('unit.manage') || auth()->user()->can('procurement.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage') || auth()->user()->can('location.manage') || auth()->user()->can('user.manage'))
+                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*','admin.locations.*','admin.users.*') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-database"></i>
                             <p>Master Data <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @can('user.manage')
+                            <li class="nav-item">
+                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-users-cog"></i>
+                                    <p>User Management</p>
+                                </a>
+                            </li>
+                            @endcan
                             @can('location.manage')
                             <li class="nav-item">
                                 <a href="{{ route('admin.locations.campuses.index') }}"
@@ -279,12 +292,20 @@
                     <li class="nav-header">OPERASI</li>
 
                     @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view') || auth()->user()->can('procurement.manage'))
-                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','maintenance-schedules.*','maintenance-dashboard.*','maintenance-reports.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*','inventory.damaged.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','maintenance-schedules.*','maintenance-dashboard.*','maintenance-approvals.*','teknisi-dashboard.*','maintenance-reports.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*','inventory.damaged.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
                         <a href="#" class="nav-link">
                             <i class="nav-icon fas fa-briefcase"></i>
                             <p>Operasional <i class="fas fa-angle-left right"></i></p>
                         </a>
                         <ul class="nav nav-treeview">
+                            @can('maintenance.create')
+                            <li class="nav-item">
+                                <a href="{{ route('maintenances.scan') }}" class="nav-link {{ request()->routeIs('maintenances.scan*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-qrcode"></i>
+                                    <p>Scan QR Maintenance</p>
+                                </a>
+                            </li>
+                            @endcan
                             @can('inventory.view')
                             <li class="nav-item">
                                 <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
@@ -302,16 +323,25 @@
                             </li>
                             @endcan
                             @can('maintenance.view')
+                            @if(auth()->user()->hasRole('teknisi') && ! auth()->user()->hasAnyRole(['super-admin', 'admin']))
+                            <li class="nav-item">
+                                <a href="{{ route('teknisi-dashboard.index') }}" class="nav-link {{ request()->routeIs('teknisi-dashboard.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-tachometer-alt"></i>
+                                    <p>Dashboard Teknisi</p>
+                                </a>
+                            </li>
+                            @else
                             <li class="nav-item">
                                 <a href="{{ route('maintenance-dashboard.index') }}" class="nav-link {{ request()->routeIs('maintenance-dashboard.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-tachometer-alt"></i>
                                     <p>Dashboard Maintenance</p>
                                 </a>
                             </li>
+                            @endif
                             <li class="nav-item">
-                                <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') && ! request()->routeIs('maintenance-schedules.*') && ! request()->routeIs('maintenance-dashboard.*') && ! request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
+                                <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') && ! request()->routeIs('maintenances.scan*') && ! request()->routeIs('maintenance-schedules.*') && ! request()->routeIs('maintenance-dashboard.*') && ! request()->routeIs('maintenance-reports.*') && ! request()->routeIs('maintenance-approvals.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-tools"></i>
-                                    <p>Work Order</p>
+                                    <p>Work Order / Riwayat</p>
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -320,12 +350,22 @@
                                     <p>Jadwal Preventif</p>
                                 </a>
                             </li>
+                            @can('maintenance.approve')
+                            <li class="nav-item">
+                                <a href="{{ route('maintenance-approvals.index') }}" class="nav-link {{ request()->routeIs('maintenance-approvals.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-clipboard-check"></i>
+                                    <p>Approval Maintenance</p>
+                                </a>
+                            </li>
+                            @endcan
+                            @can('report.view')
                             <li class="nav-item">
                                 <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-file-alt"></i>
                                     <p>Laporan Maintenance</p>
                                 </a>
                             </li>
+                            @endcan
                             @endcan
                             @can('inventory.view')
                             <li class="nav-item">
@@ -375,18 +415,35 @@
                     <li class="nav-header">LAPORAN</li>
 
                     @can('report.view')
-                    <li class="nav-item">
-                        <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
+                    <li class="nav-item {{ request()->routeIs('reports.*') ? 'menu-open' : '' }}">
+                        <a href="#" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-chart-bar"></i>
-                            <p>Laporan Inventaris</p>
+                            <p>Laporan <i class="fas fa-angle-left right"></i></p>
                         </a>
+                        <ul class="nav nav-treeview">
+                            <li class="nav-item">
+                                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.index') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-tachometer-alt"></i>
+                                    <p>Dashboard Laporan</p>
+                                </a>
+                            </li>
+                            @foreach(\App\Enums\InventoryReportType::menuTypes() as $reportType)
+                            <li class="nav-item">
+                                <a href="{{ route('reports.show', $reportType->value) }}"
+                                   class="nav-link {{ request()->routeIs('reports.show') && request()->route('type') === $reportType->value ? 'active' : '' }}">
+                                    <i class="nav-icon {{ $reportType->icon() }}"></i>
+                                    <p>{{ $reportType->label() }}</p>
+                                </a>
+                            </li>
+                            @endforeach
+                        </ul>
                     </li>
                     @endcan
                     @can('maintenance.view')
                     <li class="nav-item">
                         <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
                             <i class="nav-icon fas fa-tools"></i>
-                            <p>Laporan Maintenance</p>
+                            <p>Laporan Maintenance (WO)</p>
                         </a>
                     </li>
                     @endcan
@@ -412,7 +469,7 @@
                             <li class="nav-item">
                                 <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
                                     <i class="nav-icon fas fa-users"></i>
-                                    <p>Users</p>
+                                    <p>User Management</p>
                                 </a>
                             </li>
                             @endcan
@@ -441,17 +498,18 @@
     </aside>
 
     <div class="content-wrapper">
-        <div class="content-header">
+        {{-- Legacy breadcrumb fallback (prefer breadcrumbs on <x-page-header>) --}}
+        @hasSection('breadcrumb')
+        <div class="content-header content-header--legacy-breadcrumb">
             <div class="container-fluid">
-                @hasSection('breadcrumb')
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb breadcrumb-undira">
                         @yield('breadcrumb')
                     </ol>
                 </nav>
-                @endif
             </div>
         </div>
+        @endif
 
         <section class="content">
             <div class="container-fluid">
@@ -721,6 +779,7 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
     applyResponsiveDefaults(false);
 })();
 </script>
+<script src="{{ asset('js/page-header-shortcuts.js') }}" defer></script>
 @stack('scripts')
 </body>
 </html>

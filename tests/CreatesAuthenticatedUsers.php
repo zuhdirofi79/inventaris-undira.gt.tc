@@ -48,4 +48,9 @@ trait CreatesAuthenticatedUsers
     {
         return $this->makeUserWithRole('viewer', $overrides);
     }
+
+    protected function makeTeknisi(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('teknisi', $overrides);
+    }
 }

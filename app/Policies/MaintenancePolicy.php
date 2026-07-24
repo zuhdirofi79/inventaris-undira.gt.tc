@@ -31,4 +31,9 @@ class MaintenancePolicy
     {
         return $user->can('maintenance.delete');
     }
+
+    public function approve(User $user, Maintenance $maintenance): bool
+    {
+        return $user->can('maintenance.approve');
+    }
 }

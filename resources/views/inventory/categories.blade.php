@@ -2,25 +2,25 @@
 
 @section('title', 'Inventaris per Kategori - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('inventory.index') }}">Data Inventaris</a></li>
-    <li class="breadcrumb-item active">Per Kategori</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center flex-wrap gap-2">
-    <div>
-        <h1><i class="fas fa-th-large me-2"></i>Inventaris per Kategori</h1>
-        <p class="text-muted mb-0 small">Pilih kategori untuk menelusuri Kampus → Gedung → Lantai → Ruangan</p>
-    </div>
-    <div class="d-flex gap-2 flex-wrap">
-        @can('inventory.create')
-        <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="fas fa-sliders-h me-1"></i>Konfigurasi Inventaris</a>
-        @endcan
-        <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-university me-1"></i>Per Kampus</a>
-        <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="fas fa-list me-1"></i>Semua Item</a>
-    </div>
-</div>
+<x-page-header
+    title="Inventaris per Kategori"
+    subtitle="Pilih kategori untuk menelusuri Kampus → Gedung → Lantai → Ruangan"
+    icon="bi bi-grid-3x3-gap"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Per Kategori'],
+    ]"
+    :back-route="route('inventory.index')"
+    back-label="Data Inventaris"
+>
+    @can('inventory.create')
+    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="bi bi-sliders me-1"></i>Konfigurasi Inventaris</a>
+    @endcan
+    <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-building me-1"></i>Per Kampus</a>
+    <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul me-1"></i>Semua Item</a>
+</x-page-header>
 
 <div class="filter-panel">
     <form method="GET" action="{{ route('inventory.categories') }}" id="filterForm">

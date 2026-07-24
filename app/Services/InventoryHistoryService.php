@@ -167,6 +167,24 @@ class InventoryHistoryService
             $parts[] = "{$label}: ".($from ?: '—').' → '.($to ?: '—');
         }
 
+        $oldPicId = $old['pic_id'] ?? null;
+        $newPicId = $new['pic_id'] ?? null;
+        if (array_key_exists('pic_id', $new) && (string) $oldPicId !== (string) $newPicId) {
+            $fromPic = $old['pic_name']
+                ?? (\App\Models\User::query()->whereKey($oldPicId)->value('name'))
+                ?? 'Belum ditentukan';
+            $toPic = $new['pic_name']
+                ?? (\App\Models\User::query()->whereKey($newPicId)->value('name'))
+                ?? 'Belum ditentukan';
+            if (! $oldPicId) {
+                $fromPic = 'Belum ditentukan';
+            }
+            if (! $newPicId) {
+                $toPic = 'Belum ditentukan';
+            }
+            $parts[] = "PIC diubah: Dari {$fromPic} Menjadi {$toPic}";
+        }
+
         if ($parts === [] && filled($log->description)) {
             return $log->description;
         }

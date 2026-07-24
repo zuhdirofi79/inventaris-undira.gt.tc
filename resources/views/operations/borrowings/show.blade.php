@@ -2,18 +2,23 @@
 
 @section('title', 'Detail Peminjaman - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('borrowings.index') }}">Peminjaman</a></li>
-    <li class="breadcrumb-item active">Detail</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira d-flex justify-content-between align-items-center">
-    <h1><i class="fas fa-hand-holding me-2"></i>Detail Peminjaman</h1>
+<x-page-header
+    title="Detail Peminjaman"
+    subtitle="{{ $borrowing->borrower_name }} · {{ $borrowing->inventoryItem?->inventory_number }}"
+    icon="bi bi-hand-index"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Peminjaman', 'url' => route('borrowings.index')],
+        ['label' => 'Detail'],
+    ]"
+    :back-route="route('borrowings.index')"
+    back-label="Daftar Peminjaman"
+>
     @can('borrowing.update')
     <a href="{{ route('borrowings.edit', $borrowing) }}" class="btn btn-warning btn-sm"><i class="fas fa-edit me-1"></i>Edit</a>
     @endcan
-</div>
+</x-page-header>
 
 <div class="row">
     <div class="col-lg-6">

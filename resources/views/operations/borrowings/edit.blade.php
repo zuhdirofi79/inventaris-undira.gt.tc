@@ -2,14 +2,20 @@
 
 @section('title', 'Edit Peminjaman - Inventaris UNDIRA')
 
-@section('breadcrumb')
-    <li class="breadcrumb-item"><a href="{{ route('borrowings.index') }}">Peminjaman</a></li>
-    <li class="breadcrumb-item"><a href="{{ route('borrowings.show', $borrowing) }}">Detail</a></li>
-    <li class="breadcrumb-item active">Edit</li>
-@endsection
-
 @section('content')
-<div class="page-header-undira"><h1><i class="fas fa-edit me-2"></i>Edit Peminjaman</h1></div>
+<x-page-header
+    title="Edit Peminjaman"
+    subtitle="Perbarui data peminjam, tanggal, dan status pengembalian"
+    icon="bi bi-pencil-square"
+    :breadcrumbs="[
+        ['label' => 'Dashboard', 'url' => route('dashboard')],
+        ['label' => 'Peminjaman', 'url' => route('borrowings.index')],
+        ['label' => 'Edit'],
+    ]"
+    :back-route="route('borrowings.index')"
+    back-label="Daftar Peminjaman"
+    :list-back="true"
+/>
 
 <form action="{{ route('borrowings.update', $borrowing) }}" method="POST">
     @csrf @method('PUT')
