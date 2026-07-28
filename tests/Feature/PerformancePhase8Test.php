@@ -86,10 +86,10 @@ class PerformancePhase8Test extends TestCase
         $second = $service->summary();
 
         $this->assertSame($first['total_inventory'], $second['total_inventory']);
-        $this->assertTrue(Cache::has(InventarisCache::key('dashboard.summary')));
+        $this->assertTrue(Cache::has(InventarisCache::key('dashboard.summary.v3')));
 
         \App\Services\DashboardTreeService::flushCache();
-        $this->assertFalse(Cache::has(InventarisCache::key('dashboard.summary')));
+        $this->assertFalse(Cache::has(InventarisCache::key('dashboard.summary.v3')));
     }
 
     public function test_report_export_requires_at_least_one_filter(): void

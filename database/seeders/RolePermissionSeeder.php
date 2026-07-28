@@ -40,6 +40,7 @@ class RolePermissionSeeder extends Seeder
         'borrowing.create',
         'borrowing.update',
         'borrowing.delete',
+        'borrowing.approve',
         'maintenance.view',
         'maintenance.create',
         'maintenance.update',

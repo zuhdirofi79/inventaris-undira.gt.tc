@@ -40,12 +40,15 @@
         <thead>
             <tr>
                 <th>No</th>
+                <th>Nomor Approval</th>
                 <th>No Peminjaman</th>
                 <th>Peminjam</th>
                 <th>Barang</th>
                 <th>Tgl Pinjam</th>
                 <th>Tgl Kembali</th>
                 <th>Status</th>
+                <th>Approved By</th>
+                <th>Approved At</th>
                 <th>Durasi</th>
             </tr>
         </thead>
@@ -58,12 +61,15 @@
                 @endphp
                 <tr>
                     <td>{{ $loop->iteration }}</td>
+                    <td>{{ $b->approval_number ?? '—' }}</td>
                     <td>PIN-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
                     <td>{{ $item?->name }} ({{ $item?->inventory_number }})</td>
                     <td>{{ $b->borrow_date?->format('d/m/Y') }}</td>
                     <td>{{ $b->return_date?->format('d/m/Y') ?? '—' }}</td>
                     <td>{{ $b->status?->label() }}</td>
+                    <td>{{ $b->approvedBy?->name ?? '—' }}</td>
+                    <td>{{ $b->approved_at?->format('d/m/Y H:i') ?? '—' }}</td>
                     <td>{{ $dur }}</td>
                 </tr>
             @endforeach

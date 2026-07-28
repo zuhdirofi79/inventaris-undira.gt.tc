@@ -50,10 +50,14 @@ class AuditAndNotificationPhase4Test extends TestCase
             ->assertRedirect(route('borrowings.index'));
 
         $this->assertTrue(AuditLog::query()->where('description', 'BORROWING_CREATED')->exists());
-        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+        $this->assertSame(
+            BorrowingStatus::MenungguPersetujuan,
+            Borrowing::query()->where('inventory_item_id', $item->id)->first()?->status
+        );
 
         Notification::assertSentTo($admin, BorrowingCreatedNotification::class);
-        Notification::assertSentTo($staff, BorrowingCreatedNotification::class);
+        Notification::assertNotSentTo($staff, BorrowingCreatedNotification::class);
     }
 
     public function test_maintenance_store_writes_audit(): void

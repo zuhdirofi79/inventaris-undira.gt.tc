@@ -205,6 +205,96 @@ class InventoryReportTest extends TestCase
             ->assertJsonPath('data.0.name', 'Gedung A');
     }
 
+    public function test_report_includes_purchase_year_and_sub_category_recap(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        [$campus, $room, $category, $subMeja] = $this->seedLocationWithCategory();
+
+        $subKursi = SubCategory::query()->create([
+            'category_id' => $category->id,
+            'code' => 'KRS',
+            'name' => 'Kursi',
+            'slug' => 'kursi-rpt-recap',
+            'is_active' => true,
+        ]);
+
+        InventoryItem::query()->create([
+            'name' => 'Meja Satu',
+            'inventory_number' => 'RPT-YR-1',
+            'barcode' => 'RPT-YR-1',
+            'room_id' => $room->id,
+            'category_id' => $category->id,
+            'sub_category_id' => $subMeja->id,
+            'condition' => 'bagus',
+            'status' => 'aktif',
+            'purchase_year' => 2024,
+            'price' => 100000,
+            'quantity' => 1,
+        ]);
+        InventoryItem::query()->create([
+            'name' => 'Kursi Satu',
+            'inventory_number' => 'RPT-YR-2',
+            'barcode' => 'RPT-YR-2',
+            'room_id' => $room->id,
+            'category_id' => $category->id,
+            'sub_category_id' => $subKursi->id,
+            'condition' => 'bagus',
+            'status' => 'aktif',
+            'purchase_year' => null,
+            'price' => 50000,
+            'quantity' => 1,
+        ]);
+        InventoryItem::query()->create([
+            'name' => 'Kursi Dua',
+            'inventory_number' => 'RPT-YR-3',
+            'barcode' => 'RPT-YR-3',
+            'room_id' => $room->id,
+            'category_id' => $category->id,
+            'sub_category_id' => $subKursi->id,
+            'condition' => 'bagus',
+            'status' => 'aktif',
+            'purchase_year' => 2022,
+            'price' => 50000,
+            'quantity' => 1,
+        ]);
+
+        $request = \Illuminate\Http\Request::create('/reports/per-kampus/export', 'POST', [
+            'campus_id' => $campus->id,
+        ]);
+        $request->setUserResolver(fn () => $admin);
+
+        $doc = app(\App\Services\Reports\EamReportService::class)
+            ->buildInventoryDocument($request, \App\Enums\InventoryReportType::ByCampus, 'portrait');
+
+        $recap = $doc['summary']['sub_category_recap'];
+        $this->assertSame(['Kursi', 'Meja'], array_column($recap['rows'], 'label'));
+        $this->assertSame([2, 1], array_column($recap['rows'], 'count'));
+        $this->assertSame(2, $recap['kind_count']);
+        $this->assertSame(3, $recap['total_units']);
+
+        $buildingRecap = $doc['tree'][0]['buildings'][0]['sub_category_recap'];
+        $this->assertSame('Kursi', $buildingRecap['rows'][0]['label']);
+
+        $html = view('exports.inventory-pdf', $doc)->render();
+        $this->assertStringContainsString('Tahun Pengadaan', $html);
+        $this->assertStringContainsString('STATISTIK KOMPOSISI INVENTARIS', $html);
+        $this->assertStringContainsString('Komposisi Berdasarkan Kategori', $html);
+        $this->assertStringContainsString('Top 10 Sub Kategori', $html);
+        $this->assertStringContainsString('REKAP SUB KATEGORI INVENTARIS', $html);
+        $this->assertStringContainsString('Rekap Sub Kategori', $html);
+        $this->assertStringContainsString('Ringkasan Lantai', $html);
+        $this->assertStringContainsString('Ringkasan Ruangan', $html);
+        $this->assertStringContainsString('>2024<', $html);
+        $this->assertStringContainsString('>-</td>', $html);
+
+        $composition = $doc['summary']['composition'];
+        $this->assertSame('Furniture', $composition['by_category']['rows'][0]['label']);
+        $this->assertSame(100, $composition['by_category']['rows'][0]['percent']);
+        $this->assertCount(2, $composition['top_sub_categories']);
+        $this->assertSame(1, $composition['location']['kampus']);
+        $this->assertSame(3, $composition['location']['total_inventaris']);
+    }
+
     /**
      * @return array{0: Campus, 1: Room, 2: Category, 3: SubCategory}
      */

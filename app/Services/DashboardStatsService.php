@@ -33,7 +33,7 @@ class DashboardStatsService
      */
     public function summary(): array
     {
-        return Cache::remember(InventarisCache::key('dashboard.summary'), InventarisCache::TTL, function () {
+        return Cache::remember(InventarisCache::key('dashboard.summary.v3'), InventarisCache::TTL, function () {
             $statusCounts = InventoryItem::query()
                 ->toBase()
                 ->selectRaw('status, COUNT(*) as total')
@@ -62,6 +62,8 @@ class DashboardStatsService
             $totalInventory = (int) array_sum($statusCounts->all());
             $preventiveDue = (int) ($scheduleSummary['due_today'] + $scheduleSummary['due_this_week']);
 
+            $approvalStats = $this->borrowingApprovalStats();
+
             return [
                 'total_campuses' => Campus::query()->where('is_active', true)->count(),
                 'total_buildings' => Building::query()->where('is_active', true)->count(),
@@ -86,6 +88,11 @@ class DashboardStatsService
                 'preventive_due' => $preventiveDue,
                 'auctioned' => $auctioned,
                 'destroyed' => $destroyed,
+                'pending_approval' => $approvalStats['pending_approval'],
+                'approved_today' => $approvalStats['approved_today'],
+                'rejected_today' => $approvalStats['rejected_today'],
+                'active_loans' => $approvalStats['active_loans'],
+                'overdue_loans' => $approvalStats['overdue_loans'],
                 'widgets' => [
                     'total_inventory' => $totalInventory,
                     'good_condition' => $goodCondition,
@@ -97,11 +104,45 @@ class DashboardStatsService
                     'lost' => $lost,
                     'auctioned' => $auctioned,
                     'destroyed' => $destroyed,
+                    'pending_approval' => $approvalStats['pending_approval'],
+                    'approved_today' => $approvalStats['approved_today'],
+                    'rejected_today' => $approvalStats['rejected_today'],
+                    'active_loans' => $approvalStats['active_loans'],
+                    'overdue_loans' => $approvalStats['overdue_loans'],
                 ],
                 'campus_stats' => $this->campusStats(),
                 'charts' => $this->chartData($statusCounts),
             ];
         });
+    }
+
+    /**
+     * @return array{pending_approval:int,approved_today:int,rejected_today:int,active_loans:int,overdue_loans:int}
+     */
+    protected function borrowingApprovalStats(): array
+    {
+        $today = now()->toDateString();
+
+        return [
+            'pending_approval' => (int) Borrowing::query()
+                ->where('status', \App\Enums\BorrowingStatus::MenungguPersetujuan)
+                ->count(),
+            'approved_today' => (int) Borrowing::query()
+                ->whereDate('approved_at', $today)
+                ->count(),
+            'rejected_today' => (int) Borrowing::query()
+                ->whereDate('rejected_at', $today)
+                ->count(),
+            'active_loans' => (int) Borrowing::query()
+                ->whereIn('status', [
+                    \App\Enums\BorrowingStatus::Disetujui,
+                    \App\Enums\BorrowingStatus::Dipinjam,
+                ])
+                ->count(),
+            'overdue_loans' => (int) Borrowing::query()
+                ->where('status', \App\Enums\BorrowingStatus::Terlambat)
+                ->count(),
+        ];
     }
 
     /**
@@ -268,6 +309,90 @@ class DashboardStatsService
     }
 
     /**
+     * Active inventory only: Campus → Category → Subcategory → COUNT.
+     * Separate from campusStats()/summary() so existing dashboard queries stay unchanged.
+     *
+     * @return list<array{
+     *   campus_id: int,
+     *   campus_name: string,
+     *   campus_code: string,
+     *   total: int,
+     *   categories: list<array{
+     *     category: string,
+     *     total: int,
+     *     subcategories: list<array{name: string, total: int}>
+     *   }>
+     * }>
+     */
+    public function activeCampusCategorySubcategoryBreakdown(): array
+    {
+        return Cache::remember(InventarisCache::key('campus.active.cat.sub.v1'), InventarisCache::TTL, function () {
+            $campuses = Campus::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name', 'code']);
+
+            if ($campuses->isEmpty()) {
+                return [];
+            }
+
+            $rows = InventoryItem::query()
+                ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
+                ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+                ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+                ->join('campuses', 'campuses.id', '=', 'buildings.campus_id')
+                ->join('categories', 'categories.id', '=', 'inventory_items.category_id')
+                ->leftJoin('sub_categories', 'sub_categories.id', '=', 'inventory_items.sub_category_id')
+                ->where('inventory_items.status', InventoryStatus::Aktif->value)
+                ->whereIn('campuses.id', $campuses->pluck('id'))
+                ->selectRaw('campuses.id as campus_id')
+                ->selectRaw('categories.id as category_id, categories.name as category_name')
+                ->selectRaw('COALESCE(sub_categories.name, \'Tanpa sub\') as sub_name')
+                ->selectRaw('COUNT(inventory_items.id) as total')
+                ->groupBy('campuses.id', 'categories.id', 'categories.name', 'sub_name')
+                ->orderBy('categories.name')
+                ->orderByDesc('total')
+                ->get();
+
+            $byCampus = $rows->groupBy('campus_id');
+
+            return $campuses->map(function (Campus $campus) use ($byCampus) {
+                $campusRows = $byCampus->get($campus->id, collect());
+
+                $categories = $campusRows
+                    ->groupBy('category_id')
+                    ->map(function (Collection $catRows) {
+                        $first = $catRows->first();
+
+                        return [
+                            'category' => (string) $first->category_name,
+                            'total' => (int) $catRows->sum('total'),
+                            'subcategories' => $catRows
+                                ->map(fn ($row) => [
+                                    'name' => (string) $row->sub_name,
+                                    'total' => (int) $row->total,
+                                ])
+                                ->sortByDesc('total')
+                                ->values()
+                                ->all(),
+                        ];
+                    })
+                    ->sortBy('category')
+                    ->values()
+                    ->all();
+
+                return [
+                    'campus_id' => (int) $campus->id,
+                    'campus_name' => $campus->name,
+                    'campus_code' => $campus->code,
+                    'total' => (int) collect($categories)->sum('total'),
+                    'categories' => $categories,
+                ];
+            })->values()->all();
+        });
+    }
+
+    /**
      * @return list<array{campus_id: int, campus_name: string, categories: list<array{name: string, code: string, total: int}>}>
      */
     public function campusCategoryBreakdown(): array
@@ -283,8 +408,12 @@ class DashboardStatsService
     }
 
     /**
-     * @param  Collection<int, int|string>  $statusCounts
-     * @return array<string, mixed>
+     * Chart payloads must be plain arrays (never Eloquent Collections).
+     * Caching Eloquent Collections in dashboard.summary caused
+     * __PHP_Incomplete_Class after refresh → @json broke → Chart.js blank.
+     *
+     * @param  Collection<int, int|string>|array<string, int|string>|null  $statusCounts
+     * @return array<string, list<array{label: string, total: int}>>
      */
     public function chartData($statusCounts = null): array
     {
@@ -299,17 +428,31 @@ class DashboardStatsService
             ->join('floors', 'rooms.floor_id', '=', 'floors.id')
             ->join('buildings', 'floors.building_id', '=', 'buildings.id')
             ->join('campuses', 'buildings.campus_id', '=', 'campuses.id')
+            ->toBase()
             ->selectRaw('campuses.name as label, COUNT(*) as total')
             ->groupBy('campuses.name')
             ->orderByDesc('total')
-            ->get();
+            ->get()
+            ->map(fn ($row) => [
+                'label' => (string) $row->label,
+                'total' => (int) $row->total,
+            ])
+            ->values()
+            ->all();
 
         $byCategory = InventoryItem::query()
             ->join('categories', 'inventory_items.category_id', '=', 'categories.id')
+            ->toBase()
             ->selectRaw('categories.name as label, COUNT(*) as total')
             ->groupBy('categories.name')
             ->orderByDesc('total')
-            ->get();
+            ->get()
+            ->map(fn ($row) => [
+                'label' => (string) $row->label,
+                'total' => (int) $row->total,
+            ])
+            ->values()
+            ->all();
 
         $byStatus = [];
         foreach ($statusCounts as $key => $total) {
@@ -333,7 +476,8 @@ class DashboardStatsService
                     'total' => (int) $row->total,
                 ];
             })
-            ->values();
+            ->values()
+            ->all();
 
         return [
             'by_campus' => $byCampus,

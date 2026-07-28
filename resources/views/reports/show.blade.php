@@ -82,12 +82,15 @@
         ],
         borrowing: [
             {key:'no', label:'No'},
+            {key:'approval_number', label:'Nomor Approval'},
             {key:'borrowing_number', label:'No Peminjaman'},
             {key:'borrower', label:'Peminjam'},
             {key:'item', label:'Barang'},
             {key:'borrow_date', label:'Tgl Pinjam'},
             {key:'return_date', label:'Tgl Kembali'},
             {key:'status', label:'Status'},
+            {key:'approved_by', label:'Approved By'},
+            {key:'approved_at', label:'Approved At'},
             {key:'duration', label:'Durasi'},
         ],
         maintenance: [

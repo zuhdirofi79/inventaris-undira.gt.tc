@@ -54,6 +54,20 @@ class StoreBorrowingRequest extends FormRequest
                     'inventory_item_id',
                     'Inventaris tidak dapat dipinjam (status: '.($status?->label() ?? 'tidak valid').'). Hanya status Aktif yang boleh dipinjam.',
                 );
+
+                return;
+            }
+
+            $hasOpenLoan = Borrowing::query()
+                ->where('inventory_item_id', $id)
+                ->whereIn('status', BorrowingStatus::blockingValues())
+                ->exists();
+
+            if ($hasOpenLoan) {
+                $validator->errors()->add(
+                    'inventory_item_id',
+                    'Inventaris masih memiliki peminjaman aktif atau menunggu persetujuan.',
+                );
             }
         });
     }

@@ -77,3 +77,11 @@
         </tr>
     </tbody>
 </table>
+
+@include('reports._composition')
+
+@include('reports._sub-category-recap', [
+    'recap' => $summary['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
+    'title' => 'REKAP SUB KATEGORI INVENTARIS',
+    'variant' => 'global',
+])

@@ -761,7 +761,7 @@ class InventoryController extends Controller
 
         $orderColumn = $request->input('order.0.column', 0);
         $orderDir = $request->input('order.0.dir', 'asc');
-        $columns = ['inventory_number', 'name', 'category_id', null, null, 'status', 'condition', null];
+        $columns = [null, 'inventory_number', 'name', 'category_id', null, null, 'status', 'condition', null];
         $orderBy = $columns[$orderColumn] ?? 'inventory_number';
 
         $items = $query
@@ -792,9 +792,16 @@ class InventoryController extends Controller
         ]);
     }
 
+    /**
+     * Cascade dropdown data — always a Collection (empty when campus/location missing).
+     *
+     * @return \Illuminate\Support\Collection<int, \App\Models\Campus>
+     */
     protected function locationTree(?int $campusId = null)
     {
-        return $this->locationHierarchy->activeTree($campusId);
+        $tree = $this->locationHierarchy->activeTree($campusId);
+
+        return $tree instanceof \Illuminate\Support\Collection ? $tree : collect();
     }
 
     /**

@@ -7,6 +7,8 @@ use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BorrowingController;
+use App\Http\Controllers\BorrowingApprovalHistoryController;
+use App\Http\Controllers\BorrowingApprovalPublicController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\BuildingManagementController;
 use App\Http\Controllers\CampusController;
@@ -14,6 +16,7 @@ use App\Http\Controllers\CampusManagementController;
 use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\InventoryMasterConfigurationController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardCampusSummaryController;
 use App\Http\Controllers\DeletionApprovalController;
 use App\Http\Controllers\FloorController;
 use App\Http\Controllers\FloorManagementController;
@@ -55,6 +58,16 @@ Route::get('/', fn () => redirect()->route('login'));
 Route::get('/scan/{inventoryNumber}', [InventoryQrController::class, 'scan'])
     ->middleware('throttle:60,1')
     ->name('inventory.scan');
+
+Route::get('/borrowing/approval/{approvalNumber}', [BorrowingApprovalPublicController::class, 'show'])
+    ->where('approvalNumber', 'APR-\d{8}-\d{6}')
+    ->name('borrowing.approval.public');
+Route::get('/borrowing/approval/{approvalNumber}/receipt', [BorrowingApprovalPublicController::class, 'receipt'])
+    ->where('approvalNumber', 'APR-\d{8}-\d{6}')
+    ->name('borrowing.approval.receipt');
+Route::get('/borrowing/approval/{approvalNumber}/receipt/pdf', [BorrowingApprovalPublicController::class, 'receiptPdf'])
+    ->where('approvalNumber', 'APR-\d{8}-\d{6}')
+    ->name('borrowing.approval.receipt.pdf');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
@@ -104,6 +117,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::get('/dashboard/tree/floors/{floor}/rooms', [DashboardController::class, 'treeRooms'])->name('dashboard.tree.rooms');
     Route::get('/dashboard/tree/rooms/{room}/categories', [DashboardController::class, 'treeCategories'])->name('dashboard.tree.categories');
     Route::get('/dashboard/tree/rooms/{room}/categories/{category}/items', [DashboardController::class, 'treeItems'])->name('dashboard.tree.items');
+    Route::get('/dashboard/campus-summary/partial', [DashboardCampusSummaryController::class, 'partial'])
+        ->name('dashboard.campus-summary.partial');
+    Route::post('/dashboard/campus-summary/refresh', [DashboardCampusSummaryController::class, 'refresh'])
+        ->middleware('throttle:20,1')
+        ->name('dashboard.campus-summary.refresh');
 
     Route::middleware('permission:inventory.view')->group(function () {
         Route::get('/scanner', [ScannerController::class, 'index'])->name('scanner.index');
@@ -190,6 +208,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
             ->whereNumber('subCategory')
             ->name('inventory.campus.sub-category-items');
         Route::post('/inventory/labels', [InventoryQrController::class, 'labels'])->name('inventory.labels');
+        Route::post('/inventory/labels/mass-30', [InventoryQrController::class, 'massLabels30'])->name('inventory.labels.mass30');
         Route::get('/inventory/{inventory}/qr', [InventoryQrController::class, 'inlineQr'])->name('inventory.qr');
         Route::get('/inventory/{inventory}/qr/download', [InventoryQrController::class, 'downloadQr'])->name('inventory.qr.download');
         Route::get('/inventory/{inventory}/label/print', [InventoryQrController::class, 'print'])->name('inventory.label.print');
@@ -319,10 +338,19 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:borrowing.view')->group(function () {
         Route::get('/borrowings', [BorrowingController::class, 'index'])->name('borrowings.index');
         Route::get('/borrowings/{borrowing}', [BorrowingController::class, 'show'])->name('borrowings.show');
+        Route::get('/borrowings/{borrowing}/receipt', [BorrowingController::class, 'receipt'])->name('borrowings.receipt');
+        Route::get('/borrowings/{borrowing}/receipt/pdf', [BorrowingController::class, 'receiptPdf'])->name('borrowings.receipt.pdf');
     });
     Route::middleware('permission:borrowing.update')->group(function () {
         Route::get('/borrowings/{borrowing}/edit', [BorrowingController::class, 'edit'])->name('borrowings.edit');
         Route::put('/borrowings/{borrowing}', [BorrowingController::class, 'update'])->name('borrowings.update');
+    });
+    Route::middleware('permission:borrowing.approve')->group(function () {
+        Route::post('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');
+        Route::post('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
+        Route::get('/borrowing-approvals', [BorrowingApprovalHistoryController::class, 'index'])->name('borrowing-approvals.index');
+        Route::get('/borrowing-approvals/export/pdf', [BorrowingApprovalHistoryController::class, 'exportPdf'])->name('borrowing-approvals.export.pdf');
+        Route::get('/borrowing-approvals/export/excel', [BorrowingApprovalHistoryController::class, 'exportExcel'])->name('borrowing-approvals.export.excel');
     });
     Route::middleware('permission:borrowing.delete')->group(function () {
         Route::delete('/borrowings/{borrowing}', [BorrowingController::class, 'destroy'])->name('borrowings.destroy');

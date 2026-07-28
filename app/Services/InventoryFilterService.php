@@ -30,7 +30,11 @@ class InventoryFilterService
             ->when($filters['procurement_type_id'] ?? null, fn (Builder $q, $id) => $q->where('procurement_type_id', (int) $id))
             ->when(filter_var($filters['borrowed'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->where(function (Builder $inner) {
                 $inner->where('status', InventoryStatus::Dipinjam)
-                    ->orWhereHas('borrowings', fn (Builder $b) => $b->where('status', BorrowingStatus::Dipinjam));
+                    ->orWhereHas('borrowings', fn (Builder $b) => $b->whereIn('status', [
+                        BorrowingStatus::Dipinjam,
+                        BorrowingStatus::Disetujui,
+                        BorrowingStatus::Terlambat,
+                    ]));
             }))
             ->when(filter_var($filters['damaged'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->where(function (Builder $inner) {
                 $inner->whereIn('status', InventoryStatus::damagedValues())

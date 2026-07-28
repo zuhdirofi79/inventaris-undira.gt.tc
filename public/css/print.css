@@ -287,14 +287,15 @@ html, body {
     padding: 2px !important;
 }
 
-/* Portrait column widths (7 cols) */
-.rpt-table--portrait .rpt-col-no { width: 5%; text-align: center; }
-.rpt-table--portrait .rpt-col-qr { width: 12%; }
-.rpt-table--portrait .rpt-col-inv { width: 18%; }
-.rpt-table--portrait .rpt-col-name { width: 18%; }
-.rpt-table--portrait .rpt-col-loc { width: 27%; }
-.rpt-table--portrait .rpt-col-status { width: 10%; }
-.rpt-table--portrait .rpt-col-cond { width: 10%; }
+/* Portrait column widths (8 cols) */
+.rpt-table--portrait .rpt-col-no { width: 4%; text-align: center; }
+.rpt-table--portrait .rpt-col-qr { width: 11%; }
+.rpt-table--portrait .rpt-col-inv { width: 16%; }
+.rpt-table--portrait .rpt-col-name { width: 16%; }
+.rpt-table--portrait .rpt-col-loc { width: 23%; }
+.rpt-table--portrait .rpt-col-status { width: 9%; }
+.rpt-table--portrait .rpt-col-cond { width: 9%; }
+.rpt-table--portrait .rpt-col-year { width: 12%; text-align: center; }
 .rpt-table--portrait .rpt-qr {
     width: 18mm;
     height: 18mm;
@@ -302,20 +303,21 @@ html, body {
     max-height: 18mm;
 }
 
-/* Landscape column widths (13 cols) — fill page width */
+/* Landscape column widths (14 cols) — fill page width */
 .rpt-table--landscape .rpt-col-no { width: 3%; text-align: center; }
-.rpt-table--landscape .rpt-col-qr { width: 7%; }
-.rpt-table--landscape .rpt-col-inv { width: 11%; }
-.rpt-table--landscape .rpt-col-name { width: 11%; }
-.rpt-table--landscape .rpt-col-cat { width: 7%; }
-.rpt-table--landscape .rpt-col-sub { width: 7%; }
-.rpt-table--landscape .rpt-col-brand { width: 7%; }
-.rpt-table--landscape .rpt-col-sn { width: 9%; }
-.rpt-table--landscape .rpt-col-loc { width: 12%; }
-.rpt-table--landscape .rpt-col-pic { width: 8%; }
+.rpt-table--landscape .rpt-col-qr { width: 6%; }
+.rpt-table--landscape .rpt-col-inv { width: 10%; }
+.rpt-table--landscape .rpt-col-name { width: 10%; }
+.rpt-table--landscape .rpt-col-cat { width: 6%; }
+.rpt-table--landscape .rpt-col-sub { width: 6%; }
+.rpt-table--landscape .rpt-col-brand { width: 6%; }
+.rpt-table--landscape .rpt-col-sn { width: 8%; }
+.rpt-table--landscape .rpt-col-loc { width: 11%; }
+.rpt-table--landscape .rpt-col-pic { width: 7%; }
 .rpt-table--landscape .rpt-col-status { width: 5%; }
 .rpt-table--landscape .rpt-col-cond { width: 5%; }
-.rpt-table--landscape .rpt-col-date { width: 8%; }
+.rpt-table--landscape .rpt-col-year { width: 6%; text-align: center; }
+.rpt-table--landscape .rpt-col-date { width: 7%; }
 .rpt-table--landscape .rpt-qr {
     width: 18mm;
     height: 18mm;
@@ -335,6 +337,193 @@ html, body {
 .rpt-table--landscape td {
     padding: 2px 2px;
 }
+
+/* —— Sub-category recap (additive) —— */
+.rpt-recap {
+    margin: 4px 0 8px;
+    page-break-inside: avoid;
+}
+
+.rpt-recap-title {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0 0 3px;
+    color: #222;
+}
+
+.rpt-recap-table {
+    width: 100%;
+    max-width: 420px;
+    border-collapse: collapse;
+    table-layout: fixed;
+    font-size: 8px;
+}
+
+.rpt-recap-table thead {
+    display: table-header-group;
+}
+
+.rpt-recap-table tfoot {
+    display: table-footer-group;
+}
+
+.rpt-recap-table th {
+    background: #4a4a4a;
+    color: #fff;
+    font-weight: 700;
+    text-align: left;
+    border: 0.5pt solid #333;
+    padding: 3px 4px;
+}
+
+.rpt-recap-table td {
+    border: 0.5pt solid #999;
+    padding: 3px 4px;
+    color: #111;
+}
+
+.rpt-recap-table tbody tr:nth-child(odd) td { background: #fff; }
+.rpt-recap-table tbody tr:nth-child(even) td { background: #f0f0f0; }
+
+.rpt-recap-table tfoot td {
+    background: #ececec;
+    font-weight: 700;
+    border: 0.5pt solid #666;
+}
+
+.rpt-recap-qty {
+    text-align: right;
+    width: 38%;
+}
+
+.rpt-recap--building,
+.rpt-recap--floor,
+.rpt-recap--room {
+    margin-top: 2px;
+}
+
+.rpt-recap--room .rpt-recap-table {
+    max-width: 360px;
+}
+
+/* —— Statistik Komposisi Inventaris —— */
+.rpt-composition {
+    margin: 8px 0 10px;
+    page-break-inside: avoid;
+}
+
+.rpt-composition-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0 0 2px;
+    color: #222;
+    border-bottom: 1px solid #888;
+    padding-bottom: 2px;
+}
+
+.rpt-composition-note {
+    font-size: 7.5px;
+    color: #555;
+    margin: 0 0 6px;
+}
+
+.rpt-composition-subtitle {
+    font-size: 8.5px;
+    font-weight: 700;
+    margin: 0 0 3px;
+    color: #333;
+}
+
+.rpt-composition-layout {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 6px 6px;
+    margin-bottom: 2px;
+}
+
+.rpt-composition-block {
+    vertical-align: top;
+    width: 50%;
+}
+
+.rpt-composition-table {
+    max-width: none;
+    width: 100%;
+}
+
+.rpt-bars {
+    margin-top: 6px;
+}
+
+.rpt-bar-item {
+    margin-bottom: 4px;
+    page-break-inside: avoid;
+}
+
+.rpt-bar-label {
+    font-size: 7.5px;
+    font-weight: 600;
+    margin-bottom: 1px;
+}
+
+.rpt-bar-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rpt-bar-track-cell {
+    width: 85%;
+    padding: 0;
+    vertical-align: middle;
+}
+
+.rpt-bar-track {
+    height: 8px;
+    background: #e5e5e5;
+    border: 0.5pt solid #999;
+    overflow: hidden;
+}
+
+.rpt-bar-fill {
+    height: 8px;
+    background: #4a4a4a;
+    line-height: 8px;
+    font-size: 1px;
+    color: #4a4a4a;
+}
+
+.rpt-bar-pct {
+    width: 15%;
+    font-size: 7px;
+    text-align: right;
+    color: #444;
+    padding-left: 4px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.rpt-top-list {
+    margin: 0;
+    padding: 0 0 0 16px;
+    font-size: 8px;
+}
+
+.rpt-top-list li {
+    margin: 0 0 2px;
+    page-break-inside: avoid;
+}
+
+.rpt-top-name { font-weight: 600; }
+.rpt-top-dots {
+    display: inline-block;
+    border-bottom: 1px dotted #999;
+    width: 35%;
+    margin: 0 4px;
+    vertical-align: middle;
+}
+.rpt-top-count { font-weight: 700; }
 
 /* —— Section totals —— */
 .rpt-total {
@@ -480,11 +669,13 @@ html, body {
         content: none !important;
     }
 
-    .rpt-table thead {
+    .rpt-table thead,
+    .rpt-recap-table thead {
         display: table-header-group;
     }
 
-    .rpt-table tr {
+    .rpt-table tr,
+    .rpt-recap-table tr {
         page-break-inside: avoid;
     }
 }

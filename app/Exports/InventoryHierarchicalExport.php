@@ -30,7 +30,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
 
     public function title(): string
     {
-        return 'Laporan Inventaris';
+        return 'Detail Inventaris';
     }
 
     public function headings(): array
@@ -49,6 +49,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
             'Merk',
             'Serial Number',
             'Kondisi',
+            'Tahun Pengadaan',
             'Status',
             'PIC',
             'Jumlah',
@@ -59,7 +60,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
     public function array(): array
     {
         $rows = [];
-        $cols = 17;
+        $cols = 18;
 
         foreach ($this->filters as $label => $value) {
             $rows[] = $this->pad(['FILTER', $label, (string) $value], $cols);
@@ -91,12 +92,31 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
             'Maintenance',
             (string) ($this->summary['maintenance'] ?? 0),
         ], $cols);
+
+        $recap = $this->summary['sub_category_recap'] ?? ['rows' => []];
+        foreach ($recap['rows'] ?? [] as $row) {
+            $rows[] = $this->pad([
+                'REKAP SUB KATEGORI',
+                $row['label'] ?? '',
+                (string) ($row['count'] ?? 0).' Unit',
+            ], $cols);
+        }
+        if (! empty($recap['rows'])) {
+            $rows[] = $this->pad([
+                'REKAP SUB KATEGORI',
+                'TOTAL SUB KATEGORI',
+                ((int) ($recap['kind_count'] ?? 0)).' Jenis',
+                'TOTAL INVENTARIS',
+                ((int) ($recap['total_units'] ?? 0)).' Unit',
+            ], $cols);
+        }
+
         $rows[] = array_fill(0, $cols, '');
 
         foreach ($this->tree as $campusNode) {
             $campusName = $campusNode['label'];
             $rows[] = $this->pad([
-                'KAMPUS', $campusName, '', '', '', '', '', '', '', '', '', '', '', '', '',
+                'KAMPUS', $campusName, '', '', '', '', '', '', '', '', '', '', '', '', '', '',
                 $campusNode['totals']['count'],
                 'Aktif: '.($campusNode['totals']['aktif'] ?? 0).' · Rusak: '.($campusNode['totals']['rusak'] ?? 0),
             ], $cols);
@@ -104,31 +124,55 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
             foreach ($campusNode['buildings'] as $buildingNode) {
                 $buildingName = $buildingNode['label'];
                 $rows[] = $this->pad([
-                    'GEDUNG', $campusName, $buildingName, '', '', '', '', '', '', '', '', '', '', '', '',
+                    'GEDUNG', $campusName, $buildingName, '', '', '', '', '', '', '', '', '', '', '', '', '',
                     $buildingNode['totals']['count'],
                     'Ruangan: '.($buildingNode['room_count'] ?? 0),
                 ], $cols);
 
+                foreach (($buildingNode['sub_category_recap']['rows'] ?? []) as $recapRow) {
+                    $rows[] = $this->pad([
+                        'REKAP GEDUNG', $campusName, $buildingName, '', '', '', $recapRow['label'] ?? '', '', '', '', '', '', '', '', '', '',
+                        $recapRow['count'] ?? 0,
+                        '',
+                    ], $cols);
+                }
+
                 foreach ($buildingNode['floors'] as $floorNode) {
                     $floorName = $floorNode['label'];
                     $rows[] = $this->pad([
-                        'LANTAI', $campusName, $buildingName, $floorName, '', '', '', '', '', '', '', '', '', '', '',
+                        'LANTAI', $campusName, $buildingName, $floorName, '', '', '', '', '', '', '', '', '', '', '', '',
                         $floorNode['totals']['count'],
                         '',
                     ], $cols);
 
+                    foreach (($floorNode['sub_category_recap']['rows'] ?? []) as $recapRow) {
+                        $rows[] = $this->pad([
+                            'REKAP LANTAI', $campusName, $buildingName, $floorName, '', '', $recapRow['label'] ?? '', '', '', '', '', '', '', '', '', '',
+                            $recapRow['count'] ?? 0,
+                            '',
+                        ], $cols);
+                    }
+
                     foreach ($floorNode['rooms'] as $roomNode) {
                         $roomName = $roomNode['label'];
                         $rows[] = $this->pad([
-                            'RUANGAN', $campusName, $buildingName, $floorName, $roomName, '', '', '', '', '', '', '', '', '', '',
+                            'RUANGAN', $campusName, $buildingName, $floorName, $roomName, '', '', '', '', '', '', '', '', '', '', '',
                             $roomNode['totals']['count'],
                             'Aktif: '.($roomNode['totals']['aktif'] ?? 0).' · Rusak: '.($roomNode['totals']['rusak'] ?? 0),
                         ], $cols);
 
+                        foreach (($roomNode['sub_category_recap']['rows'] ?? []) as $recapRow) {
+                            $rows[] = $this->pad([
+                                'REKAP RUANGAN', $campusName, $buildingName, $floorName, $roomName, '', $recapRow['label'] ?? '', '', '', '', '', '', '', '', '', '',
+                                $recapRow['count'] ?? 0,
+                                '',
+                            ], $cols);
+                        }
+
                         foreach ($roomNode['categories'] as $categoryNode) {
                             $categoryName = $categoryNode['label'];
                             $rows[] = $this->pad([
-                                'KATEGORI', $campusName, $buildingName, $floorName, $roomName, $categoryName, '', '', '', '', '', '', '', '', '',
+                                'KATEGORI', $campusName, $buildingName, $floorName, $roomName, $categoryName, '', '', '', '', '', '', '', '', '', '',
                                 $categoryNode['totals']['count'],
                                 '',
                             ], $cols);
@@ -136,7 +180,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
                             foreach ($categoryNode['sub_categories'] as $subNode) {
                                 $subName = $subNode['label'];
                                 $rows[] = $this->pad([
-                                    'SUB KATEGORI', $campusName, $buildingName, $floorName, $roomName, $categoryName, $subName, '', '', '', '', '', '', '', '',
+                                    'SUB KATEGORI', $campusName, $buildingName, $floorName, $roomName, $categoryName, $subName, '', '', '', '', '', '', '', '', '',
                                     $subNode['totals']['count'],
                                     '',
                                 ], $cols);
@@ -157,6 +201,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
                                         $item->brand,
                                         $item->serial_number,
                                         $item->condition?->label(),
+                                        $item->purchase_year ? (string) $item->purchase_year : '-',
                                         $item->status?->label(),
                                         $item->picDisplayName() ?? '',
                                         1,
@@ -172,7 +217,7 @@ class InventoryHierarchicalExport implements FromArray, WithHeadings, ShouldAuto
             $rows[] = array_fill(0, $cols, '');
         }
 
-        $rows[] = $this->pad(['GRAND TOTAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', $this->summary['total_items'], ''], $cols);
+        $rows[] = $this->pad(['GRAND TOTAL', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', $this->summary['total_items'], ''], $cols);
         $rows[] = $this->pad(['META', 'Dicetak', $this->meta['printed_at'] ?? '', $this->meta['user_name'] ?? ''], $cols);
 
         return $rows;

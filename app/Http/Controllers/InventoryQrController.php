@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Models\InventoryItem;
 use App\Services\AuditLogService;
 use App\Services\InventoryCodeService;
+use App\Services\InventoryFilterService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -19,6 +20,7 @@ class InventoryQrController extends Controller
     public function __construct(
         protected AuditLogService $auditLogService,
         protected InventoryCodeService $codeService,
+        protected InventoryFilterService $filterService,
     ) {}
 
     public function scan(string $inventoryNumber): View|RedirectResponse
@@ -145,5 +147,82 @@ class InventoryQrController extends Controller
         $pdf = Pdf::loadView('exports.inventory-labels', compact('items'));
 
         return $pdf->download('inventory_labels_'.now()->format('Ymd_His').'.pdf');
+    }
+
+    /**
+     * New feature: mass print 30 QR labels per A4 page (3×10).
+     * Does not replace inventory.labels or individual label print.
+     */
+    public function massLabels30(Request $request): Response
+    {
+        $request->validate([
+            'scope' => ['required', 'in:selected,filter'],
+            'inventory_ids' => ['required_if:scope,selected', 'array', 'min:1'],
+            'inventory_ids.*' => ['integer', 'exists:inventory_items,id'],
+        ]);
+
+        if ($request->input('scope') === 'selected') {
+            $ids = collect($request->input('inventory_ids', []))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values()
+                ->all();
+        } else {
+            $ids = $this->filterService
+                ->apply($request)
+                ->orderBy('inventory_number')
+                ->limit(500)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+        }
+
+        abort_if($ids === [], 422, 'Tidak ada inventaris untuk dicetak. Pilih item atau sesuaikan filter.');
+
+        $items = InventoryItem::query()
+            ->whereIn('id', $ids)
+            ->with([
+                'category:id,name',
+                'subCategory:id,name',
+                'room:id,code,name,floor_id',
+            ])
+            ->orderBy('inventory_number')
+            ->get();
+
+        foreach ($items as $item) {
+            $this->codeService->ensureCodes($item);
+        }
+
+        $items = InventoryItem::query()
+            ->whereIn('id', $ids)
+            ->with([
+                'category:id,name',
+                'subCategory:id,name',
+                'room:id,code,name,floor_id',
+            ])
+            ->orderBy('inventory_number')
+            ->get();
+
+        $logoPath = public_path('images/undira.png');
+        $logoSrc = is_file($logoPath)
+            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
+            : null;
+
+        $this->auditLogService->log(
+            $request->user(),
+            AuditAction::Export,
+            null,
+            null,
+            ['format' => 'labels-30', 'count' => $items->count(), 'scope' => $request->input('scope')],
+            'Print Barcode Massal 30 Label ('.$items->count().' item)',
+        );
+
+        $pdf = Pdf::loadView('exports.inventory-labels-30', [
+            'items' => $items,
+            'logoSrc' => $logoSrc,
+        ]);
+        $pdf->setPaper('a4', 'portrait');
+
+        return $pdf->download('inventory_labels_30_'.now()->format('Ymd_His').'.pdf');
     }
 }

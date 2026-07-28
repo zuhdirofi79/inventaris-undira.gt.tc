@@ -21,6 +21,7 @@ final class InventarisCache
     public static function flush(): void
     {
         Cache::increment(self::BUST_KEY);
+        Cache::forget('dashboard-campus-summary');
     }
 
     public static function key(string $suffix): string

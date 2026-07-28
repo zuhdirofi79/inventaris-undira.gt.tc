@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Enums\InventoryReportType;
 use App\Exports\EamFlatReportExport;
-use App\Exports\InventoryHierarchicalExport;
+use App\Exports\InventoryFlatWorkbookExport;
+use App\Exports\InventoryReportWorkbookExport;
 use App\Services\Reports\EamReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -178,12 +179,15 @@ class ReportController extends Controller
 
             return [
                 'no' => $start + $i + 1,
+                'approval_number' => $b->approval_number ?? '—',
                 'borrowing_number' => 'PIN-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 'borrower' => $b->borrower_name,
                 'item' => $item?->name.' ('.$item?->inventory_number.')',
                 'borrow_date' => $b->borrow_date?->format('d/m/Y'),
                 'return_date' => $b->return_date?->format('d/m/Y') ?? ($b->expected_return_date?->format('d/m/Y').' (rencana)'),
                 'status' => $b->status?->label() ?? $b->status,
+                'approved_by' => $b->approvedBy?->name ?? '—',
+                'approved_at' => $b->approved_at?->format('d/m/Y H:i') ?? '—',
                 'duration' => $duration,
             ];
         });
@@ -304,31 +308,40 @@ class ReportController extends Controller
             return $pdf->download("laporan_{$slug}_{$orientation}_{$stamp}.pdf");
         }
 
-        $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tgl Pengadaan'];
+        $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tahun Pengadaan', 'Tgl Pengadaan'];
         $rows = [];
         foreach ($doc['items'] as $i => $item) {
             $mapped = $this->reports->mapInventoryRow($item, $i + 1, false);
             $rows[] = [
                 $mapped['no'], $mapped['inventory_number'], $mapped['name'], $mapped['category'], $mapped['sub_category'],
                 $mapped['brand'], $mapped['serial_number'], $mapped['location'], $mapped['pic'], $mapped['status'],
-                $mapped['condition'], $mapped['purchase_date'],
+                $mapped['condition'], $mapped['purchase_year'], $mapped['purchase_date'],
             ];
         }
 
         if ($type->isHierarchy() && $format === 'excel') {
             return Excel::download(
-                new InventoryHierarchicalExport($doc['tree'], $doc['summary'], $doc['filters'], $doc['meta']),
+                new InventoryReportWorkbookExport($doc['tree'], $doc['summary'], $doc['filters'], $doc['meta']),
+                "laporan_{$slug}_{$stamp}.xlsx"
+            );
+        }
+
+        if ($format === 'excel') {
+            return Excel::download(
+                new InventoryFlatWorkbookExport(
+                    $doc['summary'],
+                    $doc['filters'],
+                    $headings,
+                    $rows,
+                    'Detail Inventaris'
+                ),
                 "laporan_{$slug}_{$stamp}.xlsx"
             );
         }
 
         $export = new EamFlatReportExport($headings, $rows, $type->label());
 
-        if ($format === 'csv') {
-            return Excel::download($export, "laporan_{$slug}_{$stamp}.csv", \Maatwebsite\Excel\Excel::CSV);
-        }
-
-        return Excel::download($export, "laporan_{$slug}_{$stamp}.xlsx");
+        return Excel::download($export, "laporan_{$slug}_{$stamp}.csv", \Maatwebsite\Excel\Excel::CSV);
     }
 
     protected function exportBorrowing(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response
@@ -354,6 +367,7 @@ class ReportController extends Controller
 
             return [
                 $i + 1,
+                $b->approval_number ?? '—',
                 'PIN-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 $b->borrower_name,
                 $item?->name,
@@ -361,11 +375,13 @@ class ReportController extends Controller
                 $b->borrow_date?->format('Y-m-d'),
                 $b->return_date?->format('Y-m-d'),
                 $b->status?->label(),
+                $b->approvedBy?->name ?? '—',
+                $b->approved_at?->format('Y-m-d H:i') ?? '—',
             ];
         })->all();
 
         $export = new EamFlatReportExport(
-            ['No', 'No Peminjaman', 'Peminjam', 'Barang', 'No Inventaris', 'Tgl Pinjam', 'Tgl Kembali', 'Status'],
+            ['No', 'Nomor Approval', 'No Peminjaman', 'Peminjam', 'Barang', 'No Inventaris', 'Tgl Pinjam', 'Tgl Kembali', 'Status', 'Approved By', 'Approved At'],
             $excelRows,
             'Peminjaman'
         );

@@ -70,6 +70,145 @@
 .dash-ent .dash-chart-wrap { position: relative; min-height: 240px; }
 .dash-ent .dash-activity-item { border-left: 3px solid #e2e8f0; }
 .dash-ent .dash-activity-item:hover { background: #f8fafc; }
+
+/* Executive campus summary */
+.campus-exec-card {
+    border: 1px solid var(--ui-border, #E6EAF2);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: box-shadow .2s ease, transform .2s ease;
+}
+.campus-exec-card:hover { box-shadow: 0 8px 24px rgba(15,23,42,.08); transform: translateY(-1px); }
+.campus-exec-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: .75rem;
+    padding: .95rem 1.05rem .55rem;
+}
+.campus-exec-card__title {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+    color: #1F3C88;
+}
+.campus-exec-card__total { font-size: .8rem; color: #64748b; margin-top: .2rem; }
+.campus-exec-card__total strong { color: #0f172a; }
+.campus-exec-card__code {
+    font-size: .7rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    color: #64748b;
+    background: #EEF0FA;
+    border-radius: .5rem;
+    padding: .2rem .45rem;
+    height: fit-content;
+}
+.campus-exec-card__stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .35rem;
+    padding: 0 1.05rem .7rem;
+}
+.campus-exec-chip {
+    font-size: .68rem;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: .18rem .5rem;
+    background: #f1f5f9;
+    color: #475569;
+}
+.campus-exec-chip--aktif { background: #E8F5E9; color: #2E7D32; }
+.campus-exec-chip--dipinjam { background: #FFF8E1; color: #F9A825; }
+.campus-exec-chip--maint { background: #E3F2FD; color: #1565C0; }
+.campus-exec-chip--rusak { background: #FFEBEE; color: #C62828; }
+.campus-exec-card__body { padding: 0 .55rem .85rem; }
+.campus-exec-accordion .accordion-item {
+    border: 0;
+    background: transparent;
+    margin-bottom: .35rem;
+}
+.campus-exec-cat__btn {
+    background: #f8fafc !important;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: .75rem !important;
+    box-shadow: none !important;
+    padding: .65rem .75rem !important;
+    transition: background .2s ease;
+}
+.campus-exec-cat__btn:not(.collapsed) { background: #EEF0FA !important; }
+.campus-exec-cat__btn::after { margin-left: .5rem; align-self: flex-start; margin-top: .35rem; }
+.campus-exec-cat__name { font-weight: 800; color: #1F3C88; font-size: .9rem; }
+.campus-exec-cat__count { font-weight: 800; color: #0f172a; }
+.campus-exec-cat__meta { display: flex; flex-wrap: wrap; gap: .25rem; margin-top: .35rem; }
+.campus-exec-progress {
+    height: 5px;
+    background: #e2e8f0;
+    border-radius: 999px;
+    overflow: hidden;
+}
+.campus-exec-progress__bar {
+    height: 100%;
+    background: linear-gradient(90deg, #1F3C88, #2E7D32);
+    border-radius: 999px;
+    transition: width .35s ease;
+}
+.campus-exec-badge { font-weight: 700 !important; }
+.campus-exec-badge--aktif { background: #E8F5E9 !important; color: #2E7D32 !important; }
+.campus-exec-badge--dipinjam { background: #FFF8E1 !important; color: #F9A825 !important; }
+.campus-exec-badge--maint { background: #E3F2FD !important; color: #1565C0 !important; }
+.campus-exec-badge--rusak { background: #FFEBEE !important; color: #C62828 !important; }
+.campus-exec-badge--total { background: #ECEFF1 !important; color: #455A64 !important; }
+.campus-exec-sub {
+    border: 1px solid #eef2f7;
+    border-radius: .65rem;
+    padding: .65rem .7rem;
+    margin-bottom: .45rem;
+    background: #fff;
+    animation: campusExecFade .25s ease;
+}
+.campus-exec-sub__name {
+    font-weight: 700;
+    color: #1e293b;
+    text-decoration: none;
+}
+.campus-exec-sub__name:hover { color: #1F3C88; text-decoration: underline; }
+.campus-exec-sub__badges { display: flex; flex-wrap: wrap; gap: .25rem; }
+.campus-exec-empty { color: #64748b; font-size: .88rem; padding: .5rem .35rem; }
+.campus-exec-card-wrap.is-hidden,
+.campus-exec-cat.is-hidden,
+.campus-exec-sub.is-hidden { display: none !important; }
+@keyframes campusExecFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+body.dark-mode .campus-exec-card { border-color: rgba(148,163,184,.25); }
+body.dark-mode .campus-exec-card:hover { box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+body.dark-mode .campus-exec-card__title,
+body.dark-mode .campus-exec-cat__name { color: #93c5fd; }
+body.dark-mode .campus-exec-card__total,
+body.dark-mode .campus-exec-empty { color: #94a3b8; }
+body.dark-mode .campus-exec-card__total strong,
+body.dark-mode .campus-exec-cat__count,
+body.dark-mode .campus-exec-sub__name { color: #e2e8f0; }
+body.dark-mode .campus-exec-card__code,
+body.dark-mode .campus-exec-chip { background: rgba(148,163,184,.15); color: #cbd5e1; }
+body.dark-mode .campus-exec-chip--aktif { background: rgba(46,125,50,.25); color: #86efac; }
+body.dark-mode .campus-exec-chip--dipinjam { background: rgba(249,168,37,.2); color: #fde68a; }
+body.dark-mode .campus-exec-chip--maint { background: rgba(21,101,192,.25); color: #93c5fd; }
+body.dark-mode .campus-exec-chip--rusak { background: rgba(198,40,40,.25); color: #fca5a5; }
+body.dark-mode .campus-exec-cat__btn { background: rgba(148,163,184,.08) !important; border-color: rgba(148,163,184,.25) !important; }
+body.dark-mode .campus-exec-cat__btn:not(.collapsed) { background: rgba(59,130,246,.12) !important; }
+body.dark-mode .campus-exec-progress { background: rgba(148,163,184,.25); }
+body.dark-mode .campus-exec-sub { background: transparent; border-color: rgba(148,163,184,.25); }
+body.dark-mode .campus-exec-badge--aktif { background: rgba(46,125,50,.25) !important; color: #86efac !important; }
+body.dark-mode .campus-exec-badge--dipinjam { background: rgba(249,168,37,.2) !important; color: #fde68a !important; }
+body.dark-mode .campus-exec-badge--maint { background: rgba(21,101,192,.25) !important; color: #93c5fd !important; }
+body.dark-mode .campus-exec-badge--rusak { background: rgba(198,40,40,.25) !important; color: #fca5a5 !important; }
+body.dark-mode .campus-exec-badge--total { background: rgba(148,163,184,.2) !important; color: #cbd5e1 !important; }
+body.dark-mode .dash-ent .dash-activity-item { border-left-color: rgba(148,163,184,.35); }
+body.dark-mode .dash-ent .dash-activity-item:hover { background: rgba(148,163,184,.08); }
 @media (max-width: 575.98px) {
     .dash-ent .dash-widget__value { font-size: 1.25rem; }
 }
@@ -85,6 +224,11 @@
         ['key' => 'minor_damage', 'label' => 'Rusak Ringan', 'icon' => 'bi bi-exclamation-circle', 'tone' => 'warning'],
         ['key' => 'major_damage', 'label' => 'Rusak Berat', 'icon' => 'bi bi-exclamation-triangle', 'tone' => 'danger'],
         ['key' => 'borrowed', 'label' => 'Dipinjam', 'icon' => 'bi bi-hand-index', 'tone' => 'warning'],
+        ['key' => 'pending_approval', 'label' => 'Menunggu Approval', 'icon' => 'bi bi-hourglass-split', 'tone' => 'warning'],
+        ['key' => 'approved_today', 'label' => 'Disetujui Hari Ini', 'icon' => 'bi bi-check2-circle', 'tone' => 'green'],
+        ['key' => 'rejected_today', 'label' => 'Ditolak Hari Ini', 'icon' => 'bi bi-x-circle', 'tone' => 'danger'],
+        ['key' => 'active_loans', 'label' => 'Sedang Dipinjam', 'icon' => 'bi bi-box-arrow-right', 'tone' => 'info'],
+        ['key' => 'overdue_loans', 'label' => 'Terlambat Dikembalikan', 'icon' => 'bi bi-clock-history', 'tone' => 'danger'],
         ['key' => 'maintenance', 'label' => 'Maintenance', 'icon' => 'bi bi-wrench-adjustable', 'tone' => 'info'],
         ['key' => 'preventive_due', 'label' => 'Preventive Due', 'icon' => 'bi bi-calendar2-event', 'tone' => 'teal'],
         ['key' => 'lost', 'label' => 'Hilang', 'icon' => 'bi bi-question-circle', 'tone' => 'danger'],
@@ -239,6 +383,11 @@
     @endforelse
 </div>
 
+@include('dashboard.partials.campus-executive-section', [
+    'executiveSummary' => $executiveSummary ?? ['campuses' => [], 'filter_options' => ['campuses' => [], 'categories' => []]],
+    'canRefresh' => $canRefreshCampusSummary ?? false,
+])
+
 <div class="row g-3">
     <div class="col-lg-7">
         <div class="card card-undira h-100">
@@ -345,16 +494,27 @@ window.undiraDashboardReveal = function () {
 
 const undiraColors = ['#2E7D32', '#1A237E', '#4CAF50', '#3949AB', '#FF9800', '#F44336', '#2196F3', '#00897B', '#6D4C41', '#5E35B1'];
 const chartPayload = @json($charts ?? []);
+window.__undiraChartInstances = window.__undiraChartInstances || {};
+
+function chartRows(key) {
+    const rows = chartPayload && chartPayload[key];
+    return Array.isArray(rows) ? rows : [];
+}
 
 function makeChart(el, type, labels, data, label) {
-    if (!el) return;
+    if (!el || typeof Chart === 'undefined') return;
     if (!labels.length) {
-        el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0 py-5">Belum ada data</p>';
+        el.parentElement.innerHTML = '<p class="text-muted text-center small mb-0 py-5">Tidak ada data.</p>';
         return;
+    }
+    const id = el.id || type;
+    if (window.__undiraChartInstances[id]) {
+        window.__undiraChartInstances[id].destroy();
+        delete window.__undiraChartInstances[id];
     }
     const isLine = type === 'line';
     const isBar = type === 'bar';
-    new Chart(el, {
+    window.__undiraChartInstances[id] = new Chart(el, {
         type,
         data: {
             labels,
@@ -390,41 +550,41 @@ function initDashboardCharts() {
     makeChart(
         document.getElementById('chartCampus'),
         'pie',
-        (chartPayload.by_campus || []).map(c => c.label),
-        (chartPayload.by_campus || []).map(c => Number(c.total))
+        chartRows('by_campus').map(c => c.label),
+        chartRows('by_campus').map(c => Number(c.total))
     );
     makeChart(
         document.getElementById('chartCategory'),
         'bar',
-        (chartPayload.by_category || []).map(c => c.label),
-        (chartPayload.by_category || []).map(c => Number(c.total)),
+        chartRows('by_category').map(c => c.label),
+        chartRows('by_category').map(c => Number(c.total)),
         'Jumlah'
     );
     makeChart(
         document.getElementById('chartMaintenance'),
         'line',
-        (chartPayload.maintenances_monthly || []).map(c => c.label),
-        (chartPayload.maintenances_monthly || []).map(c => Number(c.total)),
+        chartRows('maintenances_monthly').map(c => c.label),
+        chartRows('maintenances_monthly').map(c => Number(c.total)),
         'Maintenance'
     );
     makeChart(
         document.getElementById('chartBorrowing'),
         'line',
-        (chartPayload.borrowings_monthly || []).map(c => c.label),
-        (chartPayload.borrowings_monthly || []).map(c => Number(c.total)),
+        chartRows('borrowings_monthly').map(c => c.label),
+        chartRows('borrowings_monthly').map(c => Number(c.total)),
         'Peminjaman'
     );
     makeChart(
         document.getElementById('chartStatus'),
         'pie',
-        (chartPayload.by_status || []).map(c => c.label),
-        (chartPayload.by_status || []).map(c => Number(c.total))
+        chartRows('by_status').map(c => c.label),
+        chartRows('by_status').map(c => Number(c.total))
     );
     makeChart(
         document.getElementById('chartCondition'),
         'bar',
-        (chartPayload.by_condition || []).map(c => c.label),
-        (chartPayload.by_condition || []).map(c => Number(c.total)),
+        chartRows('by_condition').map(c => c.label),
+        chartRows('by_condition').map(c => Number(c.total)),
         'Jumlah'
     );
 }
@@ -434,5 +594,146 @@ setTimeout(function () {
         window.undiraDashboardReveal();
     }
 }, 2500);
+
+(function initCampusExecutivePanel() {
+    const root = document.getElementById('campusExecutiveSection');
+    if (!root) return;
+
+    const grid = () => document.getElementById('campusExecutiveCards');
+    const emptyFilter = () => document.getElementById('campusExecutiveEmptyFilter');
+    const searchEl = document.getElementById('execSearchSub');
+    const campusEl = document.getElementById('execFilterCampus');
+    const categoryEl = document.getElementById('execFilterCategory');
+    const statusEl = document.getElementById('execFilterStatus');
+    const sortEl = document.getElementById('execSort');
+    const resetEl = document.getElementById('execResetFilters');
+    const refreshBtn = document.getElementById('btnRefreshCampusSummary');
+
+    function applyFilters() {
+        const cardsRoot = grid();
+        if (!cardsRoot) return;
+
+        const q = (searchEl?.value || '').trim().toLowerCase();
+        const campusId = campusEl?.value || '';
+        const categoryId = categoryEl?.value || '';
+        const status = statusEl?.value || '';
+        const sort = sortEl?.value || 'total_desc';
+        const filtering = Boolean(q || campusId || categoryId || status);
+
+        const wraps = Array.from(cardsRoot.querySelectorAll('.campus-exec-card-wrap'));
+        let visibleCards = 0;
+
+        wraps.forEach((wrap) => {
+            if (campusId && String(wrap.dataset.campusId) !== String(campusId)) {
+                wrap.classList.add('is-hidden');
+                return;
+            }
+
+            let campusVisible = !filtering;
+            wrap.querySelectorAll('.campus-exec-cat').forEach((cat) => {
+                if (categoryId && String(cat.dataset.categoryId) !== String(categoryId)) {
+                    cat.classList.add('is-hidden');
+                    return;
+                }
+
+                let catVisible = false;
+                const subs = Array.from(cat.querySelectorAll('.campus-exec-sub'));
+
+                if (!subs.length) {
+                    catVisible = !q && (!status || Number(cat.getAttribute('data-cat-' + status) || 0) > 0);
+                } else {
+                    subs.forEach((sub) => {
+                        const nameOk = !q || (sub.dataset.subName || '').includes(q);
+                        const statusOk = !status || Number(sub.getAttribute('data-sub-' + status) || 0) > 0;
+                        const show = nameOk && statusOk;
+                        sub.classList.toggle('is-hidden', filtering ? !show : false);
+                        if (show) catVisible = true;
+                    });
+                }
+
+                if (!filtering) {
+                    cat.classList.remove('is-hidden');
+                    subs.forEach((sub) => sub.classList.remove('is-hidden'));
+                    campusVisible = true;
+                    return;
+                }
+
+                cat.classList.toggle('is-hidden', !catVisible);
+                if (catVisible) campusVisible = true;
+            });
+
+            wrap.classList.toggle('is-hidden', filtering ? !campusVisible : false);
+            if (!wrap.classList.contains('is-hidden')) visibleCards += 1;
+        });
+
+        const sorted = wraps.slice().sort((a, b) => {
+            const nameA = a.dataset.campusName || '';
+            const nameB = b.dataset.campusName || '';
+            const totalA = Number(a.dataset.total || 0);
+            const totalB = Number(b.dataset.total || 0);
+            if (sort === 'total_asc') return totalA - totalB;
+            if (sort === 'name_asc') return nameA.localeCompare(nameB);
+            if (sort === 'name_desc') return nameB.localeCompare(nameA);
+            return totalB - totalA;
+        });
+        sorted.forEach((el) => cardsRoot.appendChild(el));
+
+        const empty = emptyFilter();
+        if (empty) empty.classList.toggle('d-none', visibleCards > 0 || wraps.length === 0);
+    }
+
+    ['input', 'change'].forEach((evt) => {
+        searchEl?.addEventListener(evt, applyFilters);
+        campusEl?.addEventListener(evt, applyFilters);
+        categoryEl?.addEventListener(evt, applyFilters);
+        statusEl?.addEventListener(evt, applyFilters);
+        sortEl?.addEventListener(evt, applyFilters);
+    });
+
+    resetEl?.addEventListener('click', function () {
+        if (searchEl) searchEl.value = '';
+        if (campusEl) campusEl.value = '';
+        if (categoryEl) categoryEl.value = '';
+        if (statusEl) statusEl.value = '';
+        if (sortEl) sortEl.value = 'total_desc';
+        applyFilters();
+    });
+
+    refreshBtn?.addEventListener('click', async function () {
+        const url = root.dataset.refreshUrl;
+        if (!url) return;
+        const icon = refreshBtn.querySelector('i');
+        refreshBtn.disabled = true;
+        icon?.classList.add('fa-spin');
+        try {
+            const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': token || '',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+            });
+            if (!res.ok) throw new Error('Refresh gagal');
+            const data = await res.json();
+            const host = document.getElementById('campusExecutiveGrid');
+            if (host && data.html) host.innerHTML = data.html;
+            applyFilters();
+            if (window.Swal) {
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: data.message || 'Data diperbarui', timer: 1800, showConfirmButton: false });
+            }
+        } catch (e) {
+            if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Gagal', text: 'Tidak dapat refresh data ringkasan.' });
+            }
+        } finally {
+            refreshBtn.disabled = false;
+            icon?.classList.remove('fa-spin');
+        }
+    });
+
+    applyFilters();
+})();
 </script>
 @endpush

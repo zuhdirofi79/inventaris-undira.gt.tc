@@ -14,6 +14,9 @@
     :back-route="route('dashboard')"
     back-label="Dashboard"
 >
+    <a href="{{ route('inventory.items') }}#mass-labels" class="btn btn-outline-dark btn-sm">
+        <i class="bi bi-qr-code me-1"></i>Print Barcode (30 Label)
+    </a>
     @can('inventory.create')
     <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
         <i class="bi bi-sliders me-1"></i>Buka Konfigurasi Inventaris

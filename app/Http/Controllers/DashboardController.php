@@ -12,6 +12,7 @@ use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Services\DashboardStatsService;
 use App\Services\DashboardTreeService;
+use App\Services\DashboardCampusExecutiveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
@@ -20,6 +21,7 @@ class DashboardController extends Controller
     public function __construct(
         protected DashboardTreeService $treeService,
         protected DashboardStatsService $statsService,
+        protected DashboardCampusExecutiveService $campusExecutive,
     ) {}
 
     public function index(): View|\Illuminate\Http\RedirectResponse
@@ -68,6 +70,8 @@ class DashboardController extends Controller
             'recent_items' => $recentItems,
             'recent_activity' => $recentActivity,
             'quick_actions' => $this->quickActions(),
+            'executiveSummary' => $this->campusExecutive->summary(),
+            'canRefreshCampusSummary' => (bool) $user?->hasAnyRole(['super-admin', 'admin']),
         ]);
     }
 
@@ -162,7 +166,10 @@ class DashboardController extends Controller
         }
 
         return match ($description) {
-            'BORROWING_CREATED' => 'Peminjaman baru dicatat',
+            'BORROWING_CREATED' => 'Peminjaman diajukan',
+            'BORROWING_APPROVED' => 'Peminjaman disetujui',
+            'BORROWING_REJECTED' => 'Peminjaman ditolak',
+            'BORROWING_RETURNED' => 'Barang dikembalikan',
             'BORROWING_UPDATED' => 'Peminjaman diperbarui',
             'BORROWING_DELETED' => 'Peminjaman dihapus',
             'MAINTENANCE_CREATED' => 'Maintenance dicatat',

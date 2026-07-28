@@ -322,6 +322,14 @@
                                 </a>
                             </li>
                             @endcan
+                            @can('borrowing.approve')
+                            <li class="nav-item">
+                                <a href="{{ route('borrowing-approvals.index') }}" class="nav-link {{ request()->routeIs('borrowing-approvals.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-clipboard-check"></i>
+                                    <p>Riwayat Approval</p>
+                                </a>
+                            </li>
+                            @endcan
                             @can('maintenance.view')
                             @if(auth()->user()->hasRole('teknisi') && ! auth()->user()->hasAnyRole(['super-admin', 'admin']))
                             <li class="nav-item">

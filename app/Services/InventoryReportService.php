@@ -121,6 +121,7 @@ class InventoryReportService
                     'label' => $campus?->name ?? 'Tanpa Kampus',
                     'totals' => $this->emptyTotals(),
                     'by_category' => [],
+                    'by_sub_category' => [],
                     'buildings' => [],
                 ];
             }
@@ -130,6 +131,7 @@ class InventoryReportService
                     'building' => $building,
                     'label' => $building?->name ?? 'Tanpa Gedung',
                     'totals' => $this->emptyTotals(),
+                    'by_sub_category' => [],
                     'room_ids' => [],
                     'floors' => [],
                 ];
@@ -140,6 +142,7 @@ class InventoryReportService
                     'floor' => $floor,
                     'label' => $floor?->name ?? 'Tanpa Lantai',
                     'totals' => $this->emptyTotals(),
+                    'by_sub_category' => [],
                     'rooms' => [],
                 ];
             }
@@ -150,6 +153,7 @@ class InventoryReportService
                     'label' => $room ? trim(($room->code ? $room->code.' — ' : '').$room->name) : 'Tanpa Ruangan',
                     'totals' => $this->emptyTotals(),
                     'by_category' => [],
+                    'by_sub_category' => [],
                     'categories' => [],
                 ];
             }
@@ -187,6 +191,15 @@ class InventoryReportService
             $roomNode['by_category'][$catName] = ($roomNode['by_category'][$catName] ?? 0) + 1;
             $campuses[$campusKey]['by_category'][$catName] = ($campuses[$campusKey]['by_category'][$catName] ?? 0) + 1;
 
+            $subLabel = $item->subCategory?->name ?? 'Tanpa Sub Kategori';
+            $roomNode['by_sub_category'][$subLabel] = ($roomNode['by_sub_category'][$subLabel] ?? 0) + 1;
+            $campuses[$campusKey]['buildings'][$buildingKey]['floors'][$floorKey]['by_sub_category'][$subLabel]
+                = ($campuses[$campusKey]['buildings'][$buildingKey]['floors'][$floorKey]['by_sub_category'][$subLabel] ?? 0) + 1;
+            $campuses[$campusKey]['buildings'][$buildingKey]['by_sub_category'][$subLabel]
+                = ($campuses[$campusKey]['buildings'][$buildingKey]['by_sub_category'][$subLabel] ?? 0) + 1;
+            $campuses[$campusKey]['by_sub_category'][$subLabel]
+                = ($campuses[$campusKey]['by_sub_category'][$subLabel] ?? 0) + 1;
+
             if ($room) {
                 $campuses[$campusKey]['buildings'][$buildingKey]['room_ids'][$room->id] = true;
             }
@@ -200,10 +213,16 @@ class InventoryReportService
                     ->map(function (array $buildingNode) {
                         $buildingNode['room_count'] = count($buildingNode['room_ids']);
                         unset($buildingNode['room_ids']);
+                        $buildingNode['sub_category_recap'] = $this->finalizeSubCategoryRecap($buildingNode['by_sub_category'] ?? []);
+                        unset($buildingNode['by_sub_category']);
                         $buildingNode['floors'] = collect($buildingNode['floors'])
                             ->map(function (array $floorNode) {
+                                $floorNode['sub_category_recap'] = $this->finalizeSubCategoryRecap($floorNode['by_sub_category'] ?? []);
+                                unset($floorNode['by_sub_category']);
                                 $floorNode['rooms'] = collect($floorNode['rooms'])
                                     ->map(function (array $roomNode) {
+                                        $roomNode['sub_category_recap'] = $this->finalizeSubCategoryRecap($roomNode['by_sub_category'] ?? []);
+                                        unset($roomNode['by_sub_category']);
                                         $roomNode['categories'] = collect($roomNode['categories'])
                                             ->map(function (array $categoryNode) {
                                                 $categoryNode['sub_categories'] = array_values($categoryNode['sub_categories']);
@@ -229,6 +248,8 @@ class InventoryReportService
                     ->all();
 
                 ksort($campusNode['by_category']);
+                $campusNode['sub_category_recap'] = $this->finalizeSubCategoryRecap($campusNode['by_sub_category'] ?? []);
+                unset($campusNode['by_sub_category']);
 
                 return $campusNode;
             })
@@ -269,14 +290,19 @@ class InventoryReportService
             fn (InventoryItem $i) => in_array($i->status?->value, $maintenanceStatuses, true)
         )->count();
 
+        $subCategoryRecap = $this->buildSubCategoryRecap($items);
+
         return [
             'total_items' => $items->count(),
             'campus_count' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building?->campus_id)->filter()->unique()->count(),
             'building_count' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building_id)->filter()->unique()->count(),
+            'floor_count' => $items->map(fn (InventoryItem $i) => $i->room?->floor_id)->filter()->unique()->count(),
             'room_count' => $items->map(fn (InventoryItem $i) => $i->room_id)->filter()->unique()->count(),
             'by_category' => $byCategory,
             'by_status' => $byStatus,
             'by_condition' => $byCondition,
+            'sub_category_recap' => $subCategoryRecap,
+            'composition' => $this->buildComposition($items, $subCategoryRecap),
             'aktif' => (int) ($byStatus[InventoryStatus::Aktif->value] ?? 0),
             'dipinjam' => (int) ($byStatus[InventoryStatus::Dipinjam->value] ?? 0),
             'maintenance' => $maintenance,
@@ -287,6 +313,198 @@ class InventoryReportService
                 'ATK' => $this->countCategoryLike($byCategory, ['atk', 'alat tulis']),
                 'Laboratorium' => $this->countCategoryLike($byCategory, ['laboratorium', 'lab']),
             ],
+        ];
+    }
+
+    /**
+     * Executive composition block for print/PDF/Excel (filter-aware).
+     *
+     * @param  Collection<int, InventoryItem>  $items
+     * @param  array{rows: list<array{label: string, count: int}>, kind_count: int, total_units: int}  $subCategoryRecap
+     * @return array<string, mixed>
+     */
+    public function buildComposition(Collection $items, ?array $subCategoryRecap = null): array
+    {
+        $total = $items->count();
+        $subCategoryRecap ??= $this->buildSubCategoryRecap($items);
+
+        $categoryCounts = [];
+        foreach ($items as $item) {
+            $label = $item->category?->name ?? 'Tanpa Kategori';
+            $categoryCounts[$label] = ($categoryCounts[$label] ?? 0) + 1;
+        }
+        arsort($categoryCounts, SORT_NUMERIC);
+
+        $categoryRows = [];
+        foreach ($categoryCounts as $label => $count) {
+            $pct = $total > 0 ? round(($count / $total) * 100) : 0;
+            $categoryRows[] = [
+                'label' => (string) $label,
+                'count' => (int) $count,
+                'percent' => (int) $pct,
+            ];
+        }
+
+        // Ensure percentages sum to 100 when there is data (adjust largest row).
+        if ($total > 0 && $categoryRows !== []) {
+            $sumPct = array_sum(array_column($categoryRows, 'percent'));
+            $diff = 100 - $sumPct;
+            if ($diff !== 0) {
+                $categoryRows[0]['percent'] = max(0, $categoryRows[0]['percent'] + $diff);
+            }
+        }
+
+        $conditionBuckets = [
+            'Bagus' => 0,
+            'Maintenance' => 0,
+            'Rusak' => 0,
+            'Non Aktif' => 0,
+        ];
+        $statusBuckets = [
+            'Aktif' => 0,
+            'Dipinjam' => 0,
+            'Maintenance' => 0,
+            'Rusak' => 0,
+            'Non Aktif' => 0,
+        ];
+
+        foreach ($items as $item) {
+            $conditionBuckets[$this->compositionConditionBucket($item)]++;
+            $statusBuckets[$this->compositionStatusBucket($item)]++;
+        }
+
+        $categoryKindCount = count($categoryRows);
+        $subKindCount = (int) ($subCategoryRecap['kind_count'] ?? 0);
+
+        return [
+            'by_category' => [
+                'rows' => $categoryRows,
+                'total_units' => $total,
+                'kind_count' => $categoryKindCount,
+            ],
+            'by_sub_category' => $subCategoryRecap,
+            'top_sub_categories' => array_slice($subCategoryRecap['rows'] ?? [], 0, 10),
+            'by_condition' => [
+                'rows' => $this->bucketRows($conditionBuckets),
+                'total_units' => $total,
+            ],
+            'by_status' => [
+                'rows' => $this->bucketRows($statusBuckets),
+                'total_units' => $total,
+            ],
+            'location' => [
+                'kampus' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building?->campus_id)->filter()->unique()->count(),
+                'gedung' => $items->map(fn (InventoryItem $i) => $i->room?->floor?->building_id)->filter()->unique()->count(),
+                'lantai' => $items->map(fn (InventoryItem $i) => $i->room?->floor_id)->filter()->unique()->count(),
+                'ruangan' => $items->map(fn (InventoryItem $i) => $i->room_id)->filter()->unique()->count(),
+                'kategori' => $categoryKindCount,
+                'sub_kategori' => $subKindCount,
+                'total_inventaris' => $total,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, int>  $buckets
+     * @return list<array{label: string, count: int}>
+     */
+    protected function bucketRows(array $buckets): array
+    {
+        $rows = [];
+        foreach ($buckets as $label => $count) {
+            $rows[] = ['label' => $label, 'count' => (int) $count];
+        }
+
+        return $rows;
+    }
+
+    protected function compositionConditionBucket(InventoryItem $item): string
+    {
+        $status = $item->status;
+
+        if ($status instanceof InventoryStatus && $status->isTerminal()) {
+            return 'Non Aktif';
+        }
+
+        if ($this->isDamaged($item)) {
+            return 'Rusak';
+        }
+
+        if ($status instanceof InventoryStatus && in_array($status, [
+            InventoryStatus::Maintenance,
+            InventoryStatus::MenungguApproval,
+            InventoryStatus::RevisiPerbaikan,
+        ], true)) {
+            return 'Maintenance';
+        }
+
+        return 'Bagus';
+    }
+
+    protected function compositionStatusBucket(InventoryItem $item): string
+    {
+        $status = $item->status;
+
+        if ($status === InventoryStatus::Aktif) {
+            return 'Aktif';
+        }
+        if ($status === InventoryStatus::Dipinjam) {
+            return 'Dipinjam';
+        }
+        if ($status instanceof InventoryStatus && in_array($status, [
+            InventoryStatus::Maintenance,
+            InventoryStatus::MenungguApproval,
+            InventoryStatus::RevisiPerbaikan,
+        ], true)) {
+            return 'Maintenance';
+        }
+        if ($status instanceof InventoryStatus && ($status->isDamagedList() || $status === InventoryStatus::Hilang)) {
+            return 'Rusak';
+        }
+        if ($status instanceof InventoryStatus && $status->isTerminal()) {
+            return 'Non Aktif';
+        }
+
+        return 'Non Aktif';
+    }
+
+    /**
+     * Sub-category counts for the active filter set, sorted by quantity desc.
+     *
+     * @param  Collection<int, InventoryItem>  $items
+     * @return array{rows: list<array{label: string, count: int}>, kind_count: int, total_units: int}
+     */
+    public function buildSubCategoryRecap(Collection $items): array
+    {
+        $counts = [];
+        foreach ($items as $item) {
+            $label = $item->subCategory?->name ?? 'Tanpa Sub Kategori';
+            $counts[$label] = ($counts[$label] ?? 0) + 1;
+        }
+
+        return $this->finalizeSubCategoryRecap($counts);
+    }
+
+    /**
+     * @param  array<string, int>  $counts
+     * @return array{rows: list<array{label: string, count: int}>, kind_count: int, total_units: int}
+     */
+    public function finalizeSubCategoryRecap(array $counts): array
+    {
+        arsort($counts, SORT_NUMERIC);
+
+        $rows = [];
+        foreach ($counts as $label => $count) {
+            $rows[] = [
+                'label' => (string) $label,
+                'count' => (int) $count,
+            ];
+        }
+
+        return [
+            'rows' => $rows,
+            'kind_count' => count($rows),
+            'total_units' => (int) array_sum($counts),
         ];
     }
 

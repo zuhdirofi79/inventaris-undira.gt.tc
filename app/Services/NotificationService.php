@@ -84,7 +84,11 @@ class NotificationService
         $borrowing->loadMissing('inventoryItem');
         $count = 0;
 
-        foreach ($this->operatorUsers() as $user) {
+        foreach ($this->usersWithPermission('borrowing.approve') as $user) {
+            if (! $user instanceof User || ! $user->is_active) {
+                continue;
+            }
+
             if ($this->alreadyNotified($user, BorrowingCreatedNotification::class, 'borrowing_id', $borrowing->id)) {
                 continue;
             }
@@ -94,6 +98,42 @@ class NotificationService
         }
 
         return $count;
+    }
+
+    public function notifyBorrowingApproved(Borrowing $borrowing): int
+    {
+        $borrowing->loadMissing(['requestedBy', 'inventoryItem']);
+        $user = $borrowing->requestedBy;
+
+        if (! $user instanceof User || ! $user->is_active) {
+            return 0;
+        }
+
+        if ($this->alreadyNotified($user, \App\Notifications\BorrowingApprovedNotification::class, 'borrowing_id', $borrowing->id)) {
+            return 0;
+        }
+
+        $user->notify(new \App\Notifications\BorrowingApprovedNotification($borrowing));
+
+        return 1;
+    }
+
+    public function notifyBorrowingRejected(Borrowing $borrowing): int
+    {
+        $borrowing->loadMissing(['requestedBy', 'inventoryItem']);
+        $user = $borrowing->requestedBy;
+
+        if (! $user instanceof User || ! $user->is_active) {
+            return 0;
+        }
+
+        if ($this->alreadyNotified($user, \App\Notifications\BorrowingRejectedNotification::class, 'borrowing_id', $borrowing->id)) {
+            return 0;
+        }
+
+        $user->notify(new \App\Notifications\BorrowingRejectedNotification($borrowing));
+
+        return 1;
     }
 
     public function notifyDeletionApproval(DeletionApproval $approval, string $event = 'requested'): int
@@ -261,7 +301,7 @@ class NotificationService
     public function dispatchOverdueBorrowingAlerts(): int
     {
         $borrowings = Borrowing::query()
-            ->where('status', BorrowingStatus::Dipinjam)
+            ->whereIn('status', [BorrowingStatus::Dipinjam, BorrowingStatus::Disetujui])
             ->whereDate('expected_return_date', '<', now())
             ->with('inventoryItem')
             ->get();

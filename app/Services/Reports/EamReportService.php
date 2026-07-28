@@ -68,7 +68,11 @@ class EamReportService
         return match ($type) {
             InventoryReportType::Borrowed => $query->where(function (Builder $q) {
                 $q->where('status', InventoryStatus::Dipinjam)
-                    ->orWhereHas('borrowings', fn (Builder $b) => $b->where('status', \App\Enums\BorrowingStatus::Dipinjam));
+                    ->orWhereHas('borrowings', fn (Builder $b) => $b->whereIn('status', [
+                        \App\Enums\BorrowingStatus::Dipinjam,
+                        \App\Enums\BorrowingStatus::Disetujui,
+                        \App\Enums\BorrowingStatus::Terlambat,
+                    ]));
             }),
             InventoryReportType::Maintenance => $query->whereIn('status', [
                 InventoryStatus::Maintenance->value,
@@ -172,6 +176,7 @@ class EamReportService
                 'inventoryItem.room.floor.building:id,campus_id,code,name',
                 'inventoryItem.room.floor.building.campus:id,code,name',
                 'inventoryItem.category:id,name',
+                'approvedBy:id,name',
             ])
             ->whereHas('inventoryItem', fn (Builder $q) => $this->filters->apply($request, $q))
             ->when($request->filled('tanggal_awal') || $request->filled('date_from') || $request->filled('purchase_date_from'), function (Builder $q) use ($request) {
@@ -430,6 +435,7 @@ class EamReportService
             'pic' => $item->picDisplayName() ?: '—',
             'status' => $item->status?->label() ?? '—',
             'condition' => $item->condition?->label() ?? '—',
+            'purchase_year' => $item->purchase_year ? (string) $item->purchase_year : '-',
             'purchase_date' => $item->purchase_date?->format('d/m/Y') ?? '—',
             'id' => $item->id,
         ];

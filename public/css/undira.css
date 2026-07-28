@@ -169,20 +169,26 @@ body {
   font-weight: 600 !important;
   font-size: 0.875rem !important;
   padding: 0.45rem 1rem !important;
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
 }
-.btn:active { transform: translateY(1px); }
 .btn-sm { padding: 0.3rem 0.65rem !important; font-size: 0.8rem !important; }
 .btn-xs { padding: 0.2rem 0.45rem !important; font-size: 0.75rem !important; }
 
 .btn-success, .btn-undira-add {
   background: linear-gradient(135deg, var(--undira-green), #43A047) !important;
   border-color: var(--undira-green) !important;
+  color: #fff !important;
   box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
 }
 .btn-primary, .btn-undira-detail {
   background: linear-gradient(135deg, var(--undira-blue), #3949AB) !important;
   border-color: var(--undira-blue) !important;
+  color: #fff !important;
   box-shadow: 0 4px 12px rgba(26, 35, 126, 0.2);
 }
 .btn-warning, .btn-undira-edit {
@@ -194,6 +200,7 @@ body {
 .btn-danger, .btn-undira-delete {
   background: linear-gradient(135deg, #EF4444, #F87171) !important;
   border-color: #EF4444 !important;
+  color: #fff !important;
   box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 .btn-secondary, .btn-undira-print {
@@ -201,7 +208,6 @@ body {
   border-color: #64748B !important;
   color: #fff !important;
 }
-.btn-outline-secondary:hover { background: #F1F5F9 !important; }
 
 .table { margin-bottom: 0; }
 .table thead th {
@@ -576,7 +582,9 @@ body.dark-mode .status-inactive {
   color: #fff !important;
   box-shadow: 0 4px 12px rgba(46, 125, 50, 0.25);
 }
-.btn-undira:hover {
+.btn-undira:hover,
+.btn-undira:focus-visible,
+.btn-undira:active {
   background: linear-gradient(135deg, var(--undira-green-dark), var(--undira-green)) !important;
   color: #fff !important;
 }

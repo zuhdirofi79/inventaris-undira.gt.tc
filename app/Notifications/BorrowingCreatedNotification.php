@@ -22,12 +22,10 @@ class BorrowingCreatedNotification extends Notification implements ShouldQueue
 
     public function toArray(object $notifiable): array
     {
-        $item = $this->borrowing->inventoryItem;
-
         return [
             'type' => 'borrowing_created',
-            'title' => 'Barang Dipinjam',
-            'message' => "{$this->borrowing->borrower_name} meminjam {$item?->name} ({$item?->inventory_number}).",
+            'title' => 'Pengajuan Peminjaman Baru',
+            'message' => 'Peminjaman baru menunggu persetujuan.',
             'borrowing_id' => $this->borrowing->id,
             'inventory_item_id' => $this->borrowing->inventory_item_id,
             'expected_return_date' => $this->borrowing->expected_return_date?->toDateString(),

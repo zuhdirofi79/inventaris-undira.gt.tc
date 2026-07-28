@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Exports\InventoryHierarchicalExport;
+use App\Exports\InventoryReportWorkbookExport;
 use App\Services\AuditLogService;
 use App\Services\InventoryFilterService;
 use App\Services\InventoryReportService;
@@ -28,7 +29,7 @@ class InventoryExportController extends Controller
         $report = $this->reportService->build($request);
 
         return Excel::download(
-            new InventoryHierarchicalExport($report['tree'], $report['summary'], $report['filters'], $report['meta']),
+            new InventoryReportWorkbookExport($report['tree'], $report['summary'], $report['filters'], $report['meta']),
             'inventory_'.now()->format('Ymd_His').'.xlsx'
         );
     }

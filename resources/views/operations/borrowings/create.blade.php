@@ -29,7 +29,7 @@
 
 <form action="{{ route('borrowings.store') }}" method="POST" id="borrowForm" data-no-loading>
     @csrf
-    <input type="hidden" name="status" value="dipinjam">
+    <input type="hidden" name="status" value="menunggu_persetujuan">
 
     <div class="card card-undira mb-3">
         <div class="card-header">

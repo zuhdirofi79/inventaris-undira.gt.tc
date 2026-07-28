@@ -50,6 +50,26 @@ class DashboardPhase5Test extends TestCase
         $this->assertCount(6, $summary['charts']['maintenances_monthly']);
     }
 
+    public function test_cached_chart_payload_stays_plain_arrays_after_refresh(): void
+    {
+        $this->seedRoles();
+        $this->makeItem(['name' => 'Kursi Cache Chart']);
+
+        $service = app(DashboardStatsService::class);
+        $first = $service->summary()['charts'];
+        $second = $service->summary()['charts'];
+
+        foreach (['by_campus', 'by_category', 'by_status', 'by_condition', 'borrowings_monthly', 'maintenances_monthly'] as $key) {
+            $this->assertIsArray($first[$key], $key.' first');
+            $this->assertIsArray($second[$key], $key.' cached');
+            $this->assertStringNotContainsString('Incomplete', json_encode($second[$key]) ?: '');
+        }
+
+        $this->assertNotEmpty($second['by_campus']);
+        $this->assertArrayHasKey('label', $second['by_campus'][0]);
+        $this->assertArrayHasKey('total', $second['by_campus'][0]);
+    }
+
     public function test_monthly_charts_count_current_month_activity(): void
     {
         $admin = $this->makeSuperAdmin();

@@ -208,8 +208,9 @@ class BorrowingCreateLookupTest extends TestCase
         $this->assertDatabaseHas('borrowings', [
             'inventory_item_id' => $item->id,
             'borrower_name' => 'Ani',
+            'status' => BorrowingStatus::MenungguPersetujuan->value,
         ]);
-        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
     }
 
     public function test_api_v1_inventory_search_with_token(): void

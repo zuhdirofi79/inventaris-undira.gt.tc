@@ -389,25 +389,43 @@ body.hold-transition {
   border-radius: var(--ui-radius-sm) !important;
   font-weight: 600 !important;
   letter-spacing: -0.01em;
-  transition: transform 0.15s var(--ui-ease), box-shadow 0.2s ease, background 0.15s ease !important;
+  transition:
+    transform 0.18s var(--ui-ease),
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease !important;
 }
 
-.btn:hover { transform: translateY(-1px); }
-.btn:active { transform: translateY(0); }
+.btn:hover:not(:disabled):not(.disabled) {
+  transform: translateY(-1px);
+}
+
+.btn:active:not(:disabled):not(.disabled) {
+  transform: translateY(0);
+}
+
+.btn:focus-visible {
+  outline: 2px solid rgba(26, 35, 126, 0.45);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 0.2rem rgba(26, 35, 126, 0.18) !important;
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.65;
+  transform: none !important;
+  box-shadow: none !important;
+  cursor: not-allowed;
+}
 
 .btn-undira,
 .btn-success {
   background: linear-gradient(135deg, #2E7D32, #43A047) !important;
   border: none !important;
+  color: #fff !important;
   box-shadow: 0 6px 16px rgba(46, 125, 50, 0.22);
-}
-
-.btn-outline-primary,
-.btn-outline-success,
-.btn-outline-secondary,
-.btn-outline-warning,
-.btn-outline-danger {
-  background: #fff !important;
 }
 
 /* —— Tables —— */
@@ -589,10 +607,7 @@ body.dark-mode .ui-section-title__heading {
 }
 
 body.dark-mode .form-control,
-body.dark-mode .form-select,
-body.dark-mode .btn-outline-primary,
-body.dark-mode .btn-outline-success,
-body.dark-mode .btn-outline-secondary {
+body.dark-mode .form-select {
   background: #161722 !important;
   color: var(--ui-text) !important;
 }
@@ -600,4 +615,431 @@ body.dark-mode .btn-outline-secondary {
 body.dark-mode .card-footer,
 body.dark-mode .modal-footer {
   background: rgba(0, 0, 0, 0.2) !important;
+}
+
+/* ==========================================================================
+   Global button states (light + dark)
+   Fixes white text on white background when outline buttons are active/focused.
+   ========================================================================== */
+
+/* Solid variants — keep readable text/icon on every interactive state */
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.btn-primary:active,
+.btn-primary.active,
+.btn-check:checked + .btn-primary,
+.btn-undira-detail,
+.btn-undira-detail:hover,
+.btn-undira-detail:focus-visible,
+.btn-undira-detail:active {
+  color: #fff !important;
+  background: linear-gradient(135deg, var(--undira-blue, #1A237E), #3949AB) !important;
+  border-color: var(--undira-blue, #1A237E) !important;
+}
+
+.btn-success,
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:focus-visible,
+.btn-success:active,
+.btn-success.active,
+.btn-check:checked + .btn-success,
+.btn-undira,
+.btn-undira:hover,
+.btn-undira:focus,
+.btn-undira:focus-visible,
+.btn-undira:active,
+.btn-undira.active,
+.btn-undira-add,
+.btn-undira-add:hover,
+.btn-undira-add:focus-visible,
+.btn-undira-add:active {
+  color: #fff !important;
+  background: linear-gradient(135deg, var(--undira-green, #2E7D32), #43A047) !important;
+  border-color: var(--undira-green, #2E7D32) !important;
+}
+
+.btn-danger,
+.btn-danger:hover,
+.btn-danger:focus,
+.btn-danger:focus-visible,
+.btn-danger:active,
+.btn-danger.active,
+.btn-check:checked + .btn-danger,
+.btn-undira-delete,
+.btn-undira-delete:hover,
+.btn-undira-delete:focus-visible,
+.btn-undira-delete:active {
+  color: #fff !important;
+  background: linear-gradient(135deg, #EF4444, #F87171) !important;
+  border-color: #EF4444 !important;
+}
+
+.btn-warning,
+.btn-warning:hover,
+.btn-warning:focus,
+.btn-warning:focus-visible,
+.btn-warning:active,
+.btn-warning.active,
+.btn-check:checked + .btn-warning,
+.btn-undira-edit,
+.btn-undira-edit:hover,
+.btn-undira-edit:focus-visible,
+.btn-undira-edit:active {
+  color: #1E293B !important;
+  background: linear-gradient(135deg, #F59E0B, #FBBF24) !important;
+  border-color: #F59E0B !important;
+}
+
+.btn-secondary,
+.btn-secondary:hover,
+.btn-secondary:focus,
+.btn-secondary:focus-visible,
+.btn-secondary:active,
+.btn-secondary.active,
+.btn-check:checked + .btn-secondary,
+.btn-undira-print,
+.btn-undira-print:hover,
+.btn-undira-print:focus-visible,
+.btn-undira-print:active,
+.btn-dark,
+.btn-dark:hover,
+.btn-dark:focus-visible,
+.btn-dark:active,
+.btn-dark.active,
+.btn-info,
+.btn-info:hover,
+.btn-info:focus-visible,
+.btn-info:active,
+.btn-info.active {
+  color: #fff !important;
+}
+
+.btn-secondary,
+.btn-secondary:hover,
+.btn-secondary:focus-visible,
+.btn-secondary:active,
+.btn-secondary.active,
+.btn-undira-print,
+.btn-undira-print:hover,
+.btn-undira-print:focus-visible,
+.btn-undira-print:active {
+  background: #64748B !important;
+  border-color: #64748B !important;
+}
+
+.btn-info,
+.btn-info:hover,
+.btn-info:focus-visible,
+.btn-info:active,
+.btn-info.active {
+  background: #0284C7 !important;
+  border-color: #0284C7 !important;
+}
+
+.btn-dark,
+.btn-dark:hover,
+.btn-dark:focus-visible,
+.btn-dark:active,
+.btn-dark.active {
+  background: #1E293B !important;
+  border-color: #1E293B !important;
+}
+
+/* Outline — default readable; active/focus become solid with contrasting text */
+.btn-outline-primary {
+  color: var(--undira-blue, #1A237E) !important;
+  border-color: var(--undira-blue, #1A237E) !important;
+  background-color: transparent !important;
+}
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:focus-visible,
+.btn-outline-primary:active,
+.btn-outline-primary.active,
+.btn-check:checked + .btn-outline-primary {
+  color: #fff !important;
+  background: var(--undira-blue, #1A237E) !important;
+  border-color: var(--undira-blue, #1A237E) !important;
+}
+
+.btn-outline-success {
+  color: var(--undira-green, #2E7D32) !important;
+  border-color: var(--undira-green, #2E7D32) !important;
+  background-color: transparent !important;
+}
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+.btn-outline-success:focus-visible,
+.btn-outline-success:active,
+.btn-outline-success.active,
+.btn-check:checked + .btn-outline-success {
+  color: #fff !important;
+  background: var(--undira-green, #2E7D32) !important;
+  border-color: var(--undira-green, #2E7D32) !important;
+}
+
+.btn-outline-secondary {
+  color: #334155 !important;
+  border-color: #cbd5e1 !important;
+  background-color: transparent !important;
+}
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus,
+.btn-outline-secondary:focus-visible,
+.btn-outline-secondary:active,
+.btn-outline-secondary.active,
+.btn-check:checked + .btn-outline-secondary {
+  color: #fff !important;
+  background: #64748B !important;
+  border-color: #64748B !important;
+}
+
+.btn-outline-danger {
+  color: #DC2626 !important;
+  border-color: #DC2626 !important;
+  background-color: transparent !important;
+}
+.btn-outline-danger:hover,
+.btn-outline-danger:focus,
+.btn-outline-danger:focus-visible,
+.btn-outline-danger:active,
+.btn-outline-danger.active,
+.btn-check:checked + .btn-outline-danger {
+  color: #fff !important;
+  background: #DC2626 !important;
+  border-color: #DC2626 !important;
+}
+
+.btn-outline-warning {
+  color: #B45309 !important;
+  border-color: #F59E0B !important;
+  background-color: transparent !important;
+}
+.btn-outline-warning:hover,
+.btn-outline-warning:focus,
+.btn-outline-warning:focus-visible,
+.btn-outline-warning:active,
+.btn-outline-warning.active,
+.btn-check:checked + .btn-outline-warning {
+  color: #1E293B !important;
+  background: #F59E0B !important;
+  border-color: #F59E0B !important;
+}
+
+.btn-outline-dark {
+  color: #1E293B !important;
+  border-color: #475569 !important;
+  background-color: transparent !important;
+}
+.btn-outline-dark:hover,
+.btn-outline-dark:focus,
+.btn-outline-dark:focus-visible,
+.btn-outline-dark:active,
+.btn-outline-dark.active,
+.btn-check:checked + .btn-outline-dark {
+  color: #fff !important;
+  background: #1E293B !important;
+  border-color: #1E293B !important;
+}
+
+.btn-outline-info {
+  color: #0369A1 !important;
+  border-color: #0EA5E9 !important;
+  background-color: transparent !important;
+}
+.btn-outline-info:hover,
+.btn-outline-info:focus,
+.btn-outline-info:focus-visible,
+.btn-outline-info:active,
+.btn-outline-info.active,
+.btn-check:checked + .btn-outline-info {
+  color: #fff !important;
+  background: #0284C7 !important;
+  border-color: #0284C7 !important;
+}
+
+.btn-light {
+  color: #1E293B !important;
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+}
+.btn-light:hover,
+.btn-light:focus-visible,
+.btn-light:active,
+.btn-light.active {
+  color: #0F172A !important;
+  background: #E2E8F0 !important;
+  border-color: #CBD5E1 !important;
+}
+
+/* Loading state — keep label contrast */
+.btn.is-loading,
+.btn.btn-undira-loading {
+  color: inherit !important;
+}
+
+/* —— Dark mode button states —— */
+body.dark-mode .btn:focus-visible {
+  outline-color: rgba(134, 239, 172, 0.55);
+  box-shadow: 0 0 0 0.2rem rgba(46, 125, 50, 0.28) !important;
+}
+
+body.dark-mode .btn-outline-primary {
+  color: #93C5FD !important;
+  border-color: #60A5FA !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-primary:hover,
+body.dark-mode .btn-outline-primary:focus-visible,
+body.dark-mode .btn-outline-primary:active,
+body.dark-mode .btn-outline-primary.active,
+body.dark-mode .btn-check:checked + .btn-outline-primary {
+  color: #fff !important;
+  background: #2563EB !important;
+  border-color: #2563EB !important;
+}
+
+body.dark-mode .btn-outline-success {
+  color: #86EFAC !important;
+  border-color: #4ADE80 !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-success:hover,
+body.dark-mode .btn-outline-success:focus-visible,
+body.dark-mode .btn-outline-success:active,
+body.dark-mode .btn-outline-success.active,
+body.dark-mode .btn-check:checked + .btn-outline-success {
+  color: #052E16 !important;
+  background: #22C55E !important;
+  border-color: #22C55E !important;
+}
+
+body.dark-mode .btn-outline-secondary {
+  color: #E2E8F0 !important;
+  border-color: #64748B !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-secondary:hover,
+body.dark-mode .btn-outline-secondary:focus-visible,
+body.dark-mode .btn-outline-secondary:active,
+body.dark-mode .btn-outline-secondary.active,
+body.dark-mode .btn-check:checked + .btn-outline-secondary {
+  color: #fff !important;
+  background: #475569 !important;
+  border-color: #94A3B8 !important;
+}
+
+body.dark-mode .btn-outline-danger {
+  color: #FCA5A5 !important;
+  border-color: #F87171 !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-danger:hover,
+body.dark-mode .btn-outline-danger:focus-visible,
+body.dark-mode .btn-outline-danger:active,
+body.dark-mode .btn-outline-danger.active,
+body.dark-mode .btn-check:checked + .btn-outline-danger {
+  color: #fff !important;
+  background: #DC2626 !important;
+  border-color: #DC2626 !important;
+}
+
+body.dark-mode .btn-outline-warning {
+  color: #FCD34D !important;
+  border-color: #FBBF24 !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-warning:hover,
+body.dark-mode .btn-outline-warning:focus-visible,
+body.dark-mode .btn-outline-warning:active,
+body.dark-mode .btn-outline-warning.active,
+body.dark-mode .btn-check:checked + .btn-outline-warning {
+  color: #1E293B !important;
+  background: #F59E0B !important;
+  border-color: #F59E0B !important;
+}
+
+body.dark-mode .btn-outline-dark {
+  color: #E2E8F0 !important;
+  border-color: #94A3B8 !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-dark:hover,
+body.dark-mode .btn-outline-dark:focus-visible,
+body.dark-mode .btn-outline-dark:active,
+body.dark-mode .btn-outline-dark.active,
+body.dark-mode .btn-check:checked + .btn-outline-dark {
+  color: #0F172A !important;
+  background: #E2E8F0 !important;
+  border-color: #E2E8F0 !important;
+}
+
+body.dark-mode .btn-outline-info {
+  color: #7DD3FC !important;
+  border-color: #38BDF8 !important;
+  background-color: transparent !important;
+}
+body.dark-mode .btn-outline-info:hover,
+body.dark-mode .btn-outline-info:focus-visible,
+body.dark-mode .btn-outline-info:active,
+body.dark-mode .btn-outline-info.active,
+body.dark-mode .btn-check:checked + .btn-outline-info {
+  color: #fff !important;
+  background: #0284C7 !important;
+  border-color: #0284C7 !important;
+}
+
+body.dark-mode .btn-light {
+  color: #E2E8F0 !important;
+  background: #2A3344 !important;
+  border-color: #475569 !important;
+}
+body.dark-mode .btn-light:hover,
+body.dark-mode .btn-light:focus-visible,
+body.dark-mode .btn-light:active,
+body.dark-mode .btn-light.active {
+  color: #F8FAFC !important;
+  background: #334155 !important;
+  border-color: #64748B !important;
+}
+
+body.dark-mode .btn-primary,
+body.dark-mode .btn-primary:hover,
+body.dark-mode .btn-primary:focus-visible,
+body.dark-mode .btn-primary:active,
+body.dark-mode .btn-success,
+body.dark-mode .btn-success:hover,
+body.dark-mode .btn-success:focus-visible,
+body.dark-mode .btn-success:active,
+body.dark-mode .btn-undira,
+body.dark-mode .btn-undira:hover,
+body.dark-mode .btn-undira:focus-visible,
+body.dark-mode .btn-undira:active,
+body.dark-mode .btn-danger,
+body.dark-mode .btn-danger:hover,
+body.dark-mode .btn-danger:focus-visible,
+body.dark-mode .btn-danger:active,
+body.dark-mode .btn-secondary,
+body.dark-mode .btn-secondary:hover,
+body.dark-mode .btn-secondary:focus-visible,
+body.dark-mode .btn-secondary:active,
+body.dark-mode .btn-info,
+body.dark-mode .btn-info:hover,
+body.dark-mode .btn-info:focus-visible,
+body.dark-mode .btn-info:active,
+body.dark-mode .btn-dark,
+body.dark-mode .btn-dark:hover,
+body.dark-mode .btn-dark:focus-visible,
+body.dark-mode .btn-dark:active {
+  color: #fff !important;
+}
+
+body.dark-mode .btn-warning,
+body.dark-mode .btn-warning:hover,
+body.dark-mode .btn-warning:focus-visible,
+body.dark-mode .btn-warning:active {
+  color: #1E293B !important;
 }

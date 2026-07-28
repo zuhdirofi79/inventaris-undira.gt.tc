@@ -12,11 +12,29 @@
         @foreach($campusNode['buildings'] as $buildingNode)
             <h3 class="rpt-h-building">{{ $buildingNode['label'] }}</h3>
 
+            @include('reports._sub-category-recap', [
+                'recap' => $buildingNode['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
+                'title' => 'Rekap Sub Kategori',
+                'variant' => 'building',
+            ])
+
             @foreach($buildingNode['floors'] as $floorNode)
                 <h4 class="rpt-h-floor">{{ $floorNode['label'] }}</h4>
 
+                @include('reports._sub-category-recap', [
+                    'recap' => $floorNode['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
+                    'title' => 'Ringkasan Lantai',
+                    'variant' => 'floor',
+                ])
+
                 @foreach($floorNode['rooms'] as $roomNode)
                     <h5 class="rpt-h-room">{{ $roomNode['label'] }}</h5>
+
+                    @include('reports._sub-category-recap', [
+                        'recap' => $roomNode['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
+                        'title' => 'Ringkasan Ruangan',
+                        'variant' => 'room',
+                    ])
 
                     @foreach($roomNode['categories'] as $categoryNode)
                         <div class="rpt-h-category">

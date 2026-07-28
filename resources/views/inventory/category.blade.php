@@ -65,7 +65,25 @@
 </div>
 
 @if(empty($tree))
-<div class="alert alert-light border text-center">Belum ada inventaris pada kategori ini{{ request()->hasAny(['search','campus_id','building_id','floor_id','room_id']) ? ' dengan filter aktif' : '' }}.</div>
+@php
+    $hasActiveFilter = request()->hasAny(['search', 'campus_id', 'building_id', 'floor_id', 'room_id']);
+    $roomFilterActive = request()->filled('room_id');
+@endphp
+<div class="card card-undira">
+    <div class="card-body">
+        <x-empty-state
+            :icon="$roomFilterActive ? 'fa-door-open' : 'fa-box-open'"
+            :title="$roomFilterActive ? 'Ruangan tidak ditemukan' : ($hasActiveFilter ? 'Data tidak ditemukan' : 'Belum ada inventaris pada kategori ini')"
+            :message="$hasActiveFilter
+                ? 'Data inventaris pada lokasi yang dipilih belum tersedia. Silakan pilih ruangan lain atau ubah filter pencarian.'
+                : 'Belum ada inventaris yang masuk ke kategori ini.'"
+        >
+            @if($hasActiveFilter)
+                <a href="{{ route('inventory.category', $category) }}" class="btn btn-undira btn-sm">Tampilkan Semua Inventaris</a>
+            @endif
+        </x-empty-state>
+    </div>
+</div>
 @else
 <div class="accordion inventory-tree" id="campusAccordion">
     @foreach($tree as $cId => $campusNode)

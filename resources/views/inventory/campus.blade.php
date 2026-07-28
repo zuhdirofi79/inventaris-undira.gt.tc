@@ -157,7 +157,25 @@ body.dark-mode .inventory-nested-tree .inv-items-wrap {
 </div>
 
 @if($buildings->isEmpty())
-<div class="alert alert-light border text-center">Belum ada inventaris di kampus ini{{ request()->hasAny(['search','building_id','floor_id','room_id']) ? ' dengan filter aktif' : '' }}.</div>
+@php
+    $hasActiveFilter = request()->hasAny(['search', 'building_id', 'floor_id', 'room_id']);
+    $roomFilterActive = request()->filled('room_id');
+@endphp
+<div class="card card-undira">
+    <div class="card-body">
+        <x-empty-state
+            :icon="$roomFilterActive ? 'fa-door-open' : 'fa-box-open'"
+            :title="$roomFilterActive ? 'Ruangan tidak ditemukan' : ($hasActiveFilter ? 'Data tidak ditemukan' : 'Belum ada inventaris di kampus ini')"
+            :message="$hasActiveFilter
+                ? 'Data inventaris pada lokasi yang dipilih belum tersedia. Silakan pilih ruangan lain atau ubah filter pencarian.'
+                : 'Tambahkan inventaris melalui Konfigurasi Inventaris.'"
+        >
+            @if($hasActiveFilter)
+                <a href="{{ route('inventory.campus', $campus) }}" class="btn btn-undira btn-sm">Tampilkan Semua Inventaris</a>
+            @endif
+        </x-empty-state>
+    </div>
+</div>
 @else
 <div class="inventory-nested-tree" id="inventoryNestedTree"
      data-campus-id="{{ $campus->id }}"

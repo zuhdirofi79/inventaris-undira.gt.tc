@@ -143,14 +143,7 @@ body.modal-open .undira-sidebar-backdrop {
 .btn-outline-secondary {
   color: #334155;
   border-color: #cbd5e1;
-  background: #fff;
-}
-
-.btn-outline-secondary:hover,
-.btn-outline-secondary:focus-visible {
-  color: #0f172a;
-  background: #f1f5f9;
-  border-color: #94a3b8;
+  background-color: transparent;
 }
 
 .btn-secondary {
@@ -159,7 +152,8 @@ body.modal-open .undira-sidebar-backdrop {
 
 .btn-undira,
 .btn-undira:hover,
-.btn-undira:focus-visible {
+.btn-undira:focus-visible,
+.btn-undira:active {
   color: #fff !important;
 }
 
@@ -225,15 +219,8 @@ body.dark-mode .manage-option-panel {
 
 body.dark-mode .btn-outline-secondary {
   color: var(--text-primary);
-  background: transparent;
+  background-color: transparent;
   border-color: #475569;
-}
-
-body.dark-mode .btn-outline-secondary:hover,
-body.dark-mode .btn-outline-secondary:focus-visible {
-  color: #fff;
-  background: #334155;
-  border-color: #64748b;
 }
 
 @media (max-width: 575.98px) {

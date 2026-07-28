@@ -15,6 +15,9 @@
     :back-route="route('inventory.index')"
     back-label="Data Inventaris"
 >
+    <button type="button" class="btn btn-outline-dark btn-sm" id="btnMassLabels" data-bs-toggle="modal" data-bs-target="#massLabelsModal">
+        <i class="bi bi-qr-code me-1"></i>Print Barcode (30 Label)
+    </button>
     <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-building me-1"></i>Per Kampus</a>
     <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid-3x3-gap me-1"></i>Per Kategori</a>
     @can('inventory.create')
@@ -29,7 +32,7 @@
     @endcan
 </x-page-header>
 
-<div class="filter-panel">
+<div class="filter-panel" id="mass-labels">
     <form id="filterForm">
         <div class="row g-2 g-md-3">
             <div class="col-6 col-md-3">
@@ -98,9 +101,10 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
+            <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
                 <button type="button" id="btnApplyFilter" class="btn btn-undira btn-sm"><i class="fas fa-filter me-1"></i>Terapkan</button>
                 <button type="button" id="btnResetFilter" class="btn btn-outline-secondary btn-sm"><i class="fas fa-undo me-1"></i>Reset</button>
+                <span class="small text-muted ms-md-2" id="massSelectInfo">0 item dipilih untuk label</span>
             </div>
         </div>
     </form>
@@ -112,6 +116,9 @@
             <table id="inventoryTable" class="table table-striped table-hover w-100">
                 <thead>
                     <tr>
+                        <th style="width:36px;">
+                            <input type="checkbox" id="checkPageAll" class="form-check-input" title="Pilih semua di halaman ini" data-no-loader="1">
+                        </th>
                         <th>No. Inventaris</th>
                         <th>Nama</th>
                         <th>Kategori</th>
@@ -126,17 +133,63 @@
         </div>
     </div>
 </div>
+
+{{-- Hidden form for mass label PDF (new feature; does not touch individual label print) --}}
+<form id="massLabelForm" method="POST" action="{{ route('inventory.labels.mass30') }}" target="_blank" class="d-none">
+    @csrf
+    <input type="hidden" name="scope" id="massLabelScope" value="selected">
+    <div id="massLabelIds"></div>
+    <input type="hidden" name="campus_id" id="massFilterCampus">
+    <input type="hidden" name="building_id" id="massFilterBuilding">
+    <input type="hidden" name="floor_id" id="massFilterFloor">
+    <input type="hidden" name="room_id" id="massFilterRoom">
+    <input type="hidden" name="category_id" id="massFilterCategory">
+    <input type="hidden" name="org_unit_id" id="massFilterOrgUnit">
+    <input type="hidden" name="pic_id" id="massFilterPic">
+    <input type="hidden" name="status" id="massFilterStatus">
+    <input type="hidden" name="condition" id="massFilterCondition">
+</form>
+
+<div class="modal fade" id="massLabelsModal" tabindex="-1" aria-labelledby="massLabelsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="massLabelsModalLabel">Print Barcode (30 Label / A4)</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>3 kolom × 10 baris</strong> (30 label/halaman).</p>
+                <p class="small text-muted mb-3">Fitur ini terpisah dari Cetak Label individual. QR tetap fokus utama pada setiap label.</p>
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-undira" id="btnPrintSelectedLabels" data-no-loader="1">
+                        Cetak yang dipilih (<span id="massSelectedCount">0</span>)
+                    </button>
+                    <button type="button" class="btn btn-outline-dark" id="btnPrintFilterLabels" data-no-loader="1">
+                        Cetak semua hasil filter
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('scripts')
 <script>
 const locationData = @json($locationData);
+const selectedIds = new Set();
 $('.select2-filter').select2({ theme: 'bootstrap-5', width: '100%' });
 
 function populateSelect($select, items, valueKey, labelKey, placeholder) {
     $select.empty().append(`<option value="">${placeholder}</option>`);
     items.forEach(item => $select.append(`<option value="${item[valueKey]}">${item[labelKey]}</option>`));
     $select.trigger('change');
+}
+
+function updateMassSelectInfo() {
+    const n = selectedIds.size;
+    $('#massSelectInfo').text(n + ' item dipilih untuk label');
+    $('#massSelectedCount').text(n);
 }
 
 $('#filterCampus').on('change', function() {
@@ -177,6 +230,16 @@ const table = $('#inventoryTable').DataTable({
         }
     },
     columns: [
+        {
+            data: 'id',
+            orderable: false,
+            searchable: false,
+            className: 'text-center',
+            render: function (id) {
+                const checked = selectedIds.has(String(id)) ? 'checked' : '';
+                return `<input type="checkbox" class="form-check-input row-check" value="${id}" ${checked} data-no-loader="1">`;
+            }
+        },
         { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },
         { data: 'name' },
         { data: 'category', render: c => c?.name || '-' },
@@ -191,15 +254,92 @@ const table = $('#inventoryTable').DataTable({
             @can('inventory.update')<a href="/inventory/${row.id}/edit" class="btn btn-xs btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>@endcan
         `}
     ],
-    order: [[0, 'asc']],
-    language: { url: '//cdn.datatables.net/plug-ins/1.13.8/i18n/id.json' }
+    order: [[1, 'asc']],
+    language: { url: '//cdn.datatables.net/plug-ins/1.13.8/i18n/id.json' },
+    drawCallback: function () {
+        const pageIds = [];
+        $('#inventoryTable tbody .row-check').each(function () {
+            pageIds.push(String(this.value));
+            this.checked = selectedIds.has(String(this.value));
+        });
+        const allChecked = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+        $('#checkPageAll').prop('checked', allChecked);
+        updateMassSelectInfo();
+    }
+});
+
+$('#inventoryTable').on('change', '.row-check', function () {
+    const id = String(this.value);
+    if (this.checked) selectedIds.add(id);
+    else selectedIds.delete(id);
+    updateMassSelectInfo();
+});
+
+$('#checkPageAll').on('change', function () {
+    const checked = this.checked;
+    $('#inventoryTable tbody .row-check').each(function () {
+        this.checked = checked;
+        const id = String(this.value);
+        if (checked) selectedIds.add(id);
+        else selectedIds.delete(id);
+    });
+    updateMassSelectInfo();
+});
+
+function syncMassFilterFields() {
+    $('#massFilterCampus').val($('#filterCampus').val() || '');
+    $('#massFilterBuilding').val($('#filterBuilding').val() || '');
+    $('#massFilterFloor').val($('#filterFloor').val() || '');
+    $('#massFilterRoom').val($('#filterRoom').val() || '');
+    $('#massFilterCategory').val($('#filterCategory').val() || '');
+    $('#massFilterOrgUnit').val($('#filterOrgUnit').val() || '');
+    $('#massFilterPic').val($('#filterPic').val() || '');
+    $('#massFilterStatus').val($('#filterStatus').val() || '');
+    $('#massFilterCondition').val($('#filterCondition').val() || '');
+}
+
+function submitMassLabels(scope) {
+    syncMassFilterFields();
+    $('#massLabelScope').val(scope);
+    const $ids = $('#massLabelIds').empty();
+    if (scope === 'selected') {
+        if (selectedIds.size === 0) {
+            alert('Pilih minimal satu inventaris terlebih dahulu.');
+            return;
+        }
+        selectedIds.forEach(function (id) {
+            $ids.append(`<input type="hidden" name="inventory_ids[]" value="${id}">`);
+        });
+    }
+    const modalEl = document.getElementById('massLabelsModal');
+    if (modalEl && window.bootstrap) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+    $('#massLabelForm').trigger('submit');
+}
+
+$('#btnPrintSelectedLabels').on('click', function () {
+    submitMassLabels('selected');
+});
+$('#btnPrintFilterLabels').on('click', function () {
+    submitMassLabels('filter');
 });
 
 $('#btnApplyFilter').on('click', () => table.ajax.reload());
 $('#btnResetFilter').on('click', function() {
     $('#filterForm')[0].reset();
     $('.select2-filter').val('').trigger('change');
+    selectedIds.clear();
+    updateMassSelectInfo();
     table.ajax.reload();
 });
+
+if (window.location.hash === '#mass-labels') {
+    setTimeout(function () {
+        const btn = document.getElementById('btnMassLabels');
+        if (btn) btn.click();
+    }, 400);
+}
 </script>
 @endpush

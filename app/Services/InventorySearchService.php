@@ -262,29 +262,29 @@ class InventorySearchService
             : InventoryCondition::tryFrom((string) $item->condition);
 
         $activeBorrowing = null;
-        if ($status === InventoryStatus::Dipinjam) {
-            $borrowing = Borrowing::query()
-                ->where('inventory_item_id', $item->id)
-                ->whereIn('status', [BorrowingStatus::Dipinjam, BorrowingStatus::Terlambat])
-                ->latest('borrow_date')
-                ->first(['id', 'borrower_name', 'borrow_date', 'expected_return_date', 'status']);
+        $openBorrowing = Borrowing::query()
+            ->where('inventory_item_id', $item->id)
+            ->whereIn('status', BorrowingStatus::blockingValues())
+            ->latest('borrow_date')
+            ->first(['id', 'borrower_name', 'borrow_date', 'expected_return_date', 'status']);
 
-            if ($borrowing) {
-                $activeBorrowing = [
-                    'id' => $borrowing->id,
-                    'borrower_name' => $borrowing->borrower_name,
-                    'borrow_date' => optional($borrowing->borrow_date)->format('Y-m-d'),
-                    'expected_return_date' => optional($borrowing->expected_return_date)->format('Y-m-d'),
-                    'status' => $borrowing->status instanceof BorrowingStatus
-                        ? $borrowing->status->value
-                        : (string) $borrowing->status,
-                ];
-            }
+        if ($openBorrowing) {
+            $activeBorrowing = [
+                'id' => $openBorrowing->id,
+                'borrower_name' => $openBorrowing->borrower_name,
+                'borrow_date' => optional($openBorrowing->borrow_date)->format('Y-m-d'),
+                'expected_return_date' => optional($openBorrowing->expected_return_date)->format('Y-m-d'),
+                'status' => $openBorrowing->status instanceof BorrowingStatus
+                    ? $openBorrowing->status->value
+                    : (string) $openBorrowing->status,
+            ];
         }
 
         $campus = $item->room?->floor?->building?->campus;
         $building = $item->room?->floor?->building;
         $floor = $item->room?->floor;
+
+        $borrowable = ($status?->isBorrowable() ?? false) && $openBorrowing === null;
 
         return [
             'id' => $item->id,
@@ -310,7 +310,7 @@ class InventorySearchService
             'barcode' => $item->barcode ?: '—',
             'serial_number' => $item->serial_number ?: '—',
             'qr_url' => $item->qr_url,
-            'borrowable' => $status?->isBorrowable() ?? false,
+            'borrowable' => $borrowable,
             'active_borrowing' => $activeBorrowing,
             'campus_id' => $campus?->id,
             'building_id' => $building?->id,
