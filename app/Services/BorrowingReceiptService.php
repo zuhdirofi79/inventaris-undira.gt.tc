@@ -51,6 +51,9 @@ class BorrowingReceiptService
     public function receiptPayload(Borrowing $borrowing): array
     {
         $borrowing->loadMissing([
+            'items.inventoryItem.category',
+            'items.inventoryItem.subCategory',
+            'items.inventoryItem.room.floor.building.campus',
             'inventoryItem.category',
             'inventoryItem.subCategory',
             'inventoryItem.room.floor.building.campus',
@@ -58,7 +61,8 @@ class BorrowingReceiptService
             'requestedBy',
         ]);
 
-        $item = $borrowing->inventoryItem;
+        $item = $borrowing->inventoryItem
+            ?? $borrowing->items->first()?->inventoryItem;
         $logoPath = public_path('images/logo-undira.png');
         if (! is_file($logoPath)) {
             $logoPath = public_path('images/undira.png');
@@ -71,6 +75,7 @@ class BorrowingReceiptService
         return [
             'borrowing' => $borrowing,
             'item' => $item,
+            'items' => $borrowing->items,
             'logoDataUri' => $logoDataUri,
             'qrDataUri' => $this->qrDataUri($borrowing),
             'approvalUrl' => $this->approvalPublicUrl($borrowing),

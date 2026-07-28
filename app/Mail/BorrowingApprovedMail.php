@@ -16,7 +16,7 @@ class BorrowingApprovedMail extends Mailable
     public function __construct(
         public Borrowing $borrowing,
     ) {
-        $this->borrowing->loadMissing('inventoryItem');
+        $this->borrowing->loadMissing(['inventoryItem', 'items.inventoryItem']);
     }
 
     public function envelope(): Envelope
@@ -33,6 +33,7 @@ class BorrowingApprovedMail extends Mailable
             with: [
                 'borrowing' => $this->borrowing,
                 'item' => $this->borrowing->inventoryItem,
+                'items' => $this->borrowing->items,
             ],
         );
     }

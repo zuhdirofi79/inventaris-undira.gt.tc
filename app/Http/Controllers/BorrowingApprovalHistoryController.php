@@ -7,6 +7,7 @@ use App\Exports\EamFlatReportExport;
 use App\Models\Borrowing;
 use App\Services\BorrowingReceiptService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
@@ -59,13 +60,22 @@ class BorrowingApprovalHistoryController extends Controller
         $rows = $this->filteredQuery($request)->limit(5000)->get();
 
         $excelRows = $rows->map(function (Borrowing $b, int $i) {
+            $count = $b->items->count() ?: ($b->inventoryItem ? 1 : 0);
+            $names = $b->items->map(fn ($l) => $l->inventoryItem?->name)->filter()->implode(', ');
+            $numbers = $b->items->map(fn ($l) => $l->inventoryItem?->inventory_number)->filter()->implode(', ');
+            if ($names === '') {
+                $names = $b->inventoryItem?->name;
+                $numbers = $b->inventoryItem?->inventory_number;
+            }
+
             return [
                 $i + 1,
                 $b->approval_number ?? '—',
                 $b->approved_at?->format('Y-m-d H:i') ?? $b->rejected_at?->format('Y-m-d H:i') ?? '—',
                 $b->borrower_name,
-                $b->inventoryItem?->name,
-                $b->inventoryItem?->inventory_number,
+                $names,
+                $numbers,
+                $count,
                 $b->status?->label(),
                 $b->approvedBy?->name ?? '—',
                 $b->approved_at?->format('Y-m-d H:i') ?? '—',
@@ -73,7 +83,7 @@ class BorrowingApprovalHistoryController extends Controller
         })->all();
 
         $export = new EamFlatReportExport(
-            ['No', 'Nomor Approval', 'Tanggal', 'Nama User', 'Barang', 'No Inventaris', 'Status', 'Approved By', 'Approved At'],
+            ['No', 'Nomor Approval', 'Tanggal', 'Nama User', 'Barang', 'No Inventaris', 'Jml Item', 'Status', 'Approved By', 'Approved At'],
             $excelRows,
             'Riwayat Approval'
         );
@@ -90,13 +100,14 @@ class BorrowingApprovalHistoryController extends Controller
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Builder<\App\Models\Borrowing>
+     * @return Builder<Borrowing>
      */
     protected function filteredQuery(Request $request)
     {
         return Borrowing::query()
             ->with([
                 'inventoryItem:id,inventory_number,name,category_id,sub_category_id,room_id',
+                'items.inventoryItem:id,inventory_number,name',
                 'approvedBy:id,name',
                 'requestedBy:id,name',
             ])
@@ -117,6 +128,10 @@ class BorrowingApprovalHistoryController extends Controller
                         ->orWhere('borrower_name', 'like', "%{$term}%")
                         ->orWhere('borrower_email', 'like', "%{$term}%")
                         ->orWhereHas('inventoryItem', function ($i) use ($term) {
+                            $i->where('name', 'like', "%{$term}%")
+                                ->orWhere('inventory_number', 'like', "%{$term}%");
+                        })
+                        ->orWhereHas('items.inventoryItem', function ($i) use ($term) {
                             $i->where('name', 'like', "%{$term}%")
                                 ->orWhere('inventory_number', 'like', "%{$term}%");
                         })

@@ -37,17 +37,12 @@
             </div>
 
             <hr>
-            <table class="table table-sm mb-0">
+            <table class="table table-sm mb-3">
                 <tr><th style="width:40%">Nama Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
                 <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '—' }}</td></tr>
-                <tr><th>Barang</th><td>{{ $item?->name ?? '—' }}</td></tr>
-                <tr><th>Nomor Inventaris</th><td>{{ $item?->inventory_number ?? '—' }}</td></tr>
-                <tr><th>Kategori</th><td>{{ $item?->category?->name ?? '—' }}</td></tr>
-                <tr><th>Subkategori</th><td>{{ $item?->subCategory?->name ?? '—' }}</td></tr>
-                <tr><th>Lokasi</th><td>{{ $item?->full_location ?? $item?->locationDisplayName() ?? '—' }}</td></tr>
-                <tr><th>PIC</th><td>{{ $item?->picDisplayName() ?? '—' }}</td></tr>
                 <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}</td></tr>
                 <tr><th>Tanggal Kembali</th><td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}</td></tr>
+                <tr><th>Jumlah Item</th><td>{{ isset($items) && $items->count() ? $items->count() : ($item ? 1 : 0) }}</td></tr>
                 <tr><th>Approved By</th><td>{{ $borrowing->approvedBy?->name ?? '—' }}</td></tr>
                 <tr><th>Approved At</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
                 @if($borrowing->rejected_at)
@@ -56,6 +51,45 @@
                 @endif
                 <tr><th>Catatan</th><td>{{ $borrowing->approval_notes ?: ($borrowing->notes ?: '—') }}</td></tr>
             </table>
+
+            <h2 class="h6">Daftar Barang</h2>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Nomor</th>
+                            <th>Nama</th>
+                            <th>Kategori</th>
+                            <th>Sub Kategori</th>
+                            <th>Lokasi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($items ?? collect()) as $line)
+                            @php $inv = $line->inventoryItem; @endphp
+                            <tr>
+                                <td><code>{{ $inv?->inventory_number ?? '—' }}</code></td>
+                                <td>{{ $inv?->name ?? '—' }}</td>
+                                <td>{{ $inv?->category?->name ?? '—' }}</td>
+                                <td>{{ $inv?->subCategory?->name ?? '—' }}</td>
+                                <td class="small">{{ $inv?->full_location ?? '—' }}</td>
+                            </tr>
+                        @empty
+                            @if($item)
+                            <tr>
+                                <td><code>{{ $item->inventory_number }}</code></td>
+                                <td>{{ $item->name }}</td>
+                                <td>{{ $item->category?->name ?? '—' }}</td>
+                                <td>{{ $item->subCategory?->name ?? '—' }}</td>
+                                <td class="small">{{ $item->full_location ?? '—' }}</td>
+                            </tr>
+                            @else
+                            <tr><td colspan="5" class="text-muted">Tidak ada barang.</td></tr>
+                            @endif
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 

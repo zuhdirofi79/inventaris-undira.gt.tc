@@ -18,7 +18,7 @@ class BorrowingPendingAdminMail extends Mailable
         public Borrowing $borrowing,
         public User $admin,
     ) {
-        $this->borrowing->loadMissing(['inventoryItem', 'requestedBy']);
+        $this->borrowing->loadMissing(['inventoryItem', 'items.inventoryItem', 'requestedBy']);
     }
 
     public function envelope(): Envelope
@@ -35,6 +35,7 @@ class BorrowingPendingAdminMail extends Mailable
             with: [
                 'borrowing' => $this->borrowing,
                 'item' => $this->borrowing->inventoryItem,
+                'items' => $this->borrowing->items,
                 'admin' => $this->admin,
             ],
         );

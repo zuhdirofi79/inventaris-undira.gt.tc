@@ -327,6 +327,78 @@ class BorrowingApprovalTest extends TestCase
             ->assertOk();
     }
 
+    public function test_store_supports_multi_item_transaction(): void
+    {
+        Mail::fake();
+
+        $admin = $this->makeAdmin();
+        $itemA = $this->makeItem(['inventory_number' => 'INV-MULTI-A-'.uniqid(), 'name' => 'Laptop A']);
+        $itemB = InventoryItem::query()->create([
+            'inventory_number' => 'INV-MULTI-B-'.uniqid(),
+            'barcode' => 'BC-'.uniqid(),
+            'name' => 'Proyektor B',
+            'category_id' => $itemA->category_id,
+            'sub_category_id' => $itemA->sub_category_id,
+            'room_id' => $itemA->room_id,
+            'condition' => InventoryCondition::Bagus,
+            'status' => InventoryStatus::Aktif,
+            'quantity' => 1,
+            'unit' => 'unit',
+            'responsible_person' => 'PIC',
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), [
+                'inventory_item_ids' => [$itemA->id, $itemB->id],
+                'borrower_name' => 'Multi User',
+                'borrower_email' => 'multi@undira.ac.id',
+                'borrow_date' => now()->toDateString(),
+                'expected_return_date' => now()->addDays(2)->toDateString(),
+            ])
+            ->assertRedirect(route('borrowings.index'));
+
+        $borrowing = Borrowing::query()->latest('id')->first();
+        $this->assertNotNull($borrowing);
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->status);
+        $this->assertCount(2, $borrowing->items);
+        $this->assertSame($itemA->id, $borrowing->inventory_item_id);
+        $this->assertSame(InventoryStatus::Aktif, $itemA->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $itemB->fresh()->status);
+
+        $approver = $this->makeAdmin(['email' => 'admin-multi@undira.ac.id']);
+        $this->actingAs($approver)
+            ->post(route('borrowings.approve', $borrowing))
+            ->assertRedirect();
+
+        $this->assertSame(InventoryStatus::Dipinjam, $itemA->fresh()->status);
+        $this->assertSame(InventoryStatus::Dipinjam, $itemB->fresh()->status);
+
+        $this->actingAs($approver)
+            ->post(route('borrowings.return-items', $borrowing), [
+                'item_ids' => [$borrowing->items()->first()->id],
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        $borrowing->refresh()->load('items');
+        $this->assertNotSame(BorrowingStatus::Dikembalikan, $borrowing->status);
+        $this->assertTrue(
+            $borrowing->items->contains(fn ($i) => $i->status->value === 'dikembalikan')
+        );
+        $this->assertTrue(
+            $borrowing->items->contains(fn ($i) => $i->status->value === 'dipinjam')
+        );
+
+        $this->actingAs($approver)
+            ->post(route('borrowings.return-items', $borrowing), [
+                'return_all' => 1,
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        $this->assertSame(BorrowingStatus::Dikembalikan, $borrowing->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $itemA->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $itemB->fresh()->status);
+    }
+
     protected function makeItem(array $overrides = []): InventoryItem
     {
         $campus = Campus::query()->create([

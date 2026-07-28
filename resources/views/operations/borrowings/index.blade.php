@@ -45,6 +45,7 @@
                 <tr>
                     <th>No. Approval</th>
                     <th>Inventaris</th>
+                    <th>Jml Item</th>
                     <th>Peminjam</th>
                     <th>Tgl Pinjam</th>
                     <th>Tgl Kembali</th>
@@ -63,9 +64,21 @@
                         @endif
                     </td>
                     <td>
-                        <a href="{{ route('inventory.show', $borrowing->inventoryItem) }}">{{ $borrowing->inventoryItem?->inventory_number }}</a>
-                        <br><small class="text-muted">{{ $borrowing->inventoryItem?->name }}</small>
+                        @php
+                            $count = $borrowing->items_count ?? $borrowing->items->count();
+                            $first = $borrowing->items->first()?->inventoryItem ?? $borrowing->inventoryItem;
+                        @endphp
+                        @if($first)
+                            <a href="{{ route('inventory.show', $first) }}">{{ $first->inventory_number }}</a>
+                            <br><small class="text-muted">{{ $first->name }}</small>
+                            @if($count > 1)
+                                <br><small class="text-muted">+{{ $count - 1 }} barang lain</small>
+                            @endif
+                        @else
+                            <span class="text-muted">—</span>
+                        @endif
                     </td>
+                    <td>{{ $count ?: ($borrowing->inventoryItem ? 1 : 0) }}</td>
                     <td>{{ $borrowing->borrower_name }}<br><small>{{ $borrowing->borrower_email }}</small></td>
                     <td>{{ $borrowing->borrow_date?->format('d/m/Y') }}</td>
                     <td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}</td>
@@ -112,7 +125,7 @@
                 @endif
                 @endcan
                 @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada data peminjaman.</td></tr>
+                <tr><td colspan="8" class="text-center text-muted py-4">Belum ada data peminjaman.</td></tr>
                 @endforelse
             </tbody>
         </table>

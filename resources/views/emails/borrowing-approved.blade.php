@@ -18,10 +18,19 @@ Pengajuan peminjaman Anda telah **disetujui**.
 
 **Nomor Approval:** {{ $borrowing->approval_number ?? '—' }}  
 **Status:** {{ $borrowing->status?->label() ?? 'Disetujui' }}  
-**Nomor Inventaris:** {{ $item?->inventory_number ?? '-' }}  
-**Nama Barang:** {{ $item?->name ?? '-' }}  
 **Tanggal Pinjam:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '-' }}  
-**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}
+**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}  
+**Jumlah Item:** {{ isset($items) ? $items->count() : ($item ? 1 : 0) }}
+
+@if(isset($items) && $items->count())
+**Daftar Barang:**
+@foreach($items as $line)
+- {{ $line->inventoryItem?->inventory_number ?? '-' }} — {{ $line->inventoryItem?->name ?? '-' }}
+@endforeach
+@elseif($item)
+**Nomor Inventaris:** {{ $item->inventory_number ?? '-' }}  
+**Nama Barang:** {{ $item->name ?? '-' }}
+@endif
 
 Silakan mengambil inventaris sesuai jadwal.
 

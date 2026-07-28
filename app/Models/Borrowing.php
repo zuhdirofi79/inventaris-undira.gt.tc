@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
 
 class Borrowing extends Model
 {
@@ -44,9 +47,17 @@ class Borrowing extends Model
         ];
     }
 
+    /**
+     * Legacy single-item link (first / primary item). Kept for backward compatibility.
+     */
     public function inventoryItem(): BelongsTo
     {
         return $this->belongsTo(InventoryItem::class);
+    }
+
+    public function items(): HasMany
+    {
+        return $this->hasMany(BorrowingItem::class);
     }
 
     public function approvedBy(): BelongsTo
@@ -57,6 +68,68 @@ class Borrowing extends Model
     public function requestedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'requested_by');
+    }
+
+    /**
+     * All inventory lines for this transaction (eager-safe).
+     *
+     * @return Collection<int, BorrowingItem>
+     */
+    public function lineItems(): Collection
+    {
+        if ($this->relationLoaded('items') && $this->items->isNotEmpty()) {
+            return $this->items;
+        }
+
+        if ($this->items()->exists()) {
+            return $this->items()->with('inventoryItem')->get();
+        }
+
+        // Legacy fallback before backfill / edge cases.
+        if ($this->inventory_item_id) {
+            $this->loadMissing('inventoryItem');
+
+            return collect([
+                new BorrowingItem([
+                    'borrowing_id' => $this->id,
+                    'inventory_item_id' => $this->inventory_item_id,
+                    'qty' => 1,
+                    'status' => match ($this->status) {
+                        BorrowingStatus::Dikembalikan => BorrowingItemStatus::Dikembalikan,
+                        BorrowingStatus::Disetujui,
+                        BorrowingStatus::Dipinjam,
+                        BorrowingStatus::Terlambat => BorrowingItemStatus::Dipinjam,
+                        default => BorrowingItemStatus::MenungguPersetujuan,
+                    },
+                ]),
+            ]);
+        }
+
+        return collect();
+    }
+
+    public function itemsCount(): int
+    {
+        if ($this->relationLoaded('items')) {
+            return $this->items->count();
+        }
+
+        $count = $this->items()->count();
+
+        return $count > 0 ? $count : ($this->inventory_item_id ? 1 : 0);
+    }
+
+    public function allItemsReturned(): bool
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        if ($items->isEmpty()) {
+            return $this->status === BorrowingStatus::Dikembalikan;
+        }
+
+        return $items->every(
+            fn (BorrowingItem $item) => $item->status === BorrowingItemStatus::Dikembalikan
+        );
     }
 
     public function approvalStatusLabel(): string
@@ -79,5 +152,38 @@ class Borrowing extends Model
         }
 
         return $this->status?->label() ?? '-';
+    }
+
+    /**
+     * Whether an inventory unit is blocked by an open borrowing (header or line).
+     */
+    public static function inventoryIsBlocked(int $inventoryItemId, ?int $exceptBorrowingId = null): bool
+    {
+        if ($inventoryItemId < 1) {
+            return false;
+        }
+
+        $viaLines = BorrowingItem::query()
+            ->where('inventory_item_id', $inventoryItemId)
+            ->whereIn('status', BorrowingItemStatus::blockingValues())
+            ->whereHas('borrowing', function ($q) use ($exceptBorrowingId) {
+                $q->whereIn('status', BorrowingStatus::blockingValues());
+                if ($exceptBorrowingId) {
+                    $q->where('id', '!=', $exceptBorrowingId);
+                }
+            })
+            ->exists();
+
+        if ($viaLines) {
+            return true;
+        }
+
+        // Legacy header-only rows (pre-items or missing line).
+        return static::query()
+            ->where('inventory_item_id', $inventoryItemId)
+            ->whereIn('status', BorrowingStatus::blockingValues())
+            ->when($exceptBorrowingId, fn ($q) => $q->where('id', '!=', $exceptBorrowingId))
+            ->whereDoesntHave('items')
+            ->exists();
     }
 }

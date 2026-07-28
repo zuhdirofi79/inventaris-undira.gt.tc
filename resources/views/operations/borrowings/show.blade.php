@@ -2,10 +2,17 @@
 
 @section('title', 'Detail Peminjaman - Inventaris UNDIRA')
 
+@php
+    use App\Enums\BorrowingItemStatus;
+    use App\Enums\BorrowingStatus;
+    $lines = $borrowing->items->isNotEmpty() ? $borrowing->items : collect();
+    $itemCount = $lines->count() ?: ($borrowing->inventoryItem ? 1 : 0);
+@endphp
+
 @section('content')
 <x-page-header
     title="Detail Peminjaman"
-    subtitle="{{ $borrowing->borrower_name }} · {{ $borrowing->inventoryItem?->inventory_number }}"
+    subtitle="{{ $borrowing->borrower_name }} · {{ $itemCount }} item{{ $borrowing->approval_number ? ' · '.$borrowing->approval_number : '' }}"
     icon="bi bi-hand-index"
     :breadcrumbs="[
         ['label' => 'Dashboard', 'url' => route('dashboard')],
@@ -34,11 +41,11 @@
 </x-page-header>
 
 <div class="row">
-    <div class="col-lg-6">
+    <div class="col-lg-5">
         <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Data Peminjaman</h5></div>
+            <div class="card-header"><h5 class="mb-0">Data Peminjam</h5></div>
             <div class="card-body">
-                <table class="table table-sm">
+                <table class="table table-sm mb-0">
                     <tr><th>Nomor Approval</th><td>{{ $borrowing->approval_number ?? '—' }}</td></tr>
                     <tr><th>Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
                     <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '-' }}</td></tr>
@@ -53,6 +60,7 @@
                         </td>
                     </tr>
                     <tr><th>Status Approval</th><td>{{ $borrowing->approvalStatusLabel() }}</td></tr>
+                    <tr><th>Jumlah Item</th><td>{{ $itemCount }}</td></tr>
                     <tr><th>Diajukan Oleh</th><td>{{ $borrowing->requestedBy?->name ?? '-' }}</td></tr>
                     <tr><th>Disetujui / Diproses Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '-' }}</td></tr>
                     <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '-' }}</td></tr>
@@ -61,24 +69,6 @@
                     <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?? '-' }}</td></tr>
                     <tr><th>Catatan</th><td>{{ $borrowing->notes ?? '-' }}</td></tr>
                 </table>
-            </div>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card card-undira mb-4">
-            <div class="card-header"><h5 class="mb-0">Inventaris</h5></div>
-            <div class="card-body">
-                @if($borrowing->inventoryItem)
-                <p><strong>{{ $borrowing->inventoryItem->name }}</strong></p>
-                <p><code>{{ $borrowing->inventoryItem->inventory_number }}</code></p>
-                <p class="text-muted small">{{ $borrowing->inventoryItem->full_location }}</p>
-                <p class="small mb-1"><strong>Kategori:</strong> {{ $borrowing->inventoryItem->category?->name ?? '—' }}</p>
-                <p class="small mb-1"><strong>Subkategori:</strong> {{ $borrowing->inventoryItem->subCategory?->name ?? '—' }}</p>
-                <p class="small mb-3"><strong>PIC:</strong> {{ $borrowing->inventoryItem->picDisplayName() ?: '—' }}</p>
-                <a href="{{ route('inventory.show', $borrowing->inventoryItem) }}" class="btn btn-outline-primary btn-sm">Lihat Inventaris</a>
-                @else
-                <p class="text-muted">Inventaris tidak ditemukan.</p>
-                @endif
             </div>
         </div>
 
@@ -95,6 +85,120 @@
             </div>
         </div>
         @endif
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card card-undira mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Daftar Barang</h5>
+            </div>
+            <div class="card-body p-0">
+                @php
+                    $canReturn = auth()->user()?->can('update', $borrowing)
+                        && in_array($borrowing->status, [BorrowingStatus::Disetujui, BorrowingStatus::Dipinjam, BorrowingStatus::Terlambat], true);
+                    $openLines = $lines->filter(fn ($l) => $l->status === BorrowingItemStatus::Dipinjam);
+                @endphp
+
+                @if($canReturn && $openLines->isNotEmpty())
+                <form action="{{ route('borrowings.return-items', $borrowing) }}" method="POST" id="returnItemsForm">
+                    @csrf
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width:36px"></th>
+                                    <th>Nomor Inventaris</th>
+                                    <th>Nama</th>
+                                    <th>Kategori</th>
+                                    <th>Sub Kategori</th>
+                                    <th>Lokasi</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($lines as $line)
+                                    @php $inv = $line->inventoryItem; @endphp
+                                    <tr>
+                                        <td>
+                                            @if($line->status === BorrowingItemStatus::Dipinjam)
+                                                <input type="checkbox" name="item_ids[]" value="{{ $line->id }}" class="form-check-input">
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if($inv)
+                                                <a href="{{ route('inventory.show', $inv) }}"><code>{{ $inv->inventory_number }}</code></a>
+                                            @else —
+                                            @endif
+                                        </td>
+                                        <td>{{ $inv?->name ?? '—' }}</td>
+                                        <td>{{ $inv?->category?->name ?? '—' }}</td>
+                                        <td>{{ $inv?->subCategory?->name ?? '—' }}</td>
+                                        <td class="small">{{ $inv?->full_location ?? '—' }}</td>
+                                        <td><span class="badge bg-{{ $line->status?->badgeColor() ?? 'secondary' }}">{{ $line->status?->label() ?? '—' }}</span></td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="p-3 border-top d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-sm btn-outline-primary" name="return_all" value="0">
+                            <i class="fas fa-undo me-1"></i>Kembalikan Terpilih
+                        </button>
+                        <button type="submit" class="btn btn-sm btn-undira" name="return_all" value="1">
+                            <i class="fas fa-check-double me-1"></i>Kembalikan Semua
+                        </button>
+                    </div>
+                </form>
+                @else
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Nomor Inventaris</th>
+                                <th>Nama</th>
+                                <th>Kategori</th>
+                                <th>Sub Kategori</th>
+                                <th>Lokasi</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @forelse($lines as $line)
+                                @php $inv = $line->inventoryItem; @endphp
+                                <tr>
+                                    <td>
+                                        @if($inv)
+                                            <a href="{{ route('inventory.show', $inv) }}"><code>{{ $inv->inventory_number }}</code></a>
+                                        @else —
+                                        @endif
+                                    </td>
+                                    <td>{{ $inv?->name ?? '—' }}</td>
+                                    <td>{{ $inv?->category?->name ?? '—' }}</td>
+                                    <td>{{ $inv?->subCategory?->name ?? '—' }}</td>
+                                    <td class="small">{{ $inv?->full_location ?? '—' }}</td>
+                                    <td><span class="badge bg-{{ $line->status?->badgeColor() ?? 'secondary' }}">{{ $line->status?->label() ?? '—' }}</span></td>
+                                </tr>
+                            @empty
+                                @if($borrowing->inventoryItem)
+                                    @php $inv = $borrowing->inventoryItem; @endphp
+                                    <tr>
+                                        <td><a href="{{ route('inventory.show', $inv) }}"><code>{{ $inv->inventory_number }}</code></a></td>
+                                        <td>{{ $inv->name }}</td>
+                                        <td>{{ $inv->category?->name ?? '—' }}</td>
+                                        <td>{{ $inv->subCategory?->name ?? '—' }}</td>
+                                        <td class="small">{{ $inv->full_location ?? '—' }}</td>
+                                        <td><span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span></td>
+                                    </tr>
+                                @else
+                                    <tr><td colspan="6" class="text-center text-muted py-3">Tidak ada barang.</td></tr>
+                                @endif
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
+        </div>
     </div>
 </div>
 

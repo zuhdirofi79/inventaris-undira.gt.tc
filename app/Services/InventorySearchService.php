@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
@@ -263,7 +264,11 @@ class InventorySearchService
 
         $activeBorrowing = null;
         $openBorrowing = Borrowing::query()
-            ->where('inventory_item_id', $item->id)
+            ->where(function ($q) use ($item) {
+                $q->where('inventory_item_id', $item->id)
+                    ->orWhereHas('items', fn ($i) => $i->where('inventory_item_id', $item->id)
+                        ->whereIn('status', BorrowingItemStatus::blockingValues()));
+            })
             ->whereIn('status', BorrowingStatus::blockingValues())
             ->latest('borrow_date')
             ->first(['id', 'borrower_name', 'borrow_date', 'expected_return_date', 'status']);
@@ -285,6 +290,9 @@ class InventorySearchService
         $floor = $item->room?->floor;
 
         $borrowable = ($status?->isBorrowable() ?? false) && $openBorrowing === null;
+        $availableQty = $borrowable
+            ? app(BorrowingItemResolver::class)->availableCount($item)
+            : 0;
 
         return [
             'id' => $item->id,
@@ -311,6 +319,7 @@ class InventorySearchService
             'serial_number' => $item->serial_number ?: '—',
             'qr_url' => $item->qr_url,
             'borrowable' => $borrowable,
+            'available_qty' => $availableQty,
             'active_borrowing' => $activeBorrowing,
             'campus_id' => $campus?->id,
             'building_id' => $building?->id,

@@ -6,6 +6,7 @@ use App\Enums\InventoryReportType;
 use App\Exports\EamFlatReportExport;
 use App\Exports\InventoryFlatWorkbookExport;
 use App\Exports\InventoryReportWorkbookExport;
+use App\Services\InventoryReportService;
 use App\Services\Reports\EamReportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -172,17 +173,26 @@ class ReportController extends Controller
         $data = collect($page->items())->map(function ($b, $i) use ($page) {
             $start = ($page->currentPage() - 1) * $page->perPage();
             $item = $b->inventoryItem;
+            $itemCount = $b->relationLoaded('items') ? $b->items->count() : ($b->items_count ?? ($item ? 1 : 0));
             $end = $b->return_date ?? $b->expected_return_date;
             $duration = $b->borrow_date && $end
                 ? $b->borrow_date->diffInDays($end).' hari'
                 : '—';
+
+            $itemLabel = $item
+                ? $item->name.' ('.$item->inventory_number.')'
+                : '—';
+            if ($itemCount > 1) {
+                $itemLabel .= ' +'.($itemCount - 1).' item';
+            }
 
             return [
                 'no' => $start + $i + 1,
                 'approval_number' => $b->approval_number ?? '—',
                 'borrowing_number' => 'PIN-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 'borrower' => $b->borrower_name,
-                'item' => $item?->name.' ('.$item?->inventory_number.')',
+                'item' => $itemLabel,
+                'items_count' => $itemCount,
                 'borrow_date' => $b->borrow_date?->format('d/m/Y'),
                 'return_date' => $b->return_date?->format('d/m/Y') ?? ($b->expected_return_date?->format('d/m/Y').' (rencana)'),
                 'status' => $b->status?->label() ?? $b->status,
@@ -348,7 +358,7 @@ class ReportController extends Controller
     {
         $rows = $this->reports->borrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
-        $filters = app(\App\Services\InventoryReportService::class)->describeFilters($request);
+        $filters = app(InventoryReportService::class)->describeFilters($request);
         $payload = compact('rows', 'meta', 'filters', 'type');
 
         if ($format === 'preview') {
@@ -395,7 +405,7 @@ class ReportController extends Controller
     {
         $rows = $this->reports->maintenanceQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
-        $filters = app(\App\Services\InventoryReportService::class)->describeFilters($request);
+        $filters = app(InventoryReportService::class)->describeFilters($request);
         $payload = compact('rows', 'meta', 'filters', 'type');
 
         if ($format === 'preview') {
@@ -442,7 +452,7 @@ class ReportController extends Controller
     {
         $rows = $this->reports->mutationQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
-        $filters = app(\App\Services\InventoryReportService::class)->describeFilters($request);
+        $filters = app(InventoryReportService::class)->describeFilters($request);
         $payload = compact('rows', 'meta', 'filters', 'type');
 
         if ($format === 'preview') {

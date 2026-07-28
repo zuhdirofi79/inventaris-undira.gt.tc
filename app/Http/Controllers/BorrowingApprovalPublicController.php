@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Borrowing;
 use App\Services\BorrowingReceiptService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\View\View;
-use Barryvdh\DomPDF\Facade\Pdf;
 
 class BorrowingApprovalPublicController extends Controller
 {
@@ -19,6 +19,9 @@ class BorrowingApprovalPublicController extends Controller
         $borrowing = $this->findByApprovalNumber($approvalNumber);
 
         $borrowing->load([
+            'items.inventoryItem.category',
+            'items.inventoryItem.subCategory',
+            'items.inventoryItem.room.floor.building.campus',
             'inventoryItem.category',
             'inventoryItem.subCategory',
             'inventoryItem.room.floor.building.campus',
@@ -28,7 +31,8 @@ class BorrowingApprovalPublicController extends Controller
 
         return view('operations.borrowings.approval-public', [
             'borrowing' => $borrowing,
-            'item' => $borrowing->inventoryItem,
+            'item' => $borrowing->inventoryItem ?? $borrowing->items->first()?->inventoryItem,
+            'items' => $borrowing->items,
             'qrDataUri' => $this->receipts->qrDataUri($borrowing),
             'approvalUrl' => $this->receipts->approvalPublicUrl($borrowing),
         ]);

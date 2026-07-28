@@ -4,13 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Enums\BorrowingStatus;
-use App\Enums\InventoryStatus;
 use App\Http\Requests\ApproveBorrowingRequest;
 use App\Http\Requests\RejectBorrowingRequest;
+use App\Http\Requests\ReturnBorrowingItemsRequest;
 use App\Http\Requests\StoreBorrowingRequest;
 use App\Http\Requests\UpdateBorrowingRequest;
 use App\Models\Borrowing;
-use App\Models\InventoryItem;
 use App\Services\AuditLogService;
 use App\Services\BorrowingApprovalService;
 use App\Services\BorrowingReceiptService;
@@ -37,7 +36,14 @@ class BorrowingController extends Controller
         $statusFilter = $request->input('status');
 
         $borrowings = Borrowing::query()
-            ->with(['inventoryItem.category', 'inventoryItem.room', 'approvedBy', 'requestedBy'])
+            ->with([
+                'inventoryItem.category',
+                'inventoryItem.room',
+                'items.inventoryItem',
+                'approvedBy',
+                'requestedBy',
+            ])
+            ->withCount('items')
             ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
             ->latest()
             ->paginate(20)
@@ -75,16 +81,18 @@ class BorrowingController extends Controller
             AuditAction::Create,
             $borrowing,
             null,
-            $borrowing->only([
-                'inventory_item_id',
-                'borrower_name',
-                'borrow_date',
-                'expected_return_date',
-                'status',
-                'requested_by',
-            ]),
+            [
+                'inventory_item_id' => $borrowing->inventory_item_id,
+                'item_ids' => $borrowing->items->pluck('inventory_item_id')->all(),
+                'items_count' => $borrowing->items->count(),
+                'borrower_name' => $borrowing->borrower_name,
+                'borrow_date' => $borrowing->borrow_date,
+                'expected_return_date' => $borrowing->expected_return_date,
+                'status' => $borrowing->status,
+                'requested_by' => $borrowing->requested_by,
+            ],
             'BORROWING_CREATED',
-            "{$request->user()->name} membuat peminjaman.",
+            "{$request->user()->name} membuat peminjaman ({$borrowing->items->count()} item).",
         );
 
         return redirect()->route('borrowings.index')
@@ -94,6 +102,9 @@ class BorrowingController extends Controller
     public function show(Borrowing $borrowing): View
     {
         $borrowing->load([
+            'items.inventoryItem.category',
+            'items.inventoryItem.subCategory',
+            'items.inventoryItem.room.floor.building.campus',
             'inventoryItem.category',
             'inventoryItem.subCategory',
             'inventoryItem.room.floor.building.campus',
@@ -110,6 +121,8 @@ class BorrowingController extends Controller
 
     public function edit(Borrowing $borrowing): View
     {
+        $borrowing->load(['items.inventoryItem']);
+
         return view('operations.borrowings.edit', compact('borrowing'));
     }
 
@@ -117,17 +130,23 @@ class BorrowingController extends Controller
     {
         $old = $borrowing->only(['status', 'return_date', 'expected_return_date', 'borrower_name']);
         $wasReturned = false;
+        $validated = $request->validated();
+        $wantsFullReturn = ($validated['status'] ?? null) === BorrowingStatus::Dikembalikan
+            || ($validated['status'] ?? null) === BorrowingStatus::Dikembalikan->value;
 
-        DB::transaction(function () use ($request, $borrowing, &$wasReturned) {
-            $borrowing->update($request->validated());
-
-            if ($borrowing->status === BorrowingStatus::Dikembalikan) {
+        DB::transaction(function () use ($borrowing, $validated, $wantsFullReturn, &$wasReturned) {
+            if ($wantsFullReturn && $borrowing->status?->isActiveLoan()) {
+                unset($validated['status']);
+                if ($validated !== []) {
+                    $borrowing->update($validated);
+                }
+                $this->approval->returnItems($borrowing->fresh(), null);
                 $wasReturned = true;
-                $borrowing->update(['return_date' => $borrowing->return_date ?? now()]);
-                InventoryItem::query()
-                    ->where('id', $borrowing->inventory_item_id)
-                    ->update(['status' => InventoryStatus::Aktif]);
+
+                return;
             }
+
+            $borrowing->update($validated);
         });
 
         $borrowing->refresh();
@@ -146,6 +165,35 @@ class BorrowingController extends Controller
         );
 
         return redirect()->route('borrowings.show', $borrowing)->with('success', 'Peminjaman berhasil diperbarui.');
+    }
+
+    public function returnItems(ReturnBorrowingItemsRequest $request, Borrowing $borrowing): RedirectResponse
+    {
+        $itemIds = $request->input('return_all')
+            ? null
+            : array_map('intval', (array) $request->input('item_ids', []));
+
+        $borrowing = $this->approval->returnItems($borrowing, $itemIds);
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $borrowing,
+            null,
+            [
+                'status' => $borrowing->status,
+                'returned_item_ids' => $itemIds,
+                'return_all' => (bool) $request->input('return_all'),
+            ],
+            'BORROWING_RETURNED',
+            "{$request->user()->name} mengembalikan barang peminjaman.",
+        );
+
+        $message = $borrowing->status === BorrowingStatus::Dikembalikan
+            ? 'Semua barang telah dikembalikan. Transaksi selesai.'
+            : 'Pengembalian sebagian berhasil dicatat.';
+
+        return redirect()->route('borrowings.show', $borrowing)->with('success', $message);
     }
 
     public function approve(ApproveBorrowingRequest $request, Borrowing $borrowing): RedirectResponse
@@ -220,15 +268,16 @@ class BorrowingController extends Controller
 
     public function destroy(Borrowing $borrowing): RedirectResponse
     {
-        $snapshot = $borrowing->only(['inventory_item_id', 'borrower_name', 'status', 'approval_number']);
+        $snapshot = [
+            'inventory_item_id' => $borrowing->inventory_item_id,
+            'item_ids' => $borrowing->items()->pluck('inventory_item_id')->all(),
+            'borrower_name' => $borrowing->borrower_name,
+            'status' => $borrowing->status,
+            'approval_number' => $borrowing->approval_number,
+        ];
 
         DB::transaction(function () use ($borrowing) {
-            if ($borrowing->status?->isActiveLoan()) {
-                InventoryItem::query()
-                    ->where('id', $borrowing->inventory_item_id)
-                    ->update(['status' => InventoryStatus::Aktif]);
-            }
-
+            $this->approval->restoreInventoryOnDelete($borrowing);
             $borrowing->delete();
         });
 

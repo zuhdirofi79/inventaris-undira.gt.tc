@@ -6,39 +6,38 @@ use App\Http\Controllers\Auth\ForcePasswordChangeController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
-use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BorrowingApprovalHistoryController;
 use App\Http\Controllers\BorrowingApprovalPublicController;
+use App\Http\Controllers\BorrowingController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\BuildingManagementController;
 use App\Http\Controllers\CampusController;
 use App\Http\Controllers\CampusManagementController;
 use App\Http\Controllers\CategoryController;
-use App\Http\Controllers\InventoryMasterConfigurationController;
-use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DamagedInventoryController;
 use App\Http\Controllers\DashboardCampusSummaryController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeletionApprovalController;
 use App\Http\Controllers\FloorController;
 use App\Http\Controllers\FloorManagementController;
+use App\Http\Controllers\InventoryAttachmentController;
 use App\Http\Controllers\InventoryController;
-use App\Http\Controllers\LocationExploreController;
 use App\Http\Controllers\InventoryExportController;
 use App\Http\Controllers\InventoryImportController;
-use App\Http\Controllers\InventoryAttachmentController;
+use App\Http\Controllers\InventoryMasterConfigurationController;
 use App\Http\Controllers\InventoryPhotoController;
 use App\Http\Controllers\InventoryQrController;
 use App\Http\Controllers\InventorySelectorController;
-use App\Http\Controllers\DamagedInventoryController;
-use App\Http\Controllers\MaintenanceController;
+use App\Http\Controllers\LocationExploreController;
 use App\Http\Controllers\MaintenanceApprovalController;
+use App\Http\Controllers\MaintenanceController;
 use App\Http\Controllers\MaintenanceDashboardController;
 use App\Http\Controllers\MaintenanceReportController;
-use App\Http\Controllers\TeknisiDashboardController;
 use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MutationController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrgUnitController;
 use App\Http\Controllers\ProcurementTypeController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomManagementController;
@@ -46,8 +45,9 @@ use App\Http\Controllers\ScannerController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\StockOpnameController;
 use App\Http\Controllers\SubCategoryController;
-use App\Http\Controllers\SupportingMasterController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\SupportingMasterController;
+use App\Http\Controllers\TeknisiDashboardController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VendorController;
@@ -188,6 +188,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
             Route::get('/search', [InventorySelectorController::class, 'search'])->name('search');
             Route::get('/items/{item}/maintenance-context', [InventorySelectorController::class, 'maintenanceContext'])
                 ->name('maintenance-context');
+            Route::get('/items/{item}/borrow-siblings', [InventorySelectorController::class, 'borrowSiblings'])
+                ->name('borrow-siblings');
             Route::get('/items/{item}', [InventorySelectorController::class, 'show'])->name('show');
             Route::post('/resolve-code', [InventorySelectorController::class, 'resolveCode'])
                 ->middleware('throttle:60,1')
@@ -344,6 +346,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:borrowing.update')->group(function () {
         Route::get('/borrowings/{borrowing}/edit', [BorrowingController::class, 'edit'])->name('borrowings.edit');
         Route::put('/borrowings/{borrowing}', [BorrowingController::class, 'update'])->name('borrowings.update');
+        Route::post('/borrowings/{borrowing}/return-items', [BorrowingController::class, 'returnItems'])->name('borrowings.return-items');
     });
     Route::middleware('permission:borrowing.approve')->group(function () {
         Route::post('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');

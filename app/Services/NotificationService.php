@@ -10,7 +10,9 @@ use App\Models\Maintenance;
 use App\Models\MaintenanceSchedule;
 use App\Models\StockOpname;
 use App\Models\User;
+use App\Notifications\BorrowingApprovedNotification;
 use App\Notifications\BorrowingCreatedNotification;
+use App\Notifications\BorrowingRejectedNotification;
 use App\Notifications\DeletionApprovalNotification;
 use App\Notifications\MaintenanceApprovalNotification;
 use App\Notifications\MaintenanceDueNotification;
@@ -81,7 +83,7 @@ class NotificationService
 
     public function notifyBorrowingCreated(Borrowing $borrowing): int
     {
-        $borrowing->loadMissing('inventoryItem');
+        $borrowing->loadMissing(['inventoryItem', 'items.inventoryItem']);
         $count = 0;
 
         foreach ($this->usersWithPermission('borrowing.approve') as $user) {
@@ -109,11 +111,11 @@ class NotificationService
             return 0;
         }
 
-        if ($this->alreadyNotified($user, \App\Notifications\BorrowingApprovedNotification::class, 'borrowing_id', $borrowing->id)) {
+        if ($this->alreadyNotified($user, BorrowingApprovedNotification::class, 'borrowing_id', $borrowing->id)) {
             return 0;
         }
 
-        $user->notify(new \App\Notifications\BorrowingApprovedNotification($borrowing));
+        $user->notify(new BorrowingApprovedNotification($borrowing));
 
         return 1;
     }
@@ -127,11 +129,11 @@ class NotificationService
             return 0;
         }
 
-        if ($this->alreadyNotified($user, \App\Notifications\BorrowingRejectedNotification::class, 'borrowing_id', $borrowing->id)) {
+        if ($this->alreadyNotified($user, BorrowingRejectedNotification::class, 'borrowing_id', $borrowing->id)) {
             return 0;
         }
 
-        $user->notify(new \App\Notifications\BorrowingRejectedNotification($borrowing));
+        $user->notify(new BorrowingRejectedNotification($borrowing));
 
         return 1;
     }

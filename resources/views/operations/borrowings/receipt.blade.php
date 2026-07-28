@@ -2,6 +2,7 @@
     $isPdf = $isPdf ?? false;
     $autoPrint = $autoPrint ?? false;
     $item = $item ?? $borrowing->inventoryItem;
+    $items = $items ?? $borrowing->items;
 @endphp
 <!DOCTYPE html>
 <html lang="id">
@@ -19,6 +20,9 @@
         table.info { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.info th, table.info td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
         table.info th { width: 35%; background: #f8fafc; color: #475569; }
+        table.items { width: 100%; border-collapse: collapse; margin-top: 16px; }
+        table.items th, table.items td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; font-size: 11px; }
+        table.items th { background: #f8fafc; color: #475569; }
         .footer { margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
         .qr { text-align: center; }
         .qr img { width: 120px; height: 120px; }
@@ -56,17 +60,49 @@
 <table class="info">
     <tr><th>Nama Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
     <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '—' }}</td></tr>
-    <tr><th>Nomor Inventaris</th><td>{{ $item?->inventory_number ?? '—' }}</td></tr>
-    <tr><th>Nama Barang</th><td>{{ $item?->name ?? '—' }}</td></tr>
-    <tr><th>Kategori</th><td>{{ $item?->category?->name ?? '—' }}</td></tr>
-    <tr><th>Subkategori</th><td>{{ $item?->subCategory?->name ?? '—' }}</td></tr>
-    <tr><th>Lokasi</th><td>{{ $item?->full_location ?? $item?->locationDisplayName() ?? '—' }}</td></tr>
     <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}</td></tr>
     <tr><th>Tanggal Kembali</th><td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}</td></tr>
+    <tr><th>Jumlah Item</th><td>{{ $items?->count() ?: ($item ? 1 : 0) }}</td></tr>
     <tr><th>Disetujui Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '—' }}</td></tr>
     <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
     <tr><th>Catatan</th><td>{{ $borrowing->approval_notes ?: ($borrowing->notes ?: '—') }}</td></tr>
 </table>
+
+@if($items && $items->count())
+<table class="items">
+    <thead>
+        <tr>
+            <th>No</th>
+            <th>Nomor Inventaris</th>
+            <th>Nama Barang</th>
+            <th>Kategori</th>
+            <th>Sub Kategori</th>
+            <th>Lokasi</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($items as $i => $line)
+            @php $inv = $line->inventoryItem; @endphp
+            <tr>
+                <td>{{ $i + 1 }}</td>
+                <td>{{ $inv?->inventory_number ?? '—' }}</td>
+                <td>{{ $inv?->name ?? '—' }}</td>
+                <td>{{ $inv?->category?->name ?? '—' }}</td>
+                <td>{{ $inv?->subCategory?->name ?? '—' }}</td>
+                <td>{{ $inv?->full_location ?? $inv?->locationDisplayName() ?? '—' }}</td>
+            </tr>
+        @endforeach
+    </tbody>
+</table>
+@elseif($item)
+<table class="info" style="margin-top:16px">
+    <tr><th>Nomor Inventaris</th><td>{{ $item->inventory_number ?? '—' }}</td></tr>
+    <tr><th>Nama Barang</th><td>{{ $item->name ?? '—' }}</td></tr>
+    <tr><th>Kategori</th><td>{{ $item->category?->name ?? '—' }}</td></tr>
+    <tr><th>Subkategori</th><td>{{ $item->subCategory?->name ?? '—' }}</td></tr>
+    <tr><th>Lokasi</th><td>{{ $item->full_location ?? $item->locationDisplayName() ?? '—' }}</td></tr>
+</table>
+@endif
 
 <div class="footer">
     <div>

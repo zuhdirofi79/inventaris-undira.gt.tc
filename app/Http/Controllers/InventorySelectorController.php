@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\InventorySelectorSearchRequest;
 use App\Models\InventoryItem;
+use App\Services\BorrowingItemResolver;
 use App\Services\InventorySearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class InventorySelectorController extends Controller
 {
@@ -88,6 +90,39 @@ class InventorySelectorController extends Controller
         $detail = $this->searchService->detail($item->id);
 
         return response()->json($detail ?? ['message' => 'Not found'], $detail ? 200 : 404);
+    }
+
+    public function borrowSiblings(Request $request, InventoryItem $item): JsonResponse
+    {
+        $qty = max(1, min(500, (int) $request->input('qty', 1)));
+        $exclude = array_values(array_filter(array_map(
+            'intval',
+            array_filter(explode(',', (string) $request->input('exclude', '')))
+        )));
+
+        try {
+            $resolver = app(BorrowingItemResolver::class);
+            $ids = $resolver->resolveIds((int) $item->id, $qty, $exclude);
+            $items = [];
+            foreach ($ids as $id) {
+                $detail = $this->searchService->detail($id);
+                if ($detail) {
+                    $items[] = $detail;
+                }
+            }
+
+            return response()->json([
+                'items' => $items,
+                'count' => count($items),
+            ]);
+        } catch (ValidationException $e) {
+            $messages = collect($e->errors())->flatten()->all();
+
+            return response()->json([
+                'message' => $messages[0] ?? 'Tidak dapat menambahkan barang.',
+                'errors' => $e->errors(),
+            ], 422);
+        }
     }
 
     public function maintenanceContext(InventoryItem $item): JsonResponse

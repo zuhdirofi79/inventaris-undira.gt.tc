@@ -10,7 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Facades\Storage;
 
 class InventoryItem extends Model
 {
@@ -173,6 +172,11 @@ class InventoryItem extends Model
     public function borrowings(): HasMany
     {
         return $this->hasMany(Borrowing::class);
+    }
+
+    public function borrowingItems(): HasMany
+    {
+        return $this->hasMany(BorrowingItem::class);
     }
 
     public function maintenances(): HasMany

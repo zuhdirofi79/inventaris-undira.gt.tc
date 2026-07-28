@@ -2,19 +2,17 @@
 
 namespace App\Services\Reports;
 
+use App\Enums\BorrowingStatus;
 use App\Enums\InventoryCondition;
 use App\Enums\InventoryReportType;
 use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
-use App\Models\Building;
 use App\Models\Campus;
 use App\Models\Category;
-use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\InventoryMutation;
 use App\Models\Maintenance;
 use App\Models\ProcurementType;
-use App\Models\Room;
 use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\User;
@@ -69,9 +67,9 @@ class EamReportService
             InventoryReportType::Borrowed => $query->where(function (Builder $q) {
                 $q->where('status', InventoryStatus::Dipinjam)
                     ->orWhereHas('borrowings', fn (Builder $b) => $b->whereIn('status', [
-                        \App\Enums\BorrowingStatus::Dipinjam,
-                        \App\Enums\BorrowingStatus::Disetujui,
-                        \App\Enums\BorrowingStatus::Terlambat,
+                        BorrowingStatus::Dipinjam,
+                        BorrowingStatus::Disetujui,
+                        BorrowingStatus::Terlambat,
                     ]));
             }),
             InventoryReportType::Maintenance => $query->whereIn('status', [
@@ -176,9 +174,14 @@ class EamReportService
                 'inventoryItem.room.floor.building:id,campus_id,code,name',
                 'inventoryItem.room.floor.building.campus:id,code,name',
                 'inventoryItem.category:id,name',
+                'items.inventoryItem:id,inventory_number,name,category_id,sub_category_id,room_id',
                 'approvedBy:id,name',
             ])
-            ->whereHas('inventoryItem', fn (Builder $q) => $this->filters->apply($request, $q))
+            ->withCount('items')
+            ->where(function (Builder $q) use ($request) {
+                $q->whereHas('inventoryItem', fn (Builder $i) => $this->filters->apply($request, $i))
+                    ->orWhereHas('items.inventoryItem', fn (Builder $i) => $this->filters->apply($request, $i));
+            })
             ->when($request->filled('tanggal_awal') || $request->filled('date_from') || $request->filled('purchase_date_from'), function (Builder $q) use ($request) {
                 $from = $request->input('tanggal_awal') ?? $request->input('date_from') ?? $request->input('purchase_date_from');
                 $q->whereDate('borrow_date', '>=', $from);
@@ -192,6 +195,8 @@ class EamReportService
                 $q->where(function (Builder $inner) use ($term) {
                     $inner->where('borrower_name', 'like', "%{$term}%")
                         ->orWhereHas('inventoryItem', fn (Builder $i) => $i->where('name', 'like', "%{$term}%")
+                            ->orWhere('inventory_number', 'like', "%{$term}%"))
+                        ->orWhereHas('items.inventoryItem', fn (Builder $i) => $i->where('name', 'like', "%{$term}%")
                             ->orWhere('inventory_number', 'like', "%{$term}%"));
                 });
             })

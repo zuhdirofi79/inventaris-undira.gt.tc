@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Models\AuditLog;
 use App\Models\InventoryItem;
+use App\Models\User;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Collection;
 
 /**
  * Builds a unified chronological timeline for an inventory item
@@ -69,7 +69,14 @@ class InventoryHistoryService
             ]);
         }
 
+        $item->loadMissing([
+            'borrowings.approvedBy',
+            'borrowingItems.borrowing.approvedBy',
+        ]);
+
+        $seenBorrowingIds = [];
         foreach ($item->borrowings as $borrowing) {
+            $seenBorrowingIds[$borrowing->id] = true;
             $when = $borrowing->borrow_date
                 ? Carbon::parse($borrowing->borrow_date)->timezone($tz)->startOfDay()
                 : ($borrowing->created_at?->copy() ?? now());
@@ -80,6 +87,31 @@ class InventoryHistoryService
                     ($borrowing->borrower_name ?? '')
                     .' · '
                     .($borrowing->status?->label() ?? '')
+                    .($borrowing->approval_number ? ' · '.$borrowing->approval_number : '')
+                ),
+                'actor' => $borrowing->approvedBy?->name,
+                'icon' => 'bi-hand-index',
+                'tone' => 'secondary',
+            ]);
+        }
+
+        foreach ($item->borrowingItems as $line) {
+            $borrowing = $line->borrowing;
+            if (! $borrowing || isset($seenBorrowingIds[$borrowing->id])) {
+                continue;
+            }
+            $seenBorrowingIds[$borrowing->id] = true;
+            $when = $borrowing->borrow_date
+                ? Carbon::parse($borrowing->borrow_date)->timezone($tz)->startOfDay()
+                : ($borrowing->created_at?->copy() ?? now());
+            $events->push([
+                'at' => $when,
+                'title' => 'Peminjaman',
+                'detail' => trim(
+                    ($borrowing->borrower_name ?? '')
+                    .' · '
+                    .($borrowing->status?->label() ?? '')
+                    .($borrowing->approval_number ? ' · '.$borrowing->approval_number : '')
                 ),
                 'actor' => $borrowing->approvedBy?->name,
                 'icon' => 'bi-hand-index',
@@ -171,10 +203,10 @@ class InventoryHistoryService
         $newPicId = $new['pic_id'] ?? null;
         if (array_key_exists('pic_id', $new) && (string) $oldPicId !== (string) $newPicId) {
             $fromPic = $old['pic_name']
-                ?? (\App\Models\User::query()->whereKey($oldPicId)->value('name'))
+                ?? (User::query()->whereKey($oldPicId)->value('name'))
                 ?? 'Belum ditentukan';
             $toPic = $new['pic_name']
-                ?? (\App\Models\User::query()->whereKey($newPicId)->value('name'))
+                ?? (User::query()->whereKey($newPicId)->value('name'))
                 ?? 'Belum ditentukan';
             if (! $oldPicId) {
                 $fromPic = 'Belum ditentukan';
