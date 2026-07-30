@@ -170,14 +170,14 @@
     </div>
 </div>
 
-{{-- Hidden form for mass label PDF download (native POST — not DataTables/AJAX). --}}
+{{-- Form fields only — PDF download is handled via fetch+blob (not AJAX JSON, not target=_blank). --}}
 <form id="massLabelForm"
       method="POST"
       action="{{ route('inventory.labels.mass30') }}"
-      target="_blank"
       class="d-none"
       data-download
-      data-no-loading>
+      data-no-loading
+      onsubmit="return false;">
     @csrf
     <input type="hidden" name="scope" id="massLabelScope" value="selected">
     <div id="massLabelIds"></div>
@@ -368,24 +368,75 @@ function submitMassLabels(scope) {
         });
     }
 
-    // Native form POST + target=_blank → PDF download tab.
-    // Do NOT use $.ajax / fetch (PDF is not JSON). Do NOT use jQuery .trigger('submit')
-    // which can skip native navigation. Keep this in the user-gesture stack (popup-safe).
     const form = document.getElementById('massLabelForm');
     if (!form) {
         alert('Form cetak label tidak ditemukan.');
         return;
     }
-    form.submit();
 
-    // Hide modal after submit so the click gesture is not interrupted.
-    window.setTimeout(function () {
-        const modalEl = document.getElementById('massLabelsModal');
-        if (modalEl && window.bootstrap) {
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if (modal) modal.hide();
+    const modalEl = document.getElementById('massLabelsModal');
+    if (modalEl && window.bootstrap) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+    }
+
+    // Backend returns $pdf->download() (application/pdf).
+    // Do not parse JSON. Download as Blob so the file saves without target=_blank popup issues.
+    downloadMassLabelPdf(form);
+}
+
+function downloadMassLabelPdf(form) {
+    if (typeof showLoading === 'function') {
+        showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
+    }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(form.action, {
+        method: 'POST',
+        body: new FormData(form),
+        credentials: 'same-origin',
+        headers: {
+            'Accept': 'application/pdf',
+            'X-CSRF-TOKEN': csrf,
+        },
+    })
+    .then(async function (response) {
+        const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
+        if (!response.ok || contentType.indexOf('application/pdf') === -1) {
+            if (response.status === 419) {
+                throw new Error('Sesi berakhir. Muat ulang halaman lalu coba lagi.');
+            }
+            if (response.status === 422) {
+                throw new Error('Data cetak tidak valid. Periksa item yang dipilih atau filter.');
+            }
+            throw new Error('Gagal mengunduh label PDF. Pastikan ada inventaris yang dapat dicetak.');
         }
-    }, 150);
+        return response.blob();
+    })
+    .then(function (blob) {
+        if (!blob || blob.size < 5) {
+            throw new Error('Berkas PDF kosong. Silakan coba lagi.');
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'Label-Inventaris.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.setTimeout(function () {
+            URL.revokeObjectURL(url);
+        }, 1000);
+    })
+    .catch(function (err) {
+        alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
+    })
+    .finally(function () {
+        if (typeof hideLoading === 'function') {
+            hideLoading();
+        }
+    });
 }
 
 $('#btnPrintSelectedLabels').on('click', function () {
