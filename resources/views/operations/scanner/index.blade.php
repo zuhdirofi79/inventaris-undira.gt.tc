@@ -1,15 +1,15 @@
 @extends('layouts.app')
 
-@section('title', 'Scan QR - Inventaris UNDIRA')
+@section('title', 'Scan QR Inventaris - Inventaris UNDIRA')
 
 @section('content')
 <x-page-header
-    title="Scan QR Code"
-    subtitle="USB scanner, kamera HP/laptop, atau ketik nomor inventaris — langsung ke detail aset."
+    title="Scan QR Inventaris"
+    subtitle="USB scanner, kamera, atau ketik nomor inventaris — membuka detail aset (informasi)."
     icon="bi bi-qr-code-scan"
     :breadcrumbs="[
         ['label' => 'Dashboard', 'url' => route('dashboard')],
-        ['label' => 'Scan QR'],
+        ['label' => 'Scan QR Inventaris'],
     ]"
     :back-route="route('dashboard')"
     back-label="Dashboard"
@@ -51,8 +51,14 @@
 </div>
 
 <div class="card card-undira mt-3">
-    <div class="card-body small text-muted">
-        Setelah ditemukan, halaman detail inventaris memungkinkan: pinjam, maintenance, mutasi, stock opname, cetak ulang label, dan riwayat.
+    <div class="card-body small text-muted mb-0">
+        <strong>Scan QR Inventaris</strong> berbeda dari <strong>Scan QR Maintenance</strong>.
+        Fitur ini membuka halaman detail inventaris untuk melihat informasi aset.
+        @cannot('inventory.update')
+            Aksi ubah data, hapus, atau ubah status/kondisi tidak tersedia pada akun Anda (mode baca).
+        @else
+            Dari detail, aksi lanjutan (edit, maintenance, mutasi, dll.) mengikuti permission Anda.
+        @endcannot
     </div>
 </div>
 @endsection

@@ -51,6 +51,13 @@
         <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="bi bi-trash me-1"></i>Hapus</button>
     </form>
     @endcan
+    @cannot('inventory.update')
+        @cannot('maintenance.create')
+            @cannot('mutation.create')
+            <span class="badge text-bg-secondary align-self-center">Read Only</span>
+            @endcannot
+        @endcannot
+    @endcannot
 </x-page-header>
 
 <div class="row g-3">

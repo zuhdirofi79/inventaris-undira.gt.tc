@@ -53,7 +53,7 @@
             <a class="nav-link {{ $tab === 'lokasi' ? 'active' : '' }}"
                href="{{ route('categories.index', ['tab' => 'lokasi']) }}"
                @if($tab === 'lokasi') aria-current="page" @endif
-               data-no-loader="1">Lokasi & Lainnya</a>
+               data-no-loader="1">Hub Master Data</a>
         </li>
     </ul>
 </nav>

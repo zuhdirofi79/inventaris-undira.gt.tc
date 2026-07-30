@@ -99,12 +99,43 @@ body {
 .nav-sidebar .nav-icon { width: 1.4rem; text-align: center; opacity: 0.95; }
 
 .nav-header {
-  color: rgba(255,255,255,0.45) !important;
-  font-size: 0.68rem !important;
+  color: rgba(255, 255, 255, 0.42) !important;
+  font-size: 0.65rem !important;
   font-weight: 700 !important;
-  letter-spacing: 0.08em;
-  padding: 1rem 1.25rem 0.4rem !important;
+  letter-spacing: 0.12em;
+  padding: 1.15rem 1.15rem 0.35rem !important;
   text-transform: uppercase;
+  margin-top: 0.35rem;
+  position: relative;
+}
+
+.nav-header.undira-nav-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 0.65rem;
+  padding-top: 0.95rem !important;
+}
+
+.nav-sidebar > .nav-header.undira-nav-section:first-child,
+.nav-sidebar > .nav-item:first-child + .nav-header,
+.undira-sidebar-nav > .nav > .nav-header.undira-nav-section:first-of-type {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 0.55rem !important;
+}
+
+.undira-nav-hub > .nav-link {
+  margin-top: 0.35rem;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 0 0 10px 10px !important;
+  padding-top: 0.75rem !important;
+}
+
+body.dark-mode .nav-header.undira-nav-section {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .undira-nav-hub > .nav-link {
+  border-top-color: rgba(255, 255, 255, 0.14);
 }
 
 .nav-treeview > .nav-item > .nav-link {

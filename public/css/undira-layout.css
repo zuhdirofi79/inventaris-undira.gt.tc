@@ -390,6 +390,15 @@ body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .main-sidebar .sidebar {
   outline-offset: 1px;
 }
 
+/* —— Section headers (enterprise grouping) —— */
+.undira-sidebar-nav .nav-header.undira-nav-section {
+  opacity: 0.95;
+}
+
+.undira-sidebar-nav .nav-item + .nav-header.undira-nav-section {
+  margin-top: 0.85rem;
+}
+
 /* —— Collapsed icon rail —— */
 body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-header {
   display: none !important;
