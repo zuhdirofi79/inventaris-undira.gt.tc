@@ -66,7 +66,9 @@ class InventoryFilterService
         $brand = $request->input('merk') ?? $request->input('brand');
 
         return [
-            'search' => $request->input('search.value') ?? $request->input('search') ?? $request->input('keyword'),
+            // DataTables sends search[value]; empty string becomes null via ConvertEmptyStringsToNull,
+            // so never fall back to the whole search[] array (would TypeError in scopeSearch).
+            'search' => $this->normalizeSearchTerm($request),
             'keyword' => $request->input('keyword'),
             'campus_id' => $request->input('campus_id'),
             'building_id' => $request->input('building_id'),
@@ -102,5 +104,33 @@ class InventoryFilterService
             'include_trash' => $request->boolean('include_trash'),
             'only_trash' => $request->boolean('only_trash'),
         ];
+    }
+
+    /**
+     * Normalize DataTables / plain search input to a nullable string.
+     */
+    protected function normalizeSearchTerm(Request $request): ?string
+    {
+        $term = $request->input('search.value');
+
+        if ($term === null && ! is_array($request->input('search'))) {
+            $term = $request->input('search');
+        }
+
+        if ($term === null) {
+            $term = $request->input('keyword');
+        }
+
+        if (is_array($term)) {
+            $term = $term['value'] ?? null;
+        }
+
+        if (! is_string($term)) {
+            return null;
+        }
+
+        $term = trim($term);
+
+        return $term === '' ? null : $term;
     }
 }

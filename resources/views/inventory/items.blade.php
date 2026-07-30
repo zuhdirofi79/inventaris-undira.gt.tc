@@ -263,6 +263,20 @@ const table = $('#inventoryTable').DataTable({
             d.pic_id = $('#filterPic').val();
             d.status = $('#filterStatus').val();
             d.condition = $('#filterCondition').val();
+        },
+        error: function (xhr) {
+            let message = 'Gagal memuat data inventaris. Silakan hubungi Administrator.';
+            try {
+                const payload = xhr.responseJSON;
+                if (payload && payload.error) {
+                    message = payload.error;
+                }
+            } catch (e) {}
+            if (window.toastr) {
+                toastr.error(message);
+            } else {
+                alert(message);
+            }
         }
     },
     columns: [
@@ -340,7 +354,7 @@ function submitMassLabels(scope) {
     const $ids = $('#massLabelIds').empty();
     if (scope === 'selected') {
         if (selectedIds.size === 0) {
-            alert('Pilih minimal satu inventaris terlebih dahulu.');
+            alert('Tidak ada inventaris yang dipilih.');
             return;
         }
         selectedIds.forEach(function (id) {

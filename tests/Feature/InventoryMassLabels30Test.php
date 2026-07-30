@@ -73,6 +73,79 @@ class InventoryMassLabels30Test extends TestCase
         ])->assertSessionHasErrors('inventory_ids');
     }
 
+    public function test_mass_labels_paginates_beyond_thirty_items(): void
+    {
+        $admin = $this->makeAdmin();
+        $ids = [];
+        for ($i = 1; $i <= 31; $i++) {
+            $ids[] = $this->makeItem([
+                'inventory_number' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
+                'barcode' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
+                'name' => 'Item Halaman '.$i,
+            ])->id;
+        }
+
+        $response = $this->actingAs($admin)->post(route('inventory.labels.mass30'), [
+            'scope' => 'selected',
+            'inventory_ids' => $ids,
+        ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        // DomPDF marks page breaks; content should be substantially larger than a 3-item PDF.
+        $this->assertGreaterThan(5000, strlen($response->getContent()));
+    }
+
+    public function test_mass_labels_skips_empty_inventory_number_without_failing(): void
+    {
+        $admin = $this->makeAdmin();
+        $valid = $this->makeItem([
+            'inventory_number' => 'MASS-SKIP-OK',
+            'barcode' => 'MASS-SKIP-OK',
+            'name' => 'Valid Item',
+        ]);
+        $invalid = $this->makeItem([
+            'inventory_number' => 'MASS-SKIP-TMP',
+            'barcode' => 'MASS-SKIP-TMP',
+            'name' => 'Invalid Item',
+        ]);
+        // Bypass model guards if any — force empty number after create.
+        \Illuminate\Support\Facades\DB::table('inventory_items')
+            ->where('id', $invalid->id)
+            ->update(['inventory_number' => '', 'barcode' => '']);
+
+        $response = $this->actingAs($admin)->post(route('inventory.labels.mass30'), [
+            'scope' => 'selected',
+            'inventory_ids' => [$valid->id, $invalid->id],
+        ]);
+
+        $response->assertOk();
+        $response->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_label_layout_defaults_to_thirty_per_page(): void
+    {
+        $service = app(\App\Services\InventoryMassLabelService::class);
+        $layout = $service->layout();
+
+        $this->assertSame(3, $layout['columns']);
+        $this->assertSame(10, $layout['rows']);
+        $this->assertSame(30, $layout['per_page']);
+        $this->assertGreaterThanOrEqual(20.0, $layout['qr_size_mm']);
+        $this->assertLessThanOrEqual(15.0, $layout['logo_width_mm']);
+        $this->assertLessThan($layout['qr_size_mm'], $layout['logo_width_mm']);
+    }
+
+    public function test_undira_logo_resolves_as_embedded_data_uri(): void
+    {
+        $logoSrc = app(\App\Services\InventoryMassLabelService::class)->resolveLogoDataUri();
+
+        $this->assertNotNull($logoSrc);
+        $this->assertStringStartsWith('data:image/png;base64,', $logoSrc);
+        $this->assertGreaterThan(100, strlen($logoSrc));
+    }
+
     public function test_items_page_has_mass_label_button_without_changing_individual_print(): void
     {
         $admin = $this->makeAdmin();
@@ -80,7 +153,7 @@ class InventoryMassLabels30Test extends TestCase
         $this->actingAs($admin)
             ->get(route('inventory.items'))
             ->assertOk()
-            ->assertSee('Print Barcode (30 Label)')
+            ->assertSee('Cetak Label QR')
             ->assertSee(route('inventory.labels.mass30', [], false), false);
 
         $item = $this->makeItem([

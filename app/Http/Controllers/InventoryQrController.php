@@ -7,10 +7,12 @@ use App\Models\InventoryItem;
 use App\Services\AuditLogService;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryFilterService;
+use App\Services\InventoryMassLabelService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -21,6 +23,7 @@ class InventoryQrController extends Controller
         protected AuditLogService $auditLogService,
         protected InventoryCodeService $codeService,
         protected InventoryFilterService $filterService,
+        protected InventoryMassLabelService $massLabelService,
     ) {}
 
     public function scan(string $inventoryNumber): View|RedirectResponse
@@ -150,10 +153,10 @@ class InventoryQrController extends Controller
     }
 
     /**
-     * New feature: mass print 30 QR labels per A4 page (3×10).
+     * Mass print QR labels on A4 (configurable grid; default 3×10 = 30/page).
      * Does not replace inventory.labels or individual label print.
      */
-    public function massLabels30(Request $request): Response
+    public function massLabels30(Request $request): Response|RedirectResponse
     {
         $request->validate([
             'scope' => ['required', 'in:selected,filter'],
@@ -161,68 +164,91 @@ class InventoryQrController extends Controller
             'inventory_ids.*' => ['integer', 'exists:inventory_items,id'],
         ]);
 
-        if ($request->input('scope') === 'selected') {
-            $ids = collect($request->input('inventory_ids', []))
-                ->map(fn ($id) => (int) $id)
-                ->unique()
-                ->values()
-                ->all();
-        } else {
-            $ids = $this->filterService
-                ->apply($request)
-                ->orderBy('inventory_number')
-                ->limit(500)
-                ->pluck('id')
-                ->map(fn ($id) => (int) $id)
-                ->all();
-        }
+        $scope = (string) $request->input('scope');
+        $filters = $this->filterService->extractFilters($request);
+        $layout = $this->massLabelService->layout();
 
-        abort_if($ids === [], 422, 'Tidak ada inventaris untuk dicetak. Pilih item atau sesuaikan filter.');
-
-        $items = InventoryItem::query()
-            ->whereIn('id', $ids)
-            ->with([
-                'category:id,name',
-                'subCategory:id,name',
-                'room:id,code,name,floor_id',
-            ])
-            ->orderBy('inventory_number')
-            ->get();
-
-        foreach ($items as $item) {
-            $this->codeService->ensureCodes($item);
-        }
-
-        $items = InventoryItem::query()
-            ->whereIn('id', $ids)
-            ->with([
-                'category:id,name',
-                'subCategory:id,name',
-                'room:id,code,name,floor_id',
-            ])
-            ->orderBy('inventory_number')
-            ->get();
-
-        $logoPath = public_path('images/undira.png');
-        $logoSrc = is_file($logoPath)
-            ? 'data:image/png;base64,'.base64_encode((string) file_get_contents($logoPath))
-            : null;
-
-        $this->auditLogService->log(
-            $request->user(),
-            AuditAction::Export,
-            null,
-            null,
-            ['format' => 'labels-30', 'count' => $items->count(), 'scope' => $request->input('scope')],
-            'Print Barcode Massal 30 Label ('.$items->count().' item)',
-        );
-
-        $pdf = Pdf::loadView('exports.inventory-labels-30', [
-            'items' => $items,
-            'logoSrc' => $logoSrc,
+        Log::info('Mass label request received', [
+            'scope' => $scope,
+            'selected_count' => is_array($request->input('inventory_ids')) ? count($request->input('inventory_ids')) : 0,
+            'filters' => collect($filters)->filter(fn ($v) => filled($v))->except(['include_trash', 'only_trash', 'warranty_days'])->all(),
+            'layout' => [
+                'columns' => $layout['columns'],
+                'rows' => $layout['rows'],
+                'per_page' => $layout['per_page'],
+            ],
+            'user_id' => $request->user()?->id,
         ]);
-        $pdf->setPaper('a4', 'portrait');
 
-        return $pdf->download('inventory_labels_30_'.now()->format('Ymd_His').'.pdf');
+        try {
+            $ids = $this->massLabelService->resolveIds($request);
+
+            if ($ids === []) {
+                Log::warning('Mass label aborted: no inventory matched', ['scope' => $scope]);
+
+                return redirect()
+                    ->route('inventory.items')
+                    ->with('error', $scope === 'selected'
+                        ? 'Tidak ada inventaris yang dipilih.'
+                        : 'Tidak ada inventaris untuk dicetak. Sesuaikan filter terlebih dahulu.');
+            }
+
+            $labels = $this->massLabelService->buildLabels($ids);
+
+            Log::info('Mass label inventory prepared', [
+                'scope' => $scope,
+                'requested_ids' => count($ids),
+                'printable_count' => $labels->count(),
+                'per_page' => $layout['per_page'],
+                'pages' => (int) ceil(max(1, $labels->count()) / max(1, $layout['per_page'])),
+            ]);
+
+            if ($labels->isEmpty()) {
+                return redirect()
+                    ->route('inventory.items')
+                    ->with('error', 'Tidak ada inventaris dengan nomor/QR valid untuk dicetak.');
+            }
+
+            $this->auditLogService->log(
+                $request->user(),
+                AuditAction::Export,
+                null,
+                null,
+                [
+                    'format' => 'labels-mass',
+                    'count' => $labels->count(),
+                    'scope' => $scope,
+                    'per_page' => $layout['per_page'],
+                    'columns' => $layout['columns'],
+                    'rows' => $layout['rows'],
+                ],
+                'Cetak Label QR Massal ('.$labels->count().' item, '.$layout['per_page'].'/halaman)',
+            );
+
+            Log::info('Mass label generating PDF', [
+                'count' => $labels->count(),
+                'per_page' => $layout['per_page'],
+            ]);
+
+            $response = $this->massLabelService->downloadPdf($labels);
+
+            Log::info('Mass label PDF download ready', [
+                'count' => $labels->count(),
+                'per_page' => $layout['per_page'],
+            ]);
+
+            return $response;
+        } catch (\Throwable $e) {
+            Log::error('Mass label PDF failed', [
+                'scope' => $scope,
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return redirect()
+                ->route('inventory.items')
+                ->with('error', 'Gagal membuat label. Silakan hubungi Administrator.');
+        }
     }
 }

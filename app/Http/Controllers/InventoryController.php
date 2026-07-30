@@ -31,6 +31,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\View\View;
 
@@ -559,7 +560,8 @@ class InventoryController extends Controller
      */
     public function items(Request $request): View|JsonResponse
     {
-        if ($request->ajax()) {
+        // DataTables always sends `draw`; do not rely only on X-Requested-With.
+        if ($request->ajax() || $request->wantsJson() || $request->filled('draw')) {
             return $this->datatable($request);
         }
 
@@ -753,43 +755,61 @@ class InventoryController extends Controller
 
     protected function datatable(Request $request): JsonResponse
     {
-        $query = $this->filterService->apply($request)
-            ->with(['category', 'subCategory', 'room.floor.building.campus', 'pic']);
+        try {
+            $query = $this->filterService->apply($request)
+                ->with(['category', 'subCategory', 'room.floor.building.campus', 'pic']);
 
-        $recordsTotal = InventoryItem::count();
-        $recordsFiltered = (clone $query)->count();
+            $recordsTotal = InventoryItem::count();
+            $recordsFiltered = (clone $query)->count();
 
-        $orderColumn = $request->input('order.0.column', 0);
-        $orderDir = $request->input('order.0.dir', 'asc');
-        $columns = [null, 'inventory_number', 'name', 'category_id', null, null, 'status', 'condition', null];
-        $orderBy = $columns[$orderColumn] ?? 'inventory_number';
+            $orderColumn = $request->input('order.0.column', 0);
+            $orderDir = $request->input('order.0.dir', 'asc');
+            $columns = [null, 'inventory_number', 'name', 'category_id', null, null, 'status', 'condition', null];
+            $orderBy = $columns[$orderColumn] ?? 'inventory_number';
 
-        $items = $query
-            ->when($orderBy, fn ($q) => $q->orderBy($orderBy, $orderDir), fn ($q) => $q->orderBy('inventory_number', 'asc'))
-            ->skip($request->input('start', 0))
-            ->take($request->input('length', 10))
-            ->get()
-            ->map(function (InventoryItem $item) {
-                $data = $item->toArray();
-                $data['status'] = [
-                    'value' => $item->status?->value,
-                    'label' => $item->status?->label(),
-                ];
-                $data['condition'] = [
-                    'value' => $item->condition?->value,
-                    'label' => $item->condition?->label(),
-                ];
-                $data['pic_name'] = $item->picDisplayName();
+            $items = $query
+                ->when($orderBy, fn ($q) => $q->orderBy($orderBy, $orderDir), fn ($q) => $q->orderBy('inventory_number', 'asc'))
+                ->skip($request->input('start', 0))
+                ->take($request->input('length', 10))
+                ->get()
+                ->map(function (InventoryItem $item) {
+                    $data = $item->toArray();
+                    $data['status'] = [
+                        'value' => $item->status?->value,
+                        'label' => $item->status?->label(),
+                    ];
+                    $data['condition'] = [
+                        'value' => $item->condition?->value,
+                        'label' => $item->condition?->label(),
+                    ];
+                    $data['pic_name'] = $item->picDisplayName();
 
-                return $data;
-            });
+                    return $data;
+                });
 
-        return response()->json([
-            'draw' => (int) $request->input('draw'),
-            'recordsTotal' => $recordsTotal,
-            'recordsFiltered' => $recordsFiltered,
-            'data' => $items,
-        ]);
+            return response()->json([
+                'draw' => (int) $request->input('draw'),
+                'recordsTotal' => $recordsTotal,
+                'recordsFiltered' => $recordsFiltered,
+                'data' => $items,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Inventory DataTables failed', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'draw' => $request->input('draw'),
+            ]);
+
+            // Valid JSON (not HTML) so DataTables does not show a generic Ajax error dialog.
+            return response()->json([
+                'draw' => (int) $request->input('draw'),
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'Gagal memuat data inventaris. Silakan hubungi Administrator.',
+            ], 500);
+        }
     }
 
     /**
