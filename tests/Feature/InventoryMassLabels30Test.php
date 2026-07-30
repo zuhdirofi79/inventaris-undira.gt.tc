@@ -132,18 +132,22 @@ class InventoryMassLabels30Test extends TestCase
         $this->assertSame(3, $layout['columns']);
         $this->assertSame(10, $layout['rows']);
         $this->assertSame(30, $layout['per_page']);
-        $this->assertGreaterThanOrEqual(20.0, $layout['qr_size_mm']);
-        $this->assertLessThanOrEqual(15.0, $layout['logo_width_mm']);
-        $this->assertLessThan($layout['qr_size_mm'], $layout['logo_width_mm']);
+        $this->assertGreaterThanOrEqual(15.0, $layout['qr_size_mm']);
+        $this->assertGreaterThanOrEqual(14.0, $layout['logo_width_mm']);
+        $this->assertLessThanOrEqual(18.0, $layout['logo_width_mm']);
+        $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
     }
 
     public function test_undira_logo_resolves_as_embedded_data_uri(): void
     {
-        $logoSrc = app(\App\Services\InventoryMassLabelService::class)->resolveLogoDataUri();
+        $logo = app(\App\Services\InventoryMassLabelService::class)->resolveLogo();
 
-        $this->assertNotNull($logoSrc);
-        $this->assertStringStartsWith('data:image/png;base64,', $logoSrc);
-        $this->assertGreaterThan(100, strlen($logoSrc));
+        $this->assertNotNull($logo['src']);
+        $this->assertNull($logo['error']);
+        $this->assertStringEndsWith('logo-undira.png', str_replace('\\', '/', (string) $logo['path']));
+        $this->assertStringStartsWith('data:image/png;base64,', $logo['src']);
+        $this->assertGreaterThan(100, strlen($logo['src']));
+        $this->assertFileExists(public_path('images/logo-undira.png'));
     }
 
     public function test_items_page_has_mass_label_button_without_changing_individual_print(): void

@@ -48,44 +48,46 @@
             border: 0.5pt solid #c5cdd8;
             border-radius: 1.2mm;
             background: #fff;
-            padding: 1mm 1.3mm;
+            padding: 0.8mm 1.2mm;
             overflow: hidden;
+            text-align: center;
         }
 
         .label-empty {
             border: 0.4pt dashed #e8edf3;
         }
 
-        table.shell {
+        table.stack {
             width: 100%;
             height: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
 
-        td.header {
-            height: {{ $layout['logo_max_height_mm'] + 1.2 }}mm;
+        td.stack-logo {
+            height: {{ $layout['logo_max_height_mm'] + 0.8 }}mm;
             vertical-align: middle;
-            padding: 0 0 0.6mm;
-            border-bottom: 0.4pt solid #e2e8f0;
+            text-align: center;
+            padding: 0 0 0.4mm;
         }
 
-        table.header-row {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
+        td.stack-qr {
+            height: {{ $layout['qr_size_mm'] + 0.6 }}mm;
+            vertical-align: middle;
+            text-align: center;
+            padding: 0.2mm 0;
         }
 
-        td.logo-cell {
-            width: {{ $layout['logo_width_mm'] + 1 }}mm;
+        td.stack-number {
             vertical-align: middle;
+            text-align: center;
+            padding: 0.3mm 0 0.2mm;
+        }
+
+        td.stack-name {
+            vertical-align: top;
+            text-align: center;
             padding: 0;
-        }
-
-        td.number-cell {
-            vertical-align: middle;
-            text-align: right;
-            padding: 0 0 0 1mm;
         }
 
         img.logo {
@@ -94,40 +96,7 @@
             max-height: {{ $layout['logo_max_height_mm'] }}mm;
             height: auto;
             display: block;
-        }
-
-        .number {
-            font-size: {{ $layout['font_size_pt'] }}pt;
-            color: #b91c1c;
-            font-weight: bold;
-            line-height: 1.1;
-            word-break: break-all;
-            overflow: hidden;
-            max-height: {{ $layout['font_size_pt'] * 2.2 }}pt;
-        }
-
-        td.body {
-            vertical-align: middle;
-            padding: 0.8mm 0 0;
-        }
-
-        table.body-row {
-            width: 100%;
-            border-collapse: collapse;
-            table-layout: fixed;
-        }
-
-        td.qr-col {
-            width: {{ $layout['qr_size_mm'] + 1.5 }}mm;
-            text-align: center;
-            vertical-align: middle;
-            padding: 0;
-        }
-
-        td.info-col {
-            vertical-align: middle;
-            padding: 0 0 0 1.4mm;
-            text-align: left;
+            margin: 0 auto;
         }
 
         img.qr {
@@ -139,38 +108,34 @@
             margin: 0 auto;
         }
 
-        .name {
+        .number {
             font-size: {{ $layout['font_size_pt'] }}pt;
+            color: #b91c1c;
             font-weight: bold;
             line-height: 1.15;
-            text-transform: uppercase;
-            max-height: {{ $layout['font_size_pt'] * 2.35 }}pt;
+            word-break: break-all;
             overflow: hidden;
-            margin: 0 0 0.7mm;
+            max-height: {{ $layout['font_size_pt'] * 2.2 }}pt;
+        }
+
+        .name {
+            font-size: {{ max(7, $layout['font_size_pt'] - 0.3) }}pt;
+            font-weight: normal;
+            line-height: 1.15;
+            text-transform: uppercase;
+            max-height: {{ max(7, $layout['font_size_pt'] - 0.3) * 2.35 }}pt;
+            overflow: hidden;
             word-wrap: break-word;
         }
 
-        .loc {
-            font-size: {{ max(7, $layout['font_size_pt'] - 0.5) }}pt;
-            color: #334155;
-            font-weight: bold;
-            line-height: 1.2;
+        .logo-missing {
+            font-size: 5pt;
+            color: #b91c1c;
+            line-height: 1.15;
+            text-align: left;
+            word-break: break-all;
             overflow: hidden;
-            max-height: {{ max(7, $layout['font_size_pt'] - 0.5) * 3.7 }}pt;
-        }
-
-        .loc-line {
-            display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        .logo-fallback {
-            font-size: 6pt;
-            font-weight: bold;
-            color: #1e3a5f;
-            line-height: 1.1;
+            max-height: {{ $layout['logo_max_height_mm'] + 0.5 }}mm;
         }
     </style>
 </head>
@@ -184,6 +149,7 @@
     if ($chunks->isEmpty()) {
         $chunks = collect([collect()]);
     }
+    $logoMissingMessage = $logoError ?? null;
 @endphp
 
 @foreach($chunks as $pageLabels)
@@ -202,42 +168,32 @@
             <td class="cell">
                 @if($label)
                     <div class="label">
-                        <table class="shell">
+                        <table class="stack">
                             <tr>
-                                <td class="header">
-                                    <table class="header-row">
-                                        <tr>
-                                            <td class="logo-cell">
-                                                @if(!empty($logoSrc))
-                                                    <img class="logo" src="{{ $logoSrc }}" alt="Universitas Dian Nusantara">
-                                                @else
-                                                    <div class="logo-fallback">UNDIRA</div>
-                                                @endif
-                                            </td>
-                                            <td class="number-cell">
-                                                <div class="number">{{ $label->inventory_number }}</div>
-                                            </td>
-                                        </tr>
-                                    </table>
+                                <td class="stack-logo">
+                                    @if(!empty($logoSrc))
+                                        <img class="logo" src="{{ $logoSrc }}" alt="Universitas Dian Nusantara">
+                                    @else
+                                        <div class="logo-missing">
+                                            LOGO GAGAL<br>
+                                            {{ \Illuminate\Support\Str::limit($logoMissingMessage ?: 'logo-undira.png tidak ditemukan', 120, '...') }}
+                                        </div>
+                                    @endif
                                 </td>
                             </tr>
                             <tr>
-                                <td class="body">
-                                    <table class="body-row">
-                                        <tr>
-                                            <td class="qr-col">
-                                                <img class="qr" src="{{ $label->qr_src }}" alt="QR">
-                                            </td>
-                                            <td class="info-col">
-                                                <div class="name">{{ $label->name }}</div>
-                                                <div class="loc">
-                                                    @foreach($label->location_lines as $line)
-                                                        <span class="loc-line">{{ $line }}</span>
-                                                    @endforeach
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </table>
+                                <td class="stack-qr">
+                                    <img class="qr" src="{{ $label->qr_src }}" alt="QR">
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="stack-number">
+                                    <div class="number">{{ $label->inventory_number }}</div>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td class="stack-name">
+                                    <div class="name">{{ $label->name }}</div>
                                 </td>
                             </tr>
                         </table>

@@ -170,8 +170,14 @@
     </div>
 </div>
 
-{{-- Hidden form for mass label PDF (new feature; does not touch individual label print) --}}
-<form id="massLabelForm" method="POST" action="{{ route('inventory.labels.mass30') }}" target="_blank" class="d-none">
+{{-- Hidden form for mass label PDF download (native POST — not DataTables/AJAX). --}}
+<form id="massLabelForm"
+      method="POST"
+      action="{{ route('inventory.labels.mass30') }}"
+      target="_blank"
+      class="d-none"
+      data-download
+      data-no-loading>
     @csrf
     <input type="hidden" name="scope" id="massLabelScope" value="selected">
     <div id="massLabelIds"></div>
@@ -361,12 +367,25 @@ function submitMassLabels(scope) {
             $ids.append(`<input type="hidden" name="inventory_ids[]" value="${id}">`);
         });
     }
-    const modalEl = document.getElementById('massLabelsModal');
-    if (modalEl && window.bootstrap) {
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
+
+    // Native form POST + target=_blank → PDF download tab.
+    // Do NOT use $.ajax / fetch (PDF is not JSON). Do NOT use jQuery .trigger('submit')
+    // which can skip native navigation. Keep this in the user-gesture stack (popup-safe).
+    const form = document.getElementById('massLabelForm');
+    if (!form) {
+        alert('Form cetak label tidak ditemukan.');
+        return;
     }
-    $('#massLabelForm').trigger('submit');
+    form.submit();
+
+    // Hide modal after submit so the click gesture is not interrupted.
+    window.setTimeout(function () {
+        const modalEl = document.getElementById('massLabelsModal');
+        if (modalEl && window.bootstrap) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if (modal) modal.hide();
+        }
+    }, 150);
 }
 
 $('#btnPrintSelectedLabels').on('click', function () {

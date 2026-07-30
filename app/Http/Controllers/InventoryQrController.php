@@ -167,6 +167,7 @@ class InventoryQrController extends Controller
         $scope = (string) $request->input('scope');
         $filters = $this->filterService->extractFilters($request);
         $layout = $this->massLabelService->layout();
+        $user = $request->user();
 
         Log::info('Mass label request received', [
             'scope' => $scope,
@@ -177,10 +178,17 @@ class InventoryQrController extends Controller
                 'rows' => $layout['rows'],
                 'per_page' => $layout['per_page'],
             ],
-            'user_id' => $request->user()?->id,
+            'user_id' => $user?->id,
         ]);
 
+        // Critical: release session lock BEFORE heavy PDF work.
+        // Otherwise DataTables AJAX on the parent tab waits on the same session file → tn/7 Ajax error.
+        $this->releaseSessionLock();
+
         try {
+            @ini_set('memory_limit', '512M');
+            @set_time_limit(180);
+
             $ids = $this->massLabelService->resolveIds($request);
 
             if ($ids === []) {
@@ -210,7 +218,7 @@ class InventoryQrController extends Controller
             }
 
             $this->auditLogService->log(
-                $request->user(),
+                $user,
                 AuditAction::Export,
                 null,
                 null,
@@ -249,6 +257,24 @@ class InventoryQrController extends Controller
             return redirect()
                 ->route('inventory.items')
                 ->with('error', 'Gagal membuat label. Silakan hubungi Administrator.');
+        }
+    }
+
+    /**
+     * Allow concurrent AJAX (DataTables) while this request generates PDF.
+     */
+    protected function releaseSessionLock(): void
+    {
+        try {
+            if (session()->isStarted()) {
+                session()->save();
+            }
+        } catch (\Throwable) {
+            // ignore
+        }
+
+        if (function_exists('session_write_close')) {
+            @session_write_close();
         }
     }
 }

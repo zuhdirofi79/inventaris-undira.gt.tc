@@ -19,7 +19,6 @@ use Symfony\Component\HttpFoundation\Response;
 class InventoryMassLabelService
 {
     public function __construct(
-        protected InventoryCodeService $codeService,
         protected InventoryFilterService $filterService,
     ) {}
 
@@ -48,10 +47,10 @@ class InventoryMassLabelService
         $pageMargin = max(3.0, (float) config('inventory_labels.page_margin_mm', 5));
         $gapX = max(1.0, (float) config('inventory_labels.gap_x_mm', 2.5));
         $gapY = max(1.0, (float) config('inventory_labels.gap_y_mm', 2.0));
-        $qrSize = max(20.0, min(24.0, (float) config('inventory_labels.qr_size_mm', 20)));
-        $logoWidth = max(8.0, min(15.0, (float) config('inventory_labels.logo_width_mm', 12)));
-        $logoMaxHeight = max(3.5, min(8.0, (float) config('inventory_labels.logo_max_height_mm', 5.5)));
-        $fontPt = max(7.0, min(10.0, (float) config('inventory_labels.font_size_pt', 8)));
+        $qrSize = max(15.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 17)));
+        $logoWidth = max(14.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 16)));
+        $logoMaxHeight = max(3.5, min(7.0, (float) config('inventory_labels.logo_max_height_mm', 4.8)));
+        $fontPt = max(7.0, min(10.0, (float) config('inventory_labels.font_size_pt', 7.5)));
 
         // A4 usable height ≈ 297mm − 2×margin
         $usableHeight = 297.0 - (2 * $pageMargin);
@@ -108,10 +107,14 @@ class InventoryMassLabelService
     /**
      * Build label rows ready for the PDF view (skips invalid / QR failures).
      *
+     * QR is rendered in-memory as PNG for DomPDF — no per-item disk ensureCodes
+     * (that was slow enough to hold the request open and starve DataTables AJAX).
+     *
      * @param  list<int>  $ids
      * @return Collection<int, object{
      *     inventory_number: string,
      *     name: string,
+     *     category: string,
      *     location_lines: list<string>,
      *     qr_src: string
      * }>
@@ -130,6 +133,7 @@ class InventoryMassLabelService
             ->whereNotNull('inventory_number')
             ->where('inventory_number', '!=', '')
             ->with([
+                'category:id,name',
                 'room:id,code,name,floor_id',
                 'room.floor:id,code,name,floor_number,building_id',
                 'room.floor.building:id,code,name',
@@ -145,19 +149,7 @@ class InventoryMassLabelService
                 continue;
             }
 
-            try {
-                $this->codeService->ensureCodes($item);
-            } catch (\Throwable $e) {
-                Log::warning('Mass label skip: ensureCodes failed', [
-                    'id' => $item->id,
-                    'inventory_number' => $number,
-                    'error' => $e->getMessage(),
-                ]);
-
-                continue;
-            }
-
-            $qrSrc = $this->qrPngDataUri($number);
+            $qrSrc = $this->qrPngDataUri($number, 180);
             if ($qrSrc === null) {
                 Log::warning('Mass label skip: QR PNG failed', [
                     'id' => $item->id,
@@ -167,9 +159,12 @@ class InventoryMassLabelService
                 continue;
             }
 
+            $category = trim((string) ($item->category?->name ?? ''));
+
             $labels->push((object) [
                 'inventory_number' => $number,
                 'name' => $this->formatName((string) $item->name, $layout['name_max_chars']),
+                'category' => $category !== '' ? Str::limit($category, 28, '...') : '—',
                 'location_lines' => $this->locationLines($item),
                 'qr_src' => $qrSrc,
             ]);
@@ -181,11 +176,16 @@ class InventoryMassLabelService
     public function downloadPdf(Collection $labels): Response
     {
         $layout = $this->layout();
-        $logoSrc = $this->resolveLogoDataUri();
+        $logo = $this->resolveLogo();
 
-        if ($logoSrc === null) {
-            Log::warning('Mass label PDF: UNDIRA logo missing', [
-                'expected' => public_path((string) config('inventory_labels.logo_path', 'images/undira.png')),
+        if ($logo['src'] === null) {
+            Log::warning('Mass label PDF: logo-undira.png tidak ditemukan', [
+                'tried' => $logo['tried'],
+                'error' => $logo['error'],
+            ]);
+        } else {
+            Log::info('Mass label PDF: logo loaded', [
+                'path' => $logo['path'],
             ]);
         }
 
@@ -196,7 +196,10 @@ class InventoryMassLabelService
         $pdf = Pdf::loadView('exports.inventory-labels-30', [
             'labels' => $labels,
             'layout' => $layout,
-            'logoSrc' => $logoSrc,
+            'logoSrc' => $logo['src'],
+            'logoPath' => $logo['path'],
+            'logoError' => $logo['error'],
+            'logoTried' => $logo['tried'],
         ]);
         $pdf->setPaper('a4', 'portrait');
 
@@ -207,24 +210,61 @@ class InventoryMassLabelService
     }
 
     /**
-     * Embed logo as base64 data-URI so DomPDF works on any host (no HTTP/asset URL).
+     * Embed official logo-undira.png as base64 data-URI for DomPDF.
+     * Uses public_path() only — never asset()/HTTP URLs.
+     *
+     * @deprecated Prefer resolveLogo() when failure details are needed.
      */
     public function resolveLogoDataUri(): ?string
     {
-        $relative = ltrim(str_replace('\\', '/', (string) config('inventory_labels.logo_path', 'images/undira.png')), '/');
+        return $this->resolveLogo()['src'];
+    }
+
+    /**
+     * @return array{
+     *     src: ?string,
+     *     path: ?string,
+     *     tried: list<array{path: string, reason: string}>,
+     *     error: ?string
+     * }
+     */
+    public function resolveLogo(): array
+    {
+        $relative = ltrim(str_replace('\\', '/', (string) config('inventory_labels.logo_path', 'images/logo-undira.png')), '/');
+
+        // Official file name must remain logo-undira.png — do not invent alternate names.
         $candidates = [
+            public_path('images/logo-undira.png'),
             public_path($relative),
-            public_path('images/undira.png'),
+            base_path('public/images/logo-undira.png'),
             base_path('public/'.$relative),
         ];
 
-        foreach (array_unique($candidates) as $path) {
-            if (! is_file($path) || ! is_readable($path)) {
+        $tried = [];
+
+        foreach (array_values(array_unique($candidates)) as $path) {
+            if (! file_exists($path)) {
+                $tried[] = ['path' => $path, 'reason' => 'file does not exist'];
+
+                continue;
+            }
+
+            if (! is_file($path)) {
+                $tried[] = ['path' => $path, 'reason' => 'path exists but is not a file'];
+
+                continue;
+            }
+
+            if (! is_readable($path)) {
+                $tried[] = ['path' => $path, 'reason' => 'file is not readable'];
+
                 continue;
             }
 
             $binary = file_get_contents($path);
             if ($binary === false || $binary === '') {
+                $tried[] = ['path' => $path, 'reason' => 'file is empty or unreadable'];
+
                 continue;
             }
 
@@ -236,10 +276,24 @@ class InventoryMassLabelService
                 $mime = 'image/webp';
             }
 
-            return 'data:'.$mime.';base64,'.base64_encode($binary);
+            return [
+                'src' => 'data:'.$mime.';base64,'.base64_encode($binary),
+                'path' => $path,
+                'tried' => $tried,
+                'error' => null,
+            ];
         }
 
-        return null;
+        $lines = collect($tried)
+            ->map(fn (array $row) => $row['path'].' ('.$row['reason'].')')
+            ->implode('; ');
+
+        return [
+            'src' => null,
+            'path' => null,
+            'tried' => $tried,
+            'error' => 'logo-undira.png tidak ditemukan. Path dicoba: '.$lines,
+        ];
     }
 
     /**
