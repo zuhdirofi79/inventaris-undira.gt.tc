@@ -3,17 +3,22 @@
 :root {
   --sidebar-expanded-width: 248px;
   --sidebar-collapsed-width: 76px;
+  --sidebar-icon-size: 1.15rem;
+  --sidebar-item-size: 44px;
   --topbar-height: 64px;
   --sidebar-brand-height: 76px;
   --content-max-width: 1600px;
   --content-padding-x: 28px;
   --content-padding-y: 28px;
   --layout-gap: 28px;
-  --layout-transition: 200ms ease;
+  --layout-transition: 250ms ease;
   --undira-brand-bg: #ffffff;
+  --sidebar-float-bg: #101b45;
+  --sidebar-float-border: rgba(255, 255, 255, 0.1);
+  --sidebar-float-shadow: 0 12px 32px rgba(8, 16, 48, 0.45);
 }
 
-/* —— Desktop / tablet shared width sync (AdminLTE) —— */
+/* —— Desktop shared width sync (AdminLTE) —— */
 body.sidebar-mini.layout-fixed .main-sidebar,
 body.sidebar-mini.layout-fixed .main-sidebar::before {
   width: var(--sidebar-expanded-width);
@@ -37,8 +42,17 @@ body.sidebar-mini.sidebar-collapse .main-header {
   margin-left: var(--sidebar-collapsed-width) !important;
 }
 
+/* Never re-expand the rail on hover/focus (AdminLTE default looks broken) */
+body.sidebar-mini.sidebar-collapse .main-sidebar.sidebar-no-expand:hover,
+body.sidebar-mini.sidebar-collapse .main-sidebar.sidebar-no-expand.sidebar-focused,
+body.sidebar-mini.sidebar-collapse .main-sidebar.sidebar-no-expand:hover .brand-link,
+body.sidebar-mini.sidebar-collapse .main-sidebar.sidebar-no-expand.sidebar-focused .brand-link {
+  width: var(--sidebar-collapsed-width) !important;
+}
+
 body.sidebar-mini .main-sidebar {
   transition: width var(--layout-transition), margin-left var(--layout-transition), transform var(--layout-transition);
+  z-index: 1040;
 }
 
 /* —— Top navbar —— */
@@ -66,7 +80,7 @@ body.sidebar-mini .main-sidebar {
   line-height: 1.2;
 }
 
-    .navbar-undira .nav-link[data-widget="pushmenu"] {
+.navbar-undira .nav-link[data-widget="pushmenu"] {
   color: var(--text-heading, var(--undira-blue, #1A237E));
   border-radius: 8px;
 }
@@ -103,7 +117,7 @@ body.sidebar-mini .main-sidebar {
   max-width: 100%;
 }
 
-/* —— Sidebar brand (official logo only when expanded) —— */
+/* —— Sidebar brand (full logo expanded / 32px mark collapsed) —— */
 .undira-sidebar-brand.brand-link {
   display: flex !important;
   align-items: center !important;
@@ -148,32 +162,38 @@ body.sidebar-mini .main-sidebar {
 
 .undira-brand-mark {
   display: none;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 32px;
+  height: 32px;
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, #1A237E, #283593);
-  color: #fff;
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.12);
   flex-shrink: 0;
+  overflow: hidden;
+  padding: 2px;
+}
+
+.undira-brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 /* Collapsed: never squeeze the full horizontal logo */
-body.sidebar-mini.sidebar-collapse .undira-sidebar-brand.brand-link {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .undira-sidebar-brand.brand-link {
   height: var(--sidebar-collapsed-width);
   min-height: var(--sidebar-collapsed-width);
   max-height: var(--sidebar-collapsed-width);
-  padding: 0.55rem 0.35rem !important;
+  padding: 0 !important;
 }
 
-body.sidebar-mini.sidebar-collapse .undira-sidebar-logo-wrap {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .undira-sidebar-logo-wrap {
   display: none;
 }
 
-body.sidebar-mini.sidebar-collapse .undira-brand-mark {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .undira-brand-mark {
   display: inline-flex;
 }
 
@@ -190,6 +210,7 @@ body.sidebar-mini.sidebar-collapse .undira-brand-mark {
 .user-panel-undira .image {
   flex-shrink: 0;
   padding-left: 0 !important;
+  margin: 0 !important;
 }
 
 .user-panel-undira .user-avatar {
@@ -201,6 +222,7 @@ body.sidebar-mini.sidebar-collapse .undira-brand-mark {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .user-panel-undira .info {
@@ -232,36 +254,269 @@ body.sidebar-mini.sidebar-collapse .undira-brand-mark {
   text-overflow: ellipsis;
 }
 
-body.sidebar-mini.sidebar-collapse .user-panel-undira .info {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .user-panel-undira .info {
   display: none !important;
 }
 
-body.sidebar-mini.sidebar-collapse .user-panel-undira {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .user-panel-undira {
   justify-content: center;
-  padding: 0.75rem 0.35rem !important;
+  align-items: center;
+  padding: 0.65rem 0 !important;
+  gap: 0;
 }
 
-/* —— Sidebar menu rhythm —— */
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .user-panel-undira .user-avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 0.8rem;
+}
+
+/* —— Sidebar scroll + custom scrollbar —— */
 .main-sidebar .sidebar {
   overflow-x: hidden;
+  overflow-y: auto;
   padding-bottom: 1rem;
+  height: calc(100vh - var(--sidebar-brand-height));
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
 
-.nav-sidebar .nav-link {
-  min-height: 42px;
+.main-sidebar .sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+}
+
+.main-sidebar .sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .main-sidebar .sidebar {
+  height: calc(100vh - var(--sidebar-collapsed-width));
+  overflow-x: visible;
+}
+
+/* —— Sidebar menu rhythm (expanded) —— */
+.sidebar-dark-undira .nav-sidebar > .nav-item {
+  position: relative;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link {
+  min-height: var(--sidebar-item-size);
+  height: auto;
   display: flex !important;
   align-items: center;
+  margin: 0.2rem 0.65rem !important;
+  padding: 0.55rem 0.75rem !important;
+  border-radius: 10px !important;
+  transition:
+    background 0.25s ease,
+    color 0.25s ease,
+    box-shadow 0.25s ease,
+    transform 0.25s ease;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  transform: translateY(-1px) scale(1.01);
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link:focus-visible {
+  outline: 2px solid rgba(46, 125, 50, 0.85);
+  outline-offset: 2px;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link.active {
+  background: linear-gradient(135deg, var(--undira-green, #2E7D32) 0%, #43A047 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.35);
+  border-radius: 10px !important;
+}
+
+.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link.active .nav-icon {
+  color: #fff !important;
+  opacity: 1;
 }
 
 .nav-sidebar .nav-link p {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  margin: 0;
+  line-height: 1.3;
 }
 
 .nav-sidebar .nav-icon {
-  width: 22px;
+  width: 1.4rem;
+  min-width: 1.4rem;
+  font-size: var(--sidebar-icon-size);
   text-align: center;
+  margin-right: 0.45rem !important;
+  flex-shrink: 0;
+}
+
+.nav-treeview > .nav-item > .nav-link {
+  min-height: 38px;
+  display: flex !important;
+  align-items: center;
+  margin: 0.1rem 0.65rem 0.1rem 0.85rem !important;
+  padding: 0.45rem 0.7rem 0.45rem 0.85rem !important;
+  border-radius: 8px !important;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.nav-treeview > .nav-item > .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  transform: translateX(2px);
+}
+
+.nav-treeview > .nav-item > .nav-link.active {
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.95), rgba(67, 160, 71, 0.9)) !important;
+  color: #fff !important;
+  box-shadow: 0 4px 12px rgba(46, 125, 50, 0.28);
+}
+
+.nav-treeview > .nav-item > .nav-link:focus-visible {
+  outline: 2px solid rgba(46, 125, 50, 0.85);
+  outline-offset: 1px;
+}
+
+/* —— Collapsed icon rail —— */
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-header {
+  display: none !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link {
+  width: var(--sidebar-item-size) !important;
+  height: var(--sidebar-item-size) !important;
+  min-height: var(--sidebar-item-size) !important;
+  max-height: var(--sidebar-item-size) !important;
+  margin: 0.28rem auto !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-radius: 10px !important;
+  overflow: visible !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link > p,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link .right,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link .badge {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  overflow: hidden !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link .nav-icon {
+  width: auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  font-size: 1.15rem !important;
+  text-align: center !important;
+  position: static !important;
+  left: auto !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link.active {
+  background: linear-gradient(135deg, var(--undira-green, #2E7D32), #43A047) !important;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.4);
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item.menu-open > .nav-link:not(.active) {
+  background: rgba(46, 125, 50, 0.22) !important;
+  color: #fff !important;
+}
+
+/* Floating submenu (collapsed desktop/tablet rail) */
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-treeview {
+  display: none !important;
+  position: fixed !important;
+  left: calc(var(--sidebar-collapsed-width) + 6px) !important;
+  top: 0;
+  min-width: 220px;
+  max-width: min(280px, calc(100vw - var(--sidebar-collapsed-width) - 24px));
+  max-height: min(70vh, 420px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 0 !important;
+  padding: 0.45rem 0.35rem !important;
+  background: var(--sidebar-float-bg) !important;
+  border: 1px solid var(--sidebar-float-border);
+  border-radius: 12px;
+  box-shadow: var(--sidebar-float-shadow);
+  z-index: 1060;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item.is-float-open > .nav-treeview {
+  display: block !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link {
+  margin: 0.15rem 0.2rem !important;
+  padding: 0.55rem 0.75rem !important;
+  min-height: 40px;
+  justify-content: flex-start !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link > p {
+  display: inline-block !important;
+  width: auto !important;
+  height: auto !important;
+  opacity: 1 !important;
+  overflow: visible !important;
+  margin: 0 !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link .nav-icon {
+  margin-right: 0.5rem !important;
+  width: 1.15rem !important;
+  font-size: 0.95rem !important;
+}
+
+/* Bootstrap tooltips used for collapsed labels */
+.tooltip.undira-sidebar-tooltip .tooltip-inner {
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.4rem 0.65rem;
+  border-radius: 8px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.28);
+}
+
+.tooltip.undira-sidebar-tooltip .tooltip-arrow::before {
+  border-right-color: #0f172a;
+}
+
+body.dark-mode .tooltip.undira-sidebar-tooltip .tooltip-inner {
+  background: #1e293b;
+  color: #f1f5f9;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+body.dark-mode .tooltip.undira-sidebar-tooltip .tooltip-arrow::before {
+  border-right-color: #1e293b;
 }
 
 /* —— Content spacing —— */
@@ -336,11 +591,111 @@ body.sidebar-open .undira-sidebar-backdrop {
   pointer-events: auto;
 }
 
-/* —— Tablet / small desktop: compact rail by default (JS adds .sidebar-collapse) —— */
-@media (min-width: 768px) and (max-width: 1199.98px) {
+/* —— Tablet / small laptop: overlay drawer (does not push content) —— */
+@media (min-width: 768px) and (max-width: 1024px) {
   :root {
     --content-padding-x: 20px;
     --content-padding-y: 18px;
+  }
+
+  body.sidebar-mini .content-wrapper,
+  body.sidebar-mini .main-footer,
+  body.sidebar-mini .main-header,
+  body.sidebar-mini.sidebar-collapse .content-wrapper,
+  body.sidebar-mini.sidebar-collapse .main-footer,
+  body.sidebar-mini.sidebar-collapse .main-header {
+    margin-left: 0 !important;
+  }
+
+  body.sidebar-mini .main-sidebar,
+  body.sidebar-mini .main-sidebar::before {
+    width: var(--sidebar-expanded-width) !important;
+    transform: translateX(-110%);
+    box-shadow: 8px 0 32px rgba(8, 16, 48, 0.35);
+  }
+
+  body.sidebar-mini.sidebar-open .main-sidebar,
+  body.sidebar-mini.sidebar-open .main-sidebar::before {
+    transform: translateX(0);
+  }
+
+  /* While open as overlay, always show expanded chrome */
+  body.sidebar-mini.sidebar-open .undira-sidebar-logo-wrap {
+    display: flex;
+  }
+
+  body.sidebar-mini.sidebar-open .undira-brand-mark {
+    display: none;
+  }
+
+  body.sidebar-mini.sidebar-open .user-panel-undira .info {
+    display: block !important;
+  }
+
+  body.sidebar-mini.sidebar-open .user-panel-undira {
+    justify-content: flex-start;
+    padding: 14px 16px !important;
+    gap: 0.65rem;
+  }
+
+  body.sidebar-mini.sidebar-open .undira-sidebar-brand.brand-link {
+    height: var(--sidebar-brand-height);
+    min-height: var(--sidebar-brand-height);
+    max-height: var(--sidebar-brand-height);
+    padding: 10px 16px !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-header {
+    display: block !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link {
+    width: auto !important;
+    height: auto !important;
+    min-height: var(--sidebar-item-size) !important;
+    max-height: none !important;
+    margin: 0.2rem 0.65rem !important;
+    padding: 0.55rem 0.75rem !important;
+    justify-content: flex-start !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link > p,
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .right,
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .badge {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .nav-icon {
+    margin-right: 0.45rem !important;
+    width: 1.4rem !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-treeview {
+    display: none;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item.menu-open > .nav-treeview {
+    display: block !important;
+  }
+
+  body.sidebar-open {
+    overflow: hidden;
   }
 
   .app-identity {
@@ -365,13 +720,24 @@ body.sidebar-open .undira-sidebar-backdrop {
 
   body.sidebar-mini .content-wrapper,
   body.sidebar-mini .main-footer,
-  body.sidebar-mini .main-header {
+  body.sidebar-mini .main-header,
+  body.sidebar-mini.sidebar-collapse .content-wrapper,
+  body.sidebar-mini.sidebar-collapse .main-footer,
+  body.sidebar-mini.sidebar-collapse .main-header {
     margin-left: 0 !important;
   }
 
   body.sidebar-mini .main-sidebar,
   body.sidebar-mini .main-sidebar::before {
-    width: var(--sidebar-expanded-width) !important;
+    width: min(var(--sidebar-expanded-width), 86vw) !important;
+    max-width: 300px;
+    transform: translateX(-110%);
+    box-shadow: 8px 0 32px rgba(8, 16, 48, 0.4);
+  }
+
+  body.sidebar-mini.sidebar-open .main-sidebar,
+  body.sidebar-mini.sidebar-open .main-sidebar::before {
+    transform: translateX(0);
   }
 
   /* Drawer open: show full brand + user text even if collapse class remains */
@@ -387,6 +753,17 @@ body.sidebar-open .undira-sidebar-backdrop {
     display: block !important;
   }
 
+  body.sidebar-mini.sidebar-open .user-panel-undira {
+    justify-content: flex-start;
+    padding: 14px 16px !important;
+    gap: 0.65rem;
+  }
+
+  body.sidebar-mini.sidebar-open .user-panel-undira .user-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
   body.sidebar-mini.sidebar-open .undira-sidebar-brand.brand-link {
     height: var(--sidebar-brand-height);
     min-height: var(--sidebar-brand-height);
@@ -394,8 +771,69 @@ body.sidebar-open .undira-sidebar-backdrop {
     padding: 10px 16px !important;
   }
 
+  body.sidebar-mini.sidebar-open .nav-header {
+    display: block !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link {
+    width: auto !important;
+    height: auto !important;
+    min-height: 46px !important;
+    max-height: none !important;
+    margin: 0.2rem 0.55rem !important;
+    padding: 0.65rem 0.85rem !important;
+    justify-content: flex-start !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link > p,
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .right,
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .badge {
+    display: block !important;
+    width: auto !important;
+    height: auto !important;
+    opacity: 1 !important;
+    overflow: visible !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-link .nav-icon {
+    margin-right: 0.55rem !important;
+    width: 1.4rem !important;
+    font-size: 1.1rem !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item > .nav-treeview {
+    display: none;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    min-width: 0;
+    max-width: none;
+    max-height: none;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0;
+    box-shadow: none !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-sidebar > .nav-item.menu-open > .nav-treeview {
+    display: block !important;
+  }
+
+  body.sidebar-mini.sidebar-open .nav-treeview > .nav-item > .nav-link {
+    min-height: 42px;
+    margin: 0.1rem 0.45rem 0.1rem 0.65rem !important;
+    padding: 0.55rem 0.75rem !important;
+  }
+
   body.sidebar-open {
     overflow: hidden;
+  }
+
+  .navbar-undira .nav-link[data-widget="pushmenu"] {
+    min-width: 44px;
+    min-height: 44px;
   }
 
   .app-identity {
@@ -436,12 +874,43 @@ body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"]:focus-visible {
   background: rgba(231, 237, 255, 0.08);
 }
 
+body.dark-mode {
+  --sidebar-float-bg: #152038;
+  --sidebar-float-border: rgba(148, 163, 184, 0.22);
+  --sidebar-float-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+}
+
+body.dark-mode .main-sidebar .sidebar {
+  scrollbar-color: rgba(148, 163, 184, 0.45) transparent;
+}
+
+body.dark-mode .main-sidebar .sidebar::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+body.dark-mode .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link.active,
+body.dark-mode .nav-treeview > .nav-item > .nav-link.active {
+  background: linear-gradient(135deg, var(--undira-green, #2E7D32), #43A047) !important;
+  color: #fff !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   body.sidebar-mini .main-sidebar,
   body.sidebar-mini .content-wrapper,
   body.sidebar-mini .main-footer,
   body.sidebar-mini .main-header,
-  .undira-sidebar-backdrop {
+  .undira-sidebar-backdrop,
+  .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link,
+  .nav-treeview > .nav-item > .nav-link {
     transition: none !important;
+  }
+
+  .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link:hover,
+  body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-link:hover {
+    transform: none !important;
   }
 }

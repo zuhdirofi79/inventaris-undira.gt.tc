@@ -13,6 +13,7 @@ use App\Models\MaintenanceStatusHistory;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use RuntimeException;
 
 class MaintenanceWorkflowService
@@ -597,21 +598,98 @@ class MaintenanceWorkflowService
     }
 
     /**
-     * @param  array<int, UploadedFile>  $files
+     * Append photos for a WO stage (does not remove existing photos of other/same type).
+     *
+     * @param  array<int, UploadedFile>|UploadedFile|null  $files
+     * @return int Number of files stored
      */
-    protected function storePhotos(Maintenance $maintenance, string $type, array $files): void
+    public function addPhotos(Maintenance $maintenance, string $type, array|UploadedFile|null $files): int
     {
+        return $this->storePhotos($maintenance, $type, $files);
+    }
+
+    public function deletePhoto(Maintenance $maintenance, MaintenancePhoto $photo, User $actor): void
+    {
+        if ((int) $photo->maintenance_id !== (int) $maintenance->id) {
+            throw new RuntimeException('Foto tidak terkait dengan work order ini.');
+        }
+
+        $path = $photo->path;
+        $photoId = $photo->id;
+        $type = $photo->type;
+
+        if (filled($path)) {
+            Storage::disk('public')->delete($path);
+        }
+        $photo->delete();
+
+        $this->audit->log(
+            $actor,
+            AuditAction::Update,
+            $maintenance,
+            ['photo_id' => $photoId, 'type' => $type, 'path' => $path],
+            null,
+            'MAINTENANCE_PHOTO_DELETED',
+        );
+    }
+
+    /**
+     * Store photos for a WO stage (append). Empty upload keeps existing photos.
+     *
+     * @param  array<int, UploadedFile>|UploadedFile|null  $files
+     * @return int
+     */
+    protected function storePhotos(Maintenance $maintenance, string $type, array|UploadedFile|null $files): int
+    {
+        $files = $this->normalizeUploadedFiles($files);
+        if ($files === []) {
+            return 0;
+        }
+
+        $dir = sprintf(
+            'maintenance/%s/%s/%d/%s',
+            now()->format('Y'),
+            now()->format('m'),
+            $maintenance->id,
+            $type
+        );
+
+        $stored = 0;
         foreach ($files as $file) {
-            if (! $file instanceof UploadedFile) {
+            $path = $file->store($dir, 'public');
+            if (! is_string($path) || $path === '') {
                 continue;
             }
-            $path = $file->store("maintenance/{$maintenance->id}/{$type}", 'public');
+
             MaintenancePhoto::query()->create([
                 'maintenance_id' => $maintenance->id,
                 'type' => $type,
                 'path' => $path,
             ]);
+            $stored++;
         }
+
+        return $stored;
+    }
+
+    /**
+     * @param  array<int, UploadedFile>|UploadedFile|null  $files
+     * @return array<int, UploadedFile>
+     */
+    protected function normalizeUploadedFiles(array|UploadedFile|null $files): array
+    {
+        if ($files instanceof UploadedFile) {
+            $files = [$files];
+        }
+
+        if (! is_array($files)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $files,
+            static fn ($file) => $file instanceof UploadedFile && $file->isValid()
+        ));
     }
 
     protected function nextNumber(): string

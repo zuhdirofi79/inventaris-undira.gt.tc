@@ -20,8 +20,21 @@ class MaintenancePhoto extends Model
         return $this->belongsTo(Maintenance::class);
     }
 
-    public function getUrlAttribute(): string
+    public function fileExists(): bool
     {
+        return filled($this->path) && Storage::disk('public')->exists($this->path);
+    }
+
+    /**
+     * Public URL for the photo, or null when the file is missing (avoids broken <img>).
+     */
+    public function getUrlAttribute(): ?string
+    {
+        if (! $this->fileExists()) {
+            return null;
+        }
+
+        // Relative /storage/... is robust when APP_URL host differs from the browser host.
         return Storage::disk('public')->url($this->path);
     }
 }

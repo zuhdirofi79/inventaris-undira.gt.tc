@@ -46,7 +46,9 @@
                 </div>
                 <div class="col-12">
                     <label class="form-label">Upload Foto Sesudah</label>
-                    <input type="file" name="photos_after[]" class="form-control" accept="image/*" multiple>
+                    <input type="file" name="photos_after[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewAfter">
+                    <div class="form-text">JPG/PNG/WEBP, maks. 5 MB per file.</div>
+                    <div id="previewAfter" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -57,3 +59,24 @@
     </div>
 </form>
 @endsection
+
+@push('scripts')
+<script>
+document.querySelectorAll('.js-maint-photo-input').forEach(function (input) {
+    input.addEventListener('change', function () {
+        var box = document.getElementById(input.getAttribute('data-preview'));
+        if (!box) return;
+        box.innerHTML = '';
+        Array.from(input.files || []).forEach(function (file) {
+            if (!file.type || file.type.indexOf('image/') !== 0) return;
+            var img = document.createElement('img');
+            img.className = 'rounded border';
+            img.style.cssText = 'height:72px;width:72px;object-fit:cover;';
+            img.alt = file.name;
+            img.src = URL.createObjectURL(file);
+            box.appendChild(img);
+        });
+    });
+});
+</script>
+@endpush

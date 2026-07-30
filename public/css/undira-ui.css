@@ -454,14 +454,11 @@ body.hold-transition {
   background: linear-gradient(180deg, #0B1438 0%, #141E52 42%, #18245F 100%) !important;
 }
 
-.sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link {
-  margin: 0.15rem 0.65rem;
-  padding: 0.55rem 0.75rem !important;
-}
-
+/* Expanded/collapsed geometry lives in undira-layout.css (avoid duplicate margins). */
 .sidebar-dark-undira .nav-sidebar > .nav-item > .nav-link.active {
-  background: linear-gradient(90deg, rgba(46, 125, 50, 0.95), rgba(67, 160, 71, 0.9)) !important;
-  box-shadow: 0 8px 18px rgba(46, 125, 50, 0.28);
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.98), rgba(67, 160, 71, 0.92)) !important;
+  box-shadow: 0 6px 16px rgba(46, 125, 50, 0.32);
+  color: #fff !important;
 }
 
 .main-header.navbar-undira {

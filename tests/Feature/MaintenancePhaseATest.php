@@ -145,6 +145,37 @@ class MaintenancePhaseATest extends TestCase
         $wo = Maintenance::query()->where('inventory_item_id', $item->id)->first();
         $this->assertSame(1, $wo->photos()->where('type', 'before')->count());
         Storage::disk('public')->assertExists($wo->photos()->first()->path);
+        $this->assertNotNull($wo->photos()->first()->url);
+    }
+
+    public function test_detail_page_can_add_and_delete_photos(): void
+    {
+        Storage::fake('public');
+        $admin = $this->makeSuperAdmin();
+        $item = $this->makeItem();
+        $wo = $this->createOpenWo($item);
+
+        $this->actingAs($admin)
+            ->post(route('maintenances.photos.store', $wo), [
+                'type' => 'before',
+                'photos' => [
+                    UploadedFile::fake()->image('a.jpg'),
+                    UploadedFile::fake()->image('b.png'),
+                ],
+            ])
+            ->assertRedirect();
+
+        $wo->refresh();
+        $this->assertSame(2, $wo->photos()->where('type', 'before')->count());
+        $photo = $wo->photos()->where('type', 'before')->first();
+        Storage::disk('public')->assertExists($photo->path);
+
+        $this->actingAs($admin)
+            ->delete(route('maintenances.photos.destroy', [$wo, $photo]))
+            ->assertRedirect();
+
+        Storage::disk('public')->assertMissing($photo->path);
+        $this->assertSame(1, $wo->photos()->where('type', 'before')->count());
     }
 
     public function test_damaged_list_and_delete_only_primary_super_admin(): void

@@ -4,32 +4,68 @@
 
 @section('content')
 <x-page-header
-    title="Semua Item"
+    title="Data Inventaris"
     subtitle="Daftar flat dengan filter & DataTables"
     icon="bi bi-list-ul"
     :breadcrumbs="[
         ['label' => 'Dashboard', 'url' => route('dashboard')],
-        ['label' => 'Data Inventaris', 'url' => route('inventory.index')],
-        ['label' => 'Semua Item'],
+        ['label' => 'Inventaris', 'url' => route('inventory.index')],
+        ['label' => 'Data Inventaris'],
     ]"
     :back-route="route('inventory.index')"
-    back-label="Data Inventaris"
+    back-label="Dashboard Inventaris"
 >
+    @can('inventory.create')
+    <a href="{{ route('inventory.create') }}" class="btn btn-undira btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Inventaris
+    </a>
+    @endcan
     <button type="button" class="btn btn-outline-dark btn-sm" id="btnMassLabels" data-bs-toggle="modal" data-bs-target="#massLabelsModal">
-        <i class="bi bi-qr-code me-1"></i>Print Barcode (30 Label)
+        <i class="bi bi-qr-code me-1"></i>Cetak Label QR
     </button>
+    @canany(['inventory.import', 'inventory.export'])
+    <div class="btn-group btn-group-sm">
+        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-no-loader="1">
+            Aksi
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+            @can('inventory.import')
+            <li>
+                <a class="dropdown-item" href="{{ route('inventory.import.index') }}">
+                    <i class="bi bi-upload me-2"></i>Import Excel
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{{ route('inventory.import.template') }}" data-no-loader="1">
+                    <i class="bi bi-download me-2"></i>Download Template Excel
+                </a>
+            </li>
+            @endcan
+            @if(auth()->user()->can('inventory.import') && auth()->user()->can('inventory.export'))
+            <li><hr class="dropdown-divider"></li>
+            @endif
+            @can('inventory.export')
+            <li>
+                <a class="dropdown-item" href="{{ route('inventory.export.excel') }}" data-no-loader="1">
+                    <i class="bi bi-file-earmark-excel me-2"></i>Export Excel
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{{ route('inventory.export.pdf') }}" data-no-loader="1">
+                    <i class="bi bi-file-earmark-pdf me-2"></i>Export PDF
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" href="{{ route('inventory.export.csv') }}" data-no-loader="1">
+                    <i class="bi bi-filetype-csv me-2"></i>Export CSV
+                </a>
+            </li>
+            @endcan
+        </ul>
+    </div>
+    @endcanany
     <a href="{{ route('inventory.index') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-building me-1"></i>Per Kampus</a>
     <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid-3x3-gap me-1"></i>Per Kategori</a>
-    @can('inventory.create')
-    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm"><i class="bi bi-sliders me-1"></i>Konfigurasi Inventaris</a>
-    @endcan
-    @can('inventory.export')
-    <div class="btn-group btn-group-sm">
-        <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i></a>
-        <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv"></i></a>
-        <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i></a>
-    </div>
-    @endcan
 </x-page-header>
 
 <div class="filter-panel" id="mass-labels">

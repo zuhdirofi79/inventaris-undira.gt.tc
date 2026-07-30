@@ -43,9 +43,9 @@ class UpdateMaintenanceRequest extends FormRequest
                 Rule::requiredIf(fn () => $this->input('status') === MaintenanceStatus::Completed->value),
             ],
             'photos_during' => ['nullable', 'array', 'max:10'],
-            'photos_during.*' => ['image', 'max:5120'],
+            'photos_during.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'photos_after' => ['nullable', 'array', 'max:10'],
-            'photos_after.*' => ['image', 'max:5120'],
+            'photos_after.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 

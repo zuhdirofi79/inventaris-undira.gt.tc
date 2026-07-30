@@ -34,6 +34,7 @@ class BorrowingController extends Controller
     public function index(Request $request): View
     {
         $statusFilter = $request->input('status');
+        $user = $request->user();
 
         $borrowings = Borrowing::query()
             ->with([
@@ -45,6 +46,11 @@ class BorrowingController extends Controller
             ])
             ->withCount('items')
             ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
+            // Viewer/peminjam: hanya riwayat miliknya (requested_by).
+            ->when(
+                $user && $user->hasRole('viewer') && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']),
+                fn ($q) => $q->where('requested_by', $user->id)
+            )
             ->latest()
             ->paginate(20)
             ->withQueryString();

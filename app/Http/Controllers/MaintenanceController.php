@@ -9,10 +9,12 @@ use App\Enums\MaintenanceStatus;
 use App\Enums\MaintenanceType;
 use App\Http\Requests\CompleteRepairRequest;
 use App\Http\Requests\StartRepairRequest;
+use App\Http\Requests\StoreMaintenancePhotoRequest;
 use App\Http\Requests\StoreMaintenanceRequest;
 use App\Http\Requests\UpdateMaintenanceRequest;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
+use App\Models\MaintenancePhoto;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AuditLogService;
@@ -34,6 +36,8 @@ class MaintenanceController extends Controller
 
     public function index(Request $request): View
     {
+        $user = $request->user();
+
         $maintenances = Maintenance::query()
             ->with(['inventoryItem', 'vendor'])
             ->when($request->filled('q'), function ($q) use ($request) {
@@ -50,6 +54,14 @@ class MaintenanceController extends Controller
             })
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('type'), fn ($q) => $q->where('maintenance_type', $request->string('type')))
+            // Teknisi murni: hanya WO yang di-assign / dibuat dirinya.
+            ->when(
+                $user && $user->hasRole('teknisi') && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']),
+                fn ($q) => $q->where(function ($inner) use ($user) {
+                    $inner->where('technician_user_id', $user->id)
+                        ->orWhere('created_by', $user->id);
+                })
+            )
             ->latest('service_date')
             ->paginate(20)
             ->withQueryString();
@@ -129,7 +141,7 @@ class MaintenanceController extends Controller
             $maintenance = $this->workflow->create(
                 $payload,
                 $request->user(),
-                $request->file('photos_before', []) ?? [],
+                $this->uploadedImageFiles($request, 'photos_before'),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -164,7 +176,7 @@ class MaintenanceController extends Controller
             $maintenance = $this->workflow->startRepair(
                 $payload,
                 $request->user(),
-                $request->file('photos_before', []) ?? [],
+                $this->uploadedImageFiles($request, 'photos_before'),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -191,7 +203,7 @@ class MaintenanceController extends Controller
                 $maintenance,
                 $request->validated(),
                 $request->user(),
-                $request->file('photos_after', []) ?? [],
+                $this->uploadedImageFiles($request, 'photos_after'),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -248,8 +260,8 @@ class MaintenanceController extends Controller
                 $maintenance,
                 $payload,
                 $request->user(),
-                $request->file('photos_during', []) ?? [],
-                $request->file('photos_after', []) ?? [],
+                $this->uploadedImageFiles($request, 'photos_during'),
+                $this->uploadedImageFiles($request, 'photos_after'),
             );
         } catch (RuntimeException $e) {
             return back()->withInput()->with('error', $e->getMessage());
@@ -265,5 +277,55 @@ class MaintenanceController extends Controller
         $this->workflow->delete($maintenance, request()->user());
 
         return redirect()->route('maintenances.index')->with('success', 'Data pemeliharaan berhasil dihapus.');
+    }
+
+    public function storePhotos(StoreMaintenancePhotoRequest $request, Maintenance $maintenance): RedirectResponse
+    {
+        $type = (string) $request->validated('type');
+        $files = $this->uploadedImageFiles($request, 'photos');
+
+        $count = $this->workflow->addPhotos($maintenance, $type, $files);
+
+        if ($count === 0) {
+            return back()->with('error', 'Tidak ada foto valid yang dapat diunggah.');
+        }
+
+        $labels = ['before' => 'sebelum', 'during' => 'saat pengerjaan', 'after' => 'sesudah'];
+
+        return back()->with('success', $count.' foto '.$labels[$type].' berhasil diunggah.');
+    }
+
+    public function destroyPhoto(Request $request, Maintenance $maintenance, MaintenancePhoto $photo): RedirectResponse
+    {
+        abort_unless($request->user()?->can('update', $maintenance) ?? false, 403);
+
+        try {
+            $this->workflow->deletePhoto($maintenance, $photo, $request->user());
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        return back()->with('success', 'Foto berhasil dihapus.');
+    }
+
+    /**
+     * @return array<int, \Illuminate\Http\UploadedFile>
+     */
+    protected function uploadedImageFiles(Request $request, string $key): array
+    {
+        $files = $request->file($key);
+
+        if ($files instanceof \Illuminate\Http\UploadedFile) {
+            $files = [$files];
+        }
+
+        if (! is_array($files)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $files,
+            static fn ($file) => $file instanceof \Illuminate\Http\UploadedFile && $file->isValid()
+        ));
     }
 }

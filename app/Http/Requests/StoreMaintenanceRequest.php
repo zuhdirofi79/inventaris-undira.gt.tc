@@ -36,7 +36,7 @@ class StoreMaintenanceRequest extends FormRequest
             'status' => ['nullable', Rule::enum(MaintenanceStatus::class)],
             'result' => ['nullable', Rule::enum(MaintenanceResult::class)],
             'photos_before' => ['nullable', 'array', 'max:10'],
-            'photos_before.*' => ['image', 'max:5120'],
+            'photos_before.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
 
@@ -51,6 +51,7 @@ class StoreMaintenanceRequest extends FormRequest
             'cost.min' => 'Biaya aktual tidak boleh negatif.',
             'estimated_cost.min' => 'Estimasi biaya tidak boleh negatif.',
             'photos_before.*.image' => 'File foto sebelum perbaikan harus berupa gambar.',
+            'photos_before.*.mimes' => 'Format foto harus JPG, JPEG, PNG, atau WEBP.',
             'photos_before.*.max' => 'Ukuran foto maksimal 5 MB.',
         ];
     }

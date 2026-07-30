@@ -15,27 +15,17 @@
     back-label="Dashboard"
 >
     <a href="{{ route('inventory.items') }}#mass-labels" class="btn btn-outline-dark btn-sm">
-        <i class="bi bi-qr-code me-1"></i>Print Barcode (30 Label)
+        <i class="bi bi-qr-code me-1"></i>Cetak Label QR
     </a>
     @can('inventory.create')
-    <a href="{{ route('categories.index', ['tab' => 'konfigurasi', 'create' => 1]) }}" class="btn btn-undira btn-sm">
-        <i class="bi bi-sliders me-1"></i>Buka Konfigurasi Inventaris
+    <a href="{{ route('inventory.create') }}" class="btn btn-undira btn-sm">
+        <i class="bi bi-plus-lg me-1"></i>Tambah Inventaris
     </a>
     @endcan
     <a href="{{ route('inventory.categories') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-grid-3x3-gap me-1"></i>Per Kategori</a>
     <a href="{{ route('inventory.items') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-list-ul me-1"></i>Semua Item</a>
     @can('inventory.view')
     <a href="{{ route('inventory.trash') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-trash me-1"></i>Trash</a>
-    @endcan
-    @can('inventory.import')
-    <a href="{{ route('inventory.import.index') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-upload me-1"></i>Import Excel</a>
-    @endcan
-    @can('inventory.export')
-    <div class="btn-group btn-group-sm">
-        <a href="{{ route('inventory.export.excel') }}" class="btn btn-outline-success"><i class="bi bi-file-earmark-excel"></i><span class="d-none d-sm-inline"> Excel</span></a>
-        <a href="{{ route('inventory.export.csv') }}" class="btn btn-outline-success"><i class="bi bi-filetype-csv"></i><span class="d-none d-sm-inline"> CSV</span></a>
-        <a href="{{ route('inventory.export.pdf') }}" class="btn btn-outline-danger"><i class="bi bi-file-earmark-pdf"></i><span class="d-none d-sm-inline"> PDF</span></a>
-    </div>
     @endcan
 </x-page-header>
 

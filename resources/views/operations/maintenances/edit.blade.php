@@ -104,11 +104,31 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Foto Saat Perbaikan</label>
-                    <input type="file" name="photos_during[]" class="form-control" accept="image/*" multiple>
+                    @php $duringPhotos = $maintenance->photos->where('type', 'during')->filter(fn ($p) => filled($p->url)); @endphp
+                    @if($duringPhotos->isNotEmpty())
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            @foreach($duringPhotos as $photo)
+                                <img src="{{ $photo->url }}" alt="Foto saat" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
+                            @endforeach
+                        </div>
+                        <div class="form-text mb-1">Foto tersimpan di detail. Upload di sini akan menambah foto baru (foto lama tetap).</div>
+                    @endif
+                    <input type="file" name="photos_during[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewDuring">
+                    <div id="previewDuring" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Foto Sesudah</label>
-                    <input type="file" name="photos_after[]" class="form-control" accept="image/*" multiple>
+                    @php $afterPhotos = $maintenance->photos->where('type', 'after')->filter(fn ($p) => filled($p->url)); @endphp
+                    @if($afterPhotos->isNotEmpty())
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            @foreach($afterPhotos as $photo)
+                                <img src="{{ $photo->url }}" alt="Foto sesudah" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
+                            @endforeach
+                        </div>
+                        <div class="form-text mb-1">Foto tersimpan di detail. Upload di sini akan menambah foto baru (foto lama tetap).</div>
+                    @endif
+                    <input type="file" name="photos_after[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewAfter">
+                    <div id="previewAfter" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -123,5 +143,21 @@
 @push('scripts')
 <script>
 $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+document.querySelectorAll('.js-maint-photo-input').forEach(function (input) {
+    input.addEventListener('change', function () {
+        var box = document.getElementById(input.getAttribute('data-preview'));
+        if (!box) return;
+        box.innerHTML = '';
+        Array.from(input.files || []).forEach(function (file) {
+            if (!file.type || file.type.indexOf('image/') !== 0) return;
+            var img = document.createElement('img');
+            img.className = 'rounded border';
+            img.style.cssText = 'height:72px;width:72px;object-fit:cover;';
+            img.alt = file.name;
+            img.src = URL.createObjectURL(file);
+            box.appendChild(img);
+        });
+    });
+});
 </script>
 @endpush

@@ -61,19 +61,15 @@ class RolePermissionSeeder extends Seeder
     ];
 
     /**
-     * Viewer — read-only.
+     * Viewer / Peminjam — inventaris baca + peminjaman sendiri (tanpa operasional lain).
      *
      * @var list<string>
      */
     private array $viewerPermissions = [
         'inventory.view',
         'location.view',
-        'report.view',
         'borrowing.view',
-        'maintenance.view',
-        'stock-opname.view',
-        'mutation.view',
-        'deletion-approval.view',
+        'borrowing.create',
     ];
 
     /**

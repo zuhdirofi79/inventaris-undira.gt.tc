@@ -12,6 +12,24 @@
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: 1rem;
 }
+/*
+ * Room card dropdown stacking:
+ * .lex-card:hover uses transform, which creates a stacking context per card.
+ * Later grid siblings then paint over an earlier card's dropdown menu.
+ * Elevate only the card whose dropdown is open (Bootstrap adds .show).
+ */
+.lex-grid > .lex-filter-card {
+    position: relative;
+    z-index: 1;
+}
+.lex-grid > .lex-filter-card:hover,
+.lex-grid > .lex-filter-card:focus-within {
+    z-index: 2;
+}
+.lex-grid > .lex-filter-card:has(.dropdown.show),
+.lex-grid > .lex-filter-card:has(.dropdown-menu.show) {
+    z-index: 40;
+}
 @media (min-width: 768px) {
     .lex-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

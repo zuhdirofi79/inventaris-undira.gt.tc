@@ -7,6 +7,8 @@ use App\Enums\MaintenanceStatus;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\MaintenanceSchedule;
+use Illuminate\Database\Eloquent\Builder;
+
 class MaintenanceReportService
 {
     public const TYPES = [
@@ -46,10 +48,22 @@ class MaintenanceReportService
     protected function historyReport(array $filters): array
     {
         $items = $this->maintenanceQuery($filters)
-            ->with(['inventoryItem.category', 'inventoryItem.room.floor.building.campus', 'vendor'])
+            ->with([
+                'inventoryItem:id,inventory_number,name,category_id,room_id',
+                'inventoryItem.category:id,name',
+                'inventoryItem.room:id,floor_id',
+                'inventoryItem.room.floor:id,building_id',
+                'inventoryItem.room.floor.building:id,campus_id',
+                'inventoryItem.room.floor.building.campus:id,name',
+                'vendor:id,name',
+            ])
             ->orderByDesc('service_date')
             ->limit(5000)
-            ->get();
+            ->get([
+                'id', 'maintenance_number', 'service_date', 'inventory_item_id', 'vendor_id',
+                'maintenance_type', 'priority', 'technician', 'status', 'result',
+                'estimated_cost', 'cost', 'completed_at', 'notes',
+            ]);
 
         $rows = $items->map(function (Maintenance $m) {
             return [
@@ -92,10 +106,13 @@ class MaintenanceReportService
     protected function costReport(array $filters): array
     {
         $items = $this->maintenanceQuery($filters)
-            ->with(['inventoryItem', 'vendor'])
+            ->with(['inventoryItem:id,inventory_number,name', 'vendor:id,name'])
             ->orderByDesc('service_date')
             ->limit(5000)
-            ->get();
+            ->get([
+                'id', 'maintenance_number', 'service_date', 'inventory_item_id', 'vendor_id',
+                'technician', 'estimated_cost', 'cost', 'status',
+            ]);
 
         $rows = $items->map(fn (Maintenance $m) => [
             $m->maintenance_number,
@@ -291,9 +308,9 @@ class MaintenanceReportService
 
     /**
      * @param  array<string, mixed>  $filters
-     * @return \Illuminate\Database\Eloquent\Builder<Maintenance>
+     * @return Builder<Maintenance>
      */
-    protected function maintenanceQuery(array $filters)
+    protected function maintenanceQuery(array $filters): Builder
     {
         return Maintenance::query()
             ->when(! empty($filters['date_from']), fn ($q) => $q->whereDate('service_date', '>=', $filters['date_from']))

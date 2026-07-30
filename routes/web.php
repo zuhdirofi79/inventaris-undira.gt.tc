@@ -382,6 +382,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::put('/maintenances/{maintenance}', [MaintenanceController::class, 'update'])->name('maintenances.update');
         Route::get('/maintenances/{maintenance}/complete', [MaintenanceController::class, 'completeRepairForm'])->name('maintenances.complete');
         Route::post('/maintenances/{maintenance}/complete', [MaintenanceController::class, 'completeRepair'])->name('maintenances.complete.store');
+        Route::post('/maintenances/{maintenance}/photos', [MaintenanceController::class, 'storePhotos'])->name('maintenances.photos.store');
+        Route::delete('/maintenances/{maintenance}/photos/{photo}', [MaintenanceController::class, 'destroyPhoto'])->name('maintenances.photos.destroy');
     });
     Route::middleware('permission:maintenance.approve')->group(function () {
         Route::get('/maintenance-approvals', [MaintenanceApprovalController::class, 'index'])->name('maintenance-approvals.index');

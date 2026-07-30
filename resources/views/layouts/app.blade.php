@@ -35,10 +35,9 @@
         }
     } catch (e) { /* ignore */ }
     var w = window.innerWidth || document.documentElement.clientWidth || 1200;
-    if (w < 1200) {
+    /* Overlay mode (tablet + mobile): start closed */
+    if (w <= 1024) {
         document.body.classList.add('sidebar-collapse');
-    }
-    if (w < 768) {
         document.body.classList.remove('sidebar-open');
     }
 })();
@@ -109,7 +108,7 @@
         </ul>
     </nav>
 
-    <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira" id="main-sidebar" aria-label="Navigasi utama">
+    <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira sidebar-no-expand" id="main-sidebar" aria-label="Navigasi utama">
         <a href="{{ route('dashboard') }}" class="brand-link undira-sidebar-brand" title="Inventaris UNDIRA">
             <span class="undira-sidebar-logo-wrap">
                 <img
@@ -119,11 +118,19 @@
                     decoding="async"
                 >
             </span>
-            <span class="undira-brand-mark" aria-hidden="true">UN</span>
+            <span class="undira-brand-mark" aria-hidden="true">
+                <img
+                    src="{{ asset('images/undira.png') }}"
+                    alt=""
+                    width="32"
+                    height="32"
+                    decoding="async"
+                >
+            </span>
         </a>
 
         <div class="sidebar">
-            <div class="user-panel user-panel-undira d-flex">
+            <div id="sidebar-user-panel" class="user-panel user-panel-undira d-flex">
                 <div class="image">
                     <div class="user-avatar" aria-hidden="true">
                         <i class="fas fa-user text-white"></i>
@@ -140,368 +147,7 @@
                 </div>
             </div>
 
-            <nav class="mt-2">
-                <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
-                    <li class="nav-header">UTAMA</li>
-
-                    <li class="nav-item">
-                        @if(auth()->user()->hasRole('teknisi') && ! auth()->user()->hasAnyRole(['super-admin', 'admin', 'staff']))
-                        <a href="{{ route('teknisi-dashboard.index') }}" class="nav-link {{ request()->routeIs('teknisi-dashboard.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-tachometer-alt"></i>
-                            <p>Dashboard Teknisi</p>
-                        </a>
-                        @else
-                        <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-tachometer-alt"></i>
-                            <p>Dashboard</p>
-                        </a>
-                        @endif
-                    </li>
-
-                    @can('location.view')
-                    <li class="nav-item">
-                        <a href="{{ route('campuses.index') }}"
-                           class="nav-link {{ request()->routeIs('campuses.*', 'buildings.*', 'floors.*', 'rooms.*', 'locations.explore.*') && ! request()->routeIs('admin.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-map-marked-alt"></i>
-                            <p>Jelajahi Lokasi</p>
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-header">DATA</li>
-
-                    @if(auth()->user()->can('inventory.view') || auth()->user()->can('category.manage'))
-                    <li class="nav-item {{ request()->routeIs('inventory.*') || request()->routeIs('master-configurations.*') || (request()->routeIs('categories.*') && request('tab', 'konfigurasi') === 'konfigurasi') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-boxes"></i>
-                            <p>Inventaris <i class="fas fa-angle-left right"></i></p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('inventory.view')
-                            <li class="nav-item">
-                                <a href="{{ route('inventory.index') }}"
-                                   class="nav-link {{ request()->routeIs('inventory.index','inventory.campus','inventory.categories','inventory.category','inventory.items','inventory.group-units','inventory.show','inventory.create','inventory.edit','inventory.trash','inventory.import.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-list"></i>
-                                    <p>Data Inventaris</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('category.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'konfigurasi']) }}"
-                                   class="nav-link {{ request()->routeIs('master-configurations.*') || (request()->routeIs('categories.*') && request('tab', 'konfigurasi') === 'konfigurasi') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-sliders-h"></i>
-                                    <p>Konfigurasi Inventaris</p>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </li>
-                    @endif
-
-                    @if(auth()->user()->can('category.manage') || auth()->user()->can('unit.manage') || auth()->user()->can('procurement.manage') || auth()->user()->can('supplier.manage') || auth()->user()->can('vendor.manage') || auth()->user()->can('location.manage') || auth()->user()->can('user.manage'))
-                    <li class="nav-item {{ request()->routeIs('categories.*','sub-categories.*','suppliers.*','vendors.*','org-units.*','procurement-types.*','admin.locations.*','admin.users.*') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-database"></i>
-                            <p>Master Data <i class="fas fa-angle-left right"></i></p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('user.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-users-cog"></i>
-                                    <p>User Management</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('location.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('admin.locations.campuses.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.locations.campuses.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-university"></i>
-                                    <p>Kampus</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.locations.campuses.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.locations.buildings.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-building"></i>
-                                    <p>Gedung</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.locations.campuses.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.locations.floors.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-layer-group"></i>
-                                    <p>Lantai</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('admin.locations.campuses.index') }}"
-                                   class="nav-link {{ request()->routeIs('admin.locations.rooms.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-door-open"></i>
-                                    <p>Ruangan</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('category.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}"
-                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'klasifikasi' ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tags"></i>
-                                    <p>Kategori</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'klasifikasi']) }}"
-                                   class="nav-link {{ request()->routeIs('sub-categories.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tag"></i>
-                                    <p>Sub Kategori</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('supplier.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('suppliers.index') }}" class="nav-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-truck"></i>
-                                    <p>Supplier</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('vendor.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('vendors.index') }}" class="nav-link {{ request()->routeIs('vendors.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-store"></i>
-                                    <p>Vendor</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @canany(['category.manage', 'unit.manage', 'procurement.manage', 'location.manage', 'supplier.manage', 'vendor.manage'])
-                            <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'lokasi']) }}"
-                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'lokasi' ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-sitemap"></i>
-                                    <p>Hub Master Data</p>
-                                </a>
-                            </li>
-                            @endcanany
-                        </ul>
-                    </li>
-                    @endif
-
-                    <li class="nav-header">OPERASI</li>
-
-                    @if(auth()->user()->can('borrowing.view') || auth()->user()->can('maintenance.view') || auth()->user()->can('stock-opname.view') || auth()->user()->can('mutation.view') || auth()->user()->can('deletion-approval.view') || auth()->user()->can('inventory.view') || auth()->user()->can('procurement.manage'))
-                    <li class="nav-item {{ request()->routeIs('borrowings.*','maintenances.*','maintenance-schedules.*','maintenance-dashboard.*','maintenance-approvals.*','teknisi-dashboard.*','maintenance-reports.*','stock-opnames.*','mutations.*','deletion-approvals.*','scanner.*','inventory.damaged.*') || (request()->routeIs('categories.*') && request('tab') === 'pengadaan') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-briefcase"></i>
-                            <p>Operasional <i class="fas fa-angle-left right"></i></p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('maintenance.create')
-                            <li class="nav-item">
-                                <a href="{{ route('maintenances.scan') }}" class="nav-link {{ request()->routeIs('maintenances.scan*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-qrcode"></i>
-                                    <p>Scan QR Maintenance</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('inventory.view')
-                            <li class="nav-item">
-                                <a href="{{ route('scanner.index') }}" class="nav-link {{ request()->routeIs('scanner.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-qrcode"></i>
-                                    <p>Scan QR</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('borrowing.view')
-                            <li class="nav-item">
-                                <a href="{{ route('borrowings.index') }}" class="nav-link {{ request()->routeIs('borrowings.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-handshake"></i>
-                                    <p>Peminjaman</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('borrowing.approve')
-                            <li class="nav-item">
-                                <a href="{{ route('borrowing-approvals.index') }}" class="nav-link {{ request()->routeIs('borrowing-approvals.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-clipboard-check"></i>
-                                    <p>Riwayat Approval</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('maintenance.view')
-                            @if(auth()->user()->hasRole('teknisi') && ! auth()->user()->hasAnyRole(['super-admin', 'admin']))
-                            <li class="nav-item">
-                                <a href="{{ route('teknisi-dashboard.index') }}" class="nav-link {{ request()->routeIs('teknisi-dashboard.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tachometer-alt"></i>
-                                    <p>Dashboard Teknisi</p>
-                                </a>
-                            </li>
-                            @else
-                            <li class="nav-item">
-                                <a href="{{ route('maintenance-dashboard.index') }}" class="nav-link {{ request()->routeIs('maintenance-dashboard.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tachometer-alt"></i>
-                                    <p>Dashboard Maintenance</p>
-                                </a>
-                            </li>
-                            @endif
-                            <li class="nav-item">
-                                <a href="{{ route('maintenances.index') }}" class="nav-link {{ request()->routeIs('maintenances.*') && ! request()->routeIs('maintenances.scan*') && ! request()->routeIs('maintenance-schedules.*') && ! request()->routeIs('maintenance-dashboard.*') && ! request()->routeIs('maintenance-reports.*') && ! request()->routeIs('maintenance-approvals.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tools"></i>
-                                    <p>Work Order / Riwayat</p>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a href="{{ route('maintenance-schedules.index') }}" class="nav-link {{ request()->routeIs('maintenance-schedules.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-calendar-check"></i>
-                                    <p>Jadwal Preventif</p>
-                                </a>
-                            </li>
-                            @can('maintenance.approve')
-                            <li class="nav-item">
-                                <a href="{{ route('maintenance-approvals.index') }}" class="nav-link {{ request()->routeIs('maintenance-approvals.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-clipboard-check"></i>
-                                    <p>Approval Maintenance</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('report.view')
-                            <li class="nav-item">
-                                <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-file-alt"></i>
-                                    <p>Laporan Maintenance</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @endcan
-                            @can('inventory.view')
-                            <li class="nav-item">
-                                <a href="{{ route('inventory.damaged.index') }}" class="nav-link {{ request()->routeIs('inventory.damaged.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-exclamation-triangle"></i>
-                                    <p>Barang Rusak</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('mutation.view')
-                            <li class="nav-item">
-                                <a href="{{ route('mutations.index') }}" class="nav-link {{ request()->routeIs('mutations.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-exchange-alt"></i>
-                                    <p>Mutasi</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('procurement.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('categories.index', ['tab' => 'pengadaan']) }}"
-                                   class="nav-link {{ request()->routeIs('categories.*') && request('tab') === 'pengadaan' ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-shopping-cart"></i>
-                                    <p>Pengadaan</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('stock-opname.view')
-                            <li class="nav-item">
-                                <a href="{{ route('stock-opnames.index') }}" class="nav-link {{ request()->routeIs('stock-opnames.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-clipboard-check"></i>
-                                    <p>Stock Opname</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('deletion-approval.view')
-                            <li class="nav-item">
-                                <a href="{{ route('deletion-approvals.index') }}" class="nav-link {{ request()->routeIs('deletion-approvals.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-trash-alt"></i>
-                                    <p>Persetujuan Hapus</p>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </li>
-                    @endif
-
-                    <li class="nav-header">LAPORAN</li>
-
-                    @can('report.view')
-                    <li class="nav-item {{ request()->routeIs('reports.*') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-chart-bar"></i>
-                            <p>Laporan <i class="fas fa-angle-left right"></i></p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            <li class="nav-item">
-                                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.index') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-tachometer-alt"></i>
-                                    <p>Dashboard Laporan</p>
-                                </a>
-                            </li>
-                            @foreach(\App\Enums\InventoryReportType::menuTypes() as $reportType)
-                            <li class="nav-item">
-                                <a href="{{ route('reports.show', $reportType->value) }}"
-                                   class="nav-link {{ request()->routeIs('reports.show') && request()->route('type') === $reportType->value ? 'active' : '' }}">
-                                    <i class="nav-icon {{ $reportType->icon() }}"></i>
-                                    <p>{{ $reportType->label() }}</p>
-                                </a>
-                            </li>
-                            @endforeach
-                        </ul>
-                    </li>
-                    @endcan
-                    @can('maintenance.view')
-                    <li class="nav-item">
-                        <a href="{{ route('maintenance-reports.index') }}" class="nav-link {{ request()->routeIs('maintenance-reports.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-tools"></i>
-                            <p>Laporan Maintenance (WO)</p>
-                        </a>
-                    </li>
-                    @endcan
-
-                    <li class="nav-header">SISTEM</li>
-
-                    @canany(['user.manage', 'settings.manage', 'backup.manage', 'audit-log.view', 'trash.view'])
-                    <li class="nav-item {{ request()->routeIs('admin.users.*','admin.settings.*','audit-logs.*','trash.*') ? 'menu-open' : '' }}">
-                        <a href="#" class="nav-link">
-                            <i class="nav-icon fas fa-user-shield"></i>
-                            <p>Admin <i class="fas fa-angle-left right"></i></p>
-                        </a>
-                        <ul class="nav nav-treeview">
-                            @can('trash.view')
-                            <li class="nav-item">
-                                <a href="{{ route('trash.index') }}" class="nav-link {{ request()->routeIs('trash.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-trash text-secondary"></i>
-                                    <p>Trash</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('user.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('admin.users.index') }}" class="nav-link {{ request()->routeIs('admin.users.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-users"></i>
-                                    <p>User Management</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('audit-log.view')
-                            <li class="nav-item">
-                                <a href="{{ route('audit-logs.index') }}" class="nav-link {{ request()->routeIs('audit-logs.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-history"></i>
-                                    <p>Audit Log</p>
-                                </a>
-                            </li>
-                            @endcan
-                            @can('settings.manage')
-                            <li class="nav-item">
-                                <a href="{{ route('admin.settings.index') }}" class="nav-link {{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">
-                                    <i class="nav-icon fas fa-cog"></i>
-                                    <p>Settings</p>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </li>
-                    @endcanany
-                </ul>
-            </nav>
+            @include('partials.sidebar')
         </div>
     </aside>
 
@@ -596,12 +242,39 @@ showToast(@json(session('warning')), 'warning');
 
 /* showLoading / hideLoading disediakan oleh undira-loading.js (overlay logo UNDIRA) */
 
-// Disable submit + spinner untuk form biasa (UX anti double-submit)
+// Disable submit + spinner untuk form biasa (UX anti double-submit).
+// File downloads (Excel/CSV/PDF) do not unload the page — restore the button.
 $(document).on('submit', 'form:not([data-confirm]):not([data-no-loading])', function () {
-    const btn = this.querySelector('button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled])');
+    const form = this;
+    const btn = form.querySelector('button[type="submit"]:not([disabled]), input[type="submit"]:not([disabled])');
     if (!btn || typeof setButtonLoading !== 'function') return;
     if (btn.classList.contains('is-loading')) return;
-    setButtonLoading(btn, true, btn.getAttribute('data-loading-text') || 'Menyimpan...');
+
+    const loadingText = btn.getAttribute('data-loading-text') || 'Menyimpan...';
+    setButtonLoading(btn, true, loadingText);
+
+    const formatEl = form.querySelector('[name="format"]:checked') || form.querySelector('input[name="format"][type="hidden"]') || form.querySelector('input[name="format"]');
+    const format = (formatEl && formatEl.value ? String(formatEl.value) : '').toLowerCase();
+    const isDownload = form.hasAttribute('data-download')
+        || ['excel', 'csv', 'pdf', 'xlsx', 'xls'].indexOf(format) !== -1;
+
+    if (!isDownload) return;
+
+    // Attachment responses keep the current page alive; clear loading after download starts.
+    const delay = format === 'pdf' ? 4000 : 2000;
+    window.setTimeout(function () {
+        if (typeof setButtonLoading === 'function') {
+            setButtonLoading(btn, false);
+        }
+    }, delay);
+});
+
+// Safety: restore any stuck loading buttons after bfcache / focus return.
+window.addEventListener('pageshow', function () {
+    if (typeof setButtonLoading !== 'function') return;
+    document.querySelectorAll('button.is-loading, input.is-loading').forEach(function (btn) {
+        setButtonLoading(btn, false);
+    });
 });
 
 // Dark mode toggle
@@ -671,38 +344,167 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
     });
 });
 
-// Sidebar / overlay sync (AdminLTE PushMenu) — three layout modes
+// Sidebar / overlay sync (AdminLTE PushMenu) — desktop rail + overlay drawer
 (function () {
     const body = document.body;
+    const sidebar = document.getElementById('main-sidebar');
     const toggle = document.getElementById('sidebarToggle');
     const backdrop = document.getElementById('sidebarBackdrop');
-    const mqMobile = window.matchMedia('(max-width: 767.98px)');
-    const mqCompact = window.matchMedia('(max-width: 1199.98px)');
+    const mqOverlay = window.matchMedia('(max-width: 1024px)');
     let userDesktopPreference = null; // null | 'expanded' | 'collapsed'
+    let tooltipInstances = [];
+    let floatCloseTimer = null;
+
+    function isOverlayMode() {
+        return mqOverlay.matches;
+    }
+
+    function isIconRail() {
+        return !isOverlayMode() && body.classList.contains('sidebar-collapse');
+    }
 
     function pushMenu(action) {
-        const $btn = window.jQuery ? window.jQuery('[data-widget="pushmenu"]') : null;
-        if ($btn && $btn.length && typeof $btn.PushMenu === 'function') {
-            $btn.PushMenu(action);
+        if (isOverlayMode()) {
+            if (action === 'collapse') {
+                body.classList.remove('sidebar-open');
+                body.classList.add('sidebar-collapse');
+            } else if (action === 'expand') {
+                body.classList.add('sidebar-collapse');
+                body.classList.add('sidebar-open');
+            } else if (action === 'toggle') {
+                if (body.classList.contains('sidebar-open')) {
+                    body.classList.remove('sidebar-open');
+                    body.classList.add('sidebar-collapse');
+                } else {
+                    body.classList.add('sidebar-collapse');
+                    body.classList.add('sidebar-open');
+                }
+            }
             return;
         }
+
+        const $btn = window.jQuery ? window.jQuery('[data-widget="pushmenu"]') : null;
+        if ($btn && $btn.length && typeof $btn.PushMenu === 'function') {
+            if (action === 'toggle') {
+                $btn.PushMenu('toggle');
+            } else {
+                $btn.PushMenu(action);
+            }
+            return;
+        }
+
         if (action === 'collapse') {
             body.classList.remove('sidebar-open');
             body.classList.add('sidebar-collapse');
         } else if (action === 'expand') {
             body.classList.remove('sidebar-collapse');
-            if (mqMobile.matches) {
-                body.classList.add('sidebar-open');
-            }
+            body.classList.remove('sidebar-open');
+        } else if (action === 'toggle') {
+            body.classList.toggle('sidebar-collapse');
+            body.classList.remove('sidebar-open');
         }
     }
 
     function isExpanded() {
-        if (mqMobile.matches) {
+        if (isOverlayMode()) {
             return body.classList.contains('sidebar-open');
         }
         return !body.classList.contains('sidebar-collapse');
     }
+
+    function destroyTooltips() {
+        tooltipInstances.forEach(function (tip) {
+            try { tip.dispose(); } catch (e) { /* ignore */ }
+        });
+        tooltipInstances = [];
+        if (!sidebar) return;
+        sidebar.querySelectorAll('.nav-sidebar > .nav-item > .nav-link[data-bs-toggle="tooltip"]').forEach(function (link) {
+            link.removeAttribute('data-bs-toggle');
+            link.removeAttribute('data-bs-placement');
+            link.removeAttribute('data-bs-custom-class');
+            link.removeAttribute('data-bs-title');
+            if (link.dataset.undiraTitleBackup) {
+                link.setAttribute('title', link.dataset.undiraTitleBackup);
+            } else {
+                link.removeAttribute('title');
+            }
+        });
+    }
+
+    function menuLabel(link) {
+        const p = link.querySelector('p');
+        if (!p) return (link.getAttribute('title') || '').trim();
+        const clone = p.cloneNode(true);
+        clone.querySelectorAll('i, .right, .badge').forEach(function (el) { el.remove(); });
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    }
+
+    function syncTooltips() {
+        destroyTooltips();
+        if (!isIconRail() || !sidebar || typeof bootstrap === 'undefined' || !bootstrap.Tooltip) return;
+
+        sidebar.querySelectorAll('.nav-sidebar > .nav-item > .nav-link').forEach(function (link) {
+            if (link.parentElement && link.parentElement.querySelector(':scope > .nav-treeview')) {
+                return; /* parents use floating submenu instead of tooltip */
+            }
+            const label = menuLabel(link);
+            if (!label) return;
+            if (!link.dataset.undiraTitleBackup && link.getAttribute('title')) {
+                link.dataset.undiraTitleBackup = link.getAttribute('title');
+            }
+            link.setAttribute('data-bs-toggle', 'tooltip');
+            link.setAttribute('data-bs-placement', 'right');
+            link.setAttribute('data-bs-custom-class', 'undira-sidebar-tooltip');
+            link.setAttribute('data-bs-title', label);
+            link.setAttribute('title', label);
+            tooltipInstances.push(new bootstrap.Tooltip(link, {
+                container: 'body',
+                trigger: 'hover focus',
+                delay: { show: 120, hide: 60 }
+            }));
+        });
+    }
+
+    function clearFloatOpen() {
+        if (!sidebar) return;
+        sidebar.querySelectorAll('.nav-item.is-float-open').forEach(function (item) {
+            item.classList.remove('is-float-open');
+        });
+    }
+
+    function positionFloatMenu(item) {
+        const tree = item.querySelector(':scope > .nav-treeview');
+        const trigger = item.querySelector(':scope > .nav-link');
+        if (!tree || !trigger) return;
+
+        const rect = trigger.getBoundingClientRect();
+        const left = Math.round(rect.right - 2); /* slight overlap avoids hover gap */
+        let top = Math.round(rect.top);
+        tree.style.left = left + 'px';
+        tree.style.top = top + 'px';
+
+        /* Keep floating panel inside viewport */
+        requestAnimationFrame(function () {
+            const panel = tree.getBoundingClientRect();
+            const maxBottom = window.innerHeight - 12;
+            if (panel.bottom > maxBottom) {
+                top = Math.max(12, maxBottom - panel.height);
+                tree.style.top = top + 'px';
+            }
+            if (panel.right > window.innerWidth - 8) {
+                tree.style.left = Math.max(8, window.innerWidth - panel.width - 8) + 'px';
+            }
+        });
+    }
+
+    function openFloatMenu(item) {
+        if (!isIconRail()) return;
+        clearFloatOpen();
+        item.classList.add('is-float-open');
+        positionFloatMenu(item);
+    }
+
+    let lastTooltipMode = null;
 
     function syncChrome() {
         const expanded = isExpanded();
@@ -710,81 +512,142 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
             toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
         }
         if (backdrop) {
-            const showBackdrop = mqMobile.matches && body.classList.contains('sidebar-open');
+            const showBackdrop = isOverlayMode() && body.classList.contains('sidebar-open');
             backdrop.setAttribute('aria-hidden', showBackdrop ? 'false' : 'true');
+        }
+        if (!isIconRail()) {
+            clearFloatOpen();
+        }
+        const tipMode = isIconRail() ? 'rail' : 'off';
+        if (tipMode !== lastTooltipMode) {
+            lastTooltipMode = tipMode;
+            syncTooltips();
         }
     }
 
-    function applyResponsiveDefaults(fromResize) {
-        if (mqMobile.matches) {
-            // Mobile: off-canvas closed by default
+    function applyResponsiveDefaults() {
+        if (isOverlayMode()) {
             body.classList.add('sidebar-collapse');
-            if (!fromResize || !body.classList.contains('sidebar-open')) {
-                body.classList.remove('sidebar-open');
-            }
-        } else if (mqCompact.matches) {
-            // Tablet / small desktop: compact icon rail
             body.classList.remove('sidebar-open');
-            body.classList.add('sidebar-collapse');
         } else {
-            // Large desktop: restore preference or expand
             body.classList.remove('sidebar-open');
             if (userDesktopPreference === 'collapsed') {
                 body.classList.add('sidebar-collapse');
+            } else if (userDesktopPreference === 'expanded') {
+                body.classList.remove('sidebar-collapse');
             } else {
                 body.classList.remove('sidebar-collapse');
             }
         }
+        clearFloatOpen();
         syncChrome();
     }
 
-    const observer = new MutationObserver(syncChrome);
+    const observer = new MutationObserver(function () {
+        syncChrome();
+    });
     observer.observe(body, { attributes: true, attributeFilter: ['class'] });
 
-    toggle?.addEventListener('click', function () {
-        // Capture desktop preference after AdminLTE toggles on next tick
+    toggle?.addEventListener('click', function (e) {
+        if (isOverlayMode()) {
+            e.preventDefault();
+            e.stopPropagation();
+            pushMenu('toggle');
+            syncChrome();
+            return;
+        }
+
         window.setTimeout(function () {
-            if (!mqCompact.matches) {
-                userDesktopPreference = body.classList.contains('sidebar-collapse')
-                    ? 'collapsed'
-                    : 'expanded';
-            }
+            userDesktopPreference = body.classList.contains('sidebar-collapse')
+                ? 'collapsed'
+                : 'expanded';
             syncChrome();
         }, 0);
     });
 
     backdrop?.addEventListener('click', function () {
         pushMenu('collapse');
+        syncChrome();
     });
 
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && mqMobile.matches && body.classList.contains('sidebar-open')) {
+        if (e.key === 'Escape' && isOverlayMode() && body.classList.contains('sidebar-open')) {
             pushMenu('collapse');
+            syncChrome();
         }
     });
 
-    document.getElementById('main-sidebar')?.addEventListener('click', function (e) {
-        if (!mqMobile.matches) return;
+    sidebar?.addEventListener('click', function (e) {
+        if (!isOverlayMode()) return;
         const link = e.target.closest('a.nav-link[href]');
         if (!link) return;
         const href = link.getAttribute('href') || '';
         if (!href || href === '#' || href.startsWith('javascript:')) return;
-        setTimeout(function () { pushMenu('collapse'); }, 80);
+        setTimeout(function () {
+            pushMenu('collapse');
+            syncChrome();
+        }, 80);
+    });
+
+    /* Floating submenu for collapsed desktop rail */
+    sidebar?.addEventListener('mouseover', function (e) {
+        if (!isIconRail()) return;
+        const item = e.target.closest('.nav-sidebar > .nav-item');
+        if (!item || !item.querySelector(':scope > .nav-treeview')) return;
+        window.clearTimeout(floatCloseTimer);
+        openFloatMenu(item);
+    });
+
+    sidebar?.addEventListener('mouseleave', function () {
+        if (!isIconRail()) return;
+        floatCloseTimer = window.setTimeout(clearFloatOpen, 260);
+    });
+
+    sidebar?.addEventListener('focusin', function (e) {
+        if (!isIconRail()) return;
+        const item = e.target.closest('.nav-sidebar > .nav-item');
+        if (!item || !item.querySelector(':scope > .nav-treeview')) return;
+        window.clearTimeout(floatCloseTimer);
+        openFloatMenu(item);
+    });
+
+    sidebar?.addEventListener('click', function (e) {
+        if (!isIconRail()) return;
+        const trigger = e.target.closest('.nav-sidebar > .nav-item > .nav-link[href="#"]');
+        if (!trigger) return;
+        const item = trigger.parentElement;
+        if (!item || !item.querySelector(':scope > .nav-treeview')) return;
+        e.preventDefault();
+        if (item.classList.contains('is-float-open')) {
+            item.classList.remove('is-float-open');
+        } else {
+            openFloatMenu(item);
+        }
+    });
+
+    window.addEventListener('scroll', function () {
+        if (!isIconRail()) return;
+        const open = sidebar?.querySelector('.nav-item.is-float-open');
+        if (open) positionFloatMenu(open);
+    }, true);
+
+    window.addEventListener('resize', function () {
+        if (!isIconRail()) return;
+        const open = sidebar?.querySelector('.nav-item.is-float-open');
+        if (open) positionFloatMenu(open);
     });
 
     function onViewportChange() {
-        applyResponsiveDefaults(true);
+        applyResponsiveDefaults();
     }
 
-    if (typeof mqMobile.addEventListener === 'function') {
-        mqMobile.addEventListener('change', onViewportChange);
-        mqCompact.addEventListener('change', onViewportChange);
-    } else if (typeof mqMobile.addListener === 'function') {
-        mqMobile.addListener(onViewportChange);
-        mqCompact.addListener(onViewportChange);
+    if (typeof mqOverlay.addEventListener === 'function') {
+        mqOverlay.addEventListener('change', onViewportChange);
+    } else if (typeof mqOverlay.addListener === 'function') {
+        mqOverlay.addListener(onViewportChange);
     }
 
-    applyResponsiveDefaults(false);
+    applyResponsiveDefaults();
 })();
 </script>
 <script src="{{ asset('js/page-header-shortcuts.js') }}" defer></script>

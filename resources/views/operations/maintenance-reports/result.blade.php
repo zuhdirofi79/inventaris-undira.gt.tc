@@ -16,7 +16,7 @@
     back-label="Laporan Pemeliharaan"
 >
     <a href="{{ route('maintenance-reports.index') }}" class="btn btn-outline-secondary btn-sm">Filter ulang</a>
-    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline">
+    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline" data-download>
         @csrf
         @foreach($filters as $key => $value)
             @if($value !== null && $value !== '')
@@ -24,9 +24,9 @@
             @endif
         @endforeach
         <input type="hidden" name="format" value="excel">
-        <button class="btn btn-outline-success btn-sm">Excel</button>
+        <button type="submit" class="btn btn-outline-success btn-sm" data-loading-text="Mengunduh Excel...">Excel</button>
     </form>
-    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline">
+    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline" data-download>
         @csrf
         @foreach($filters as $key => $value)
             @if($value !== null && $value !== '')
@@ -34,9 +34,9 @@
             @endif
         @endforeach
         <input type="hidden" name="format" value="csv">
-        <button class="btn btn-outline-success btn-sm">CSV</button>
+        <button type="submit" class="btn btn-outline-success btn-sm" data-loading-text="Mengunduh CSV...">CSV</button>
     </form>
-    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline">
+    <form action="{{ route('maintenance-reports.generate') }}" method="POST" class="d-inline" data-download>
         @csrf
         @foreach($filters as $key => $value)
             @if($value !== null && $value !== '')
@@ -44,7 +44,7 @@
             @endif
         @endforeach
         <input type="hidden" name="format" value="pdf">
-        <button class="btn btn-outline-danger btn-sm">PDF</button>
+        <button type="submit" class="btn btn-outline-danger btn-sm" data-loading-text="Mengunduh PDF...">PDF</button>
     </form>
 </x-page-header>
 

@@ -18,7 +18,7 @@
     <a href="{{ route('maintenance-dashboard.index') }}" class="btn btn-outline-primary btn-sm">Dashboard Maintenance</a>
 </x-page-header>
 
-<form action="{{ route('maintenance-reports.generate') }}" method="POST" class="card card-undira">
+<form action="{{ route('maintenance-reports.generate') }}" method="POST" class="card card-undira" id="maintenanceReportForm">
     @csrf
     <div class="card-body">
         <div class="row g-3">
@@ -73,7 +73,7 @@
         </div>
     </div>
     <div class="card-footer">
-        <button type="submit" class="btn btn-undira"><i class="bi bi-play-fill me-1"></i>Generate</button>
+        <button type="submit" class="btn btn-undira" data-loading-text="Menghasilkan laporan..."><i class="bi bi-play-fill me-1"></i>Generate</button>
     </div>
 </form>
 @endsection

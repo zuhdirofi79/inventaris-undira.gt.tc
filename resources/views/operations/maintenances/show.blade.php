@@ -74,21 +74,105 @@
         </div>
 
         <div class="card card-undira mb-3">
-            <div class="card-header"><h5 class="mb-0">Foto</h5></div>
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Foto</h5>
+                <span class="small text-muted">JPG / PNG / WEBP · maks. 5 MB</span>
+            </div>
             <div class="card-body">
+                @if ($errors->any())
+                    <div class="alert alert-danger py-2">
+                        <ul class="mb-0 small">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+                    </div>
+                @endif
                 @php
-                    $groups = ['before' => 'Sebelum', 'during' => 'Saat', 'after' => 'Sesudah'];
+                    $groups = [
+                        'before' => 'Sebelum',
+                        'during' => 'Saat Pengerjaan',
+                        'after' => 'Sesudah',
+                    ];
                 @endphp
                 @foreach($groups as $key => $label)
-                    <h6 class="text-muted">{{ $label }}</h6>
-                    <div class="d-flex flex-wrap gap-2 mb-3">
-                        @forelse($maintenance->photos->where('type', $key) as $photo)
-                            <a href="{{ $photo->url }}" target="_blank" rel="noopener">
-                                <img src="{{ $photo->url }}" alt="{{ $label }}" class="rounded border" style="height:96px;width:96px;object-fit:cover;">
-                            </a>
-                        @empty
-                            <span class="text-muted small">Tidak ada</span>
-                        @endforelse
+                    @php
+                        $stagePhotos = $maintenance->photos
+                            ->where('type', $key)
+                            ->filter(fn ($photo) => filled($photo->url))
+                            ->values();
+                    @endphp
+                    <div class="maint-photo-stage mb-4" data-type="{{ $key }}">
+                        <h6 class="text-muted mb-2">{{ $label }}</h6>
+                        <div class="d-flex flex-wrap gap-2 align-items-start">
+                            @can('maintenance.update')
+                            <form
+                                action="{{ route('maintenances.photos.store', $maintenance) }}"
+                                method="POST"
+                                enctype="multipart/form-data"
+                                class="maint-photo-dropzone"
+                                data-dropzone
+                            >
+                                @csrf
+                                <input type="hidden" name="type" value="{{ $key }}">
+                                <input
+                                    type="file"
+                                    name="photos[]"
+                                    class="d-none"
+                                    accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                                    multiple
+                                    data-file-input
+                                >
+                                <div class="maint-photo-dropzone__inner" data-drop-trigger role="button" tabindex="0" aria-label="Unggah foto {{ $label }}">
+                                    <i class="bi bi-cloud-arrow-up fs-4 d-block mb-1" aria-hidden="true"></i>
+                                    <span class="fw-semibold">Drag &amp; drop foto di sini</span>
+                                    <span class="small text-muted d-block">atau klik untuk memilih file</span>
+                                </div>
+                                <div class="maint-photo-preview d-flex flex-wrap gap-2 mt-2" data-preview></div>
+                            </form>
+                            @endcan
+
+                            @forelse($stagePhotos as $photo)
+                                <div class="maint-photo-thumb position-relative">
+                                    <a href="{{ $photo->url }}" target="_blank" rel="noopener" class="d-block">
+                                        <img
+                                            src="{{ $photo->url }}"
+                                            alt="Foto {{ $label }}"
+                                            loading="lazy"
+                                        >
+                                    </a>
+                                    @can('maintenance.update')
+                                    <form
+                                        action="{{ route('maintenances.photos.destroy', [$maintenance, $photo]) }}"
+                                        method="POST"
+                                        class="maint-photo-thumb__delete"
+                                        onsubmit="return confirm('Hapus foto ini?');"
+                                    >
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger rounded-circle" title="Hapus foto" aria-label="Hapus foto">
+                                            <i class="bi bi-x" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                    @endcan
+                                </div>
+                            @empty
+                                @cannot('maintenance.update')
+                                <span class="text-muted small d-inline-flex align-items-center gap-1 py-3">
+                                    <i class="bi bi-image" aria-hidden="true"></i> Belum ada foto
+                                </span>
+                                @endcannot
+                            @endforelse
+
+                            @can('maintenance.update')
+                            <button
+                                type="button"
+                                class="maint-photo-add"
+                                data-add-trigger
+                                title="Tambah foto {{ $label }}"
+                                aria-label="Tambah foto {{ $label }}"
+                            >
+                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                <span class="small">Tambah Foto</span>
+                            </button>
+                            @endcan
+                        </div>
                     </div>
                 @endforeach
             </div>
@@ -135,3 +219,179 @@
     </div>
 </div>
 @endsection
+
+@push('styles')
+<style>
+.maint-photo-dropzone {
+  width: 200px;
+  flex: 0 0 auto;
+}
+.maint-photo-dropzone__inner {
+  border: 2px dashed #2E7D32;
+  border-radius: 12px;
+  background: rgba(46, 125, 50, 0.04);
+  color: #1B5E20;
+  text-align: center;
+  padding: 1rem 0.75rem;
+  min-height: 118px;
+  cursor: pointer;
+  transition: background .2s ease, border-color .2s ease, box-shadow .2s ease;
+}
+.maint-photo-dropzone__inner:hover,
+.maint-photo-dropzone.is-dragover .maint-photo-dropzone__inner {
+  background: rgba(46, 125, 50, 0.1);
+  border-color: #1B5E20;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+}
+.maint-photo-thumb {
+  width: 96px;
+  height: 96px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: #f8fafc;
+}
+.maint-photo-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.maint-photo-thumb__delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin: 0;
+}
+.maint-photo-thumb__delete .btn {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.maint-photo-add {
+  width: 96px;
+  height: 96px;
+  border: 1px dashed #94a3b8;
+  border-radius: 10px;
+  background: #fff;
+  color: #64748b;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  transition: border-color .2s ease, color .2s ease, background .2s ease;
+}
+.maint-photo-add:hover {
+  border-color: #2E7D32;
+  color: #2E7D32;
+  background: rgba(46, 125, 50, 0.04);
+}
+.maint-photo-preview img {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+}
+body.dark-mode .maint-photo-dropzone__inner {
+  background: rgba(46, 125, 50, 0.12);
+  color: #a5d6a7;
+}
+body.dark-mode .maint-photo-thumb,
+body.dark-mode .maint-photo-add {
+  background: #1f2937;
+  border-color: #475569;
+  color: #cbd5e1;
+}
+</style>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    function bindStage(stage) {
+        var form = stage.querySelector('[data-dropzone]');
+        if (!form) return;
+        var input = form.querySelector('[data-file-input]');
+        var trigger = form.querySelector('[data-drop-trigger]');
+        var preview = form.querySelector('[data-preview]');
+        var addBtn = stage.querySelector('[data-add-trigger]');
+
+        function openPicker() {
+            input.click();
+        }
+
+        function renderPreview(files) {
+            if (!preview) return;
+            preview.innerHTML = '';
+            Array.from(files || []).forEach(function (file) {
+                if (!file.type || file.type.indexOf('image/') !== 0) return;
+                var img = document.createElement('img');
+                img.src = URL.createObjectURL(file);
+                img.alt = file.name;
+                preview.appendChild(img);
+            });
+        }
+
+        function assignFiles(fileList) {
+            if (!fileList || !fileList.length) return;
+            var dt = new DataTransfer();
+            Array.from(fileList).forEach(function (file) {
+                if (file.type && file.type.indexOf('image/') === 0) {
+                    dt.items.add(file);
+                }
+            });
+            if (!dt.files.length) {
+                alert('Pilih file gambar (JPG, PNG, atau WEBP).');
+                return;
+            }
+            input.files = dt.files;
+            renderPreview(input.files);
+            form.submit();
+        }
+
+        trigger?.addEventListener('click', openPicker);
+        trigger?.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                openPicker();
+            }
+        });
+        addBtn?.addEventListener('click', openPicker);
+
+        input?.addEventListener('change', function () {
+            if (input.files && input.files.length) {
+                renderPreview(input.files);
+                form.submit();
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(function (evt) {
+            form.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                form.classList.add('is-dragover');
+            });
+        });
+        ['dragleave', 'drop'].forEach(function (evt) {
+            form.addEventListener(evt, function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+                form.classList.remove('is-dragover');
+            });
+        });
+        form.addEventListener('drop', function (e) {
+            assignFiles(e.dataTransfer && e.dataTransfer.files);
+        });
+    }
+
+    document.querySelectorAll('.maint-photo-stage').forEach(bindStage);
+})();
+</script>
+@endpush

@@ -129,8 +129,9 @@
                 </div>
                 <div class="col-12 mb-3">
                     <label class="form-label">Foto Sebelum Perbaikan</label>
-                    <input type="file" name="photos_before[]" class="form-control" accept="image/*" multiple>
-                    <div class="form-text">Maks. 10 foto, 5 MB per file.</div>
+                    <input type="file" name="photos_before[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewBefore">
+                    <div class="form-text">Maks. 10 foto, 5 MB per file (JPG/PNG/WEBP).</div>
+                    <div id="previewBefore" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -147,6 +148,22 @@
 <script>
 (function () {
     $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+    document.querySelectorAll('.js-maint-photo-input').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var box = document.getElementById(input.getAttribute('data-preview'));
+            if (!box) return;
+            box.innerHTML = '';
+            Array.from(input.files || []).forEach(function (file) {
+                if (!file.type || file.type.indexOf('image/') !== 0) return;
+                var img = document.createElement('img');
+                img.className = 'rounded border';
+                img.style.cssText = 'height:72px;width:72px;object-fit:cover;';
+                img.alt = file.name;
+                img.src = URL.createObjectURL(file);
+                box.appendChild(img);
+            });
+        });
+    });
 })();
 </script>
 @endpush
