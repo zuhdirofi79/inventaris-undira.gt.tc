@@ -484,12 +484,15 @@ body.dark-mode .status-inactive {
 }
 
 .filter-panel {
+  position: relative;
+  z-index: 1;
   background: #fff;
   border: 1px solid var(--undira-gray-border);
   border-radius: var(--undira-radius);
   padding: 1.15rem 1.25rem;
   margin-bottom: 1.25rem;
   box-shadow: var(--undira-shadow);
+  overflow: visible;
 }
 .filter-panel .form-group { margin-bottom: 0.75rem; }
 .filter-panel label { font-size: 0.8rem; font-weight: 600; color: var(--undira-muted); text-transform: uppercase; letter-spacing: 0.03em; }

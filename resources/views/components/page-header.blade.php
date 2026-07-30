@@ -70,7 +70,7 @@
         </div>
 
         @if($actionContent || $showBack())
-            <div class="ui-page-header__actions page-header-enterprise__actions d-flex flex-wrap gap-2 align-items-center justify-content-md-end">
+            <div class="ui-page-header__actions page-header-enterprise__actions d-flex flex-wrap gap-2 align-items-center justify-content-md-end inventory-page-toolbar">
                 @if($actionContent)
                     {{ $actionContent }}
                 @endif

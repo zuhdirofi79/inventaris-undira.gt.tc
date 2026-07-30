@@ -25,10 +25,16 @@
     </button>
     @canany(['inventory.import', 'inventory.export'])
     <div class="btn-group btn-group-sm">
-        <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" data-no-loader="1">
+        <button type="button"
+                class="btn btn-outline-secondary dropdown-toggle"
+                data-bs-toggle="dropdown"
+                data-bs-auto-close="true"
+                data-bs-popper-config='{"strategy":"fixed"}'
+                aria-expanded="false"
+                data-no-loader="1">
             Aksi
         </button>
-        <ul class="dropdown-menu dropdown-menu-end">
+        <ul class="dropdown-menu dropdown-menu-end shadow">
             @can('inventory.import')
             <li>
                 <a class="dropdown-item" href="{{ route('inventory.import.index') }}">
@@ -170,14 +176,16 @@
     </div>
 </div>
 
-{{-- Form fields only — PDF download is handled via fetch+blob (not AJAX JSON, not target=_blank). --}}
+{{-- Hidden iframe: fallback download for Content-Disposition: attachment --}}
+<iframe id="massLabelDownloadFrame" name="massLabelDownloadFrame" title="Unduh Label PDF" class="d-none" style="width:0;height:0;border:0;position:absolute;"></iframe>
+
+{{-- Form fields for mass label PDF (submitted via fetch+blob; iframe fallback available). --}}
 <form id="massLabelForm"
       method="POST"
       action="{{ route('inventory.labels.mass30') }}"
       class="d-none"
       data-download
-      data-no-loading
-      onsubmit="return false;">
+      data-no-loading>
     @csrf
     <input type="hidden" name="scope" id="massLabelScope" value="selected">
     <div id="massLabelIds"></div>
@@ -220,6 +228,7 @@
 <script>
 const locationData = @json($locationData);
 const selectedIds = new Set();
+@include('partials.datatables-id-language')
 $('.select2-filter').select2({ theme: 'bootstrap-5', width: '100%' });
 
 function populateSelect($select, items, valueKey, labelKey, placeholder) {
@@ -253,76 +262,96 @@ $('#filterFloor').on('change', function() {
     populateSelect($('#filterRoom'), floor?.rooms || [], 'id', 'name', 'Semua Ruangan');
 });
 
-const table = $('#inventoryTable').DataTable({
-    processing: true,
-    serverSide: true,
-    scrollX: true,
-    ajax: {
-        url: '{{ route('inventory.items') }}',
-        data: function(d) {
-            d.campus_id = $('#filterCampus').val();
-            d.building_id = $('#filterBuilding').val();
-            d.floor_id = $('#filterFloor').val();
-            d.room_id = $('#filterRoom').val();
-            d.category_id = $('#filterCategory').val();
-            d.org_unit_id = $('#filterOrgUnit').val();
-            d.pic_id = $('#filterPic').val();
-            d.status = $('#filterStatus').val();
-            d.condition = $('#filterCondition').val();
-        },
-        error: function (xhr) {
-            let message = 'Gagal memuat data inventaris. Silakan hubungi Administrator.';
-            try {
-                const payload = xhr.responseJSON;
-                if (payload && payload.error) {
-                    message = payload.error;
+function buildInventoryDataTableConfig(language) {
+    const config = {
+        processing: true,
+        serverSide: true,
+        scrollX: true,
+        ajax: {
+            url: '{{ route('inventory.items') }}',
+            data: function(d) {
+                d.campus_id = $('#filterCampus').val();
+                d.building_id = $('#filterBuilding').val();
+                d.floor_id = $('#filterFloor').val();
+                d.room_id = $('#filterRoom').val();
+                d.category_id = $('#filterCategory').val();
+                d.org_unit_id = $('#filterOrgUnit').val();
+                d.pic_id = $('#filterPic').val();
+                d.status = $('#filterStatus').val();
+                d.condition = $('#filterCondition').val();
+            },
+            error: function (xhr) {
+                let message = 'Gagal memuat data inventaris. Silakan hubungi Administrator.';
+                try {
+                    const payload = xhr.responseJSON;
+                    if (payload && payload.error) {
+                        message = payload.error;
+                    }
+                } catch (e) {}
+                if (window.toastr) {
+                    toastr.error(message);
+                } else {
+                    alert(message);
                 }
-            } catch (e) {}
-            if (window.toastr) {
-                toastr.error(message);
-            } else {
-                alert(message);
-            }
-        }
-    },
-    columns: [
-        {
-            data: 'id',
-            orderable: false,
-            searchable: false,
-            className: 'text-center',
-            render: function (id) {
-                const checked = selectedIds.has(String(id)) ? 'checked' : '';
-                return `<input type="checkbox" class="form-check-input row-check" value="${id}" ${checked} data-no-loader="1">`;
             }
         },
-        { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },
-        { data: 'name' },
-        { data: 'category', render: c => c?.name || '-' },
-        { data: 'pic_name', orderable: false, render: name => name
-            ? `<span>${name}</span>`
-            : `<span class="badge bg-secondary">Belum Ada PIC</span>` },
-        { data: 'full_location', render: d => `<small>${d || '-'}</small>` },
-        { data: 'status', render: s => { const label = (typeof s === 'object' && s?.label) ? s.label : (s || '-'); return `<span class="badge bg-secondary">${label}</span>`; }},
-        { data: 'condition', render: c => { const label = (typeof c === 'object' && c?.label) ? c.label : (c || '-'); return `<span class="badge bg-info">${label}</span>`; }},
-        { data: null, orderable: false, render: (data, type, row) => `
-            <a href="/inventory/${row.id}" class="btn btn-xs btn-outline-primary btn-sm"><i class="fas fa-eye"></i></a>
-            @can('inventory.update')<a href="/inventory/${row.id}/edit" class="btn btn-xs btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>@endcan
-        `}
-    ],
-    order: [[1, 'asc']],
-    language: { url: '//cdn.datatables.net/plug-ins/1.13.8/i18n/id.json' },
-    drawCallback: function () {
-        const pageIds = [];
-        $('#inventoryTable tbody .row-check').each(function () {
-            pageIds.push(String(this.value));
-            this.checked = selectedIds.has(String(this.value));
-        });
-        const allChecked = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
-        $('#checkPageAll').prop('checked', allChecked);
-        updateMassSelectInfo();
+        columns: [
+            {
+                data: 'id',
+                orderable: false,
+                searchable: false,
+                className: 'text-center',
+                render: function (id) {
+                    const checked = selectedIds.has(String(id)) ? 'checked' : '';
+                    return `<input type="checkbox" class="form-check-input row-check" value="${id}" ${checked} data-no-loader="1">`;
+                }
+            },
+            { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },
+            { data: 'name' },
+            { data: 'category', render: c => c?.name || '-' },
+            { data: 'pic_name', orderable: false, render: name => name
+                ? `<span>${name}</span>`
+                : `<span class="badge bg-secondary">Belum Ada PIC</span>` },
+            { data: 'full_location', render: d => `<small>${d || '-'}</small>` },
+            { data: 'status', render: s => { const label = (typeof s === 'object' && s?.label) ? s.label : (s || '-'); return `<span class="badge bg-secondary">${label}</span>`; }},
+            { data: 'condition', render: c => { const label = (typeof c === 'object' && c?.label) ? c.label : (c || '-'); return `<span class="badge bg-info">${label}</span>`; }},
+            { data: null, orderable: false, render: (data, type, row) => `
+                <a href="/inventory/${row.id}" class="btn btn-xs btn-outline-primary btn-sm"><i class="fas fa-eye"></i></a>
+                @can('inventory.update')<a href="/inventory/${row.id}/edit" class="btn btn-xs btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>@endcan
+            `}
+        ],
+        order: [[1, 'asc']],
+        drawCallback: function () {
+            const pageIds = [];
+            $('#inventoryTable tbody .row-check').each(function () {
+                pageIds.push(String(this.value));
+                this.checked = selectedIds.has(String(this.value));
+            });
+            const allChecked = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
+            $('#checkPageAll').prop('checked', allChecked);
+            updateMassSelectInfo();
+        }
+    };
+
+    if (language) {
+        config.language = language;
     }
-});
+
+    return config;
+}
+
+// Local i18n object (no CDN language.url → no CORS). Fallback init without language if needed.
+let table = null;
+try {
+    table = $('#inventoryTable').DataTable(buildInventoryDataTableConfig(datatablesIdLanguage));
+} catch (dtErr) {
+    console.error('DataTables init dengan i18n gagal, mencoba tanpa language pack:', dtErr);
+    try {
+        table = $('#inventoryTable').DataTable(buildInventoryDataTableConfig(null));
+    } catch (dtErr2) {
+        console.error('DataTables init gagal total (fitur lain tetap dijalankan):', dtErr2);
+    }
+}
 
 $('#inventoryTable').on('change', '.row-check', function () {
     const id = String(this.value);
@@ -380,79 +409,145 @@ function submitMassLabels(scope) {
         if (modal) modal.hide();
     }
 
-    // Backend returns $pdf->download() (application/pdf).
-    // Do not parse JSON. Download as Blob so the file saves without target=_blank popup issues.
+    // Prefer fetch+blob. Fallback: native POST into hidden iframe (works with Content-Disposition: attachment).
     downloadMassLabelPdf(form);
+}
+
+function isPdfBlob(blob, contentTypeHeader) {
+    const header = String(contentTypeHeader || '').toLowerCase();
+    const blobType = String((blob && blob.type) || '').toLowerCase();
+    if (header.indexOf('pdf') !== -1 || blobType.indexOf('pdf') !== -1) {
+        return Promise.resolve(true);
+    }
+    if (!blob || typeof blob.slice !== 'function') {
+        return Promise.resolve(false);
+    }
+    return blob.slice(0, 5).arrayBuffer().then(function (buf) {
+        const bytes = new Uint8Array(buf);
+        let sig = '';
+        for (let i = 0; i < bytes.length; i++) {
+            sig += String.fromCharCode(bytes[i]);
+        }
+        return sig.indexOf('%PDF') === 0;
+    }).catch(function () {
+        return false;
+    });
+}
+
+function triggerBlobDownload(blob, filename) {
+    const pdfBlob = (blob && blob.type === 'application/pdf')
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'Label-Inventaris.pdf';
+    a.rel = 'noopener';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+
+    // Keep object URL alive briefly so the browser can finish the download.
+    window.setTimeout(function () {
+        URL.revokeObjectURL(url);
+    }, 4000);
+
+    return url;
+}
+
+function downloadMassLabelViaIframe(form) {
+    form.setAttribute('target', 'massLabelDownloadFrame');
+    // Native submit — browser handles Content-Disposition: attachment without parsing JSON.
+    HTMLFormElement.prototype.submit.call(form);
+    form.removeAttribute('target');
 }
 
 function downloadMassLabelPdf(form) {
     if (typeof showLoading === 'function') {
-        showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
+        // Delay slightly so Bootstrap modal can finish closing (overlay skips while .modal.show exists).
+        window.setTimeout(function () {
+            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
+        }, 200);
     }
 
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
     fetch(form.action, {
         method: 'POST',
         body: new FormData(form),
         credentials: 'same-origin',
         headers: {
-            'Accept': 'application/pdf',
-            'X-CSRF-TOKEN': csrf,
+            'Accept': 'application/pdf,application/octet-stream,*/*',
+            'X-CSRF-TOKEN': csrf || '',
         },
     })
-    .then(async function (response) {
-        const contentType = (response.headers.get('Content-Type') || '').toLowerCase();
-        if (!response.ok || contentType.indexOf('application/pdf') === -1) {
-            if (response.status === 419) {
-                throw new Error('Sesi berakhir. Muat ulang halaman lalu coba lagi.');
-            }
-            if (response.status === 422) {
-                throw new Error('Data cetak tidak valid. Periksa item yang dipilih atau filter.');
-            }
-            throw new Error('Gagal mengunduh label PDF. Pastikan ada inventaris yang dapat dicetak.');
-        }
-        return response.blob();
+    .then(function (response) {
+        // Always read as Blob first — never response.json() / res.success.
+        return response.blob().then(function (blob) {
+            return { response: response, blob: blob };
+        });
     })
-    .then(function (blob) {
-        if (!blob || blob.size < 5) {
-            throw new Error('Berkas PDF kosong. Silakan coba lagi.');
+    .then(function (payload) {
+        const response = payload.response;
+        const blob = payload.blob;
+
+        if (response.status === 419) {
+            throw new Error('Sesi berakhir. Muat ulang halaman lalu coba lagi.');
         }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'Label-Inventaris.pdf';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.setTimeout(function () {
-            URL.revokeObjectURL(url);
-        }, 1000);
+
+        return isPdfBlob(blob, response.headers.get('Content-Type')).then(function (ok) {
+            if (!ok) {
+                if (response.status === 422) {
+                    throw new Error('Data cetak tidak valid. Periksa item yang dipilih atau filter.');
+                }
+                // Backend may still have produced PDF via attachment while fetch got an HTML redirect page.
+                // Fall back to iframe POST so Content-Disposition can trigger a real download.
+                downloadMassLabelViaIframe(form);
+                return;
+            }
+            if (!blob || blob.size < 5) {
+                throw new Error('Berkas PDF kosong. Silakan coba lagi.');
+            }
+            triggerBlobDownload(blob, 'Label-Inventaris.pdf');
+        });
     })
     .catch(function (err) {
-        alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
+        console.error('Mass label download failed:', err);
+        try {
+            downloadMassLabelViaIframe(form);
+        } catch (e2) {
+            alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
+        }
     })
     .finally(function () {
-        if (typeof hideLoading === 'function') {
-            hideLoading();
-        }
+        window.setTimeout(function () {
+            if (typeof hideLoading === 'function') {
+                hideLoading();
+            }
+        }, 600);
     });
 }
 
-$('#btnPrintSelectedLabels').on('click', function () {
+$('#btnPrintSelectedLabels').on('click', function (e) {
+    e.preventDefault();
     submitMassLabels('selected');
 });
-$('#btnPrintFilterLabels').on('click', function () {
+$('#btnPrintFilterLabels').on('click', function (e) {
+    e.preventDefault();
     submitMassLabels('filter');
 });
 
-$('#btnApplyFilter').on('click', () => table.ajax.reload());
+$('#btnApplyFilter').on('click', function () {
+    if (table) table.ajax.reload();
+});
 $('#btnResetFilter').on('click', function() {
     $('#filterForm')[0].reset();
     $('.select2-filter').val('').trigger('change');
     selectedIds.clear();
     updateMassSelectInfo();
-    table.ajax.reload();
+    if (table) table.ajax.reload();
 });
 
 if (window.location.hash === '#mass-labels') {

@@ -335,15 +335,32 @@
 @push('scripts')
 <script>
 $(function () {
-    $('#usersTable').DataTable({
-        order: [[0, 'asc']],
-        pageLength: 25,
-        lengthMenu: [10, 25, 50, 100],
-        columnDefs: [
-            { orderable: false, targets: [4, 7] }
-        ],
-        language: { url: '//cdn.datatables.net/plug-ins/1.13.8/i18n/id.json' }
-    });
+    @include('partials.datatables-id-language')
+    try {
+        $('#usersTable').DataTable({
+            order: [[0, 'asc']],
+            pageLength: 25,
+            lengthMenu: [10, 25, 50, 100],
+            columnDefs: [
+                { orderable: false, targets: [4, 7] }
+            ],
+            language: datatablesIdLanguage
+        });
+    } catch (err) {
+        console.error('DataTables users i18n init failed, retrying without language:', err);
+        try {
+            $('#usersTable').DataTable({
+                order: [[0, 'asc']],
+                pageLength: 25,
+                lengthMenu: [10, 25, 50, 100],
+                columnDefs: [
+                    { orderable: false, targets: [4, 7] }
+                ]
+            });
+        } catch (err2) {
+            console.error('DataTables users init failed:', err2);
+        }
+    }
 });
 </script>
 @endpush

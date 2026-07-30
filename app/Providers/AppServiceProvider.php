@@ -24,6 +24,7 @@ use App\Policies\UserPolicy;
 use App\View\Components\PageHeader;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -41,6 +42,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Prevent mixed-content / http CDN resolution issues on Hostinger HTTPS.
+        if ($this->app->environment('production') || filter_var(env('FORCE_HTTPS', false), FILTER_VALIDATE_BOOLEAN)) {
+            URL::forceScheme('https');
+        }
+
         InventoryItem::observe(InventoryItemObserver::class);
 
         Blade::component('page-header', PageHeader::class);

@@ -16,6 +16,20 @@ class InventoryItemsDatatableTest extends TestCase
 {
     use CreatesAuthenticatedUsers;
 
+    public function test_items_page_does_not_load_datatables_i18n_from_cdn(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $response = $this->actingAs($admin)->get(route('inventory.items'));
+
+        $response->assertOk();
+        $response->assertDontSee('cdn.datatables.net/plug-ins', false);
+        $response->assertDontSee('http://cdn.datatables.net', false);
+        $response->assertSee('datatablesIdLanguage', false);
+        $response->assertSee('Tidak ada data yang tersedia pada tabel ini', false);
+        $this->assertFileExists(public_path('vendor/datatables/i18n/id.json'));
+    }
+
     public function test_datatable_ajax_returns_valid_json_payload(): void
     {
         $admin = $this->makeAdmin();
