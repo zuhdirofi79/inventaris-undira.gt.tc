@@ -154,11 +154,24 @@ class InventoryMassLabels30Test extends TestCase
     {
         $admin = $this->makeAdmin();
 
-        $this->actingAs($admin)
+        $html = $this->actingAs($admin)
             ->get(route('inventory.items'))
             ->assertOk()
             ->assertSee('Cetak Label QR')
-            ->assertSee(route('inventory.labels.mass30', [], false), false);
+            ->assertSee('id="massLabelsModal"', false)
+            ->assertSee(route('inventory.labels.mass30', [], false), false)
+            ->getContent();
+
+        // Modal must be outside .content-wrapper (stacking context) via @stack('modals').
+        $contentPos = strpos($html, 'content-wrapper');
+        $modalPos = strpos($html, 'id="massLabelsModal"');
+        $this->assertNotFalse($contentPos);
+        $this->assertNotFalse($modalPos);
+        $this->assertGreaterThan(
+            $contentPos,
+            $modalPos,
+            'massLabelsModal should render after content-wrapper (body-level @stack(\'modals\'))'
+        );
 
         $item = $this->makeItem([
             'inventory_number' => 'MASS-INDIV-001',

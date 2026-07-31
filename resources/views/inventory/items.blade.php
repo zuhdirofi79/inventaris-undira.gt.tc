@@ -176,10 +176,10 @@
     </div>
 </div>
 
-{{-- Hidden iframe: browser handles Content-Disposition:attachment natively (no fetch/blob). --}}
-<iframe id="massLabelDownloadFrame" name="massLabelDownloadFrame" title="Unduh Label PDF" class="d-none" style="width:0;height:0;border:0;position:absolute;"></iframe>
-
-{{-- Mass label PDF: native POST into iframe — Laravel already returns a downloadable PDF. --}}
+{{--
+  Mass label PDF download: native POST (no iframe, no fetch/blob).
+  Backend returns Content-Disposition:attachment → browser downloads and keeps this page.
+--}}
 <form id="massLabelForm"
       method="POST"
       action="{{ route('inventory.labels.mass30') }}"
@@ -200,7 +200,14 @@
     <input type="hidden" name="status" id="massFilterStatus">
     <input type="hidden" name="condition" id="massFilterCondition">
 </form>
+@endsection
 
+{{--
+  CRITICAL: modal MUST be outside .content-wrapper (AdminLTE stacking context).
+  Backdrop is appended to <body>; a modal trapped in content sits UNDER the backdrop.
+  See public/css/undira-modals.css and layouts/app.blade.php @stack('modals').
+--}}
+@push('modals')
 <div class="modal fade" id="massLabelsModal" tabindex="-1" aria-labelledby="massLabelsModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -223,7 +230,7 @@
         </div>
     </div>
 </div>
-@endsection
+@endpush
 
 @push('scripts')
 <script>
@@ -384,8 +391,8 @@ function syncMassFilterFields() {
     $('#massFilterCondition').val($('#filterCondition').val() || '');
 }
 
-// Debug logs for Mass Label — set window.MASS_LABEL_DEBUG = false to silence.
-window.MASS_LABEL_DEBUG = (typeof window.MASS_LABEL_DEBUG === 'undefined') ? true : window.MASS_LABEL_DEBUG;
+// Mass label download — set window.MASS_LABEL_DEBUG = true for diagnostics.
+window.MASS_LABEL_DEBUG = window.MASS_LABEL_DEBUG === true;
 function massLabelLog() {
     if (!window.MASS_LABEL_DEBUG) return;
     var args = Array.prototype.slice.call(arguments);
@@ -393,72 +400,97 @@ function massLabelLog() {
     console.log.apply(console, args);
 }
 
-let massLabelLoadingTimer = null;
-let massLabelSafetyTimer = null;
-let massLabelPostSubmitTimer = null;
-let massLabelLoadingSettled = true;
+const massLabelState = {
+    submitting: false,
+    clickedButton: null,
+};
 
-function clearMassLabelTimers() {
-    if (massLabelLoadingTimer) {
-        window.clearTimeout(massLabelLoadingTimer);
-        massLabelLoadingTimer = null;
-    }
-    if (massLabelSafetyTimer) {
-        window.clearTimeout(massLabelSafetyTimer);
-        massLabelSafetyTimer = null;
-    }
-    if (massLabelPostSubmitTimer) {
-        window.clearTimeout(massLabelPostSubmitTimer);
-        massLabelPostSubmitTimer = null;
-    }
+function setMassLabelButtonBusy(button, busy) {
+    if (!button) return;
+    button.disabled = !!busy;
+    button.setAttribute('aria-busy', busy ? 'true' : 'false');
 }
 
-function stopMassLabelLoading(reason) {
-    clearMassLabelTimers();
-    if (typeof hideLoading === 'function') {
-        hideLoading();
+/** Remove orphaned Bootstrap chrome ONLY when no modal is visible. */
+function cleanupOrphanedModalState() {
+    if (document.querySelector('.modal.show')) {
+        return;
     }
-    if (!massLabelLoadingSettled) {
-        massLabelLoadingSettled = true;
-        massLabelLog('Loading closed:', reason || 'stop');
-    }
+    document.querySelectorAll('.modal-backdrop').forEach(function (node) {
+        if (node.parentNode) node.parentNode.removeChild(node);
+    });
+    document.body.classList.remove('modal-open');
+    document.body.style.removeProperty('overflow');
+    document.body.style.removeProperty('padding-right');
 }
 
-function startMassLabelLoading() {
-    clearMassLabelTimers();
-    massLabelLoadingSettled = false;
-    // Wait for Bootstrap modal close — undira-loading skips overlay while .modal.show exists.
-    massLabelLoadingTimer = window.setTimeout(function () {
-        massLabelLoadingTimer = null;
-        if (massLabelLoadingSettled) return;
-        if (typeof showLoading === 'function') {
-            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
-            massLabelLog('Loading shown');
+function getMassLabelsModalElement() {
+    return document.getElementById('massLabelsModal');
+}
+
+function getMassLabelsModalInstance() {
+    const modalEl = getMassLabelsModalElement();
+    if (!modalEl || !window.bootstrap || !bootstrap.Modal) return null;
+    return bootstrap.Modal.getOrCreateInstance(modalEl, {
+        backdrop: true,
+        keyboard: true,
+        focus: true,
+    });
+}
+
+/**
+ * Close modal and wait for Bootstrap to finish (backdrop removed), then resolve.
+ * Does NOT forcibly strip backdrop while .modal.show exists.
+ */
+function closeMassLabelModalSafely() {
+    return new Promise(function (resolve) {
+        const modalEl = getMassLabelsModalElement();
+        if (!modalEl) {
+            cleanupOrphanedModalState();
+            resolve();
+            return;
         }
-    }, 350);
-    // Hard safety: never leave overlay stuck (PDF gen can outlive overlay; download still proceeds).
-    massLabelSafetyTimer = window.setTimeout(function () {
-        massLabelSafetyTimer = null;
-        stopMassLabelLoading('safety-timeout');
-    }, 15000);
-}
 
-function closeMassLabelsModal() {
-    const modalEl = document.getElementById('massLabelsModal');
-    if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
-    try {
-        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
-        massLabelLog('Modal hide requested (getOrCreateInstance)');
-    } catch (err) {
-        console.error('[MassLabel] Modal hide failed', err);
-    }
+        if (!modalEl.classList.contains('show')) {
+            cleanupOrphanedModalState();
+            resolve();
+            return;
+        }
+
+        let settled = false;
+        function finish() {
+            if (settled) return;
+            settled = true;
+            modalEl.removeEventListener('hidden.bs.modal', onHidden);
+            cleanupOrphanedModalState();
+            resolve();
+        }
+
+        function onHidden() {
+            massLabelLog('hidden.bs.modal fired');
+            finish();
+        }
+
+        modalEl.addEventListener('hidden.bs.modal', onHidden);
+        try {
+            const inst = getMassLabelsModalInstance();
+            if (inst) inst.hide();
+            else finish();
+        } catch (err) {
+            console.error('[MassLabel] modal hide failed', err);
+            finish();
+        }
+
+        // Safety if hidden.bs.modal never fires (broken instance) — still do not
+        // strip backdrop while another modal could be open (cleanup checks .modal.show).
+        window.setTimeout(finish, 800);
+    });
 }
 
 function massLabelPayloadSummary(form) {
     const formData = new FormData(form);
     return {
         scope: formData.get('scope'),
-        inventory_ids: formData.getAll('inventory_ids[]'),
         inventory_ids_count: formData.getAll('inventory_ids[]').length,
         campus_id: formData.get('campus_id') || null,
         building_id: formData.get('building_id') || null,
@@ -472,62 +504,40 @@ function massLabelPayloadSummary(form) {
     };
 }
 
-/**
- * Backend returns Laravel PDF download (Content-Disposition: attachment).
- * Do NOT use fetch/axios/$.ajax — those break gesture-based downloads and
- * leave the page stuck when binary is mishandled. Native form POST → iframe
- * lets the browser start the file download itself.
- */
 function downloadMassLabelPdf(form) {
-    const iframe = document.getElementById('massLabelDownloadFrame');
-    const payload = massLabelPayloadSummary(form);
-
-    massLabelLog('Clicked → native form POST (not AJAX)');
-    massLabelLog('URL:', form.action);
-    massLabelLog('Method: POST');
-    massLabelLog('Payload / filters / selected IDs:', payload);
-
-    closeMassLabelsModal();
-    startMassLabelLoading();
-
-    if (iframe) {
-        iframe.onload = function () {
-            // Fires on HTML/redirect error pages. Attachment downloads often skip onload.
-            massLabelLog('Iframe load event (response navigated into frame)');
-            try {
-                const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
-                if (doc && doc.body) {
-                    const text = (doc.body.innerText || '').trim().slice(0, 200);
-                    massLabelLog('Iframe body preview:', text || '(empty)');
-                }
-            } catch (e) {
-                massLabelLog('Iframe body not readable', e);
-            }
-            stopMassLabelLoading('iframe-load');
-        };
-    }
-
-    try {
-        form.setAttribute('target', 'massLabelDownloadFrame');
-        // Native submit — browser applies Content-Disposition: attachment → download starts.
-        HTMLFormElement.prototype.submit.call(form);
-        form.removeAttribute('target');
-        massLabelLog('Download triggered: form.submit() → #massLabelDownloadFrame');
-    } catch (err) {
-        console.error('[MassLabel] Exception stack:', err);
-        form.removeAttribute('target');
-        stopMassLabelLoading('exception');
-        alert('Gagal memulai unduhan label PDF.');
+    if (massLabelState.submitting) {
+        massLabelLog('Ignored duplicate submit');
         return;
     }
 
-    // Attachment responses frequently never fire iframe.onload — close overlay after short wait.
-    // The download continues in the background regardless of overlay state.
-    massLabelPostSubmitTimer = window.setTimeout(function () {
-        massLabelPostSubmitTimer = null;
-        stopMassLabelLoading('post-submit-timeout');
-    }, 2500);
+    massLabelState.submitting = true;
+    setMassLabelButtonBusy(massLabelState.clickedButton, true);
+    massLabelLog('Close modal safely, then native form POST', massLabelPayloadSummary(form));
+
+    closeMassLabelModalSafely()
+        .then(function () {
+            form.removeAttribute('target');
+            HTMLFormElement.prototype.submit.call(form);
+            massLabelLog('form.submit() invoked');
+        })
+        .catch(function (err) {
+            console.error('[MassLabel]', err);
+            const msg = (err && err.message) ? err.message : 'Label QR massal gagal diunduh.';
+            if (window.toastr) toastr.error(msg);
+            else alert(msg);
+        })
+        .finally(function () {
+            massLabelState.submitting = false;
+            setMassLabelButtonBusy(massLabelState.clickedButton, false);
+            massLabelState.clickedButton = null;
+            cleanupOrphanedModalState();
+            massLabelLog('UI state restored');
+        });
 }
+
+window.addEventListener('pageshow', function () {
+    cleanupOrphanedModalState();
+});
 
 function submitMassLabels(scope) {
     syncMassFilterFields();
@@ -535,11 +545,13 @@ function submitMassLabels(scope) {
     const $ids = $('#massLabelIds').empty();
     if (scope === 'selected') {
         if (selectedIds.size === 0) {
-            alert('Tidak ada inventaris yang dipilih.');
+            const msg = 'Tidak ada inventaris yang dipilih. Centang item di tabel terlebih dahulu.';
+            if (window.toastr) toastr.warning(msg);
+            else alert(msg);
             return;
         }
         selectedIds.forEach(function (id) {
-            $ids.append(`<input type="hidden" name="inventory_ids[]" value="${id}">`);
+            $ids.append('<input type="hidden" name="inventory_ids[]" value="' + id + '">');
         });
     }
 
@@ -554,14 +566,71 @@ function submitMassLabels(scope) {
 
 $('#btnPrintSelectedLabels').on('click', function (e) {
     e.preventDefault();
-    massLabelLog('Click: Cetak yang dipilih');
+    e.stopPropagation();
+    console.count('[Mass Labels] print click');
+    massLabelState.clickedButton = this;
     submitMassLabels('selected');
 });
 $('#btnPrintFilterLabels').on('click', function (e) {
     e.preventDefault();
-    massLabelLog('Click: Cetak semua hasil filter');
+    e.stopPropagation();
+    console.count('[Mass Labels] print click');
+    massLabelState.clickedButton = this;
     submitMassLabels('filter');
 });
+
+// One-time diagnostic helper (optional): window.diagnoseMassLabelModal()
+window.diagnoseMassLabelModal = function () {
+    const modal = getMassLabelsModalElement();
+    const dialog = modal ? modal.querySelector('.modal-dialog') : null;
+    const backdrop = document.querySelector('.modal-backdrop');
+    console.table({
+        modalCount: document.querySelectorAll('#massLabelsModal').length,
+        modalParent: modal && modal.parentElement ? modal.parentElement.tagName : null,
+        modalParentId: modal && modal.parentElement ? modal.parentElement.id : null,
+        modalParentClass: modal && modal.parentElement ? modal.parentElement.className : null,
+        underBody: !!(modal && modal.parentElement === document.body),
+        modalZIndex: modal ? getComputedStyle(modal).zIndex : null,
+        dialogZIndex: dialog ? getComputedStyle(dialog).zIndex : null,
+        backdropZIndex: backdrop ? getComputedStyle(backdrop).zIndex : null,
+        backdropCount: document.querySelectorAll('.modal-backdrop').length,
+        bodyClass: document.body.className,
+    });
+    if (dialog) {
+        const rect = dialog.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        console.log('elementFromPoint', document.elementFromPoint(x, y));
+        console.log('elementsFromPoint', document.elementsFromPoint(x, y));
+    }
+    let current = modal;
+    while (current) {
+        const style = getComputedStyle(current);
+        if (
+            style.transform !== 'none' ||
+            style.filter !== 'none' ||
+            (style.backdropFilter && style.backdropFilter !== 'none') ||
+            style.isolation === 'isolate' ||
+            (style.contain && style.contain !== 'none') ||
+            (style.opacity !== '1' && style.opacity !== '') ||
+            (style.position !== 'static' && style.zIndex !== 'auto')
+        ) {
+            console.log('stacking-context candidate', {
+                tag: current.tagName,
+                id: current.id,
+                className: current.className,
+                position: style.position,
+                zIndex: style.zIndex,
+                transform: style.transform,
+                filter: style.filter,
+                opacity: style.opacity,
+                isolation: style.isolation,
+                contain: style.contain,
+            });
+        }
+        current = current.parentElement;
+    }
+};
 
 $('#btnApplyFilter').on('click', function () {
     if (table) table.ajax.reload();
