@@ -409,8 +409,40 @@ function submitMassLabels(scope) {
         if (modal) modal.hide();
     }
 
-    // Prefer fetch+blob. Fallback: native POST into hidden iframe (works with Content-Disposition: attachment).
     downloadMassLabelPdf(form);
+}
+
+function massLabelPayloadSummary(formData) {
+    const summary = {
+        scope: formData.get('scope'),
+        inventory_ids: formData.getAll('inventory_ids[]'),
+        campus_id: formData.get('campus_id') || null,
+        building_id: formData.get('building_id') || null,
+        floor_id: formData.get('floor_id') || null,
+        room_id: formData.get('room_id') || null,
+        category_id: formData.get('category_id') || null,
+        org_unit_id: formData.get('org_unit_id') || null,
+        pic_id: formData.get('pic_id') || null,
+        status: formData.get('status') || null,
+        condition: formData.get('condition') || null,
+    };
+    summary.inventory_ids_count = summary.inventory_ids.length;
+    return summary;
+}
+
+function filenameFromContentDisposition(header) {
+    if (!header) return 'Label-Inventaris.pdf';
+    const utfMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
+    if (utfMatch && utfMatch[1]) {
+        try {
+            return decodeURIComponent(utfMatch[1].trim().replace(/["']/g, ''));
+        } catch (e) { /* ignore */ }
+    }
+    const plainMatch = /filename=\"?([^\";]+)\"?/i.exec(header);
+    if (plainMatch && plainMatch[1]) {
+        return plainMatch[1].trim();
+    }
+    return 'Label-Inventaris.pdf';
 }
 
 function isPdfBlob(blob, contentTypeHeader) {
@@ -439,6 +471,13 @@ function triggerBlobDownload(blob, filename) {
         ? blob
         : new Blob([blob], { type: 'application/pdf' });
     const url = URL.createObjectURL(pdfBlob);
+    console.log('[MassLabel] Triggering browser download', {
+        filename: filename,
+        blobSize: pdfBlob.size,
+        blobType: pdfBlob.type,
+        objectUrl: url,
+    });
+
     const a = document.createElement('a');
     a.href = url;
     a.download = filename || 'Label-Inventaris.pdf';
@@ -448,35 +487,61 @@ function triggerBlobDownload(blob, filename) {
     a.click();
     a.remove();
 
-    // Keep object URL alive briefly so the browser can finish the download.
     window.setTimeout(function () {
         URL.revokeObjectURL(url);
+        console.log('[MassLabel] Object URL revoked');
     }, 4000);
 
     return url;
 }
 
 function downloadMassLabelViaIframe(form) {
+    console.warn('[MassLabel] Fallback: native form POST → hidden iframe');
     form.setAttribute('target', 'massLabelDownloadFrame');
-    // Native submit — browser handles Content-Disposition: attachment without parsing JSON.
     HTMLFormElement.prototype.submit.call(form);
     form.removeAttribute('target');
 }
 
-function downloadMassLabelPdf(form) {
-    if (typeof showLoading === 'function') {
-        // Delay slightly so Bootstrap modal can finish closing (overlay skips while .modal.show exists).
-        window.setTimeout(function () {
-            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
-        }, 200);
-    }
+let massLabelLoadingTimer = null;
 
+function stopMassLabelLoading() {
+    if (massLabelLoadingTimer) {
+        window.clearTimeout(massLabelLoadingTimer);
+        massLabelLoadingTimer = null;
+    }
+    if (typeof hideLoading === 'function') {
+        hideLoading();
+    }
+}
+
+function startMassLabelLoading() {
+    stopMassLabelLoading();
+    // Wait for Bootstrap modal close so undira-loading overlay is allowed to show.
+    massLabelLoadingTimer = window.setTimeout(function () {
+        massLabelLoadingTimer = null;
+        if (typeof showLoading === 'function') {
+            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
+        }
+    }, 250);
+}
+
+function downloadMassLabelPdf(form) {
+    const url = form.action;
+    const formData = new FormData(form);
+    const payload = massLabelPayloadSummary(formData);
     const csrfMeta = document.querySelector('meta[name="csrf-token"]');
     const csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
-    fetch(form.action, {
+    console.log('[MassLabel] Request start');
+    console.log('[MassLabel] URL:', url);
+    console.log('[MassLabel] Method: POST (fetch + blob)');
+    console.log('[MassLabel] Payload:', payload);
+
+    startMassLabelLoading();
+
+    fetch(url, {
         method: 'POST',
-        body: new FormData(form),
+        body: formData,
         credentials: 'same-origin',
         headers: {
             'Accept': 'application/pdf,application/octet-stream,*/*',
@@ -484,9 +549,27 @@ function downloadMassLabelPdf(form) {
         },
     })
     .then(function (response) {
-        // Always read as Blob first — never response.json() / res.success.
+        const contentType = response.headers.get('Content-Type');
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const headersObj = {};
+        response.headers.forEach(function (value, key) {
+            headersObj[key] = value;
+        });
+
+        console.log('[MassLabel] HTTP status:', response.status, response.statusText);
+        console.log('[MassLabel] Response headers:', headersObj);
+        console.log('[MassLabel] Content-Type:', contentType);
+        console.log('[MassLabel] Content-Disposition:', contentDisposition);
+
+        // Never response.json() — backend returns PDF binary.
         return response.blob().then(function (blob) {
-            return { response: response, blob: blob };
+            console.log('[MassLabel] Blob received', { size: blob.size, type: blob.type });
+            return {
+                response: response,
+                blob: blob,
+                contentType: contentType,
+                contentDisposition: contentDisposition,
+            };
         });
     })
     .then(function (payload) {
@@ -497,45 +580,50 @@ function downloadMassLabelPdf(form) {
             throw new Error('Sesi berakhir. Muat ulang halaman lalu coba lagi.');
         }
 
-        return isPdfBlob(blob, response.headers.get('Content-Type')).then(function (ok) {
+        return isPdfBlob(blob, payload.contentType).then(function (ok) {
+            console.log('[MassLabel] Is PDF?', ok);
+
             if (!ok) {
                 if (response.status === 422) {
                     throw new Error('Data cetak tidak valid. Periksa item yang dipilih atau filter.');
                 }
-                // Backend may still have produced PDF via attachment while fetch got an HTML redirect page.
-                // Fall back to iframe POST so Content-Disposition can trigger a real download.
+                if (!response.ok) {
+                    throw new Error('Gagal mengunduh label PDF (HTTP ' + response.status + ').');
+                }
+                // Unexpected non-PDF body: last-resort iframe POST (still not JSON parsing).
                 downloadMassLabelViaIframe(form);
                 return;
             }
+
             if (!blob || blob.size < 5) {
                 throw new Error('Berkas PDF kosong. Silakan coba lagi.');
             }
-            triggerBlobDownload(blob, 'Label-Inventaris.pdf');
+
+            const filename = filenameFromContentDisposition(payload.contentDisposition);
+            console.log('[MassLabel] Downloading as:', filename);
+            triggerBlobDownload(blob, filename);
+            console.log('[MassLabel] Download triggered successfully');
         });
     })
     .catch(function (err) {
-        console.error('Mass label download failed:', err);
-        try {
-            downloadMassLabelViaIframe(form);
-        } catch (e2) {
-            alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
-        }
+        console.error('[MassLabel] Download error:', err);
+        alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
     })
     .finally(function () {
-        window.setTimeout(function () {
-            if (typeof hideLoading === 'function') {
-                hideLoading();
-            }
-        }, 600);
+        // Always stop spinner: success, error, exception.
+        stopMassLabelLoading();
+        console.log('[MassLabel] Request finished (spinner cleared)');
     });
 }
 
 $('#btnPrintSelectedLabels').on('click', function (e) {
     e.preventDefault();
+    console.log('[MassLabel] Click: Cetak yang dipilih');
     submitMassLabels('selected');
 });
 $('#btnPrintFilterLabels').on('click', function (e) {
     e.preventDefault();
+    console.log('[MassLabel] Click: Cetak semua hasil filter');
     submitMassLabels('filter');
 });
 
