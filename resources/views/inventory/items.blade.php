@@ -176,16 +176,17 @@
     </div>
 </div>
 
-{{-- Hidden iframe: fallback download for Content-Disposition: attachment --}}
+{{-- Hidden iframe: browser handles Content-Disposition:attachment natively (no fetch/blob). --}}
 <iframe id="massLabelDownloadFrame" name="massLabelDownloadFrame" title="Unduh Label PDF" class="d-none" style="width:0;height:0;border:0;position:absolute;"></iframe>
 
-{{-- Form fields for mass label PDF (submitted via fetch+blob; iframe fallback available). --}}
+{{-- Mass label PDF: native POST into iframe — Laravel already returns a downloadable PDF. --}}
 <form id="massLabelForm"
       method="POST"
       action="{{ route('inventory.labels.mass30') }}"
       class="d-none"
       data-download
-      data-no-loading>
+      data-no-loading
+      data-no-loader="1">
     @csrf
     <input type="hidden" name="scope" id="massLabelScope" value="selected">
     <div id="massLabelIds"></div>
@@ -383,6 +384,151 @@ function syncMassFilterFields() {
     $('#massFilterCondition').val($('#filterCondition').val() || '');
 }
 
+// Debug logs for Mass Label — set window.MASS_LABEL_DEBUG = false to silence.
+window.MASS_LABEL_DEBUG = (typeof window.MASS_LABEL_DEBUG === 'undefined') ? true : window.MASS_LABEL_DEBUG;
+function massLabelLog() {
+    if (!window.MASS_LABEL_DEBUG) return;
+    var args = Array.prototype.slice.call(arguments);
+    args.unshift('[MassLabel]');
+    console.log.apply(console, args);
+}
+
+let massLabelLoadingTimer = null;
+let massLabelSafetyTimer = null;
+let massLabelPostSubmitTimer = null;
+let massLabelLoadingSettled = true;
+
+function clearMassLabelTimers() {
+    if (massLabelLoadingTimer) {
+        window.clearTimeout(massLabelLoadingTimer);
+        massLabelLoadingTimer = null;
+    }
+    if (massLabelSafetyTimer) {
+        window.clearTimeout(massLabelSafetyTimer);
+        massLabelSafetyTimer = null;
+    }
+    if (massLabelPostSubmitTimer) {
+        window.clearTimeout(massLabelPostSubmitTimer);
+        massLabelPostSubmitTimer = null;
+    }
+}
+
+function stopMassLabelLoading(reason) {
+    clearMassLabelTimers();
+    if (typeof hideLoading === 'function') {
+        hideLoading();
+    }
+    if (!massLabelLoadingSettled) {
+        massLabelLoadingSettled = true;
+        massLabelLog('Loading closed:', reason || 'stop');
+    }
+}
+
+function startMassLabelLoading() {
+    clearMassLabelTimers();
+    massLabelLoadingSettled = false;
+    // Wait for Bootstrap modal close — undira-loading skips overlay while .modal.show exists.
+    massLabelLoadingTimer = window.setTimeout(function () {
+        massLabelLoadingTimer = null;
+        if (massLabelLoadingSettled) return;
+        if (typeof showLoading === 'function') {
+            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
+            massLabelLog('Loading shown');
+        }
+    }, 350);
+    // Hard safety: never leave overlay stuck (PDF gen can outlive overlay; download still proceeds).
+    massLabelSafetyTimer = window.setTimeout(function () {
+        massLabelSafetyTimer = null;
+        stopMassLabelLoading('safety-timeout');
+    }, 15000);
+}
+
+function closeMassLabelsModal() {
+    const modalEl = document.getElementById('massLabelsModal');
+    if (!modalEl || !window.bootstrap || !bootstrap.Modal) return;
+    try {
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        massLabelLog('Modal hide requested (getOrCreateInstance)');
+    } catch (err) {
+        console.error('[MassLabel] Modal hide failed', err);
+    }
+}
+
+function massLabelPayloadSummary(form) {
+    const formData = new FormData(form);
+    return {
+        scope: formData.get('scope'),
+        inventory_ids: formData.getAll('inventory_ids[]'),
+        inventory_ids_count: formData.getAll('inventory_ids[]').length,
+        campus_id: formData.get('campus_id') || null,
+        building_id: formData.get('building_id') || null,
+        floor_id: formData.get('floor_id') || null,
+        room_id: formData.get('room_id') || null,
+        category_id: formData.get('category_id') || null,
+        org_unit_id: formData.get('org_unit_id') || null,
+        pic_id: formData.get('pic_id') || null,
+        status: formData.get('status') || null,
+        condition: formData.get('condition') || null,
+    };
+}
+
+/**
+ * Backend returns Laravel PDF download (Content-Disposition: attachment).
+ * Do NOT use fetch/axios/$.ajax — those break gesture-based downloads and
+ * leave the page stuck when binary is mishandled. Native form POST → iframe
+ * lets the browser start the file download itself.
+ */
+function downloadMassLabelPdf(form) {
+    const iframe = document.getElementById('massLabelDownloadFrame');
+    const payload = massLabelPayloadSummary(form);
+
+    massLabelLog('Clicked → native form POST (not AJAX)');
+    massLabelLog('URL:', form.action);
+    massLabelLog('Method: POST');
+    massLabelLog('Payload / filters / selected IDs:', payload);
+
+    closeMassLabelsModal();
+    startMassLabelLoading();
+
+    if (iframe) {
+        iframe.onload = function () {
+            // Fires on HTML/redirect error pages. Attachment downloads often skip onload.
+            massLabelLog('Iframe load event (response navigated into frame)');
+            try {
+                const doc = iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document);
+                if (doc && doc.body) {
+                    const text = (doc.body.innerText || '').trim().slice(0, 200);
+                    massLabelLog('Iframe body preview:', text || '(empty)');
+                }
+            } catch (e) {
+                massLabelLog('Iframe body not readable', e);
+            }
+            stopMassLabelLoading('iframe-load');
+        };
+    }
+
+    try {
+        form.setAttribute('target', 'massLabelDownloadFrame');
+        // Native submit — browser applies Content-Disposition: attachment → download starts.
+        HTMLFormElement.prototype.submit.call(form);
+        form.removeAttribute('target');
+        massLabelLog('Download triggered: form.submit() → #massLabelDownloadFrame');
+    } catch (err) {
+        console.error('[MassLabel] Exception stack:', err);
+        form.removeAttribute('target');
+        stopMassLabelLoading('exception');
+        alert('Gagal memulai unduhan label PDF.');
+        return;
+    }
+
+    // Attachment responses frequently never fire iframe.onload — close overlay after short wait.
+    // The download continues in the background regardless of overlay state.
+    massLabelPostSubmitTimer = window.setTimeout(function () {
+        massLabelPostSubmitTimer = null;
+        stopMassLabelLoading('post-submit-timeout');
+    }, 2500);
+}
+
 function submitMassLabels(scope) {
     syncMassFilterFields();
     $('#massLabelScope').val(scope);
@@ -403,227 +549,17 @@ function submitMassLabels(scope) {
         return;
     }
 
-    const modalEl = document.getElementById('massLabelsModal');
-    if (modalEl && window.bootstrap) {
-        const modal = bootstrap.Modal.getInstance(modalEl);
-        if (modal) modal.hide();
-    }
-
     downloadMassLabelPdf(form);
-}
-
-function massLabelPayloadSummary(formData) {
-    const summary = {
-        scope: formData.get('scope'),
-        inventory_ids: formData.getAll('inventory_ids[]'),
-        campus_id: formData.get('campus_id') || null,
-        building_id: formData.get('building_id') || null,
-        floor_id: formData.get('floor_id') || null,
-        room_id: formData.get('room_id') || null,
-        category_id: formData.get('category_id') || null,
-        org_unit_id: formData.get('org_unit_id') || null,
-        pic_id: formData.get('pic_id') || null,
-        status: formData.get('status') || null,
-        condition: formData.get('condition') || null,
-    };
-    summary.inventory_ids_count = summary.inventory_ids.length;
-    return summary;
-}
-
-function filenameFromContentDisposition(header) {
-    if (!header) return 'Label-Inventaris.pdf';
-    const utfMatch = /filename\*=UTF-8''([^;]+)/i.exec(header);
-    if (utfMatch && utfMatch[1]) {
-        try {
-            return decodeURIComponent(utfMatch[1].trim().replace(/["']/g, ''));
-        } catch (e) { /* ignore */ }
-    }
-    const plainMatch = /filename=\"?([^\";]+)\"?/i.exec(header);
-    if (plainMatch && plainMatch[1]) {
-        return plainMatch[1].trim();
-    }
-    return 'Label-Inventaris.pdf';
-}
-
-function isPdfBlob(blob, contentTypeHeader) {
-    const header = String(contentTypeHeader || '').toLowerCase();
-    const blobType = String((blob && blob.type) || '').toLowerCase();
-    if (header.indexOf('pdf') !== -1 || blobType.indexOf('pdf') !== -1) {
-        return Promise.resolve(true);
-    }
-    if (!blob || typeof blob.slice !== 'function') {
-        return Promise.resolve(false);
-    }
-    return blob.slice(0, 5).arrayBuffer().then(function (buf) {
-        const bytes = new Uint8Array(buf);
-        let sig = '';
-        for (let i = 0; i < bytes.length; i++) {
-            sig += String.fromCharCode(bytes[i]);
-        }
-        return sig.indexOf('%PDF') === 0;
-    }).catch(function () {
-        return false;
-    });
-}
-
-function triggerBlobDownload(blob, filename) {
-    const pdfBlob = (blob && blob.type === 'application/pdf')
-        ? blob
-        : new Blob([blob], { type: 'application/pdf' });
-    const url = URL.createObjectURL(pdfBlob);
-    console.log('[MassLabel] Triggering browser download', {
-        filename: filename,
-        blobSize: pdfBlob.size,
-        blobType: pdfBlob.type,
-        objectUrl: url,
-    });
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'Label-Inventaris.pdf';
-    a.rel = 'noopener';
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-
-    window.setTimeout(function () {
-        URL.revokeObjectURL(url);
-        console.log('[MassLabel] Object URL revoked');
-    }, 4000);
-
-    return url;
-}
-
-function downloadMassLabelViaIframe(form) {
-    console.warn('[MassLabel] Fallback: native form POST → hidden iframe');
-    form.setAttribute('target', 'massLabelDownloadFrame');
-    HTMLFormElement.prototype.submit.call(form);
-    form.removeAttribute('target');
-}
-
-let massLabelLoadingTimer = null;
-
-function stopMassLabelLoading() {
-    if (massLabelLoadingTimer) {
-        window.clearTimeout(massLabelLoadingTimer);
-        massLabelLoadingTimer = null;
-    }
-    if (typeof hideLoading === 'function') {
-        hideLoading();
-    }
-}
-
-function startMassLabelLoading() {
-    stopMassLabelLoading();
-    // Wait for Bootstrap modal close so undira-loading overlay is allowed to show.
-    massLabelLoadingTimer = window.setTimeout(function () {
-        massLabelLoadingTimer = null;
-        if (typeof showLoading === 'function') {
-            showLoading('Menyiapkan label PDF...', 'Mengunduh berkas...');
-        }
-    }, 250);
-}
-
-function downloadMassLabelPdf(form) {
-    const url = form.action;
-    const formData = new FormData(form);
-    const payload = massLabelPayloadSummary(formData);
-    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrf = csrfMeta ? csrfMeta.getAttribute('content') : '';
-
-    console.log('[MassLabel] Request start');
-    console.log('[MassLabel] URL:', url);
-    console.log('[MassLabel] Method: POST (fetch + blob)');
-    console.log('[MassLabel] Payload:', payload);
-
-    startMassLabelLoading();
-
-    fetch(url, {
-        method: 'POST',
-        body: formData,
-        credentials: 'same-origin',
-        headers: {
-            'Accept': 'application/pdf,application/octet-stream,*/*',
-            'X-CSRF-TOKEN': csrf || '',
-        },
-    })
-    .then(function (response) {
-        const contentType = response.headers.get('Content-Type');
-        const contentDisposition = response.headers.get('Content-Disposition');
-        const headersObj = {};
-        response.headers.forEach(function (value, key) {
-            headersObj[key] = value;
-        });
-
-        console.log('[MassLabel] HTTP status:', response.status, response.statusText);
-        console.log('[MassLabel] Response headers:', headersObj);
-        console.log('[MassLabel] Content-Type:', contentType);
-        console.log('[MassLabel] Content-Disposition:', contentDisposition);
-
-        // Never response.json() — backend returns PDF binary.
-        return response.blob().then(function (blob) {
-            console.log('[MassLabel] Blob received', { size: blob.size, type: blob.type });
-            return {
-                response: response,
-                blob: blob,
-                contentType: contentType,
-                contentDisposition: contentDisposition,
-            };
-        });
-    })
-    .then(function (payload) {
-        const response = payload.response;
-        const blob = payload.blob;
-
-        if (response.status === 419) {
-            throw new Error('Sesi berakhir. Muat ulang halaman lalu coba lagi.');
-        }
-
-        return isPdfBlob(blob, payload.contentType).then(function (ok) {
-            console.log('[MassLabel] Is PDF?', ok);
-
-            if (!ok) {
-                if (response.status === 422) {
-                    throw new Error('Data cetak tidak valid. Periksa item yang dipilih atau filter.');
-                }
-                if (!response.ok) {
-                    throw new Error('Gagal mengunduh label PDF (HTTP ' + response.status + ').');
-                }
-                // Unexpected non-PDF body: last-resort iframe POST (still not JSON parsing).
-                downloadMassLabelViaIframe(form);
-                return;
-            }
-
-            if (!blob || blob.size < 5) {
-                throw new Error('Berkas PDF kosong. Silakan coba lagi.');
-            }
-
-            const filename = filenameFromContentDisposition(payload.contentDisposition);
-            console.log('[MassLabel] Downloading as:', filename);
-            triggerBlobDownload(blob, filename);
-            console.log('[MassLabel] Download triggered successfully');
-        });
-    })
-    .catch(function (err) {
-        console.error('[MassLabel] Download error:', err);
-        alert((err && err.message) ? err.message : 'Gagal mengunduh label PDF.');
-    })
-    .finally(function () {
-        // Always stop spinner: success, error, exception.
-        stopMassLabelLoading();
-        console.log('[MassLabel] Request finished (spinner cleared)');
-    });
 }
 
 $('#btnPrintSelectedLabels').on('click', function (e) {
     e.preventDefault();
-    console.log('[MassLabel] Click: Cetak yang dipilih');
+    massLabelLog('Click: Cetak yang dipilih');
     submitMassLabels('selected');
 });
 $('#btnPrintFilterLabels').on('click', function (e) {
     e.preventDefault();
-    console.log('[MassLabel] Click: Cetak semua hasil filter');
+    massLabelLog('Click: Cetak semua hasil filter');
     submitMassLabels('filter');
 });
 
