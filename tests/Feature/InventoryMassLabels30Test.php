@@ -73,11 +73,11 @@ class InventoryMassLabels30Test extends TestCase
         ])->assertSessionHasErrors('inventory_ids');
     }
 
-    public function test_mass_labels_paginates_beyond_thirty_items(): void
+    public function test_mass_labels_paginates_beyond_forty_items(): void
     {
         $admin = $this->makeAdmin();
         $ids = [];
-        for ($i = 1; $i <= 31; $i++) {
+        for ($i = 1; $i <= 41; $i++) {
             $ids[] = $this->makeItem([
                 'inventory_number' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
                 'barcode' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
@@ -124,18 +124,20 @@ class InventoryMassLabels30Test extends TestCase
         $response->assertHeader('content-type', 'application/pdf');
     }
 
-    public function test_label_layout_defaults_to_thirty_per_page(): void
+    public function test_label_layout_defaults_to_forty_per_page(): void
     {
         $service = app(\App\Services\InventoryMassLabelService::class);
         $layout = $service->layout();
 
-        $this->assertSame(3, $layout['columns']);
+        $this->assertSame(4, $layout['columns']);
         $this->assertSame(10, $layout['rows']);
-        $this->assertSame(30, $layout['per_page']);
-        $this->assertGreaterThanOrEqual(15.0, $layout['qr_size_mm']);
-        $this->assertGreaterThanOrEqual(14.0, $layout['logo_width_mm']);
+        $this->assertSame(40, $layout['per_page']);
+        $this->assertGreaterThanOrEqual(16.0, $layout['qr_size_mm']);
+        $this->assertGreaterThanOrEqual(12.0, $layout['logo_width_mm']);
         $this->assertLessThanOrEqual(18.0, $layout['logo_width_mm']);
         $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
+        $this->assertGreaterThanOrEqual(4.0, $layout['gap_x_mm']);
+        $this->assertGreaterThanOrEqual(3.0, $layout['gap_y_mm']);
     }
 
     public function test_undira_logo_resolves_as_embedded_data_uri(): void
@@ -158,6 +160,9 @@ class InventoryMassLabels30Test extends TestCase
             ->get(route('inventory.items'))
             ->assertOk()
             ->assertSee('Cetak Label QR')
+            ->assertSee('40 Label / A4')
+            ->assertSee('4 kolom × 10 baris')
+            ->assertDontSee('30 Label / A4')
             ->assertSee('id="massLabelsModal"', false)
             ->assertSee(route('inventory.labels.mass30', [], false), false)
             ->getContent();
@@ -182,7 +187,7 @@ class InventoryMassLabels30Test extends TestCase
             ->get(route('inventory.label.print', $item))
             ->assertOk()
             ->assertSee('Cetak Label')
-            ->assertDontSee('30 Label / A4');
+            ->assertDontSee('40 Label / A4');
     }
 
     public function test_legacy_labels_route_still_works(): void

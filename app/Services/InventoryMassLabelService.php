@@ -33,29 +33,46 @@ class InventoryMassLabelService
      *     qr_size_mm: float,
      *     logo_width_mm: float,
      *     logo_max_height_mm: float,
+     *     label_padding_mm: float,
+     *     number_row_mm: float,
+     *     qr_col_width_pct: float,
      *     font_size_pt: float,
      *     name_max_chars: int,
      *     max_items: int,
      *     cell_width_pct: float,
-     *     cell_height_mm: float
+     *     cell_height_mm: float,
+     *     cell_width_mm: float
      * }
      */
     public function layout(): array
     {
-        $columns = max(1, (int) config('inventory_labels.columns', 3));
+        $columns = max(1, (int) config('inventory_labels.columns', 4));
         $rows = max(1, (int) config('inventory_labels.rows', 10));
-        $pageMargin = max(3.0, (float) config('inventory_labels.page_margin_mm', 5));
-        $gapX = max(1.0, (float) config('inventory_labels.gap_x_mm', 2.5));
-        $gapY = max(1.0, (float) config('inventory_labels.gap_y_mm', 2.0));
-        $qrSize = max(15.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 17)));
-        $logoWidth = max(14.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 16)));
-        $logoMaxHeight = max(3.5, min(7.0, (float) config('inventory_labels.logo_max_height_mm', 4.8)));
+        $pageMargin = max(5.0, (float) config('inventory_labels.page_margin_mm', 8));
+        $gapX = max(2.0, (float) config('inventory_labels.gap_x_mm', 5));
+        $gapY = max(2.0, (float) config('inventory_labels.gap_y_mm', 4));
+        $qrSize = max(16.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 20)));
+        $logoWidth = max(12.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 15)));
+        $logoMaxHeight = max(3.5, min(6.0, (float) config('inventory_labels.logo_max_height_mm', 5)));
+        $labelPadding = max(1.2, min(3.0, (float) config('inventory_labels.label_padding_mm', 2)));
         $fontPt = max(7.0, min(10.0, (float) config('inventory_labels.font_size_pt', 7.5)));
 
-        // A4 usable height ≈ 297mm − 2×margin
+        // A4 usable area
+        $usableWidth = 210.0 - (2 * $pageMargin);
         $usableHeight = 297.0 - (2 * $pageMargin);
+        $totalGapX = max(0, $columns - 1) * $gapX;
         $totalGapY = max(0, $rows - 1) * $gapY;
+        $cellWidth = ($usableWidth - $totalGapX) / $columns;
         $cellHeight = ($usableHeight - $totalGapY) / $rows;
+
+        // QR sits in the right column and can use nearly the full inner height.
+        $numberRowMm = 6.2;
+        $maxQrByHeight = max(16.0, $cellHeight - (2 * $labelPadding) - 0.6);
+        $maxQrByWidth = max(16.0, ($cellWidth * 0.52) - 0.8);
+        $qrSize = min($qrSize, round($maxQrByHeight, 2), round($maxQrByWidth, 2));
+
+        // QR column ≈ QR size + small gutter from text.
+        $qrColPct = min(52.0, max(40.0, (($qrSize + 1.4) / max(1.0, $cellWidth)) * 100));
 
         return [
             'columns' => $columns,
@@ -67,11 +84,15 @@ class InventoryMassLabelService
             'qr_size_mm' => $qrSize,
             'logo_width_mm' => $logoWidth,
             'logo_max_height_mm' => $logoMaxHeight,
+            'label_padding_mm' => $labelPadding,
+            'number_row_mm' => $numberRowMm,
+            'qr_col_width_pct' => round($qrColPct, 2),
             'font_size_pt' => $fontPt,
-            'name_max_chars' => max(20, (int) config('inventory_labels.name_max_chars', 48)),
+            'name_max_chars' => max(20, (int) config('inventory_labels.name_max_chars', 36)),
             'max_items' => max(1, (int) config('inventory_labels.max_items', 500)),
             'cell_width_pct' => 100 / $columns,
             'cell_height_mm' => round($cellHeight, 2),
+            'cell_width_mm' => round($cellWidth, 2),
         ];
     }
 
@@ -115,6 +136,7 @@ class InventoryMassLabelService
      *     inventory_number: string,
      *     name: string,
      *     category: string,
+     *     room: string,
      *     location_lines: list<string>,
      *     qr_src: string
      * }>
@@ -141,6 +163,9 @@ class InventoryMassLabelService
             ->orderBy('inventory_number')
             ->get();
 
+        // Sharper raster for ~20mm print size (~300 dpi equivalent).
+        $qrPixels = max(220, (int) round($layout['qr_size_mm'] * 12));
+
         foreach ($items as $item) {
             $number = trim((string) $item->inventory_number);
             if ($number === '') {
@@ -149,7 +174,7 @@ class InventoryMassLabelService
                 continue;
             }
 
-            $qrSrc = $this->qrPngDataUri($number, 180);
+            $qrSrc = $this->qrPngDataUri($number, $qrPixels);
             if ($qrSrc === null) {
                 Log::warning('Mass label skip: QR PNG failed', [
                     'id' => $item->id,
@@ -160,12 +185,14 @@ class InventoryMassLabelService
             }
 
             $category = trim((string) ($item->category?->name ?? ''));
+            $room = $this->formatRoomLabel($item);
 
             $labels->push((object) [
                 'inventory_number' => $number,
                 'name' => $this->formatName((string) $item->name, $layout['name_max_chars']),
                 'category' => $category !== '' ? Str::limit($category, 28, '...') : '—',
-                'location_lines' => $this->locationLines($item),
+                'room' => $room,
+                'location_lines' => [$room],
                 'qr_src' => $qrSrc,
             ]);
         }
@@ -310,7 +337,7 @@ class InventoryMassLabelService
             $qrCode = Encoder::encode($payload, ErrorCorrectionLevel::M());
             $matrix = $qrCode->getMatrix();
             $moduleCount = $matrix->getWidth();
-            $quietZone = 2;
+            $quietZone = 3; // print quiet zone for reliable phone scanning
             $modules = $moduleCount + (2 * $quietZone);
             $scale = max(1, (int) floor($pixelSize / $modules));
             $imageSize = $modules * $scale;
@@ -378,41 +405,32 @@ class InventoryMassLabelService
     }
 
     /**
+     * Room-only label text (no building / floor) — room codes are unique in-system.
+     */
+    protected function formatRoomLabel(InventoryItem $item): string
+    {
+        $room = $item->room;
+        $roomRaw = trim((string) ($room?->code ?: $room?->name ?: ''));
+
+        if ($roomRaw === '') {
+            return '—';
+        }
+
+        if (Str::startsWith(Str::lower($roomRaw), 'ruang')) {
+            return Str::limit($roomRaw, 24, '...');
+        }
+
+        // LAB02 / A101 style codes stay readable with Ruang prefix when not already present.
+        return Str::limit('Ruang '.$roomRaw, 24, '...');
+    }
+
+    /**
      * @return list<string>
+     *
+     * @deprecated Kept for backward compatibility; labels now use formatRoomLabel().
      */
     protected function locationLines(InventoryItem $item): array
     {
-        $room = $item->room;
-        $floor = $room?->floor;
-        $building = $floor?->building;
-
-        $buildingLine = trim((string) ($building?->name ?: $building?->code ?: ''));
-        if ($buildingLine === '') {
-            $buildingLine = '—';
-        }
-
-        if ($floor?->floor_number !== null) {
-            $floorLine = 'Lt.'.$floor->floor_number;
-        } else {
-            $floorLine = trim((string) ($floor?->name ?: $floor?->code ?: ''));
-            if ($floorLine === '') {
-                $floorLine = '—';
-            }
-        }
-
-        $roomRaw = trim((string) ($room?->code ?: $room?->name ?: ''));
-        if ($roomRaw === '') {
-            $roomLine = '—';
-        } elseif (Str::startsWith(Str::lower($roomRaw), 'ruang')) {
-            $roomLine = $roomRaw;
-        } else {
-            $roomLine = 'Ruang '.$roomRaw;
-        }
-
-        return [
-            Str::limit($buildingLine, 28, '...'),
-            Str::limit($floorLine, 16, '...'),
-            Str::limit($roomLine, 22, '...'),
-        ];
+        return [$this->formatRoomLabel($item)];
     }
 }

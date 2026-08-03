@@ -157,27 +157,27 @@ body.modal-open .undira-sidebar-backdrop {
   color: #fff !important;
 }
 
-/* Dark mode: semantic token remap (brand --undira-blue stays for bg/buttons) */
+/* Dark mode: semantic token remap (canonical palette; see undira-dark.css) */
 body.dark-mode {
-  --text-primary: #f1f5f9;
-  --text-secondary: #c5ced9;
-  --text-muted: #94a3b8;
-  --text-heading: #e7edff;
-  --text-link: #86efac;
-  --surface-primary: #18202d;
-  --surface-secondary: #202938;
-  --surface-elevated: #242e3d;
-  --app-bg: #111722;
-  --border-color: #354052;
-  --border-primary: #354052;
-  --shadow-color: rgba(0, 0, 0, 0.28);
-  --undira-gray: #111722;
-  --undira-text: #f1f5f9;
-  --undira-muted: #94a3b8;
-  --undira-gray-border: #354052;
-  --undira-blue-soft: rgba(143, 167, 255, 0.16);
-  --undira-green-soft: rgba(88, 196, 106, 0.16);
-  --undira-shadow: 0 4px 20px rgba(0, 0, 0, 0.28);
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+  --text-muted: #9CA3AF;
+  --text-heading: #F9FAFB;
+  --text-link: #93C5FD;
+  --surface-primary: #1F2937;
+  --surface-secondary: #273449;
+  --surface-elevated: #243044;
+  --app-bg: #111827;
+  --border-color: rgba(255, 255, 255, 0.08);
+  --border-primary: rgba(255, 255, 255, 0.08);
+  --shadow-color: rgba(0, 0, 0, 0.45);
+  --undira-gray: #111827;
+  --undira-text: #F9FAFB;
+  --undira-muted: #9CA3AF;
+  --undira-gray-border: rgba(255, 255, 255, 0.08);
+  --undira-blue-soft: rgba(37, 99, 235, 0.18);
+  --undira-green-soft: rgba(34, 197, 94, 0.16);
+  --undira-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 body.dark-mode .modal-content,

@@ -24,6 +24,8 @@
     <link rel="stylesheet" href="{{ asset('css/undira-loading.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-modals.css') }}">
     @stack('styles')
+    {{-- Global Dark Mode last: overrides page-level hardcodes without touching Blade markup --}}
+    <link rel="stylesheet" href="{{ asset('css/undira-dark.css') }}">
 </head>
 <body class="hold-transition sidebar-mini layout-fixed undira-erp">
 <script>

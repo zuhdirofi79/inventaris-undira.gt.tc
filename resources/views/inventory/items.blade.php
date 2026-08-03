@@ -155,11 +155,13 @@
 <div class="card card-undira">
     <div class="card-body">
         <div class="table-responsive">
-            <table id="inventoryTable" class="table table-striped table-hover w-100">
+            <table id="inventoryTable" class="table table-striped table-hover w-100 inventory-items-table">
                 <thead>
                     <tr>
-                        <th style="width:36px;">
-                            <input type="checkbox" id="checkPageAll" class="form-check-input" title="Pilih semua di halaman ini" data-no-loader="1">
+                        <th class="inv-check-col" scope="col" aria-label="Pilih">
+                            <span class="inv-check-wrap">
+                                <input type="checkbox" id="checkPageAll" class="form-check-input inv-check" title="Pilih semua di halaman ini" data-no-loader="1" aria-label="Pilih semua di halaman ini">
+                            </span>
                         </th>
                         <th>No. Inventaris</th>
                         <th>Nama</th>
@@ -212,11 +214,11 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="massLabelsModalLabel">Print Barcode (30 Label / A4)</h5>
+                <h5 class="modal-title" id="massLabelsModalLabel">Print Barcode (40 Label / A4)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>3 kolom × 10 baris</strong> (30 label/halaman).</p>
+                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>4 kolom × 10 baris</strong> (40 label/halaman).</p>
                 <p class="small text-muted mb-3">Fitur ini terpisah dari Cetak Label individual. QR tetap fokus utama pada setiap label.</p>
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-undira" id="btnPrintSelectedLabels" data-no-loader="1">
@@ -249,6 +251,31 @@ function updateMassSelectInfo() {
     const n = selectedIds.size;
     $('#massSelectInfo').text(n + ' item dipilih untuk label');
     $('#massSelectedCount').text(n);
+}
+
+/** Keep header checkbox + row highlight aligned with current page selection (UI only). */
+function syncInventoryCheckboxUi() {
+    const pageIds = [];
+    $('#inventoryTable tbody tr').each(function () {
+        const $row = $(this);
+        const $cb = $row.find('.row-check');
+        if (!$cb.length) {
+            $row.removeClass('inv-row-selected');
+            return;
+        }
+        const id = String($cb.val());
+        pageIds.push(id);
+        const checked = selectedIds.has(id);
+        $cb.prop('checked', checked);
+        $row.toggleClass('inv-row-selected', checked);
+    });
+
+    const $all = $('#checkPageAll');
+    if (!$all.length) return;
+    const allChecked = pageIds.length > 0 && pageIds.every(function (id) { return selectedIds.has(id); });
+    const someChecked = pageIds.some(function (id) { return selectedIds.has(id); });
+    $all.prop('checked', allChecked);
+    $all.prop('indeterminate', someChecked && !allChecked);
 }
 
 $('#filterCampus').on('change', function() {
@@ -308,10 +335,11 @@ function buildInventoryDataTableConfig(language) {
                 data: 'id',
                 orderable: false,
                 searchable: false,
-                className: 'text-center',
+                width: '52px',
+                className: 'inv-check-col dt-center text-center',
                 render: function (id) {
                     const checked = selectedIds.has(String(id)) ? 'checked' : '';
-                    return `<input type="checkbox" class="form-check-input row-check" value="${id}" ${checked} data-no-loader="1">`;
+                    return `<span class="inv-check-wrap"><input type="checkbox" class="form-check-input inv-check row-check" value="${id}" ${checked} data-no-loader="1" aria-label="Pilih inventaris"></span>`;
                 }
             },
             { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },
@@ -328,15 +356,12 @@ function buildInventoryDataTableConfig(language) {
                 @can('inventory.update')<a href="/inventory/${row.id}/edit" class="btn btn-xs btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>@endcan
             `}
         ],
+        columnDefs: [
+            { targets: 0, width: '52px', className: 'inv-check-col dt-center text-center', orderable: false, searchable: false }
+        ],
         order: [[1, 'asc']],
         drawCallback: function () {
-            const pageIds = [];
-            $('#inventoryTable tbody .row-check').each(function () {
-                pageIds.push(String(this.value));
-                this.checked = selectedIds.has(String(this.value));
-            });
-            const allChecked = pageIds.length > 0 && pageIds.every(id => selectedIds.has(id));
-            $('#checkPageAll').prop('checked', allChecked);
+            syncInventoryCheckboxUi();
             updateMassSelectInfo();
         }
     };
@@ -365,17 +390,20 @@ $('#inventoryTable').on('change', '.row-check', function () {
     const id = String(this.value);
     if (this.checked) selectedIds.add(id);
     else selectedIds.delete(id);
+    syncInventoryCheckboxUi();
     updateMassSelectInfo();
 });
 
 $('#checkPageAll').on('change', function () {
     const checked = this.checked;
+    this.indeterminate = false;
     $('#inventoryTable tbody .row-check').each(function () {
         this.checked = checked;
         const id = String(this.value);
         if (checked) selectedIds.add(id);
         else selectedIds.delete(id);
     });
+    syncInventoryCheckboxUi();
     updateMassSelectInfo();
 });
 
@@ -639,6 +667,7 @@ $('#btnResetFilter').on('click', function() {
     $('#filterForm')[0].reset();
     $('.select2-filter').val('').trigger('change');
     selectedIds.clear();
+    syncInventoryCheckboxUi();
     updateMassSelectInfo();
     if (table) table.ajax.reload();
 });

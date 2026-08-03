@@ -4,6 +4,12 @@
     <meta charset="utf-8">
     <title>Cetak Label QR Inventaris</title>
     <style>
+        /*
+         * Mass QR labels — A4 portrait, horizontal layout.
+         * DomPDF-safe: tables only (no flex/grid).
+         * Left: logo + name + category + room + number
+         * Right: large QR (full label height, primary focus)
+         */
         @page {
             size: A4 portrait;
             margin: {{ $layout['page_margin_mm'] }}mm;
@@ -14,8 +20,8 @@
         html, body {
             margin: 0;
             padding: 0;
-            font-family: DejaVu Sans, sans-serif;
-            color: #172033;
+            font-family: DejaVu Sans, Helvetica, Arial, sans-serif;
+            color: #111827;
             background: #fff;
         }
 
@@ -45,49 +51,44 @@
         .label {
             width: 100%;
             height: {{ $layout['cell_height_mm'] }}mm;
-            border: 0.5pt solid #c5cdd8;
-            border-radius: 1.2mm;
+            border: 1px solid #D1D5DB;
+            border-radius: 1mm;
             background: #fff;
-            padding: 0.8mm 1.2mm;
+            padding: {{ $layout['label_padding_mm'] }}mm;
             overflow: hidden;
-            text-align: center;
         }
 
         .label-empty {
-            border: 0.4pt dashed #e8edf3;
+            border: 0.4pt dashed #E5E7EB;
+            background: #fff;
         }
 
-        table.stack {
+        table.label-inner {
             width: 100%;
             height: 100%;
             border-collapse: collapse;
             table-layout: fixed;
         }
 
-        td.stack-logo {
-            height: {{ $layout['logo_max_height_mm'] + 0.8 }}mm;
-            vertical-align: middle;
-            text-align: center;
-            padding: 0 0 0.4mm;
-        }
-
-        td.stack-qr {
-            height: {{ $layout['qr_size_mm'] + 0.6 }}mm;
-            vertical-align: middle;
-            text-align: center;
-            padding: 0.2mm 0;
-        }
-
-        td.stack-number {
-            vertical-align: middle;
-            text-align: center;
-            padding: 0.3mm 0 0.2mm;
-        }
-
-        td.stack-name {
+        td.col-text {
+            width: {{ max(42, 100 - $layout['qr_col_width_pct']) }}%;
             vertical-align: top;
-            text-align: center;
+            padding: 0 {{ max(0.8, $layout['label_padding_mm'] * 0.35) }}mm 0 0;
+            overflow: hidden;
+        }
+
+        td.col-qr {
+            width: {{ $layout['qr_col_width_pct'] }}%;
+            vertical-align: middle;
+            text-align: right;
             padding: 0;
+        }
+
+        .logo-wrap {
+            height: {{ $layout['logo_max_height_mm'] + 0.3 }}mm;
+            margin-bottom: 0.55mm;
+            overflow: hidden;
+            text-align: left;
         }
 
         img.logo {
@@ -96,7 +97,73 @@
             max-height: {{ $layout['logo_max_height_mm'] }}mm;
             height: auto;
             display: block;
-            margin: 0 auto;
+        }
+
+        .logo-missing {
+            font-size: 5pt;
+            color: #B91C1C;
+            line-height: 1.15;
+            text-align: left;
+            word-break: break-all;
+        }
+
+        .name {
+            font-size: 9pt;
+            font-weight: bold;
+            line-height: 1.15;
+            color: #111827;
+            margin: 0 0 0.45mm 0;
+            max-height: 11pt;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+
+        .category {
+            font-size: 7pt;
+            font-weight: normal;
+            line-height: 1.15;
+            color: #111827;
+            margin: 0 0 0.35mm 0;
+            max-height: 8.2pt;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+
+        .room {
+            font-size: 7pt;
+            font-weight: bold;
+            line-height: 1.15;
+            color: #111827;
+            margin: 0 0 0.7mm 0;
+            max-height: 8.2pt;
+            overflow: hidden;
+            word-wrap: break-word;
+        }
+
+        .number-rule {
+            border: 0;
+            border-top: 0.5pt solid #D1D5DB;
+            margin: 0 0 0.4mm 0;
+            height: 0;
+        }
+
+        .number {
+            font-size: 7.5pt;
+            font-weight: bold;
+            line-height: 1.15;
+            color: #111827;
+            text-align: left;
+            word-break: break-all;
+            overflow: hidden;
+            max-height: 6.2mm;
+        }
+
+        .qr-wrap {
+            display: inline-block;
+            width: {{ $layout['qr_size_mm'] }}mm;
+            height: {{ $layout['qr_size_mm'] }}mm;
+            background: #fff;
+            text-align: center;
         }
 
         img.qr {
@@ -105,37 +172,12 @@
             max-width: {{ $layout['qr_size_mm'] }}mm;
             max-height: {{ $layout['qr_size_mm'] }}mm;
             display: block;
-            margin: 0 auto;
         }
 
-        .number {
-            font-size: {{ $layout['font_size_pt'] }}pt;
-            color: #b91c1c;
-            font-weight: bold;
-            line-height: 1.15;
-            word-break: break-all;
-            overflow: hidden;
-            max-height: {{ $layout['font_size_pt'] * 2.2 }}pt;
-        }
-
-        .name {
-            font-size: {{ max(7, $layout['font_size_pt'] - 0.3) }}pt;
-            font-weight: normal;
-            line-height: 1.15;
-            text-transform: uppercase;
-            max-height: {{ max(7, $layout['font_size_pt'] - 0.3) * 2.35 }}pt;
-            overflow: hidden;
-            word-wrap: break-word;
-        }
-
-        .logo-missing {
-            font-size: 5pt;
-            color: #b91c1c;
-            line-height: 1.15;
-            text-align: left;
-            word-break: break-all;
-            overflow: hidden;
-            max-height: {{ $layout['logo_max_height_mm'] + 0.5 }}mm;
+        @media print {
+            html, body { background: #fff; }
+            .page { page-break-after: always; }
+            .page:last-child { page-break-after: auto; }
         }
     </style>
 </head>
@@ -168,32 +210,29 @@
             <td class="cell">
                 @if($label)
                     <div class="label">
-                        <table class="stack">
+                        <table class="label-inner">
                             <tr>
-                                <td class="stack-logo">
-                                    @if(!empty($logoSrc))
-                                        <img class="logo" src="{{ $logoSrc }}" alt="Universitas Dian Nusantara">
-                                    @else
-                                        <div class="logo-missing">
-                                            LOGO GAGAL<br>
-                                            {{ \Illuminate\Support\Str::limit($logoMissingMessage ?: 'logo-undira.png tidak ditemukan', 120, '...') }}
-                                        </div>
-                                    @endif
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="stack-qr">
-                                    <img class="qr" src="{{ $label->qr_src }}" alt="QR">
-                                </td>
-                            </tr>
-                            <tr>
-                                <td class="stack-number">
+                                <td class="col-text">
+                                    <div class="logo-wrap">
+                                        @if(!empty($logoSrc))
+                                            <img class="logo" src="{{ $logoSrc }}" alt="Universitas Dian Nusantara">
+                                        @else
+                                            <div class="logo-missing">
+                                                LOGO GAGAL<br>
+                                                {{ \Illuminate\Support\Str::limit($logoMissingMessage ?: 'logo-undira.png tidak ditemukan', 80, '...') }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                    <div class="name">{{ $label->name }}</div>
+                                    <div class="category">{{ $label->category }}</div>
+                                    <div class="room">{{ $label->room }}</div>
+                                    <div class="number-rule"></div>
                                     <div class="number">{{ $label->inventory_number }}</div>
                                 </td>
-                            </tr>
-                            <tr>
-                                <td class="stack-name">
-                                    <div class="name">{{ $label->name }}</div>
+                                <td class="col-qr">
+                                    <div class="qr-wrap">
+                                        <img class="qr" src="{{ $label->qr_src }}" alt="QR">
+                                    </div>
                                 </td>
                             </tr>
                         </table>

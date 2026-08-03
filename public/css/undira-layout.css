@@ -866,8 +866,8 @@ body.sidebar-open .undira-sidebar-backdrop {
 
 /* —— Dark mode (layout chrome; tokens live in undira-modals.css) —— */
 body.dark-mode .undira-sidebar-brand.brand-link {
-  background: #ffffff !important;
-  border-bottom-color: rgba(15, 23, 42, 0.12) !important;
+  background: linear-gradient(135deg, #0D1B4A 0%, #1A237E 100%) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 body.dark-mode .app-identity-title {

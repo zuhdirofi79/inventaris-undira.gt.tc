@@ -719,27 +719,26 @@ body.dark-mode .status-inactive {
   .auth-card-footer { padding: 0 1.25rem 1.25rem; }
   .page-header-undira h1 { font-size: 1.25rem !important; }
 }
-/* Dark mode — token-driven (see also undira-modals.css). Brand blues for
-   button/badge backgrounds stay #1A237E; text uses --text-heading. */
+/* Dark mode — token-driven (canonical palette in undira-dark.css). */
 body.dark-mode {
-  --undira-gray: var(--app-bg, #111722);
-  --undira-text: var(--text-primary, #f1f5f9);
-  --undira-muted: var(--text-muted, #94a3b8);
-  --undira-gray-border: var(--border-color, #354052);
-  --undira-blue-soft: rgba(143, 167, 255, 0.16);
-  --undira-green-soft: rgba(88, 196, 106, 0.16);
-  --undira-shadow: 0 4px 20px var(--shadow-color, rgba(0, 0, 0, 0.28));
+  --undira-gray: var(--app-bg, #111827);
+  --undira-text: var(--text-primary, #F9FAFB);
+  --undira-muted: var(--text-muted, #9CA3AF);
+  --undira-gray-border: var(--border-color, rgba(255, 255, 255, 0.08));
+  --undira-blue-soft: rgba(37, 99, 235, 0.18);
+  --undira-green-soft: rgba(34, 197, 94, 0.16);
+  --undira-shadow: 0 8px 24px var(--shadow-color, rgba(0, 0, 0, 0.45));
 }
 
 body.dark-mode,
 body.dark-mode .content-wrapper {
-  background-color: var(--app-bg, #111722) !important;
+  background-color: var(--app-bg, #111827) !important;
   color: var(--text-primary);
 }
 
 body.dark-mode .main-header.navbar.navbar-undira {
-  background-color: var(--surface-primary, #18202d) !important;
-  border-bottom: 1px solid var(--border-color, #354052) !important;
+  background-color: var(--surface-primary, #1F2937) !important;
+  border-bottom: 1px solid var(--border-color, rgba(255, 255, 255, 0.08)) !important;
 }
 
 body.dark-mode .navbar-undira .nav-link {
@@ -754,22 +753,23 @@ body.dark-mode .navbar-undira .nav-link:focus-visible {
 body.dark-mode .card,
 body.dark-mode .card-undira,
 body.dark-mode .filter-panel {
-  background-color: var(--surface-primary, #18202d) !important;
+  background-color: var(--surface-primary, #1F2937) !important;
   color: var(--text-primary);
-  border-color: var(--border-color, #354052) !important;
+  border-color: var(--border-color, rgba(255, 255, 255, 0.08)) !important;
 }
 
 body.dark-mode .card-header,
 body.dark-mode .table thead th {
-  background: var(--surface-secondary, #202938) !important;
+  background: var(--surface-secondary, #273449) !important;
   color: var(--text-heading) !important;
-  border-color: var(--border-color, #354052) !important;
+  border-color: var(--border-color, rgba(255, 255, 255, 0.08)) !important;
 }
 
 body.dark-mode .table,
 body.dark-mode .table td {
   color: var(--text-primary) !important;
-  border-color: var(--border-color, #354052) !important;
+  border-color: var(--border-color, rgba(255, 255, 255, 0.08)) !important;
+  background-color: var(--surface-primary, #1F2937);
 }
 
 body.dark-mode .table-hover > tbody > tr:hover > * {
@@ -778,9 +778,9 @@ body.dark-mode .table-hover > tbody > tr:hover > * {
 }
 
 body.dark-mode .main-footer {
-  background-color: var(--surface-primary, #18202d) !important;
+  background-color: var(--surface-primary, #1F2937) !important;
   color: var(--text-secondary) !important;
-  border-top-color: var(--border-color, #354052) !important;
+  border-top-color: var(--border-color, rgba(255, 255, 255, 0.08)) !important;
 }
 
 body.dark-mode .breadcrumb-item a {
@@ -802,7 +802,7 @@ body.dark-mode .navbar-undira .fw-semibold {
 }
 
 body.dark-mode .dropdown-menu {
-  background-color: var(--surface-elevated, #242e3d);
+  background-color: var(--surface-elevated, #243044);
   border-color: var(--border-color);
   color: var(--text-primary);
 }

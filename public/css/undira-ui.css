@@ -491,6 +491,86 @@ body.hold-transition {
   transition: background 0.15s ease;
 }
 
+/* —— Inventory DataTables checkbox column —— */
+#inventoryTable.inventory-items-table th.inv-check-col,
+#inventoryTable.inventory-items-table td.inv-check-col {
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 56px !important;
+  padding-left: 0.65rem !important;
+  padding-right: 0.65rem !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  box-sizing: border-box;
+}
+
+#inventoryTable.inventory-items-table .inv-check-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 1.25rem;
+  margin: 0;
+  padding: 0;
+}
+
+#inventoryTable.inventory-items-table .form-check-input.inv-check {
+  width: 1.05rem;   /* ~17px */
+  height: 1.05rem;
+  min-width: 1.05rem;
+  margin: 0 !important;
+  float: none !important;
+  position: static !important;
+  vertical-align: middle;
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 0.2rem;
+  border: 1.5px solid #94A3B8;
+  background-color: #fff;
+  box-shadow: none;
+}
+
+#inventoryTable.inventory-items-table .form-check-input.inv-check:checked {
+  background-color: #2E7D32;
+  border-color: #2E7D32;
+}
+
+#inventoryTable.inventory-items-table .form-check-input.inv-check:focus {
+  box-shadow: 0 0 0 0.15rem rgba(46, 125, 50, 0.25);
+  border-color: #2E7D32;
+}
+
+#inventoryTable.inventory-items-table .form-check-input.inv-check:indeterminate {
+  background-color: #2E7D32;
+  border-color: #2E7D32;
+}
+
+#inventoryTable.inventory-items-table tbody tr.inv-row-selected > * {
+  background-color: rgba(46, 125, 50, 0.07) !important;
+  box-shadow: inset 3px 0 0 #2E7D32;
+}
+
+#inventoryTable.inventory-items-table tbody tr.inv-row-selected:hover > * {
+  background-color: rgba(46, 125, 50, 0.11) !important;
+}
+
+/* Keep checkbox column stable when DataTables scrolls / sorts */
+#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col,
+#inventoryTable.inventory-items-table.dataTable tbody td.inv-check-col {
+  width: 52px !important;
+}
+
+@media (max-width: 767.98px) {
+  #inventoryTable.inventory-items-table th.inv-check-col,
+  #inventoryTable.inventory-items-table td.inv-check-col {
+    width: 48px !important;
+    min-width: 48px !important;
+    max-width: 52px !important;
+    padding-left: 0.45rem !important;
+    padding-right: 0.45rem !important;
+  }
+}
+
 /* —— Sidebar / navbar polish —— */
 .main-sidebar.sidebar-dark-undira {
   background: linear-gradient(180deg, #0B1438 0%, #141E52 42%, #18245F 100%) !important;
@@ -644,42 +724,40 @@ body.hold-transition {
   }
 }
 
-/* —— Dark mode bridge —— */
+/* —— Dark mode bridge (canonical palette; full rules in undira-dark.css) —— */
 body.dark-mode {
-  --ui-canvas: #12131A;
-  --ui-surface: #1A1B26;
+  --ui-canvas: #111827;
+  --ui-surface: #1F2937;
   --ui-border: rgba(255, 255, 255, 0.08);
-  --ui-text: #E2E8F0;
-  --ui-muted: #94A3B8;
-  --ui-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  --ui-text: #F9FAFB;
+  --ui-muted: #9CA3AF;
+  --ui-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
 }
 
 body.dark-mode .content-wrapper {
-  background: radial-gradient(900px 360px at 0% 0%, rgba(46, 125, 50, 0.08), transparent 50%),
-              radial-gradient(800px 320px at 100% 0%, rgba(57, 73, 171, 0.12), transparent 45%),
-              #12131A !important;
+  background: #111827 !important;
 }
 
 body.dark-mode .main-header.navbar-undira {
-  background: rgba(26, 27, 38, 0.92) !important;
+  background: #1F2937 !important;
 }
 
 body.dark-mode .ui-page-header__title,
 body.dark-mode .page-header-undira h1,
 body.dark-mode .ui-panel__title,
 body.dark-mode .ui-section-title__heading {
-  color: #E8ECFF !important;
+  color: #F9FAFB !important;
 }
 
 body.dark-mode .form-control,
 body.dark-mode .form-select {
-  background: #161722 !important;
+  background: #111827 !important;
   color: var(--ui-text) !important;
 }
 
 body.dark-mode .card-footer,
 body.dark-mode .modal-footer {
-  background: rgba(0, 0, 0, 0.2) !important;
+  background: #1F2937 !important;
 }
 
 /* ==========================================================================
