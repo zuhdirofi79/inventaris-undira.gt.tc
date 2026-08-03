@@ -129,15 +129,20 @@ class InventoryMassLabels30Test extends TestCase
         $service = app(\App\Services\InventoryMassLabelService::class);
         $layout = $service->layout();
 
-        $this->assertSame(4, $layout['columns']);
-        $this->assertSame(10, $layout['rows']);
+        $this->assertSame(5, $layout['columns']);
+        $this->assertSame(8, $layout['rows']);
         $this->assertSame(40, $layout['per_page']);
-        $this->assertGreaterThanOrEqual(16.0, $layout['qr_size_mm']);
-        $this->assertGreaterThanOrEqual(12.0, $layout['logo_width_mm']);
+        $this->assertEqualsWithDelta(20.0, $layout['qr_size_mm'], 0.01);
+        $this->assertGreaterThanOrEqual(11.0, $layout['logo_width_mm']);
         $this->assertLessThanOrEqual(18.0, $layout['logo_width_mm']);
         $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
         $this->assertGreaterThanOrEqual(4.0, $layout['gap_x_mm']);
-        $this->assertGreaterThanOrEqual(3.0, $layout['gap_y_mm']);
+        $this->assertGreaterThanOrEqual(4.0, $layout['gap_y_mm']);
+        $this->assertLessThanOrEqual(8.0, $layout['gap_x_mm']);
+        $this->assertLessThanOrEqual(8.0, $layout['gap_y_mm']);
+        // Grid cells must tile the usable A4 area (no orphan empty band).
+        $usableH = 297.0 - (2 * $layout['page_margin_mm']);
+        $this->assertEqualsWithDelta($usableH, $layout['cell_height_mm'] * $layout['rows'], 0.05);
     }
 
     public function test_undira_logo_resolves_as_embedded_data_uri(): void
@@ -161,7 +166,7 @@ class InventoryMassLabels30Test extends TestCase
             ->assertOk()
             ->assertSee('Cetak Label QR')
             ->assertSee('40 Label / A4')
-            ->assertSee('4 kolom × 10 baris')
+            ->assertSee('5 kolom × 8 baris')
             ->assertDontSee('30 Label / A4')
             ->assertSee('id="massLabelsModal"', false)
             ->assertSee(route('inventory.labels.mass30', [], false), false)

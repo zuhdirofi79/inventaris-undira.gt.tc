@@ -158,9 +158,9 @@
             <table id="inventoryTable" class="table table-striped table-hover w-100 inventory-items-table">
                 <thead>
                     <tr>
-                        <th class="inv-check-col" scope="col" aria-label="Pilih">
-                            <span class="inv-check-wrap">
-                                <input type="checkbox" id="checkPageAll" class="form-check-input inv-check" title="Pilih semua di halaman ini" data-no-loader="1" aria-label="Pilih semua di halaman ini">
+                        <th class="inv-check-col sorting_disabled" scope="col">
+                            <span class="inv-check-wrap d-flex justify-content-center align-items-center">
+                                <input type="checkbox" id="checkPageAll" class="form-check-input inv-check" title="Pilih Semua Inventaris" data-no-loader="1" aria-label="Pilih Semua Inventaris">
                             </span>
                         </th>
                         <th>No. Inventaris</th>
@@ -218,7 +218,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>4 kolom × 10 baris</strong> (40 label/halaman).</p>
+                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>5 kolom × 8 baris</strong> (40 label/halaman).</p>
                 <p class="small text-muted mb-3">Fitur ini terpisah dari Cetak Label individual. QR tetap fokus utama pada setiap label.</p>
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-undira" id="btnPrintSelectedLabels" data-no-loader="1">
@@ -339,7 +339,7 @@ function buildInventoryDataTableConfig(language) {
                 className: 'inv-check-col dt-center text-center',
                 render: function (id) {
                     const checked = selectedIds.has(String(id)) ? 'checked' : '';
-                    return `<span class="inv-check-wrap"><input type="checkbox" class="form-check-input inv-check row-check" value="${id}" ${checked} data-no-loader="1" aria-label="Pilih inventaris"></span>`;
+                    return `<span class="inv-check-wrap d-flex justify-content-center align-items-center"><input type="checkbox" class="form-check-input inv-check row-check" value="${id}" ${checked} data-no-loader="1" aria-label="Pilih Inventaris"></span>`;
                 }
             },
             { data: 'inventory_number', render: (data, type, row) => `<a href="/inventory/${row.id}">${data}</a>` },

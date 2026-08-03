@@ -318,13 +318,13 @@ class ReportController extends Controller
             return $pdf->download("laporan_{$slug}_{$orientation}_{$stamp}.pdf");
         }
 
-        $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tahun Pengadaan', 'Tgl Pengadaan'];
+        $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Unit Kerja', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tahun Pengadaan', 'Tgl Pengadaan'];
         $rows = [];
         foreach ($doc['items'] as $i => $item) {
             $mapped = $this->reports->mapInventoryRow($item, $i + 1, false);
             $rows[] = [
                 $mapped['no'], $mapped['inventory_number'], $mapped['name'], $mapped['category'], $mapped['sub_category'],
-                $mapped['brand'], $mapped['serial_number'], $mapped['location'], $mapped['pic'], $mapped['status'],
+                $mapped['org_unit'], $mapped['brand'], $mapped['serial_number'], $mapped['location'], $mapped['pic'], $mapped['status'],
                 $mapped['condition'], $mapped['purchase_year'], $mapped['purchase_date'],
             ];
         }

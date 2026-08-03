@@ -40,9 +40,10 @@ class DashboardStatsService
                 ->groupBy('status')
                 ->pluck('total', 'status');
 
+            $conditionCol = InventoryItem::query()->getConnection()->getQueryGrammar()->wrap('condition');
             $conditionCounts = InventoryItem::query()
                 ->toBase()
-                ->selectRaw('condition as cond, COUNT(*) as total')
+                ->selectRaw("{$conditionCol} as cond, COUNT(*) as total")
                 ->groupBy('condition')
                 ->pluck('total', 'cond');
 
@@ -463,9 +464,10 @@ class DashboardStatsService
             ];
         }
 
+        $conditionCol = InventoryItem::query()->getConnection()->getQueryGrammar()->wrap('condition');
         $byCondition = InventoryItem::query()
             ->toBase()
-            ->selectRaw('condition as label_key, COUNT(*) as total')
+            ->selectRaw("{$conditionCol} as label_key, COUNT(*) as total")
             ->groupBy('condition')
             ->get()
             ->map(function ($row) {

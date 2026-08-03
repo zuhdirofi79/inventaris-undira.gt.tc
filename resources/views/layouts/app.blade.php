@@ -4,7 +4,21 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'Inventaris UNDIRA')</title>
+    @php
+        use App\Support\AppSettings;
+        try {
+            $undiraAppName = AppSettings::appName();
+            $undiraLogoUrl = AppSettings::logoUrl();
+            $undiraFooterText = AppSettings::footerText();
+            $undiraUniversityName = AppSettings::universityName();
+        } catch (\Throwable $e) {
+            $undiraAppName = (string) config('app.name', 'Inventaris UNDIRA');
+            $undiraLogoUrl = asset('images/LOGO UNDIRA.png');
+            $undiraFooterText = '© '.date('Y').' Biro PPPA. Universitas Dian Nusantara';
+            $undiraUniversityName = 'Universitas Dian Nusantara';
+        }
+    @endphp
+    <title>@yield('title', $undiraAppName)</title>
     @include('partials.favicon')
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -62,8 +76,8 @@
                 </a>
             </li>
             <li class="nav-item min-w-0">
-                <a href="{{ route('dashboard') }}" class="nav-link app-identity" title="Inventaris UNDIRA">
-                    <span class="app-identity-title">Inventaris UNDIRA</span>
+                <a href="{{ route('dashboard') }}" class="nav-link app-identity" title="{{ $undiraAppName }}">
+                    <span class="app-identity-title">{{ $undiraAppName }}</span>
                 </a>
             </li>
         </ul>
@@ -111,11 +125,11 @@
     </nav>
 
     <aside class="main-sidebar sidebar-dark-primary elevation-4 sidebar-dark-undira sidebar-no-expand" id="main-sidebar" aria-label="Navigasi utama">
-        <a href="{{ route('dashboard') }}" class="brand-link undira-sidebar-brand" title="Inventaris UNDIRA">
+        <a href="{{ route('dashboard') }}" class="brand-link undira-sidebar-brand" title="{{ $undiraAppName }}">
             <span class="undira-sidebar-logo-wrap">
                 <img
-                    src="{{ asset('images/LOGO UNDIRA.png') }}"
-                    alt="Logo Universitas Dian Nusantara"
+                    src="{{ $undiraLogoUrl }}"
+                    alt="Logo {{ $undiraUniversityName }}"
                     class="undira-sidebar-logo"
                     decoding="async"
                 >
@@ -176,8 +190,25 @@
         </section>
     </div>
 
-    <footer class="main-footer text-sm">
-        <strong>&copy; {{ date('Y') }} Inventaris UNDIRA.</strong> Universitas Dian Nusantara.
+    <footer class="main-footer undira-footer">
+        <div class="undira-footer__inner">
+            <div class="undira-footer__left text-body-secondary">
+                <span class="undira-footer__copy">{{ $undiraFooterText }}</span>
+            </div>
+            <div class="undira-footer__right text-body-secondary">
+                <span class="undira-footer__meta">
+                    <span class="undira-footer__credit" title="Developed by zwars">
+                        <i class="fas fa-laptop-code" aria-hidden="true"></i>
+                        Developed by zwars
+                    </span>
+                    <span class="undira-footer__sep" aria-hidden="true">•</span>
+                    <span class="undira-footer__version">
+                        <i class="fas fa-code-branch" aria-hidden="true"></i>
+                        Version 1.0.0
+                    </span>
+                </span>
+            </div>
+        </div>
     </footer>
 </div>
 

@@ -112,6 +112,7 @@ class EamReportService
         return $this->inventoryQuery($request, $type)->with([
             'category:id,code,name',
             'subCategory:id,category_id,code,name',
+            'orgUnit:id,code,name',
             'room:id,floor_id,code,name',
             'room.floor:id,building_id,code,name,floor_number',
             'room.floor.building:id,campus_id,code,name',
@@ -311,9 +312,10 @@ class EamReportService
             ->limit(15)
             ->get();
 
+        $conditionCol = DB::connection()->getQueryGrammar()->wrap('condition');
         $byCondition = (clone $base)
             ->groupBy('condition')
-            ->select('condition as label', DB::raw('COUNT(*) as total'))
+            ->selectRaw("{$conditionCol} as label, COUNT(*) as total")
             ->get()
             ->map(fn ($row) => [
                 'label' => InventoryCondition::tryFrom((string) $row->label)?->label() ?? ($row->label ?: '—'),
@@ -434,6 +436,7 @@ class EamReportService
             'name' => $item->name,
             'category' => $item->category?->name ?? '—',
             'sub_category' => $item->subCategory?->name ?? '—',
+            'org_unit' => $item->orgUnit?->name ?: '-',
             'brand' => $item->brand ?: '—',
             'serial_number' => $item->serial_number ?: '—',
             'location' => $item->locationDisplayName(),

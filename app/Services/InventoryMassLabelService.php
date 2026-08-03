@@ -30,10 +30,13 @@ class InventoryMassLabelService
      *     page_margin_mm: float,
      *     gap_x_mm: float,
      *     gap_y_mm: float,
+     *     cell_pad_x_mm: float,
+     *     cell_pad_y_mm: float,
      *     qr_size_mm: float,
      *     logo_width_mm: float,
      *     logo_max_height_mm: float,
      *     label_padding_mm: float,
+     *     label_padding_bottom_mm: float,
      *     number_row_mm: float,
      *     qr_col_width_pct: float,
      *     font_size_pt: float,
@@ -41,58 +44,80 @@ class InventoryMassLabelService
      *     max_items: int,
      *     cell_width_pct: float,
      *     cell_height_mm: float,
-     *     cell_width_mm: float
+     *     cell_width_mm: float,
+     *     label_height_mm: float,
+     *     label_width_mm: float
      * }
      */
     public function layout(): array
     {
-        $columns = max(1, (int) config('inventory_labels.columns', 4));
-        $rows = max(1, (int) config('inventory_labels.rows', 10));
-        $pageMargin = max(5.0, (float) config('inventory_labels.page_margin_mm', 8));
-        $gapX = max(2.0, (float) config('inventory_labels.gap_x_mm', 5));
-        $gapY = max(2.0, (float) config('inventory_labels.gap_y_mm', 4));
-        $qrSize = max(16.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 20)));
-        $logoWidth = max(12.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 15)));
-        $logoMaxHeight = max(3.5, min(6.0, (float) config('inventory_labels.logo_max_height_mm', 5)));
-        $labelPadding = max(1.2, min(3.0, (float) config('inventory_labels.label_padding_mm', 2)));
+        $columns = max(1, (int) config('inventory_labels.columns', 5));
+        $rows = max(1, (int) config('inventory_labels.rows', 8));
+        $pageMargin = max(4.0, (float) config('inventory_labels.page_margin_mm', 5));
+        $gapX = max(4.0, min(8.0, (float) config('inventory_labels.gap_x_mm', 5)));
+        $gapY = max(4.0, min(8.0, (float) config('inventory_labels.gap_y_mm', 5)));
+        // QR size is locked — never shrink for gutters.
+        $qrSize = max(18.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 20)));
+        $logoWidth = max(11.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 14)));
+        $logoMaxHeight = max(3.2, min(6.0, (float) config('inventory_labels.logo_max_height_mm', 4.5)));
+        $labelPadding = max(0.8, min(2.5, (float) config('inventory_labels.label_padding_mm', 1.0)));
+        $labelPaddingBottom = max(2.0, min(5.0, (float) config('inventory_labels.label_padding_bottom_mm', 2.5)));
         $fontPt = max(7.0, min(10.0, (float) config('inventory_labels.font_size_pt', 7.5)));
+        $numberRowMm = 2.8;
 
-        // A4 usable area
+        /*
+         * DomPDF-safe grid: divide the full usable area into equal cells.
+         * Gaps are cell padding (NOT border-spacing). That keeps total table
+         * height = usable height so DomPDF does not page-break mid-grid.
+         */
         $usableWidth = 210.0 - (2 * $pageMargin);
         $usableHeight = 297.0 - (2 * $pageMargin);
-        $totalGapX = max(0, $columns - 1) * $gapX;
-        $totalGapY = max(0, $rows - 1) * $gapY;
-        $cellWidth = ($usableWidth - $totalGapX) / $columns;
-        $cellHeight = ($usableHeight - $totalGapY) / $rows;
+        $cellWidth = $usableWidth / $columns;
+        $cellHeight = $usableHeight / $rows;
 
-        // QR sits in the right column and can use nearly the full inner height.
-        $numberRowMm = 6.2;
-        $maxQrByHeight = max(16.0, $cellHeight - (2 * $labelPadding) - 0.6);
-        $maxQrByWidth = max(16.0, ($cellWidth * 0.52) - 0.8);
-        $qrSize = min($qrSize, round($maxQrByHeight, 2), round($maxQrByWidth, 2));
+        // Ease gaps only if the label box cannot hold the locked QR.
+        $minGap = 4.0;
+        while ($gapY > $minGap + 0.001) {
+            $labelHeight = $cellHeight - $gapY;
+            $minLabelHeight = $qrSize + $labelPadding + $labelPaddingBottom + 0.3;
+            if ($labelHeight + 0.001 >= $minLabelHeight) {
+                break;
+            }
+            $gapY = round($gapY - 0.25, 2);
+        }
 
-        // QR column ≈ QR size + small gutter from text.
-        $qrColPct = min(52.0, max(40.0, (($qrSize + 1.4) / max(1.0, $cellWidth)) * 100));
+        $cellPadX = $gapX / 2;
+        $cellPadY = $gapY / 2;
+        $labelWidth = max(1.0, $cellWidth - $gapX);
+        $labelHeight = max(1.0, $cellHeight - $gapY);
+
+        // QR column hugs the QR square inside the label box.
+        $qrColPct = min(58.0, max(42.0, (($qrSize + 0.5) / max(1.0, $labelWidth)) * 100));
 
         return [
             'columns' => $columns,
             'rows' => $rows,
             'per_page' => $columns * $rows,
             'page_margin_mm' => $pageMargin,
-            'gap_x_mm' => $gapX,
-            'gap_y_mm' => $gapY,
+            'gap_x_mm' => round($gapX, 2),
+            'gap_y_mm' => round($gapY, 2),
+            'cell_pad_x_mm' => round($cellPadX, 2),
+            'cell_pad_y_mm' => round($cellPadY, 2),
             'qr_size_mm' => $qrSize,
             'logo_width_mm' => $logoWidth,
             'logo_max_height_mm' => $logoMaxHeight,
             'label_padding_mm' => $labelPadding,
+            'label_padding_bottom_mm' => $labelPaddingBottom,
             'number_row_mm' => $numberRowMm,
             'qr_col_width_pct' => round($qrColPct, 2),
             'font_size_pt' => $fontPt,
-            'name_max_chars' => max(20, (int) config('inventory_labels.name_max_chars', 36)),
+            'name_max_chars' => max(20, (int) config('inventory_labels.name_max_chars', 32)),
             'max_items' => max(1, (int) config('inventory_labels.max_items', 500)),
             'cell_width_pct' => 100 / $columns,
             'cell_height_mm' => round($cellHeight, 2),
             'cell_width_mm' => round($cellWidth, 2),
+            'label_height_mm' => round($labelHeight, 2),
+            'label_width_mm' => round($labelWidth, 2),
         ];
     }
 

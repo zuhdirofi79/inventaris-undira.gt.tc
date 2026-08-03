@@ -55,6 +55,29 @@ body.sidebar-mini .main-sidebar {
   z-index: 1040;
 }
 
+/*
+ * Full-viewport sidebar shell (AdminLTE layout-fixed compatible).
+ * Brand is taller than AdminLTE's default 3.5rem; flex + min-height:0
+ * keeps .sidebar scrollable so the last menu (Settings) is reachable.
+ */
+body.layout-fixed .main-sidebar,
+body.layout-fixed.sidebar-mini .main-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
+}
+
+body.layout-fixed .main-sidebar > .brand-link,
+body.layout-fixed .main-sidebar > .undira-sidebar-brand {
+  flex: 0 0 auto;
+}
+
 /* —— Top navbar —— */
 .main-header.navbar.navbar-undira {
   min-height: var(--topbar-height);
@@ -271,12 +294,25 @@ body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .user-panel-undira .user-a
   font-size: 0.8rem;
 }
 
-/* —— Sidebar scroll + custom scrollbar —— */
-.main-sidebar .sidebar {
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 1rem;
-  height: calc(100vh - var(--sidebar-brand-height));
+/* —— Sidebar scroll + custom scrollbar ——
+ * Beat AdminLTE:
+ *   .layout-fixed .wrapper .sidebar { height: calc(100vh - (3.5rem + 1px)) }
+ *   .sidebar { height: calc(100% - (3.5rem + 1px)); overflow-y: initial }
+ * Those assume a ~57px brand; UNDIRA brand is 76px, so the old height
+ * overflowed and was clipped by .main-sidebar { overflow-y: hidden }.
+ */
+body.layout-fixed .wrapper .main-sidebar .sidebar,
+body.layout-fixed.sidebar-mini .wrapper .main-sidebar .sidebar,
+.layout-fixed .wrapper .main-sidebar .sidebar {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto !important;
+  max-height: none !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 1.5rem;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.28) transparent;
 }
@@ -298,9 +334,12 @@ body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .user-panel-undira .user-a
   background: rgba(255, 255, 255, 0.42);
 }
 
-body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .main-sidebar .sidebar {
-  height: calc(100vh - var(--sidebar-collapsed-width));
-  overflow-x: visible;
+/* Collapsed rail: keep vertical scroll; floating submenus are position:fixed */
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .wrapper .main-sidebar .sidebar,
+body.layout-fixed.sidebar-mini.sidebar-collapse:not(.sidebar-open) .wrapper .main-sidebar .sidebar {
+  height: auto !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
 }
 
 /* —— Sidebar menu rhythm (expanded) —— */

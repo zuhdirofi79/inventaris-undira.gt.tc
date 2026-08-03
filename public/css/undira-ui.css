@@ -491,83 +491,121 @@ body.hold-transition {
   transition: background 0.15s ease;
 }
 
-/* —— Inventory DataTables checkbox column —— */
+/* —— Inventory DataTables checkbox column (enterprise alignment) —— */
 #inventoryTable.inventory-items-table th.inv-check-col,
-#inventoryTable.inventory-items-table td.inv-check-col {
+#inventoryTable.inventory-items-table td.inv-check-col,
+#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col,
+#inventoryTable.inventory-items-table.dataTable tbody td.inv-check-col {
   width: 52px !important;
   min-width: 52px !important;
-  max-width: 56px !important;
-  padding-left: 0.65rem !important;
-  padding-right: 0.65rem !important;
+  max-width: 52px !important;
+  padding: 0.75rem 0.7rem !important;
   text-align: center !important;
   vertical-align: middle !important;
   box-sizing: border-box;
 }
 
+/* Match header cell chrome — no floating checkbox look */
+#inventoryTable.inventory-items-table thead th.inv-check-col,
+#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col {
+  background: #F7F9FC !important;
+  background-image: none !important;
+  border-bottom-width: 1px !important;
+  /* Kill DataTables sort-icon padding that shoves the checkbox left */
+  padding-right: 0.7rem !important;
+  padding-left: 0.7rem !important;
+}
+
+#inventoryTable.inventory-items-table thead th.inv-check-col::before,
+#inventoryTable.inventory-items-table thead th.inv-check-col::after,
+#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col::before,
+#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col::after {
+  display: none !important;
+  content: none !important;
+}
+
 #inventoryTable.inventory-items-table .inv-check-wrap {
-  display: inline-flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 1.25rem;
-  margin: 0;
+  min-height: 18px;
+  margin: 0 auto;
   padding: 0;
 }
 
 #inventoryTable.inventory-items-table .form-check-input.inv-check {
-  width: 1.05rem;   /* ~17px */
-  height: 1.05rem;
-  min-width: 1.05rem;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
   margin: 0 !important;
   float: none !important;
   position: static !important;
   vertical-align: middle;
   cursor: pointer;
   flex-shrink: 0;
-  border-radius: 0.2rem;
-  border: 1.5px solid #94A3B8;
-  background-color: #fff;
+  border-radius: 0.25em; /* Bootstrap default */
+  border: 1.5px solid var(--ui-muted, #64748B);
+  background-color: var(--ui-surface, #ffffff);
+  background-image: none;
   box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 #inventoryTable.inventory-items-table .form-check-input.inv-check:checked {
-  background-color: #2E7D32;
-  border-color: #2E7D32;
-}
-
-#inventoryTable.inventory-items-table .form-check-input.inv-check:focus {
-  box-shadow: 0 0 0 0.15rem rgba(46, 125, 50, 0.25);
-  border-color: #2E7D32;
+  background-color: var(--ui-green, #2E7D32);
+  border-color: var(--ui-green, #2E7D32);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px 12px;
 }
 
 #inventoryTable.inventory-items-table .form-check-input.inv-check:indeterminate {
-  background-color: #2E7D32;
-  border-color: #2E7D32;
+  background-color: var(--ui-green, #2E7D32);
+  border-color: var(--ui-green, #2E7D32);
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10h8'/%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 12px 12px;
 }
 
+#inventoryTable.inventory-items-table .form-check-input.inv-check:focus {
+  box-shadow: 0 0 0 0.15rem rgba(46, 125, 50, 0.22);
+  border-color: var(--ui-green, #2E7D32);
+}
+
+#inventoryTable.inventory-items-table .form-check-input.inv-check:hover {
+  cursor: pointer;
+  border-color: var(--ui-green, #2E7D32);
+}
+
+/* Selected row highlight — checkbox must not shift */
 #inventoryTable.inventory-items-table tbody tr.inv-row-selected > * {
-  background-color: rgba(46, 125, 50, 0.07) !important;
-  box-shadow: inset 3px 0 0 #2E7D32;
+  background-color: #e8f5e9 !important;
+  box-shadow: none;
 }
 
-#inventoryTable.inventory-items-table tbody tr.inv-row-selected:hover > * {
-  background-color: rgba(46, 125, 50, 0.11) !important;
+#inventoryTable.inventory-items-table.table-hover tbody tr.inv-row-selected:hover > * {
+  background-color: #e8f5e9 !important;
 }
 
-/* Keep checkbox column stable when DataTables scrolls / sorts */
-#inventoryTable.inventory-items-table.dataTable thead th.inv-check-col,
-#inventoryTable.inventory-items-table.dataTable tbody td.inv-check-col {
-  width: 52px !important;
+#inventoryTable.inventory-items-table.table-hover tbody tr:hover > * {
+  transition: background-color 0.15s ease;
 }
 
+/* Fixed width on all breakpoints (including mobile) */
 @media (max-width: 767.98px) {
   #inventoryTable.inventory-items-table th.inv-check-col,
-  #inventoryTable.inventory-items-table td.inv-check-col {
-    width: 48px !important;
-    min-width: 48px !important;
+  #inventoryTable.inventory-items-table td.inv-check-col,
+  #inventoryTable.inventory-items-table.dataTable thead th.inv-check-col,
+  #inventoryTable.inventory-items-table.dataTable tbody td.inv-check-col {
+    width: 52px !important;
+    min-width: 52px !important;
     max-width: 52px !important;
-    padding-left: 0.45rem !important;
-    padding-right: 0.45rem !important;
+    padding: 0.65rem 0.6rem !important;
   }
 }
 
@@ -593,7 +631,105 @@ body.hold-transition {
   background: transparent !important;
   border-top: 1px solid var(--ui-border) !important;
   color: var(--ui-muted);
-  padding: 1rem 1.25rem;
+  padding: 0.85rem 1.25rem;
+}
+
+/* —— App footer (copyright + credit) —— */
+.main-footer.undira-footer {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+  padding: 0.9rem 1.35rem;
+  color: var(--ui-muted);
+}
+
+.undira-footer__inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem 1.25rem;
+  flex-wrap: nowrap;
+  width: 100%;
+}
+
+.undira-footer__left {
+  text-align: left;
+  min-width: 0;
+}
+
+.undira-footer__right {
+  text-align: right;
+  margin-left: auto;
+  min-width: 0;
+}
+
+.undira-footer__copy,
+.undira-footer__meta,
+.undira-footer__credit,
+.undira-footer__version {
+  color: inherit;
+}
+
+.undira-footer__meta {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.35rem 0.45rem;
+}
+
+.undira-footer__sep {
+  opacity: 0.7;
+  user-select: none;
+}
+
+.undira-footer__credit,
+.undira-footer__version {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.undira-footer__credit i,
+.undira-footer__version i {
+  font-size: 0.85em;
+  opacity: 0.85;
+}
+
+.undira-footer__credit {
+  cursor: default;
+  transition: color 0.18s ease, opacity 0.18s ease;
+  opacity: 0.92;
+}
+
+.undira-footer__credit:hover {
+  opacity: 1;
+  color: var(--ui-green, #2E7D32);
+}
+
+@media (max-width: 767.98px) {
+  .undira-footer__inner {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: flex-start;
+    gap: 0.35rem;
+  }
+
+  .undira-footer__left,
+  .undira-footer__right {
+    text-align: left;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .undira-footer__meta {
+    justify-content: flex-start;
+  }
+
+  .main-footer.undira-footer {
+    padding: 0.85rem 1rem;
+  }
 }
 
 /* —— Master tabs —— */

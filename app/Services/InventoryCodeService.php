@@ -7,8 +7,8 @@ use App\Models\Category;
 use App\Models\InventoryItem;
 use App\Models\InventorySequence;
 use App\Models\ProcurementType;
-use App\Models\Setting;
 use App\Models\SubCategory;
+use App\Support\AppSettings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
@@ -109,15 +109,13 @@ class InventoryCodeService
 
     /**
      * Public scan page URL (for links in UI — not embedded in QR).
+     * Empty inventory.scan_base_url → config('app.url').
      */
     public function scanUrl(string $inventoryNumber): string
     {
-        $base = rtrim((string) Setting::get('inventory.scan_base_url', ''), '/');
-        if ($base !== '') {
-            return $base.'/scan/'.rawurlencode($inventoryNumber);
-        }
+        $base = AppSettings::scanBaseUrl();
 
-        return route('inventory.scan', ['inventoryNumber' => $inventoryNumber], true);
+        return $base.'/scan/'.rawurlencode($inventoryNumber);
     }
 
     public function generateAndSaveCodes(InventoryItem $item): InventoryItem
@@ -234,9 +232,7 @@ class InventoryCodeService
 
     public function padding(): int
     {
-        $padding = (int) Setting::get('inventory.sequence_padding', self::DEFAULT_PADDING);
-
-        return $padding < 1 ? self::DEFAULT_PADDING : $padding;
+        return AppSettings::sequencePadding();
     }
 
     protected function requireCode(?string $code, string $label): string

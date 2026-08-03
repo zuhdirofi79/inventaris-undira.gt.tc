@@ -71,6 +71,7 @@ class InventoryReportService
             ->with([
                 'category:id,code,name',
                 'subCategory:id,category_id,code,name',
+                'orgUnit:id,code,name',
                 'room:id,floor_id,code,name',
                 'room.floor:id,building_id,code,name,floor_number',
                 'room.floor.building:id,campus_id,code,name',
