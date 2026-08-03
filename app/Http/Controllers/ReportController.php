@@ -318,14 +318,49 @@ class ReportController extends Controller
             return $pdf->download("laporan_{$slug}_{$orientation}_{$stamp}.pdf");
         }
 
-        $headings = ['No', 'Nomor Inventaris', 'Nama Barang', 'Kategori', 'Subkategori', 'Unit Kerja', 'Merk', 'Serial Number', 'Lokasi', 'PIC', 'Status', 'Kondisi', 'Tahun Pengadaan', 'Tgl Pengadaan'];
+        $headings = [
+            'No',
+            'Nomor Inventaris',
+            'Nama Barang',
+            'Kategori',
+            'Sub Kategori',
+            'Unit Kerja',
+            'Merk',
+            'Serial Number',
+            'Lokasi',
+            'Status',
+            'Kondisi',
+            'PIC',
+            'Tanggal Pengadaan',
+            'Tahun Pengadaan',
+            'Vendor',
+            'Harga',
+        ];
         $rows = [];
         foreach ($doc['items'] as $i => $item) {
             $mapped = $this->reports->mapInventoryRow($item, $i + 1, false);
+            $price = $item->price;
+            $priceFormatted = $price === null || $price === ''
+                ? '—'
+                : (is_numeric($price) ? number_format((float) $price, 0, ',', '.') : (string) $price);
+
             $rows[] = [
-                $mapped['no'], $mapped['inventory_number'], $mapped['name'], $mapped['category'], $mapped['sub_category'],
-                $mapped['org_unit'], $mapped['brand'], $mapped['serial_number'], $mapped['location'], $mapped['pic'], $mapped['status'],
-                $mapped['condition'], $mapped['purchase_year'], $mapped['purchase_date'],
+                $mapped['no'],
+                $mapped['inventory_number'],
+                $mapped['name'],
+                $mapped['category'],
+                $mapped['sub_category'],
+                $mapped['org_unit'],
+                $mapped['brand'],
+                $mapped['serial_number'],
+                $mapped['location'],
+                $mapped['status'],
+                $mapped['condition'],
+                $mapped['pic'],
+                $mapped['purchase_date'],
+                $mapped['purchase_year'],
+                $item->vendor?->name ?: ($item->supplier?->name ?: '—'),
+                $priceFormatted,
             ];
         }
 

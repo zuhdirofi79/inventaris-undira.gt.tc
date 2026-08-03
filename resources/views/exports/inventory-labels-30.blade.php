@@ -5,13 +5,14 @@
     <title>Cetak Label QR Inventaris</title>
     <style>
         /*
-         * DomPDF-stable mass labels — A4 portrait, 5×8 = 40 / page.
+         * DomPDF mass labels — A4 portrait, 5×8 = 40 / page.
          *
-         * IMPORTANT: do NOT use border-spacing / flex / min-height:100vh.
-         * DomPDF mis-measures border-spacing and page-breaks early → large
-         * empty bands in the middle of the sheet.
-         *
-         * Gaps = equal cell padding; grid exactly fills the usable page area.
+         * CRITICAL (empty-page bug):
+         * - NEVER put page-break-inside:avoid on .page (full-sheet wrapper).
+         *   DomPDF cannot keep a full A4 block on one page → pushes content
+         *   and leaves blank sheets between chunks.
+         * - NEVER use border-spacing / height:100% / 100vh / min-height:297mm.
+         * - Gaps = cell padding only; grid height ≤ usable area (−slack).
          */
         @page {
             size: A4 portrait;
@@ -29,14 +30,18 @@
             background: #fff;
         }
 
+        /* Only force a break AFTER a full chunk — never "avoid" inside the page. */
         .page {
             width: 100%;
             page-break-after: always;
-            page-break-inside: avoid;
+            page-break-inside: auto;
+            break-after: page;
+            break-inside: auto;
         }
 
         .page:last-child {
             page-break-after: auto;
+            break-after: auto;
         }
 
         table.grid {
@@ -48,9 +53,11 @@
             padding: 0;
         }
 
+        /* Keep a single row together; do not block whole-page flow. */
         table.grid tr {
             page-break-inside: avoid;
             page-break-after: auto;
+            break-inside: avoid;
         }
 
         td.cell {
@@ -58,8 +65,9 @@
             height: {{ $layout['cell_height_mm'] }}mm;
             max-height: {{ $layout['cell_height_mm'] }}mm;
             padding: {{ $layout['cell_pad_y_mm'] }}mm {{ $layout['cell_pad_x_mm'] }}mm;
-            vertical-align: top;
+            vertical-align: middle;
             page-break-inside: avoid;
+            break-inside: avoid;
             overflow: hidden;
         }
 
@@ -67,44 +75,46 @@
             width: 100%;
             height: {{ $layout['label_height_mm'] }}mm;
             max-height: {{ $layout['label_height_mm'] }}mm;
-            border: 1px solid #D1D5DB;
-            border-radius: 1mm;
+            border: 0.5pt solid #D1D5DB;
+            border-radius: 0.8mm;
             background: #fff;
-            padding: {{ $layout['label_padding_mm'] }}mm {{ max(0.8, $layout['label_padding_mm'] - 0.1) }}mm {{ $layout['label_padding_bottom_mm'] }}mm {{ max(0.8, $layout['label_padding_mm'] - 0.1) }}mm;
+            padding: {{ $layout['label_padding_mm'] }}mm {{ max(0.7, $layout['label_padding_mm'] - 0.05) }}mm {{ $layout['label_padding_bottom_mm'] }}mm {{ max(0.7, $layout['label_padding_mm'] - 0.05) }}mm;
             overflow: hidden;
         }
 
         .label-empty {
-            border: 0.35pt solid #F3F4F6;
+            border: 0.25pt solid #F3F4F6;
             background: #fff;
         }
 
         table.label-inner {
             width: 100%;
+            height: 100%;
             border-collapse: collapse;
             border-spacing: 0;
             table-layout: fixed;
         }
 
         td.col-text {
-            width: {{ max(40, 100 - $layout['qr_col_width_pct']) }}%;
-            vertical-align: top;
-            padding: 0 0.3mm 0 0;
+            width: {{ max(42, 100 - $layout['qr_col_width_pct']) }}%;
+            vertical-align: middle;
+            padding: 0 0.4mm 0 0;
             overflow: hidden;
         }
 
         td.col-qr {
             width: {{ $layout['qr_col_width_pct'] }}%;
-            vertical-align: top;
+            vertical-align: middle;
             text-align: right;
             padding: 0;
         }
 
         .logo-wrap {
-            height: {{ $layout['logo_max_height_mm'] + 0.15 }}mm;
-            margin-bottom: 0.35mm;
+            height: {{ $layout['logo_max_height_mm'] }}mm;
+            margin: 0 0 0.2mm 0;
             overflow: hidden;
             text-align: left;
+            line-height: 1;
         }
 
         img.logo {
@@ -116,62 +126,68 @@
         }
 
         .logo-missing {
-            font-size: 5pt;
+            font-size: 4.5pt;
             color: #B91C1C;
-            line-height: 1.1;
+            line-height: 1.05;
             text-align: left;
             word-break: break-all;
         }
 
+        /* ~10–11px ≈ 8pt */
         .name {
-            font-size: 8.5pt;
+            font-size: 8pt;
             font-weight: bold;
-            line-height: 1.1;
+            line-height: 1.08;
             color: #111827;
-            margin: 0 0 0.25mm 0;
-            max-height: 9.6pt;
+            margin: 0 0 0.15mm 0;
+            max-height: 17.5pt;
             overflow: hidden;
             word-wrap: break-word;
         }
 
+        /* ~8px ≈ 6pt */
         .category {
-            font-size: 7pt;
+            font-size: 6pt;
             font-weight: normal;
-            line-height: 1.1;
+            line-height: 1.08;
             color: #111827;
-            margin: 0 0 0.2mm 0;
-            max-height: 7.8pt;
+            margin: 0 0 0.1mm 0;
+            max-height: 6.6pt;
             overflow: hidden;
             word-wrap: break-word;
         }
 
         .room {
-            font-size: 7pt;
+            font-size: 6pt;
             font-weight: bold;
-            line-height: 1.1;
+            line-height: 1.08;
             color: #111827;
-            margin: 0 0 0.4mm 0;
-            max-height: 7.8pt;
+            margin: 0 0 0.25mm 0;
+            max-height: 6.6pt;
             overflow: hidden;
             word-wrap: break-word;
         }
 
         .number-rule {
             border: 0;
-            border-top: 0.5pt solid #D1D5DB;
-            margin: 0 0 0.25mm 0;
+            border-top: 0.4pt solid #D1D5DB;
+            margin: 0 0 0.15mm 0;
             height: 0;
+            padding: 0;
         }
 
+        /* ~7px ≈ 5.5pt — MUST stay one line */
         .number {
             font-weight: bold;
             line-height: 1.05;
-            letter-spacing: -0.03em;
+            letter-spacing: -0.04em;
             color: #111827;
             text-align: left;
             white-space: nowrap;
-            overflow: visible;
+            overflow: hidden;
+            text-overflow: clip;
             word-break: keep-all;
+            max-width: 100%;
         }
 
         .qr-wrap {
@@ -180,6 +196,7 @@
             height: {{ $layout['qr_size_mm'] }}mm;
             background: #fff;
             text-align: center;
+            line-height: 0;
         }
 
         img.qr {
@@ -211,13 +228,13 @@
     $chunkIndex++;
     $isLastPage = $chunkIndex === $chunkCount;
     $cells = $pageLabels->values()->all();
-    // Always fill the full 5×8 grid so the sheet stays dense (empty slots only on last page).
+    // Pad only the last page so the cutting grid stays aligned.
     while (count($cells) < $perPage) {
         $cells[] = null;
     }
     $rows = array_chunk($cells, $columns);
 @endphp
-<div class="page"@if($isLastPage) style="page-break-after:auto;"@endif>
+<div class="page"@if($isLastPage) style="page-break-after:auto;break-after:auto;"@endif>
     <table class="grid">
         @foreach($rows as $row)
         <tr>
@@ -227,7 +244,8 @@
                     @php
                         $invNo = (string) $label->inventory_number;
                         $invLen = mb_strlen($invNo);
-                        $invPt = $invLen >= 30 ? 5.2 : ($invLen >= 26 ? 5.5 : ($invLen >= 22 ? 5.8 : 6.1));
+                        // ~7px base; shrink slightly for long UNDIRA numbers (one line only).
+                        $invPt = $invLen >= 30 ? 4.6 : ($invLen >= 26 ? 4.9 : ($invLen >= 22 ? 5.2 : 5.5));
                     @endphp
                     <div class="label">
                         <table class="label-inner">

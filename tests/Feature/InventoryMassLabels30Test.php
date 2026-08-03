@@ -132,17 +132,22 @@ class InventoryMassLabels30Test extends TestCase
         $this->assertSame(5, $layout['columns']);
         $this->assertSame(8, $layout['rows']);
         $this->assertSame(40, $layout['per_page']);
-        $this->assertEqualsWithDelta(20.0, $layout['qr_size_mm'], 0.01);
-        $this->assertGreaterThanOrEqual(11.0, $layout['logo_width_mm']);
-        $this->assertLessThanOrEqual(18.0, $layout['logo_width_mm']);
+        $this->assertEqualsWithDelta(18.0, $layout['qr_size_mm'], 0.01);
+        $this->assertGreaterThanOrEqual(9.0, $layout['logo_width_mm']);
+        $this->assertLessThanOrEqual(16.0, $layout['logo_width_mm']);
         $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
         $this->assertGreaterThanOrEqual(4.0, $layout['gap_x_mm']);
         $this->assertGreaterThanOrEqual(4.0, $layout['gap_y_mm']);
         $this->assertLessThanOrEqual(8.0, $layout['gap_x_mm']);
         $this->assertLessThanOrEqual(8.0, $layout['gap_y_mm']);
-        // Grid cells must tile the usable A4 area (no orphan empty band).
-        $usableH = 297.0 - (2 * $layout['page_margin_mm']);
-        $this->assertEqualsWithDelta($usableH, $layout['cell_height_mm'] * $layout['rows'], 0.05);
+        // Compact horizontal-ish card with cutting gaps retained.
+        $this->assertTrue($layout['label_width_mm'] > 30.0 && $layout['label_width_mm'] < 38.0);
+        $this->assertTrue($layout['label_height_mm'] > 28.0 && $layout['label_height_mm'] < 34.0);
+        $this->assertTrue($layout['label_width_mm'] >= $layout['label_height_mm']);
+        // Grid cells tile usable A4 area (minus DomPDF slack).
+        $usableH = 297.0 - (2 * $layout['page_margin_mm']) - 0.6;
+        $this->assertEqualsWithDelta($usableH, $layout['cell_height_mm'] * $layout['rows'], 0.08);
+        $this->assertLessThanOrEqual(1.2, $layout['label_padding_bottom_mm']);
     }
 
     public function test_undira_logo_resolves_as_embedded_data_uri(): void

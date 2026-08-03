@@ -54,32 +54,33 @@ class InventoryMassLabelService
         $columns = max(1, (int) config('inventory_labels.columns', 5));
         $rows = max(1, (int) config('inventory_labels.rows', 8));
         $pageMargin = max(4.0, (float) config('inventory_labels.page_margin_mm', 5));
-        $gapX = max(4.0, min(8.0, (float) config('inventory_labels.gap_x_mm', 5)));
-        $gapY = max(4.0, min(8.0, (float) config('inventory_labels.gap_y_mm', 5)));
-        // QR size is locked — never shrink for gutters.
-        $qrSize = max(18.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 20)));
-        $logoWidth = max(11.0, min(18.0, (float) config('inventory_labels.logo_width_mm', 14)));
-        $logoMaxHeight = max(3.2, min(6.0, (float) config('inventory_labels.logo_max_height_mm', 4.5)));
-        $labelPadding = max(0.8, min(2.5, (float) config('inventory_labels.label_padding_mm', 1.0)));
-        $labelPaddingBottom = max(2.0, min(5.0, (float) config('inventory_labels.label_padding_bottom_mm', 2.5)));
-        $fontPt = max(7.0, min(10.0, (float) config('inventory_labels.font_size_pt', 7.5)));
-        $numberRowMm = 2.8;
+        $gapX = max(4.0, min(8.0, (float) config('inventory_labels.gap_x_mm', 4.5)));
+        $gapY = max(4.0, min(8.0, (float) config('inventory_labels.gap_y_mm', 4.5)));
+        // Compact QR so label height stays short (horizontal card); still scannable.
+        $qrSize = max(16.0, min(22.0, (float) config('inventory_labels.qr_size_mm', 18)));
+        $logoWidth = max(9.0, min(16.0, (float) config('inventory_labels.logo_width_mm', 12)));
+        $logoMaxHeight = max(2.6, min(5.0, (float) config('inventory_labels.logo_max_height_mm', 3.2)));
+        $labelPadding = max(0.6, min(2.0, (float) config('inventory_labels.label_padding_mm', 0.9)));
+        $labelPaddingBottom = max(0.6, min(2.5, (float) config('inventory_labels.label_padding_bottom_mm', 0.9)));
+        $fontPt = max(5.5, min(9.0, (float) config('inventory_labels.font_size_pt', 6.5)));
+        $numberRowMm = 2.2;
 
         /*
-         * DomPDF-safe grid: divide the full usable area into equal cells.
-         * Gaps are cell padding (NOT border-spacing). That keeps total table
-         * height = usable height so DomPDF does not page-break mid-grid.
+         * DomPDF-safe grid: divide the usable area into equal cells.
+         * Gaps are cell padding (NOT border-spacing).
+         * Leave a tiny vertical slack (~0.6mm) so DomPDF never overflows
+         * the A4 content box (overflow → phantom empty pages).
          */
         $usableWidth = 210.0 - (2 * $pageMargin);
-        $usableHeight = 297.0 - (2 * $pageMargin);
+        $usableHeight = max(1.0, 297.0 - (2 * $pageMargin) - 0.6);
         $cellWidth = $usableWidth / $columns;
         $cellHeight = $usableHeight / $rows;
 
-        // Ease gaps only if the label box cannot hold the locked QR.
+        // Ease gaps only if the label box cannot hold the QR.
         $minGap = 4.0;
         while ($gapY > $minGap + 0.001) {
             $labelHeight = $cellHeight - $gapY;
-            $minLabelHeight = $qrSize + $labelPadding + $labelPaddingBottom + 0.3;
+            $minLabelHeight = $qrSize + $labelPadding + $labelPaddingBottom + 0.2;
             if ($labelHeight + 0.001 >= $minLabelHeight) {
                 break;
             }
@@ -91,8 +92,8 @@ class InventoryMassLabelService
         $labelWidth = max(1.0, $cellWidth - $gapX);
         $labelHeight = max(1.0, $cellHeight - $gapY);
 
-        // QR column hugs the QR square inside the label box.
-        $qrColPct = min(58.0, max(42.0, (($qrSize + 0.5) / max(1.0, $labelWidth)) * 100));
+        // QR column hugs the QR square; leave more width for text (horizontal card).
+        $qrColPct = min(52.0, max(38.0, (($qrSize + 0.4) / max(1.0, $labelWidth)) * 100));
 
         return [
             'columns' => $columns,
@@ -111,7 +112,7 @@ class InventoryMassLabelService
             'number_row_mm' => $numberRowMm,
             'qr_col_width_pct' => round($qrColPct, 2),
             'font_size_pt' => $fontPt,
-            'name_max_chars' => max(20, (int) config('inventory_labels.name_max_chars', 32)),
+            'name_max_chars' => max(18, (int) config('inventory_labels.name_max_chars', 28)),
             'max_items' => max(1, (int) config('inventory_labels.max_items', 500)),
             'cell_width_pct' => 100 / $columns,
             'cell_height_mm' => round($cellHeight, 2),
