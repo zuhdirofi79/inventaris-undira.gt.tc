@@ -9,7 +9,9 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use App\Services\InventoryMassLabelService;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
 
@@ -132,22 +134,119 @@ class InventoryMassLabels30Test extends TestCase
         $this->assertSame(5, $layout['columns']);
         $this->assertSame(8, $layout['rows']);
         $this->assertSame(40, $layout['per_page']);
-        $this->assertEqualsWithDelta(18.0, $layout['qr_size_mm'], 0.01);
-        $this->assertGreaterThanOrEqual(9.0, $layout['logo_width_mm']);
-        $this->assertLessThanOrEqual(16.0, $layout['logo_width_mm']);
+        $this->assertEqualsWithDelta(15.0, $layout['qr_size_mm'], 0.01);
+        $this->assertGreaterThanOrEqual(8.0, $layout['logo_width_mm']);
+        $this->assertLessThanOrEqual(14.0, $layout['logo_width_mm']);
         $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
-        $this->assertGreaterThanOrEqual(4.0, $layout['gap_x_mm']);
-        $this->assertGreaterThanOrEqual(4.0, $layout['gap_y_mm']);
-        $this->assertLessThanOrEqual(8.0, $layout['gap_x_mm']);
-        $this->assertLessThanOrEqual(8.0, $layout['gap_y_mm']);
-        // Compact horizontal-ish card with cutting gaps retained.
-        $this->assertTrue($layout['label_width_mm'] > 30.0 && $layout['label_width_mm'] < 38.0);
-        $this->assertTrue($layout['label_height_mm'] > 28.0 && $layout['label_height_mm'] < 34.0);
+        $this->assertLessThanOrEqual(6.0, $layout['logo_max_height_mm']);
+        $this->assertGreaterThanOrEqual(2.5, $layout['gap_x_mm']);
+        $this->assertGreaterThanOrEqual(3.5, $layout['gap_y_mm']);
+        $this->assertLessThanOrEqual(6.0, $layout['gap_x_mm']);
+        $this->assertLessThanOrEqual(6.5, $layout['gap_y_mm']);
+        // Compact horizontal-ish card with cutting gaps retained (derived from A4, not 41mm tall).
+        $this->assertTrue($layout['label_width_mm'] > 30.0 && $layout['label_width_mm'] < 40.0);
+        $this->assertTrue($layout['label_height_mm'] > 27.0 && $layout['label_height_mm'] < 33.0);
         $this->assertTrue($layout['label_width_mm'] >= $layout['label_height_mm']);
-        // Grid cells tile usable A4 area (minus DomPDF slack).
-        $usableH = 297.0 - (2 * $layout['page_margin_mm']) - 0.6;
-        $this->assertEqualsWithDelta($usableH, $layout['cell_height_mm'] * $layout['rows'], 0.08);
-        $this->assertLessThanOrEqual(1.2, $layout['label_padding_bottom_mm']);
+        // 8 rows + gaps + margins must fit A4 portrait.
+        $totalH = (2 * $layout['page_margin_mm'])
+            + ($layout['label_height_mm'] * $layout['rows'])
+            + ($layout['gap_y_mm'] * ($layout['rows'] - 1));
+        $this->assertLessThanOrEqual(297.0, $totalH + 1.0);
+        // Row pitch tiles usable A4 area (minus DomPDF slack).
+        $usableH = 297.0 - (2 * $layout['page_margin_mm']) - 2.0;
+        $this->assertEqualsWithDelta($usableH, $layout['row_pitch_mm'] * $layout['rows'], 0.08);
+        $this->assertEqualsWithDelta(
+            $layout['row_pitch_mm'],
+            $layout['label_height_mm'] + $layout['gap_y_mm'],
+            0.08
+        );
+        $this->assertLessThanOrEqual(2.0, $layout['label_padding_bottom_mm']);
+    }
+
+    public function test_name_and_inventory_number_typography_are_dynamic(): void
+    {
+        $service = app(\App\Services\InventoryMassLabelService::class);
+
+        $short = $service->nameTypography('Meja Dosen');
+        $long = $service->nameTypography('Mesin Pendingin Ruangan Split Wall Mounted Inverter');
+        $this->assertGreaterThan($long['pt'], $short['pt']);
+        $this->assertStringNotContainsString('...', $long['text']);
+
+        $number = $service->inventoryNumberTypography('CBB-UNDIRA-26-FUR-MJ-000021');
+        $this->assertGreaterThanOrEqual(4.9, $number['pt']);
+        $this->assertFalse($number['edge_case']);
+    }
+
+    #[DataProvider('massLabelPageCountProvider')]
+    public function test_mass_labels_pdf_page_count_matches_chunk_size(int $count, int $expectedPages): void
+    {
+        $service = app(InventoryMassLabelService::class);
+        $qr = $service->qrPngDataUri('CBB-UNDIRA-26-ELI-000001', 180);
+        $this->assertNotNull($qr);
+
+        $labels = collect(range(1, $count))->map(function (int $i) use ($qr, $service) {
+            $name = ($i % 5 === 0)
+                ? 'Mesin Pendingin Ruangan Split Wall Mounted Inverter '.$i
+                : 'Monitor 24 Inch '.$i;
+            $nameMeta = $service->nameTypography($name);
+            $number = 'CBB-UNDIRA-26-ELI-'.str_pad((string) $i, 6, '0', STR_PAD_LEFT);
+            $numberMeta = $service->inventoryNumberTypography($number);
+
+            return (object) [
+                'inventory_number' => $number,
+                'name' => $nameMeta['text'],
+                'name_pt' => $nameMeta['pt'],
+                'name_max_height_pt' => $nameMeta['max_height_pt'],
+                'category' => 'Elektronik',
+                'category_pt' => 7.0,
+                'room' => 'Ruang A101',
+                'room_pt' => 7.0,
+                'number_pt' => $numberMeta['pt'],
+                'number_letter_spacing' => $numberMeta['letter_spacing'],
+                'location_lines' => ['Ruang A101'],
+                'qr_src' => $qr,
+            ];
+        });
+
+        $pdf = $service->renderPdfBinary($labels);
+        $this->assertStringStartsWith('%PDF', $pdf);
+        $this->assertSame(
+            $expectedPages,
+            $this->countPdfPages($pdf),
+            "Expected {$expectedPages} page(s) for {$count} label(s)."
+        );
+    }
+
+    /**
+     * @return array<string, array{0: int, 1: int}>
+     */
+    public static function massLabelPageCountProvider(): array
+    {
+        return [
+            '1 item' => [1, 1],
+            '5 items' => [5, 1],
+            '39 items' => [39, 1],
+            '40 items' => [40, 1],
+            '41 items' => [41, 2],
+            '45 items' => [45, 2],
+            '80 items' => [80, 2],
+            '81 items' => [81, 3],
+            '100 items' => [100, 3],
+        ];
+    }
+
+    protected function countPdfPages(string $pdfBinary): int
+    {
+        // Prefer explicit /Type /Page dictionaries (exclude /Pages).
+        if (preg_match_all('/\/Type\s*\/Page(?!s)\b/', $pdfBinary, $m)) {
+            return count($m[0]);
+        }
+
+        if (preg_match('/\/Count\s+(\d+)/', $pdfBinary, $m)) {
+            return (int) $m[1];
+        }
+
+        $this->fail('Unable to determine PDF page count from binary.');
     }
 
     public function test_undira_logo_resolves_as_embedded_data_uri(): void

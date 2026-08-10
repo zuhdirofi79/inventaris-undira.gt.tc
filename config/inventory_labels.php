@@ -11,8 +11,10 @@ return [
     | Gaps are applied as table-cell padding (DomPDF-safe).
     | Do NOT use border-spacing — DomPDF mis-measures it and page-breaks early.
     |
-    | Target label box (after gaps): ~36×30 mm (compact horizontal card).
-    | Inner whitespace is minimized; cutting gaps stay ≥ 4 mm.
+    | Geometry is derived from A4 (210×297). Do not hard-lock 37.5×41 mm
+    | (41×8 already exceeds A4 height before margins/gaps).
+    |
+    | Baseline target after gaps: ~36×30 mm horizontal cards.
     |
     */
 
@@ -21,28 +23,28 @@ return [
     'rows' => (int) env('INVENTORY_LABEL_ROWS', 8),
 
     /** Page margin from paper edge (mm). */
-    'page_margin_mm' => (float) env('INVENTORY_LABEL_PAGE_MARGIN_MM', 5),
+    'page_margin_mm' => (float) env('INVENTORY_LABEL_PAGE_MARGIN_MM', 8),
 
     /** Horizontal gap between labels (mm) — via cell padding. */
-    'gap_x_mm' => (float) env('INVENTORY_LABEL_GAP_X_MM', 4.5),
+    'gap_x_mm' => (float) env('INVENTORY_LABEL_GAP_X_MM', 3),
 
     /** Vertical gap between labels (mm) — via cell padding. */
-    'gap_y_mm' => (float) env('INVENTORY_LABEL_GAP_Y_MM', 4.5),
+    'gap_y_mm' => (float) env('INVENTORY_LABEL_GAP_Y_MM', 5),
 
-    /** Printed QR size (mm). Slightly compact so the label stays short/horizontal. */
-    'qr_size_mm' => (float) env('INVENTORY_LABEL_QR_SIZE_MM', 18),
+    /** Printed QR size (mm). Keep modest so text area stays usable. */
+    'qr_size_mm' => (float) env('INVENTORY_LABEL_QR_SIZE_MM', 15),
 
-    /** Official logo width (mm) — visual ~7–8px height via max-height. */
-    'logo_width_mm' => (float) env('INVENTORY_LABEL_LOGO_WIDTH_MM', 12),
+    /** Official logo width (mm). */
+    'logo_width_mm' => (float) env('INVENTORY_LABEL_LOGO_WIDTH_MM', 11),
 
-    /** Cap logo height (mm). */
-    'logo_max_height_mm' => (float) env('INVENTORY_LABEL_LOGO_MAX_HEIGHT_MM', 3.2),
+    /** Cap logo height (mm) — identity only, not dominant. */
+    'logo_max_height_mm' => (float) env('INVENTORY_LABEL_LOGO_MAX_HEIGHT_MM', 3.8),
 
     /** Inner padding top / left / right inside label border (mm). */
-    'label_padding_mm' => (float) env('INVENTORY_LABEL_PADDING_MM', 0.9),
+    'label_padding_mm' => (float) env('INVENTORY_LABEL_PADDING_MM', 1.3),
 
-    /** Space under inventory number (mm) — keep tight (no empty band). */
-    'label_padding_bottom_mm' => (float) env('INVENTORY_LABEL_PADDING_BOTTOM_MM', 0.9),
+    /** Space under inventory number (mm). */
+    'label_padding_bottom_mm' => (float) env('INVENTORY_LABEL_PADDING_BOTTOM_MM', 1.0),
 
     /**
      * Official UNDIRA logo (do not rename).
@@ -52,8 +54,11 @@ return [
     /** Body text size (pt) — legacy single-size fallback. */
     'font_size_pt' => (float) env('INVENTORY_LABEL_FONT_PT', 6.5),
 
-    /** Soft character limit for name before ellipsis (≈ 2 lines). */
-    'name_max_chars' => (int) env('INVENTORY_LABEL_NAME_MAX_CHARS', 28),
+    /**
+     * Soft character budget for name before hard clamp (≈ 2 lines at min font).
+     * Dynamic font sizing is preferred over ellipsis.
+     */
+    'name_max_chars' => (int) env('INVENTORY_LABEL_NAME_MAX_CHARS', 52),
 
     /** Safety cap for filter-scope mass print. */
     'max_items' => (int) env('INVENTORY_LABEL_MAX_ITEMS', 200),
