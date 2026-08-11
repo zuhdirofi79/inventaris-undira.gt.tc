@@ -570,8 +570,6 @@ class InventoryController extends Controller
             'categories' => Category::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'orgUnits' => OrgUnit::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'users' => User::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
-            'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
@@ -756,8 +754,28 @@ class InventoryController extends Controller
     protected function datatable(Request $request): JsonResponse
     {
         try {
+            // Columns + relations limited to DataTables columns in inventory/items.blade.php.
+            // Keep FKs (category_id, room_id, pic_id) and responsible_person for picDisplayName().
             $query = $this->filterService->apply($request)
-                ->with(['category', 'subCategory', 'room.floor.building.campus', 'pic']);
+                ->select([
+                    'id',
+                    'inventory_number',
+                    'name',
+                    'category_id',
+                    'room_id',
+                    'pic_id',
+                    'responsible_person',
+                    'status',
+                    'condition',
+                ])
+                ->with([
+                    'category:id,name',
+                    'room:id,floor_id,name',
+                    'room.floor:id,building_id,name',
+                    'room.floor.building:id,campus_id,name',
+                    'room.floor.building.campus:id,name',
+                    'pic:id,name',
+                ]);
 
             $recordsTotal = InventoryItem::count();
             $recordsFiltered = (clone $query)->count();
@@ -773,18 +791,25 @@ class InventoryController extends Controller
                 ->take($request->input('length', 10))
                 ->get()
                 ->map(function (InventoryItem $item) {
-                    $data = $item->toArray();
-                    $data['status'] = [
-                        'value' => $item->status?->value,
-                        'label' => $item->status?->label(),
+                    // Explicit payload — avoid Model::toArray() dumping unused columns + qr_url append.
+                    return [
+                        'id' => $item->id,
+                        'inventory_number' => $item->inventory_number,
+                        'name' => $item->name,
+                        'category' => $item->category
+                            ? ['id' => $item->category->id, 'name' => $item->category->name]
+                            : null,
+                        'pic_name' => $item->picDisplayName(),
+                        'full_location' => $item->full_location,
+                        'status' => [
+                            'value' => $item->status?->value,
+                            'label' => $item->status?->label(),
+                        ],
+                        'condition' => [
+                            'value' => $item->condition?->value,
+                            'label' => $item->condition?->label(),
+                        ],
                     ];
-                    $data['condition'] = [
-                        'value' => $item->condition?->value,
-                        'label' => $item->condition?->label(),
-                    ];
-                    $data['pic_name'] = $item->picDisplayName();
-
-                    return $data;
                 });
 
             return response()->json([

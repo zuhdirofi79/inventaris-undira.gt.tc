@@ -2,7 +2,83 @@
 
 @section('title', 'Semua Item Inventaris - Inventaris UNDIRA')
 
+@push('styles')
+@include('partials.datatables-cdn-css')
+<style>
+/* Scoped to Inventory Items — keep page width = viewport; table scrolls inside DT shell. */
+.inventory-items-page {
+    max-width: 100%;
+    min-width: 0;
+}
+/* page-header/layout use class "min-w-0" but Tailwind is NOT loaded on app pages.
+   Provide the intended CSS locally so flex children can shrink without page overflow. */
+.inventory-items-page .min-w-0 {
+    min-width: 0;
+}
+/* Containment only — do NOT set overflow-x here.
+   DataTables scrollX already creates .dataTables_scrollBody as the single horizontal scroller. */
+.inventory-items-page .inventory-items-table-shell {
+    max-width: 100%;
+    min-width: 0;
+}
+.inventory-items-page .dataTables_wrapper {
+    max-width: 100%;
+    min-width: 0;
+}
+.inventory-items-page .dataTables_scroll {
+    max-width: 100%;
+}
+@media (max-width: 767.98px) {
+    .inventory-items-page .filter-panel {
+        padding: 0.85rem 0.9rem;
+    }
+    .inventory-items-page #btnApplyFilter,
+    .inventory-items-page #btnResetFilter {
+        min-height: 2.5rem;
+        min-width: 2.5rem;
+        padding-left: 0.9rem;
+        padding-right: 0.9rem;
+    }
+    .inventory-items-page #inventoryTable .btn-xs,
+    .inventory-items-page #inventoryTable .btn-sm {
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem !important;
+    }
+    .inventory-items-page .dataTables_wrapper .dataTables_length,
+    .inventory-items-page .dataTables_wrapper .dataTables_filter,
+    .inventory-items-page .dataTables_wrapper .dataTables_info,
+    .inventory-items-page .dataTables_wrapper .dataTables_paginate {
+        float: none !important;
+        text-align: left !important;
+        width: 100%;
+        margin-bottom: 0.5rem;
+    }
+    .inventory-items-page .dataTables_wrapper .dataTables_filter input {
+        width: 100% !important;
+        margin-left: 0 !important;
+        display: block;
+        margin-top: 0.35rem;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+    .inventory-items-page .dataTables_wrapper .dataTables_paginate .paginate_button {
+        min-height: 2.25rem;
+        padding: 0.35rem 0.65rem !important;
+    }
+    .inventory-items-page #inventoryTable .inv-check-wrap {
+        min-height: 2.5rem;
+        min-width: 2.5rem;
+    }
+}
+</style>
+@endpush
+
 @section('content')
+<div class="inventory-items-page">
 <x-page-header
     title="Data Inventaris"
     subtitle="Daftar flat dengan filter & DataTables"
@@ -77,7 +153,7 @@
 <div class="filter-panel" id="mass-labels">
     <form id="filterForm">
         <div class="row g-2 g-md-3">
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Kampus</label>
                 <select id="filterCampus" class="form-select select2-filter">
                     <option value="">Semua Kampus</option>
@@ -86,19 +162,19 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Gedung</label>
                 <select id="filterBuilding" class="form-select select2-filter"><option value="">Semua Gedung</option></select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Lantai</label>
                 <select id="filterFloor" class="form-select select2-filter"><option value="">Semua Lantai</option></select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Ruangan</label>
                 <select id="filterRoom" class="form-select select2-filter"><option value="">Semua Ruangan</option></select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Kategori</label>
                 <select id="filterCategory" class="form-select select2-filter">
                     <option value="">Semua Kategori</option>
@@ -107,7 +183,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Unit Kerja</label>
                 <select id="filterOrgUnit" class="form-select select2-filter">
                     <option value="">Semua Unit Kerja</option>
@@ -116,7 +192,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">PIC</label>
                 <select id="filterPic" class="form-select select2-filter">
                     <option value="">Semua PIC</option>
@@ -125,7 +201,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Status</label>
                 <select id="filterStatus" class="form-select">
                     <option value="">Semua</option>
@@ -134,7 +210,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-6 col-md-3">
+            <div class="col-12 col-sm-6 col-md-3">
                 <label class="form-label small">Kondisi</label>
                 <select id="filterCondition" class="form-select">
                     <option value="">Semua</option>
@@ -154,7 +230,8 @@
 
 <div class="card card-undira">
     <div class="card-body">
-        <div class="table-responsive">
+        {{-- Containment wrapper only. Horizontal scroll = DataTables scrollX (single layer). --}}
+        <div class="inventory-items-table-shell">
             <table id="inventoryTable" class="table table-striped table-hover w-100 inventory-items-table">
                 <thead>
                     <tr>
@@ -202,6 +279,7 @@
     <input type="hidden" name="status" id="massFilterStatus">
     <input type="hidden" name="condition" id="massFilterCondition">
 </form>
+</div>{{-- /.inventory-items-page --}}
 @endsection
 
 {{--
@@ -235,6 +313,7 @@
 @endpush
 
 @push('scripts')
+@include('partials.datatables-cdn-js')
 <script>
 const locationData = @json($locationData);
 const selectedIds = new Set();

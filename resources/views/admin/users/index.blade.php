@@ -2,6 +2,10 @@
 
 @section('title', 'User Management - Inventaris UNDIRA')
 
+@push('styles')
+@include('partials.datatables-cdn-css')
+@endpush
+
 @section('content')
 <x-page-header
     title="User Management"
@@ -333,6 +337,7 @@
 @endpush
 
 @push('scripts')
+@include('partials.datatables-cdn-js')
 <script>
 $(function () {
     @include('partials.datatables-id-language')
