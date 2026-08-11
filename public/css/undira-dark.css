@@ -110,13 +110,19 @@ body.dark-mode .undira-footer__credit:hover {
 }
 
 body.dark-mode .undira-sidebar-brand.brand-link {
-  background: linear-gradient(135deg, #0D1B4A 0%, #1A237E 100%) !important;
-  border-bottom-color: var(--dm-border) !important;
+  background: transparent !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: none !important;
 }
 
-body.dark-mode .brand-image,
-body.dark-mode .undira-sidebar-logo-wrap {
-  background: rgba(255, 255, 255, 0.95) !important;
+/* Keep official logo colors; never reintroduce a white plate behind the mark. */
+body.dark-mode .undira-sidebar-logo-wrap,
+body.dark-mode .undira-sidebar-logo,
+body.dark-mode .undira-brand-mark,
+body.dark-mode .undira-brand-mark img {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 0 !important;
 }
 
 /* ── Cards / panels / widgets ───────────────────────────────────────────── */

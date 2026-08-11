@@ -67,14 +67,25 @@ class InventoryExcelDetailSheetTest extends TestCase
         );
 
         $this->assertSame('Detail Inventaris', $detail->title());
-        $this->assertSame('No', $detail->headings()[0]);
-        $this->assertSame('Nomor Inventaris', $detail->headings()[1]);
+        $headings = $detail->headings();
+        $this->assertSame('No', $headings[0]);
+        $this->assertSame('Nomor Inventaris', $headings[1]);
+        $unitKerjaIdx = array_search('Unit Kerja', $headings, true);
+        $namaRuanganIdx = array_search('Nama Ruangan', $headings, true);
+        $merkIdx = array_search('Merk', $headings, true);
+        $this->assertNotFalse($unitKerjaIdx);
+        $this->assertNotFalse($namaRuanganIdx);
+        $this->assertNotFalse($merkIdx);
+        $this->assertSame($unitKerjaIdx + 1, $namaRuanganIdx);
+        $this->assertSame($namaRuanganIdx + 1, $merkIdx);
 
         $rows = $detail->array();
         $this->assertCount(2, $rows);
         $this->assertSame(1, $rows[0][0]);
         $this->assertSame('XLS-DET-001', $rows[0][1]);
         $this->assertSame('Meja Excel Detail', $rows[0][2]);
+        $this->assertSame($room->name, $rows[0][$namaRuanganIdx]);
+        $this->assertSame('Olympic', $rows[0][$merkIdx]);
 
         $flat = collect($rows)->flatten()->map(fn ($v) => mb_strtolower((string) $v))->implode(' ');
         $this->assertStringNotContainsString('filter', $flat);

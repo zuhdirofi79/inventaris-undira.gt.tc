@@ -86,6 +86,41 @@ class InventoryAdvancedPhase7Test extends TestCase
         ]);
     }
 
+    public function test_show_gallery_uses_host_relative_photo_urls_not_app_url_asset(): void
+    {
+        Storage::fake('public');
+
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $this->actingAs($admin)
+            ->post(route('inventory.photos.store', $item), [
+                'photos' => [UploadedFile::fake()->image('galeri.jpg')],
+                'is_primary' => '1',
+            ])
+            ->assertRedirect();
+
+        $photo = $item->photos()->first();
+        $this->assertNotNull($photo);
+
+        // Model URL must be host-relative so gallery works when APP_URL host != browser host.
+        $this->assertStringStartsWith('/storage/', $photo->url);
+        $this->assertStringNotContainsString('http://', $photo->url);
+        $this->assertStringNotContainsString('https://', $photo->url);
+
+        $html = $this->actingAs($admin)
+            ->get(route('inventory.show', $item))
+            ->assertOk()
+            ->assertSee('Galeri Foto')
+            ->assertSee('1 foto')
+            ->assertSee('Utama')
+            ->getContent();
+
+        $this->assertStringContainsString('src="'.$photo->url.'"', $html);
+        $this->assertStringNotContainsString('http://localhost/storage/', $html);
+        $this->assertStringNotContainsString("asset('storage/", $html);
+    }
+
     public function test_set_primary_and_destroy_photo(): void
     {
         Storage::fake('public');

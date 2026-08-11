@@ -136,7 +136,7 @@
                     @foreach($inventory->photos as $photo)
                     <div class="col-md-3 col-6">
                         <div class="position-relative border rounded overflow-hidden bg-light">
-                            <img src="{{ asset('storage/' . $photo->path) }}" class="img-fluid w-100" alt="Foto inventaris" style="aspect-ratio:1;object-fit:cover;">
+                            <img src="{{ $photo->url }}" class="img-fluid w-100" alt="Foto inventaris" style="aspect-ratio:1;object-fit:cover;" loading="lazy">
                             @if($photo->is_primary)
                                 <span class="badge bg-success position-absolute top-0 start-0 m-1">Utama</span>
                             @endif

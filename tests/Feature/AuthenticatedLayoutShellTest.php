@@ -41,8 +41,7 @@ class AuthenticatedLayoutShellTest extends TestCase
         $this->assertStringContainsString('bootstrap-icons', $html);
         $this->assertStringContainsString('undira-erp', $html);
         $this->assertStringContainsString('Apply layout mode + saved theme before first paint', $html);
-        $this->assertStringContainsString('max-width: 1199.98px', $html);
-        $this->assertStringContainsString('max-width: 767.98px', $html);
+        $this->assertStringContainsString('max-width: 1024px', $html);
         $this->assertStringContainsString('breadcrumb-undira', $html);
         // Identity must not be hidden on small screens via Bootstrap d-none
         $this->assertStringNotContainsString('d-none d-sm-inline-block', $html);
@@ -56,8 +55,14 @@ class AuthenticatedLayoutShellTest extends TestCase
         $this->assertStringContainsString('--sidebar-collapsed-width: 76px', $css);
         $this->assertStringContainsString('--topbar-height: 64px', $css);
         $this->assertStringContainsString('--content-padding-x', $css);
-        $this->assertStringContainsString('@media (min-width: 768px) and (max-width: 1199.98px)', $css);
+        $this->assertStringContainsString('@media (min-width: 768px) and (max-width: 1024px)', $css);
         $this->assertStringContainsString('@media (max-width: 767.98px)', $css);
         $this->assertStringContainsString('object-fit: contain', $css);
+        $this->assertStringContainsString('--undira-brand-bg: transparent', $css);
+        $this->assertStringContainsString('.undira-sidebar-logo-wrap', $css);
+
+        $darkCss = file_get_contents(public_path('css/undira-dark.css'));
+        $this->assertStringContainsString('body.dark-mode .undira-sidebar-logo-wrap', $darkCss);
+        $this->assertStringNotContainsString('rgba(255, 255, 255, 0.95)', $darkCss);
     }
 }

@@ -37,7 +37,7 @@
         <div class="card-body">
             @php $primary = $inventory->photos->firstWhere('is_primary', true) ?? $inventory->photos->first(); @endphp
             @if($primary)
-                <img src="{{ asset('storage/'.$primary->path) }}" alt="Foto {{ $inventory->name }}" class="scan-hero-photo mb-3">
+                <img src="{{ $primary->url }}" alt="Foto {{ $inventory->name }}" class="scan-hero-photo mb-3">
             @endif
 
             <div class="text-center mb-3">
@@ -77,7 +77,7 @@
             <div class="row g-2 mt-3">
                 @foreach($inventory->photos->take(6) as $photo)
                 <div class="col-4">
-                    <img src="{{ asset('storage/'.$photo->path) }}" class="img-fluid rounded" alt="Foto">
+                    <img src="{{ $photo->url }}" class="img-fluid rounded" alt="Foto" loading="lazy">
                 </div>
                 @endforeach
             </div>
