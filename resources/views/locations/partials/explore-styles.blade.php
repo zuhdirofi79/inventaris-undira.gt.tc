@@ -251,4 +251,19 @@ body.dark-mode .lex-stat { background: #1f2937; border-color: #334155; }
 body.dark-mode .lex-acc .accordion-body { background: #0f172a; }
 [data-theme="dark"] .lex-acc .accordion-button:not(.collapsed),
 body.dark-mode .lex-acc .accordion-button:not(.collapsed) { background: #1f2937; }
+[data-theme="dark"] .lex-badge--soft,
+body.dark-mode .lex-badge--soft {
+    background: rgba(148, 163, 184, 0.15);
+    color: #cbd5e1;
+}
+[data-theme="dark"] .lex-badge--code,
+body.dark-mode .lex-badge--code {
+    background: rgba(37, 99, 235, 0.18);
+    color: #93c5fd;
+    border-color: rgba(147, 197, 253, 0.35);
+}
+[data-theme="dark"] .lex-stat__label,
+[data-theme="dark"] .lex-empty,
+body.dark-mode .lex-stat__label,
+body.dark-mode .lex-empty { color: #b4bcc8; }
 </style>

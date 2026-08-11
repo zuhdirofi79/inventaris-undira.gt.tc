@@ -12,7 +12,7 @@
     <style>
         body { background: #F3F5F9; }
         .scan-hero-photo { max-height: 220px; object-fit: cover; width: 100%; border-radius: 12px; }
-        .scan-meta th { width: 42%; color: #64748B; font-weight: 600; font-size: .85rem; }
+        .scan-meta th { width: 42%; color: var(--ui-muted, #64748B); font-weight: 600; font-size: .85rem; }
         .timeline-scan { border-left: 2px solid #E6EAF2; margin-left: .5rem; padding-left: 1rem; }
         .timeline-scan .item { position: relative; padding-bottom: 1rem; }
         .timeline-scan .item::before {

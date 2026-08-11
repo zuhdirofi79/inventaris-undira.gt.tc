@@ -69,17 +69,17 @@
     display: block;
     font-size: .75rem;
     font-weight: 600;
-    color: #64748b;
+    color: var(--ui-muted, #64748b);
     margin-bottom: .15rem;
 }
 .invsel-detail-grid .value {
     font-weight: 600;
-    color: #0f172a;
+    color: var(--ui-text, #0f172a);
     word-break: break-word;
 }
 [data-theme="dark"] .invsel-detail-grid .value,
 body.dark-mode .invsel-detail-grid .value {
-    color: #e2e8f0;
+    color: var(--dm-text, #e2e8f0);
 }
 .invsel-blocked { display: none; }
 .invsel-blocked.is-visible { display: block; }

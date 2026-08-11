@@ -64,5 +64,9 @@ class AuthenticatedLayoutShellTest extends TestCase
         $darkCss = file_get_contents(public_path('css/undira-dark.css'));
         $this->assertStringContainsString('body.dark-mode .undira-sidebar-logo-wrap', $darkCss);
         $this->assertStringNotContainsString('rgba(255, 255, 255, 0.95)', $darkCss);
+        $this->assertStringContainsString('--ui-blue: var(--dm-accent-text)', $darkCss);
+        $this->assertStringContainsString('body.dark-mode .card-header h5', $darkCss);
+        $this->assertStringContainsString('--bs-body-color: var(--dm-text)', $darkCss);
+        $this->assertStringContainsString('body.dark-mode .form-text', $darkCss);
     }
 }

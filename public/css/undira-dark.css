@@ -10,10 +10,10 @@ body.dark-mode {
   --dm-card: #1F2937;
   --dm-table: #1F2937;
   --dm-thead: #273449;
-  --dm-border: rgba(255, 255, 255, 0.08);
+  --dm-border: rgba(255, 255, 255, 0.12);
   --dm-text: #F9FAFB;
-  --dm-text-secondary: #D1D5DB;
-  --dm-muted: #9CA3AF;
+  --dm-text-secondary: #E5E7EB;
+  --dm-muted: #B4BCC8;
   --dm-primary: #2563EB;
   --dm-success: #22C55E;
   --dm-warning: #F59E0B;
@@ -25,6 +25,9 @@ body.dark-mode {
   --dm-input: #111827;
   --dm-elevated: #243044;
   --dm-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  /* Brand accents for TEXT on dark surfaces (never keep navy #1A237E as text) */
+  --dm-accent-text: #A5B4FC;
+  --dm-accent-link: #93C5FD;
 
   /* Remap design-system tokens used across the app */
   --app-bg: var(--dm-bg);
@@ -37,7 +40,7 @@ body.dark-mode {
   --text-secondary: var(--dm-text-secondary);
   --text-muted: var(--dm-muted);
   --text-heading: var(--dm-text);
-  --text-link: #93C5FD;
+  --text-link: var(--dm-accent-link);
   --shadow-color: rgba(0, 0, 0, 0.45);
   --undira-gray: var(--dm-bg);
   --undira-text: var(--dm-text);
@@ -53,11 +56,117 @@ body.dark-mode {
   --ui-muted: var(--dm-muted);
   --ui-shadow: var(--dm-shadow);
   --ui-canvas-accent: var(--dm-bg);
+  /* Critical: undira-ui titles use --ui-blue (#1A237E) — unreadable on dark cards */
+  --ui-blue: var(--dm-accent-text);
   --ui-blue-soft: rgba(37, 99, 235, 0.18);
-  --ui-green-soft: rgba(34, 197, 94, 0.16);
+  --ui-green: #86EFAC;
+  --ui-green-soft: rgba(34, 197, 94, 0.18);
+
+  /* Bootstrap 5.3 semantic bridge (labels, muted, body inherit these) */
+  --bs-body-color: var(--dm-text);
+  --bs-body-bg: var(--dm-bg);
+  --bs-emphasis-color: #ffffff;
+  --bs-secondary-color: var(--dm-text-secondary);
+  --bs-tertiary-color: var(--dm-muted);
+  --bs-secondary-bg: var(--dm-thead);
+  --bs-tertiary-bg: var(--dm-elevated);
+  --bs-border-color: var(--dm-border);
+  --bs-heading-color: var(--dm-text);
+  --bs-link-color: var(--dm-accent-link);
+  --bs-link-hover-color: #BFDBFE;
+  --bs-code-color: #F9A8D4;
+  --bs-body-color-rgb: 249, 250, 251;
+  --bs-secondary-color-rgb: 229, 231, 235;
+  --bs-tertiary-color-rgb: 180, 188, 200;
+
   color-scheme: dark;
   background-color: var(--dm-bg) !important;
   color: var(--dm-text) !important;
+}
+
+/* ── Typography hierarchy (global readability) ──────────────────────────── */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode .h1,
+body.dark-mode .h2,
+body.dark-mode .h3,
+body.dark-mode .h4,
+body.dark-mode .h5,
+body.dark-mode .h6 {
+  color: var(--dm-text);
+}
+
+body.dark-mode .card-header h1,
+body.dark-mode .card-header h2,
+body.dark-mode .card-header h3,
+body.dark-mode .card-header h4,
+body.dark-mode .card-header h5,
+body.dark-mode .card-header h6,
+body.dark-mode .card-header-undira h5,
+body.dark-mode .ui-panel__title,
+body.dark-mode .ui-section-title__heading,
+body.dark-mode .ui-page-header__title,
+body.dark-mode .page-header-undira h1,
+body.dark-mode .content-header h1,
+body.dark-mode .card-title,
+body.dark-mode .modal-title {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .ui-page-header__subtitle,
+body.dark-mode .ui-section-title__subtitle,
+body.dark-mode .form-text,
+body.dark-mode .help-block,
+body.dark-mode .text-body-secondary,
+body.dark-mode .text-body-tertiary {
+  color: var(--dm-muted) !important;
+}
+
+body.dark-mode .text-undira-blue,
+body.dark-mode .text-primary:not(.btn):not(a.nav-link),
+body.dark-mode a.link-primary {
+  color: var(--dm-accent-link) !important;
+}
+
+body.dark-mode dt {
+  color: var(--dm-muted) !important;
+  font-weight: 600;
+}
+
+body.dark-mode dd {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .ui-page-header__icon {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86EFAC !important;
+  box-shadow: inset 0 0 0 1px rgba(134, 239, 172, 0.25) !important;
+}
+
+body.dark-mode .card-stat .stat-icon,
+body.dark-mode .ui-kpi__icon,
+body.dark-mode .empty-state i {
+  color: var(--dm-accent-text) !important;
+}
+
+body.dark-mode .stat-icon.icon-blue {
+  background: rgba(37, 99, 235, 0.2) !important;
+  color: var(--dm-accent-text) !important;
+}
+
+body.dark-mode .stat-icon.icon-green,
+body.dark-mode .stat-icon.icon-success {
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86EFAC !important;
+}
+
+body.dark-mode .nav-header,
+body.dark-mode .nav-header.undira-nav-section {
+  color: rgba(229, 231, 235, 0.72) !important;
 }
 
 /* ── Shell / layout ─────────────────────────────────────────────────────── */
@@ -523,7 +632,7 @@ body.dark-mode .select2-container--bootstrap-5 .select2-search--dropdown .select
 }
 
 body.dark-mode .select2-results__option .invsel-opt-num {
-  color: #93C5FD !important;
+  color: var(--dm-accent-link, #93C5FD) !important;
 }
 
 body.dark-mode .select2-results__option .invsel-opt-meta {
@@ -1153,6 +1262,88 @@ body.dark-mode div[style*="background:#fff"] {
     background-color: var(--dm-input) !important;
     color: var(--dm-text) !important;
   }
+}
+
+/* ── Catch-all for page-scoped light hardcodes (loaded before this file) ─── */
+body.dark-mode .detail-label,
+body.dark-mode .scan-meta th,
+body.dark-mode .invsel-detail-grid .label,
+body.dark-mode .filter-panel .form-label,
+body.dark-mode .ui-panel .form-label,
+body.dark-mode legend,
+body.dark-mode .col-form-label {
+  color: var(--dm-muted) !important;
+}
+
+body.dark-mode .detail-value,
+body.dark-mode .scan-meta td,
+body.dark-mode .invsel-detail-grid .value {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .card-header .text-undira-blue,
+body.dark-mode .card-header .text-undira-green,
+body.dark-mode i.text-undira-blue {
+  color: var(--dm-accent-link) !important;
+}
+
+body.dark-mode i.text-undira-green {
+  color: #86EFAC !important;
+}
+
+/* Inventory nested tree / campus explore leftovers */
+body.dark-mode .inventory-nested-tree .inv-node__title,
+body.dark-mode .inventory-nested-tree .inv-item-name,
+body.dark-mode .lex-card__title,
+body.dark-mode .lex-stat__value {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .inventory-nested-tree .inv-node__meta,
+body.dark-mode .inventory-nested-tree .inv-item-meta,
+body.dark-mode .inventory-nested-tree .inv-node__chevron,
+body.dark-mode .lex-stat__label,
+body.dark-mode .lex-empty {
+  color: var(--dm-muted) !important;
+}
+
+/* DataTables filter chrome (Bootstrap-styled wrappers) */
+body.dark-mode .dataTables_wrapper label,
+body.dark-mode div.dataTables_wrapper div.dataTables_filter label,
+body.dark-mode div.dataTables_wrapper div.dataTables_length label {
+  color: var(--dm-text-secondary) !important;
+}
+
+/* Toast / offcanvas leftovers */
+body.dark-mode .toast,
+body.dark-mode .offcanvas,
+body.dark-mode .offcanvas-header,
+body.dark-mode .offcanvas-body {
+  background-color: var(--dm-card) !important;
+  color: var(--dm-text) !important;
+  border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .toast-header {
+  background-color: var(--dm-thead) !important;
+  color: var(--dm-text) !important;
+  border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .btn-close:not(.btn-close-white) {
+  filter: invert(1) grayscale(1) brightness(1.4);
+  opacity: 0.75;
+}
+
+body.dark-mode .navbar .btn-close:not(.btn-close-white),
+body.dark-mode .modal .btn-close:not(.btn-close-white) {
+  filter: invert(1) grayscale(1) brightness(1.5);
+}
+
+body.dark-mode .code-panel {
+  background: var(--dm-thead) !important;
+  border-color: var(--dm-border) !important;
+  color: var(--dm-text) !important;
 }
 
 /* Print must stay light / ink-friendly */
