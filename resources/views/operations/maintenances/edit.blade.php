@@ -104,7 +104,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Foto Saat Perbaikan</label>
-                    @php $duringPhotos = $maintenance->photos->where('type', 'during')->filter(fn ($p) => filled($p->url)); @endphp
+                    @php $duringPhotos = $maintenance->photos->where('type', 'during')->filter(fn ($p) => filled($p->path) && filled($p->url)); @endphp
                     @if($duringPhotos->isNotEmpty())
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             @foreach($duringPhotos as $photo)
@@ -118,7 +118,7 @@
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Foto Sesudah</label>
-                    @php $afterPhotos = $maintenance->photos->where('type', 'after')->filter(fn ($p) => filled($p->url)); @endphp
+                    @php $afterPhotos = $maintenance->photos->where('type', 'after')->filter(fn ($p) => filled($p->path) && filled($p->url)); @endphp
                     @if($afterPhotos->isNotEmpty())
                         <div class="d-flex flex-wrap gap-2 mb-2">
                             @foreach($afterPhotos as $photo)

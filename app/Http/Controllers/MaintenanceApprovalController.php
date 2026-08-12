@@ -64,6 +64,6 @@ class MaintenanceApprovalController extends Controller
 
         return redirect()
             ->route('maintenance-approvals.index')
-            ->with('success', 'Dikembalikan ke teknisi (Revisi Perbaikan). Notifikasi telah dikirim.');
+            ->with('success', 'Work Order berhasil dikembalikan untuk revisi perbaikan.');
     }
 }

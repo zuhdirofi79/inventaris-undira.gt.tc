@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\NotificationPresenter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class NotificationController extends Controller
@@ -18,11 +18,14 @@ class NotificationController extends Controller
 
     public function unread(): JsonResponse
     {
-        $notifications = auth()->user()->unreadNotifications()->limit(10)->get();
+        $user = auth()->user();
+        $notifications = $user->unreadNotifications()->limit(10)->get();
 
         return response()->json([
-            'count' => auth()->user()->unreadNotifications()->count(),
-            'notifications' => $notifications,
+            'count' => $user->unreadNotifications()->count(),
+            'notifications' => $notifications->map(
+                fn ($notification) => NotificationPresenter::forDropdown($notification)
+            )->values(),
         ]);
     }
 

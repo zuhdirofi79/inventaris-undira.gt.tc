@@ -215,7 +215,7 @@ class MaintenanceWorkflowService
      */
     public function reject(Maintenance $maintenance, User $actor, string $reason): Maintenance
     {
-        return DB::transaction(function () use ($maintenance, $actor, $reason) {
+        $fresh = DB::transaction(function () use ($maintenance, $actor, $reason) {
             $maintenance = Maintenance::query()->lockForUpdate()->findOrFail($maintenance->id);
 
             if ($maintenance->status !== MaintenanceStatus::PendingApproval) {
@@ -251,11 +251,13 @@ class MaintenanceWorkflowService
                 InventoryStatus::RevisiPerbaikan->value,
             );
 
-            $fresh = $maintenance->fresh(['inventoryItem', 'technicianUser', 'creator']);
-            $this->notifications->notifyMaintenanceApproval($fresh, 'rejected', $reason);
-
-            return $fresh;
+            return $maintenance->fresh(['inventoryItem', 'technicianUser', 'creator']);
         });
+
+        // Notify after commit so a notification failure cannot roll back the status change.
+        $this->notifications->notifyMaintenanceApproval($fresh, 'rejected', $reason);
+
+        return $fresh;
     }
 
     /**
@@ -619,7 +621,7 @@ class MaintenanceWorkflowService
         $type = $photo->type;
 
         if (filled($path)) {
-            Storage::disk('public')->delete($path);
+            Storage::disk('public')->delete(ltrim(str_replace('\\', '/', (string) $path), '/'));
         }
         $photo->delete();
 
@@ -656,10 +658,13 @@ class MaintenanceWorkflowService
 
         $stored = 0;
         foreach ($files as $file) {
-            $path = $file->store($dir, 'public');
-            if (! is_string($path) || $path === '') {
+            $storedPath = $file->store($dir, 'public');
+            if (! is_string($storedPath) || $storedPath === '') {
                 continue;
             }
+
+            // Normalize Windows separators so public URLs stay valid.
+            $path = str_replace('\\', '/', $storedPath);
 
             MaintenancePhoto::query()->create([
                 'maintenance_id' => $maintenance->id,

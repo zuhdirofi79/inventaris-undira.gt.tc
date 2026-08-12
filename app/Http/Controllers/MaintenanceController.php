@@ -15,6 +15,7 @@ use App\Http\Requests\UpdateMaintenanceRequest;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\MaintenancePhoto;
+use App\Models\Campus;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\AuditLogService;
@@ -38,6 +39,15 @@ class MaintenanceController extends Controller
     {
         $user = $request->user();
 
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'campus_id' => ['nullable', 'integer', 'exists:campuses,id'],
+            'status' => ['nullable', 'string', 'max:50'],
+            'type' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $campusId = $request->filled('campus_id') ? $request->integer('campus_id') : null;
+
         $maintenances = Maintenance::query()
             ->with(['inventoryItem', 'vendor'])
             ->when($request->filled('q'), function ($q) use ($request) {
@@ -51,6 +61,9 @@ class MaintenanceController extends Controller
                         })
                         ->orWhereHas('vendor', fn ($v) => $v->where('name', 'like', $term));
                 });
+            })
+            ->when($campusId, function ($q) use ($campusId) {
+                $q->whereHas('inventoryItem', fn ($item) => $item->forCampus($campusId));
             })
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->string('status')))
             ->when($request->filled('type'), fn ($q) => $q->where('maintenance_type', $request->string('type')))
@@ -70,6 +83,10 @@ class MaintenanceController extends Controller
             'maintenances' => $maintenances,
             'statuses' => MaintenanceStatus::cases(),
             'types' => MaintenanceType::cases(),
+            'campuses' => Campus::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ]);
     }
 

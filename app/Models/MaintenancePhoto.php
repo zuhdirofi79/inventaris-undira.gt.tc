@@ -20,21 +20,39 @@ class MaintenancePhoto extends Model
         return $this->belongsTo(Maintenance::class);
     }
 
+    /**
+     * Normalized relative path on the public disk (forward slashes, no leading slash).
+     */
+    public function storagePath(): string
+    {
+        return ltrim(str_replace('\\', '/', (string) $this->path), '/');
+    }
+
     public function fileExists(): bool
     {
-        return filled($this->path) && Storage::disk('public')->exists($this->path);
+        $path = $this->storagePath();
+
+        return $path !== '' && Storage::disk('public')->exists($path);
     }
 
     /**
-     * Public URL for the photo, or null when the file is missing (avoids broken <img>).
+     * Browser-accessible URL for the stored file.
+     * Host-relative (/storage/...) so <img src> works when APP_URL host
+     * differs from the host the user is browsing (same pattern as InventoryPhoto).
      */
     public function getUrlAttribute(): ?string
     {
-        if (! $this->fileExists()) {
+        $path = $this->storagePath();
+        if ($path === '') {
             return null;
         }
 
-        // Relative /storage/... is robust when APP_URL host differs from the browser host.
-        return Storage::disk('public')->url($this->path);
+        $url = Storage::disk('public')->url($path);
+
+        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
+            return parse_url($url, PHP_URL_PATH) ?: $url;
+        }
+
+        return $url;
     }
 }

@@ -23,13 +23,33 @@
     @endcan
     @can('maintenance.approve')
         @if($maintenance->status?->value === 'pending_approval')
-        <form action="{{ route('maintenance-approvals.approve', $maintenance) }}" method="POST" class="d-inline">
+        <form action="{{ route('maintenance-approvals.approve', $maintenance) }}" method="POST" class="d-inline" data-no-loading>
             @csrf
-            <button class="btn btn-success btn-sm" onclick="return confirm('Approve perbaikan ini?')">Approve</button>
+            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Approve perbaikan ini?')">Approve</button>
         </form>
+        <button
+            type="button"
+            class="btn btn-outline-danger btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#rejectMaintenanceShowModal"
+        >Kembalikan</button>
         @endif
     @endcan
 </x-page-header>
+
+@if($maintenance->status?->value === 'revision' && filled($maintenance->rejection_reason))
+    <div class="alert alert-warning border-0 shadow-sm">
+        <div class="fw-semibold mb-1"><i class="bi bi-arrow-counterclockwise me-1"></i>Revisi Perbaikan</div>
+        <div>{{ $maintenance->rejection_reason }}</div>
+        <div class="small mt-2 mb-0">Perbaiki work order ini, lalu ajukan ulang ke Approval Maintenance melalui tombol <strong>Selesaikan Perbaikan</strong>.</div>
+    </div>
+@endif
+
+@if ($errors->any())
+    <div class="alert alert-danger">
+        <ul class="mb-0 small">@foreach ($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+    </div>
+@endif
 
 <div class="row g-3">
     <div class="col-lg-8">
@@ -95,7 +115,7 @@
                     @php
                         $stagePhotos = $maintenance->photos
                             ->where('type', $key)
-                            ->filter(fn ($photo) => filled($photo->url))
+                            ->filter(fn ($photo) => filled($photo->path))
                             ->values();
                     @endphp
                     <div class="maint-photo-stage mb-4" data-type="{{ $key }}">
@@ -108,6 +128,7 @@
                                 enctype="multipart/form-data"
                                 class="maint-photo-dropzone"
                                 data-dropzone
+                                data-no-loading
                             >
                                 @csrf
                                 <input type="hidden" name="type" value="{{ $key }}">
@@ -129,14 +150,22 @@
                             @endcan
 
                             @forelse($stagePhotos as $photo)
+                                @php $photoUrl = $photo->url; @endphp
                                 <div class="maint-photo-thumb position-relative">
-                                    <a href="{{ $photo->url }}" target="_blank" rel="noopener" class="d-block">
+                                    @if($photoUrl)
+                                    <a href="{{ $photoUrl }}" target="_blank" rel="noopener" class="d-block">
                                         <img
-                                            src="{{ $photo->url }}"
+                                            src="{{ $photoUrl }}"
                                             alt="Foto {{ $label }}"
                                             loading="lazy"
+                                            onerror="this.classList.add('is-broken'); this.closest('.maint-photo-thumb')?.classList.add('is-broken');"
                                         >
                                     </a>
+                                    @else
+                                    <div class="maint-photo-thumb__missing small text-muted d-flex align-items-center justify-content-center h-100 px-1 text-center">
+                                        File tidak ditemukan
+                                    </div>
+                                    @endif
                                     @can('maintenance.update')
                                     <form
                                         action="{{ route('maintenances.photos.destroy', [$maintenance, $photo]) }}"
@@ -218,6 +247,47 @@
         </div>
     </div>
 </div>
+
+@can('maintenance.approve')
+@if($maintenance->status?->value === 'pending_approval')
+<div class="modal fade" id="rejectMaintenanceShowModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form
+            method="POST"
+            action="{{ route('maintenance-approvals.reject', $maintenance) }}"
+            class="modal-content"
+            data-no-loading
+            onsubmit="var b=this.querySelector('[type=submit]'); if(b){ b.disabled=true; b.textContent='Memproses...'; }"
+        >
+            @csrf
+            <div class="modal-header">
+                <h5 class="modal-title">Kembalikan ke Teknisi</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">Work Order: <strong>{{ $maintenance->maintenance_number }}</strong></p>
+                <label class="form-label" for="show_rejection_reason">Alasan revisi <span class="text-danger">*</span></label>
+                <textarea
+                    name="rejection_reason"
+                    id="show_rejection_reason"
+                    class="form-control @error('rejection_reason') is-invalid @enderror"
+                    rows="3"
+                    required
+                    maxlength="2000"
+                >{{ old('rejection_reason') }}</textarea>
+                @error('rejection_reason')
+                    <div class="invalid-feedback">{{ $message }}</div>
+                @enderror
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="submit" class="btn btn-danger">Kembalikan</button>
+            </div>
+        </form>
+    </div>
+</div>
+@endif
+@endcan
 @endsection
 
 @push('styles')
@@ -256,6 +326,14 @@
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.maint-photo-thumb.is-broken,
+.maint-photo-thumb img.is-broken {
+  background: #fee2e2;
+}
+.maint-photo-thumb__missing {
+  font-size: 0.65rem;
+  line-height: 1.2;
 }
 .maint-photo-thumb__delete {
   position: absolute;

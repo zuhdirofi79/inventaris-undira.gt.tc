@@ -1326,3 +1326,308 @@ body.dark-mode .btn-warning:focus-visible,
 body.dark-mode .btn-warning:active {
   color: #1E293B !important;
 }
+
+/* —— Notification dropdown —— */
+.undira-notif {
+  position: relative;
+}
+
+.undira-notif-toggle {
+  position: relative;
+  padding-inline: 0.65rem !important;
+}
+
+.undira-notif-toggle:focus-visible {
+  outline: 2px solid rgba(26, 35, 126, 0.45);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.undira-notif-badge {
+  position: absolute;
+  top: 4px;
+  right: 2px;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: #C62828;
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+  border: 2px solid #fff;
+  box-shadow: none;
+  pointer-events: none;
+}
+
+.undira-notif-menu {
+  width: min(400px, calc(100vw - 1.25rem)) !important;
+  max-width: calc(100vw - 1.25rem);
+  padding: 0 !important;
+  margin-top: 0.4rem !important;
+  border: 1px solid var(--ui-border) !important;
+  border-radius: var(--ui-radius-sm) !important;
+  background: var(--ui-surface) !important;
+  box-shadow: var(--ui-shadow-hover) !important;
+  overflow: hidden;
+  animation: undira-notif-in 160ms var(--ui-ease);
+}
+
+@keyframes undira-notif-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.undira-notif-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--ui-border);
+  background: var(--ui-surface);
+}
+
+.undira-notif-header-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--ui-text);
+  letter-spacing: -0.01em;
+}
+
+.undira-notif-header-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue);
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.undira-notif-mark-all {
+  border: 0;
+  background: transparent;
+  color: var(--ui-blue);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.2rem 0.35rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 160ms var(--ui-ease), color 160ms var(--ui-ease);
+}
+
+.undira-notif-mark-all:hover,
+.undira-notif-mark-all:focus-visible {
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue);
+  outline: none;
+}
+
+.undira-notif-mark-all:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.undira-notif-list {
+  max-height: 420px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--ui-surface);
+}
+
+.undira-notif-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.8rem 1rem;
+  text-decoration: none !important;
+  color: inherit;
+  border-bottom: 1px solid rgba(230, 234, 242, 0.85);
+  cursor: pointer;
+  transition: background 160ms var(--ui-ease);
+}
+
+.undira-notif-item:last-child {
+  border-bottom: 0;
+}
+
+.undira-notif-item:hover,
+.undira-notif-item:focus-visible {
+  background: #F7F8FC;
+  outline: none;
+}
+
+.undira-notif-item.is-unread {
+  background: #F4F6FB;
+}
+
+.undira-notif-item.is-unread:hover,
+.undira-notif-item.is-unread:focus-visible {
+  background: #EEF1F8;
+}
+
+.undira-notif-icon {
+  flex: 0 0 auto;
+  width: 2.15rem;
+  height: 2.15rem;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue);
+  font-size: 0.85rem;
+}
+
+.undira-notif-body {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.undira-notif-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.undira-notif-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--ui-text);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.undira-notif-item.is-unread .undira-notif-title {
+  font-weight: 700;
+}
+
+.undira-notif-subject,
+.undira-notif-subtitle,
+.undira-notif-summary {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: var(--ui-muted);
+  word-break: break-word;
+}
+
+.undira-notif-subject {
+  color: var(--ui-text);
+  font-weight: 600;
+}
+
+.undira-notif-time {
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: var(--ui-muted);
+  line-height: 1.3;
+}
+
+.undira-notif-dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: var(--ui-green);
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.12);
+}
+
+.undira-notif-empty {
+  padding: 1.75rem 1.25rem;
+  text-align: center;
+}
+
+.undira-notif-empty-icon {
+  display: inline-flex;
+  width: 2.5rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--ui-blue-soft);
+  color: var(--ui-blue);
+  margin-bottom: 0.75rem;
+  opacity: 0.9;
+}
+
+.undira-notif-empty-title {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ui-text);
+}
+
+.undira-notif-empty-text {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: var(--ui-muted);
+  line-height: 1.4;
+}
+
+.undira-notif-footer {
+  border-top: 1px solid var(--ui-border);
+  background: #FAFBFD;
+}
+
+.undira-notif-footer-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ui-blue) !important;
+  text-decoration: none !important;
+  transition: background 160ms var(--ui-ease);
+}
+
+.undira-notif-footer-link:hover,
+.undira-notif-footer-link:focus-visible {
+  background: var(--ui-blue-soft);
+  outline: none;
+}
+
+.undira-notif-footer-link i {
+  font-size: 0.7rem;
+}
+
+@media (max-width: 575.98px) {
+  .undira-notif-menu {
+    width: calc(100vw - 0.75rem) !important;
+    max-width: calc(100vw - 0.75rem);
+    margin-right: 0.25rem !important;
+  }
+
+  .undira-notif-header {
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+
+  .undira-notif-list {
+    max-height: min(420px, 55vh);
+  }
+}

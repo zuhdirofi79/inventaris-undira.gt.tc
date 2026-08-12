@@ -1346,6 +1346,105 @@ body.dark-mode .code-panel {
   color: var(--dm-text) !important;
 }
 
+/* Notification dropdown — dark mode */
+body.dark-mode .undira-notif-badge {
+  background: #EF5350;
+  color: #fff;
+  border-color: var(--dm-elevated);
+}
+
+body.dark-mode .undira-notif-toggle:focus-visible {
+  outline-color: rgba(144, 164, 255, 0.55);
+}
+
+body.dark-mode .undira-notif-menu {
+  background: var(--dm-elevated) !important;
+  border-color: var(--dm-border) !important;
+  box-shadow: var(--dm-shadow) !important;
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .undira-notif-header,
+body.dark-mode .undira-notif-list,
+body.dark-mode .undira-notif-footer {
+  background: var(--dm-elevated) !important;
+  border-color: var(--dm-border) !important;
+}
+
+body.dark-mode .undira-notif-header-title,
+body.dark-mode .undira-notif-title,
+body.dark-mode .undira-notif-subject,
+body.dark-mode .undira-notif-empty-title {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .undira-notif-subtitle,
+body.dark-mode .undira-notif-summary,
+body.dark-mode .undira-notif-time,
+body.dark-mode .undira-notif-empty-text {
+  color: var(--dm-muted, #94A3B8) !important;
+}
+
+body.dark-mode .undira-notif-header-count {
+  background: rgba(144, 164, 255, 0.16);
+  color: #C5CAE9;
+}
+
+body.dark-mode .undira-notif-mark-all {
+  color: #C5CAE9;
+}
+
+body.dark-mode .undira-notif-mark-all:hover,
+body.dark-mode .undira-notif-mark-all:focus-visible {
+  background: rgba(144, 164, 255, 0.14);
+  color: #E8EAF6;
+}
+
+body.dark-mode .undira-notif-item {
+  border-bottom-color: var(--dm-border);
+  color: var(--dm-text);
+}
+
+body.dark-mode .undira-notif-item:hover,
+body.dark-mode .undira-notif-item:focus-visible {
+  background: var(--dm-hover) !important;
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .undira-notif-item.is-unread {
+  background: rgba(144, 164, 255, 0.08);
+}
+
+body.dark-mode .undira-notif-item.is-unread:hover,
+body.dark-mode .undira-notif-item.is-unread:focus-visible {
+  background: rgba(144, 164, 255, 0.14) !important;
+}
+
+body.dark-mode .undira-notif-icon,
+body.dark-mode .undira-notif-empty-icon {
+  background: rgba(144, 164, 255, 0.14);
+  color: #C5CAE9;
+}
+
+body.dark-mode .undira-notif-dot {
+  background: #66BB6A;
+  box-shadow: 0 0 0 3px rgba(102, 187, 106, 0.18);
+}
+
+body.dark-mode .undira-notif-footer-link {
+  color: #C5CAE9 !important;
+}
+
+body.dark-mode .undira-notif-footer-link:hover,
+body.dark-mode .undira-notif-footer-link:focus-visible {
+  background: rgba(144, 164, 255, 0.12);
+  color: #E8EAF6 !important;
+}
+
+body.dark-mode .undira-notif-item-page.is-unread {
+  background: rgba(144, 164, 255, 0.08) !important;
+}
+
 /* Print must stay light / ink-friendly */
 @media print {
   body.dark-mode,

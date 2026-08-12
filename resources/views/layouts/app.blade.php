@@ -87,17 +87,44 @@
                     <i class="fas fa-moon" aria-hidden="true"></i>
                 </a>
             </li>
-            <li class="nav-item dropdown">
-                <a class="nav-link" data-bs-toggle="dropdown" href="#" id="notificationDropdown" aria-label="Notifikasi">
+            <li class="nav-item dropdown undira-notif">
+                <a class="nav-link undira-notif-toggle"
+                   data-bs-toggle="dropdown"
+                   data-bs-auto-close="outside"
+                   href="#"
+                   id="notificationDropdown"
+                   aria-label="Notifikasi"
+                   aria-haspopup="true"
+                   aria-expanded="false"
+                   title="Notifikasi">
                     <i class="fas fa-bell" aria-hidden="true"></i>
-                    <span class="badge badge-warning navbar-badge" id="notificationCount" style="display:none;">0</span>
+                    <span class="undira-notif-badge" id="notificationCount" hidden>0</span>
                 </a>
-                <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end" id="notificationDropdownMenu">
-                    <span class="dropdown-item dropdown-header">Notifikasi</span>
-                    <div class="dropdown-divider"></div>
-                    <div id="notificationList"></div>
-                    <div class="dropdown-divider"></div>
-                    <a href="{{ route('notifications.index') }}" class="dropdown-item dropdown-footer">Lihat Semua</a>
+                <div class="dropdown-menu dropdown-menu-end undira-notif-menu"
+                     id="notificationDropdownMenu"
+                     aria-labelledby="notificationDropdown"
+                     role="menu">
+                    <div class="undira-notif-header">
+                        <div class="undira-notif-header-title">
+                            <span>Notifikasi</span>
+                            <span class="undira-notif-header-count" id="notificationHeaderCount" hidden></span>
+                        </div>
+                        <button type="button"
+                                class="undira-notif-mark-all"
+                                id="notificationMarkAll"
+                                hidden
+                                title="Tandai semua dibaca"
+                                aria-label="Tandai semua notifikasi sebagai dibaca">
+                            Tandai semua dibaca
+                        </button>
+                    </div>
+                    <div class="undira-notif-list" id="notificationList" role="none"></div>
+                    <div class="undira-notif-footer">
+                        <a href="{{ route('notifications.index') }}" class="undira-notif-footer-link" role="menuitem">
+                            Lihat semua notifikasi
+                            <i class="fas fa-arrow-right" aria-hidden="true"></i>
+                        </a>
+                    </div>
                 </div>
             </li>
             <li class="nav-item dropdown">
@@ -328,30 +355,135 @@ window.addEventListener('pageshow', function () {
     });
 })();
 
-// Notifications
-function loadNotifications() {
-    $.get('{{ route('notifications.unread') }}', function(data) {
-        if (data.count > 0) {
-            $('#notificationCount').text(data.count).show();
+// Notifications (navbar dropdown)
+(function () {
+    const unreadUrl = @json(route('notifications.unread'));
+    const readAllUrl = @json(route('notifications.read-all'));
+    const indexUrl = @json(route('notifications.index'));
+    const readUrlTpl = @json(url('/notifications/__ID__/read'));
+    const listEl = document.getElementById('notificationList');
+    const badgeEl = document.getElementById('notificationCount');
+    const headerCountEl = document.getElementById('notificationHeaderCount');
+    const markAllBtn = document.getElementById('notificationMarkAll');
+    if (!listEl || !badgeEl) return;
+
+    function escapeHtml(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatBadge(count) {
+        if (count > 99) return '99+';
+        return String(count);
+    }
+
+    function setUnreadCount(count) {
+        const n = Number(count) || 0;
+        if (n > 0) {
+            badgeEl.textContent = formatBadge(n);
+            badgeEl.hidden = false;
+            if (headerCountEl) {
+                headerCountEl.textContent = formatBadge(n);
+                headerCountEl.hidden = false;
+            }
+            if (markAllBtn) markAllBtn.hidden = false;
         } else {
-            $('#notificationCount').hide();
+            badgeEl.hidden = true;
+            if (headerCountEl) headerCountEl.hidden = true;
+            if (markAllBtn) markAllBtn.hidden = true;
         }
-        let html = '';
-        if (data.notifications.length === 0) {
-            html = '<span class="dropdown-item text-muted">Tidak ada notifikasi baru</span>';
-        } else {
-            data.notifications.forEach(function(n) {
-                const msg = n.data.message || n.data.title || 'Notifikasi baru';
-                html += `<a href="{{ route('notifications.index') }}" class="dropdown-item"><i class="fas fa-bell me-2"></i>${msg}</a>`;
+    }
+
+    function emptyStateHtml() {
+        return '' +
+            '<div class="undira-notif-empty" role="status">' +
+            '  <i class="fas fa-bell undira-notif-empty-icon" aria-hidden="true"></i>' +
+            '  <p class="undira-notif-empty-title">Tidak ada notifikasi</p>' +
+            '  <p class="undira-notif-empty-text">Semua aktivitas terbaru akan muncul di sini.</p>' +
+            '</div>';
+    }
+
+    function itemHtml(n) {
+        const unread = !!n.unread;
+        const icon = escapeHtml(n.icon || 'fas fa-bell');
+        const title = escapeHtml(n.title || 'Notifikasi');
+        const subject = n.subject ? '<div class="undira-notif-subject">' + escapeHtml(n.subject) + '</div>' : '';
+        const subtitle = n.subtitle ? '<div class="undira-notif-subtitle">' + escapeHtml(n.subtitle) + '</div>' : '';
+        const summary = n.summary ? '<div class="undira-notif-summary">' + escapeHtml(n.summary) + '</div>' : '';
+        const time = escapeHtml(n.time_ago || '');
+        const url = escapeHtml(n.url || indexUrl);
+        const id = escapeHtml(n.id || '');
+
+        return '' +
+            '<a href="' + url + '" class="undira-notif-item' + (unread ? ' is-unread' : '') + '"' +
+            '   role="menuitem" data-notif-id="' + id + '" data-notif-url="' + url + '">' +
+            '  <span class="undira-notif-icon" aria-hidden="true"><i class="' + icon + '"></i></span>' +
+            '  <span class="undira-notif-body">' +
+            '    <span class="undira-notif-title-row">' +
+            '      <span class="undira-notif-title">' + title + '</span>' +
+            (unread ? '<span class="undira-notif-dot" title="Belum dibaca" aria-label="Belum dibaca"></span>' : '') +
+            '    </span>' +
+            subject + subtitle + summary +
+            (time ? '<span class="undira-notif-time">' + time + '</span>' : '') +
+            '  </span>' +
+            '</a>';
+    }
+
+    function renderList(notifications) {
+        if (!notifications || !notifications.length) {
+            listEl.innerHTML = emptyStateHtml();
+            return;
+        }
+        listEl.innerHTML = notifications.map(itemHtml).join('');
+    }
+
+    window.loadNotifications = function loadNotifications() {
+        $.get(unreadUrl, function (data) {
+            setUnreadCount(data.count || 0);
+            renderList(data.notifications || []);
+        }).fail(function () {
+            /* keep last rendered state on transient errors */
+        });
+    };
+
+    listEl.addEventListener('click', function (e) {
+        const item = e.target.closest('.undira-notif-item');
+        if (!item) return;
+        const id = item.getAttribute('data-notif-id');
+        const url = item.getAttribute('data-notif-url') || item.getAttribute('href');
+        if (!id) return;
+        e.preventDefault();
+        $.post(readUrlTpl.replace('__ID__', encodeURIComponent(id)))
+            .always(function () {
+                window.location.href = url;
             });
-        }
-        $('#notificationList').html(html);
     });
-}
-@if(auth()->check())
-loadNotifications();
-setInterval(loadNotifications, 60000);
-@endif
+
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            markAllBtn.disabled = true;
+            $.post(readAllUrl)
+                .done(function () {
+                    setUnreadCount(0);
+                    renderList([]);
+                })
+                .always(function () {
+                    markAllBtn.disabled = false;
+                });
+        });
+    }
+
+    @if(auth()->check())
+    window.loadNotifications();
+    setInterval(window.loadNotifications, 60000);
+    @endif
+})();
 
 // SweetAlert delete confirmation
 $(document).on('submit', 'form[data-confirm]', function(e) {
