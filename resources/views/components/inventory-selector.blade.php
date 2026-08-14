@@ -236,7 +236,11 @@ body.dark-mode .invsel-detail-grid .value {
 </div>
 
 @once
+@push('styles')
+@include('partials.select2-cdn-css')
+@endpush
 @push('scripts')
+@include('partials.select2-cdn-js')
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="{{ asset('js/inventory-selector.js') }}?v={{ @filemtime(public_path('js/inventory-selector.js')) ?: time() }}"></script>
 @endpush

@@ -474,6 +474,7 @@ body.dark-mode .dash-ent .dash-activity-item:hover { background: rgba(148,163,18
 @endsection
 
 @push('scripts')
+@include('partials.chartjs-cdn')
 <script>
 window.undiraDashboardReveal = function () {
     const skel = document.getElementById('dashboardSkeleton');

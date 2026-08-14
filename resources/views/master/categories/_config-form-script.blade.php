@@ -1,4 +1,5 @@
 @push('scripts')
+@include('partials.select2-cdn-js')
 <script>
 (function () {
     const previewUrl = @json(route('master-configurations.preview'));

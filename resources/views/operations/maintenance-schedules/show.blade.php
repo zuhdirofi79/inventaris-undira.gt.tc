@@ -3,9 +3,16 @@
 @section('title', 'Detail Jadwal - Inventaris UNDIRA')
 
 @section('content')
+@php
+    $item = $schedule->inventoryItem;
+    $room = $item?->room;
+    $floor = $room?->floor;
+    $building = $floor?->building;
+    $campus = $building?->campus;
+@endphp
 <x-page-header
     title="Jadwal #{{ $schedule->id }}"
-    subtitle="{{ $schedule->inventoryItem?->inventory_number }} · {{ $schedule->inventoryItem?->name }}"
+    subtitle="{{ $item?->inventory_number }} · {{ $item?->name }}"
     icon="bi bi-calendar2-check"
     :breadcrumbs="[
         ['label' => 'Dashboard', 'url' => route('dashboard')],
@@ -23,7 +30,11 @@
     </form>
     @endcan
     @can('maintenance.create')
-    <a href="{{ route('maintenances.create', ['inventory_item_id' => $schedule->inventory_item_id]) }}" class="btn btn-outline-info btn-sm">Buat Work Order</a>
+    <a href="{{ route('maintenances.create', [
+        'inventory_item_id' => $schedule->inventory_item_id,
+        'maintenance_type' => $schedule->maintenance_type?->value,
+        'from_schedule' => $schedule->id,
+    ]) }}" class="btn btn-outline-info btn-sm">Buat Work Order</a>
     @endcan
 </x-page-header>
 
@@ -61,6 +72,7 @@
                     <dt class="col-sm-4">Terakhir selesai (siklus)</dt><dd class="col-sm-8">{{ $schedule->last_completed_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</dd>
                     <dt class="col-sm-4">Status</dt><dd class="col-sm-8">{{ $schedule->is_active ? 'Aktif' : 'Nonaktif' }}</dd>
                     <dt class="col-sm-4">Catatan</dt><dd class="col-sm-8">{{ $schedule->notes ?: '—' }}</dd>
+                    <dt class="col-sm-4">Sumber</dt><dd class="col-sm-8">Preventive Maintenance</dd>
                 </dl>
             </div>
             @can('maintenance.delete')
@@ -100,15 +112,30 @@
         </div>
     </div>
     <div class="col-lg-5">
+        <div class="card card-undira mb-3">
+            <div class="card-header"><h5 class="mb-0">Lokasi Inventaris</h5></div>
+            <div class="card-body">
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-4">Kampus</dt>
+                    <dd class="col-sm-8 fw-semibold">{{ $campus?->name ?: '—' }}</dd>
+                    <dt class="col-sm-4">Gedung</dt>
+                    <dd class="col-sm-8">{{ $building?->name ?: ($building?->code ?: '—') }}</dd>
+                    <dt class="col-sm-4">Lantai</dt>
+                    <dd class="col-sm-8">{{ $floor?->name ?: ($floor?->code ?: '—') }}</dd>
+                    <dt class="col-sm-4">Ruangan</dt>
+                    <dd class="col-sm-8">{{ $room?->name ?: ($room?->code ?: '—') }}</dd>
+                </dl>
+            </div>
+        </div>
         <div class="card card-undira">
             <div class="card-header"><h5 class="mb-0">Inventaris</h5></div>
             <div class="card-body small">
-                <div><code>{{ $schedule->inventoryItem?->inventory_number }}</code></div>
-                <div class="fw-semibold">{{ $schedule->inventoryItem?->name }}</div>
-                <div class="text-muted mt-2">
-                    {{ $schedule->inventoryItem?->room?->floor?->building?->campus?->name }}
-                    · {{ $schedule->inventoryItem?->room?->name }}
-                </div>
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Nomor</dt>
+                    <dd class="col-sm-8"><code>{{ $item?->inventory_number ?: '—' }}</code></dd>
+                    <dt class="col-sm-4">Nama</dt>
+                    <dd class="col-sm-8 fw-semibold">{{ $item?->name ?: '—' }}</dd>
+                </dl>
                 @can('inventory.view')
                 <a href="{{ route('inventory.show', $schedule->inventory_item_id) }}" class="btn btn-outline-primary btn-sm mt-3 w-100">Detail Inventaris</a>
                 @endcan

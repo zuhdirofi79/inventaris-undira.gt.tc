@@ -45,10 +45,19 @@
                     <textarea name="notes" class="form-control" rows="2">{{ old('notes', $maintenance->notes) }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Upload Foto Sesudah</label>
-                    <input type="file" name="photos_after[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewAfter">
-                    <div class="form-text">JPG/PNG/WEBP, maks. 5 MB per file.</div>
-                    <div id="previewAfter" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    <label class="form-label">Upload Foto</label>
+                    @if($maintenance->photos->isNotEmpty())
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                            @foreach($maintenance->photos->filter(fn ($p) => filled($p->url)) as $photo)
+                                <img src="{{ $photo->url }}" alt="Foto work order" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
+                            @endforeach
+                        </div>
+                        <div class="form-text">Work order sudah memiliki foto. Ganti dari halaman detail jika diperlukan.</div>
+                    @else
+                        <input type="file" name="photos_after[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-preview="previewAfter">
+                        <div class="form-text">Opsional · 1 foto · JPG/PNG/WEBP · maks. 5 MB</div>
+                        <div id="previewAfter" class="d-flex flex-wrap gap-2 mt-2"></div>
+                    @endif
                 </div>
             </div>
         </div>

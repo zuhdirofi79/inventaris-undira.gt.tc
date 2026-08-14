@@ -75,11 +75,11 @@ class InventoryMassLabels30Test extends TestCase
         ])->assertSessionHasErrors('inventory_ids');
     }
 
-    public function test_mass_labels_paginates_beyond_forty_items(): void
+    public function test_mass_labels_paginates_beyond_forty_five_items(): void
     {
         $admin = $this->makeAdmin();
         $ids = [];
-        for ($i = 1; $i <= 41; $i++) {
+        for ($i = 1; $i <= 46; $i++) {
             $ids[] = $this->makeItem([
                 'inventory_number' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
                 'barcode' => 'MASS-PAGE-'.str_pad((string) $i, 3, '0', STR_PAD_LEFT),
@@ -126,41 +126,48 @@ class InventoryMassLabels30Test extends TestCase
         $response->assertHeader('content-type', 'application/pdf');
     }
 
-    public function test_label_layout_defaults_to_forty_per_page(): void
+    public function test_label_layout_defaults_to_forty_five_per_page(): void
     {
         $service = app(\App\Services\InventoryMassLabelService::class);
         $layout = $service->layout();
 
         $this->assertSame(5, $layout['columns']);
-        $this->assertSame(8, $layout['rows']);
-        $this->assertSame(40, $layout['per_page']);
-        $this->assertEqualsWithDelta(15.0, $layout['qr_size_mm'], 0.01);
-        $this->assertGreaterThanOrEqual(8.0, $layout['logo_width_mm']);
-        $this->assertLessThanOrEqual(14.0, $layout['logo_width_mm']);
+        $this->assertSame(9, $layout['rows']);
+        $this->assertSame(45, $layout['per_page']);
+        $this->assertGreaterThanOrEqual(12.0, $layout['qr_size_mm']);
+        $this->assertLessThanOrEqual(15.0, $layout['qr_size_mm']);
+        $this->assertGreaterThanOrEqual(7.0, $layout['logo_width_mm']);
+        $this->assertLessThanOrEqual(12.0, $layout['logo_width_mm']);
         $this->assertLessThan($layout['qr_size_mm'], $layout['logo_max_height_mm']);
-        $this->assertLessThanOrEqual(6.0, $layout['logo_max_height_mm']);
-        $this->assertGreaterThanOrEqual(2.5, $layout['gap_x_mm']);
-        $this->assertGreaterThanOrEqual(3.5, $layout['gap_y_mm']);
-        $this->assertLessThanOrEqual(6.0, $layout['gap_x_mm']);
-        $this->assertLessThanOrEqual(6.5, $layout['gap_y_mm']);
-        // Compact horizontal-ish card with cutting gaps retained (derived from A4, not 41mm tall).
+        $this->assertLessThanOrEqual(4.0, $layout['logo_max_height_mm']);
+        $this->assertGreaterThanOrEqual(1.2, $layout['gap_x_mm']);
+        $this->assertGreaterThanOrEqual(1.2, $layout['gap_y_mm']);
+        $this->assertLessThanOrEqual(4.0, $layout['gap_x_mm']);
+        $this->assertLessThanOrEqual(4.0, $layout['gap_y_mm']);
+        // Compact card with cutting gaps (derived from A4 5×9).
         $this->assertTrue($layout['label_width_mm'] > 30.0 && $layout['label_width_mm'] < 40.0);
-        $this->assertTrue($layout['label_height_mm'] > 27.0 && $layout['label_height_mm'] < 33.0);
+        $this->assertTrue($layout['label_height_mm'] > 24.0 && $layout['label_height_mm'] < 33.0);
         $this->assertTrue($layout['label_width_mm'] >= $layout['label_height_mm']);
-        // 8 rows + gaps + margins must fit A4 portrait.
+        // 9 rows + gaps + margins must fit A4 portrait.
         $totalH = (2 * $layout['page_margin_mm'])
             + ($layout['label_height_mm'] * $layout['rows'])
             + ($layout['gap_y_mm'] * ($layout['rows'] - 1));
         $this->assertLessThanOrEqual(297.0, $totalH + 1.0);
         // Row pitch tiles usable A4 area (minus DomPDF slack).
-        $usableH = 297.0 - (2 * $layout['page_margin_mm']) - 2.0;
+        $usableH = 297.0 - (2 * $layout['page_margin_mm']) - 1.2;
         $this->assertEqualsWithDelta($usableH, $layout['row_pitch_mm'] * $layout['rows'], 0.08);
         $this->assertEqualsWithDelta(
             $layout['row_pitch_mm'],
             $layout['label_height_mm'] + $layout['gap_y_mm'],
             0.08
         );
-        $this->assertLessThanOrEqual(2.0, $layout['label_padding_bottom_mm']);
+        $this->assertLessThanOrEqual(1.5, $layout['label_padding_bottom_mm']);
+        // Content budget: QR + number row + pads must fit inside label height.
+        $contentBudget = $layout['qr_size_mm']
+            + $layout['number_row_mm']
+            + $layout['label_padding_mm']
+            + $layout['label_padding_bottom_mm'];
+        $this->assertLessThanOrEqual($layout['label_height_mm'] + 0.01, $contentBudget);
     }
 
     public function test_name_and_inventory_number_typography_are_dynamic(): void
@@ -172,9 +179,10 @@ class InventoryMassLabels30Test extends TestCase
         $this->assertGreaterThan($long['pt'], $short['pt']);
         $this->assertStringNotContainsString('...', $long['text']);
 
-        $number = $service->inventoryNumberTypography('CBB-UNDIRA-26-FUR-MJ-000021');
-        $this->assertGreaterThanOrEqual(4.9, $number['pt']);
+        $number = $service->inventoryNumberTypography('CB-UNDIRA-26-FUR-KR-000001');
+        $this->assertGreaterThanOrEqual(4.8, $number['pt']);
         $this->assertFalse($number['edge_case']);
+        $this->assertSame(mb_strlen('CB-UNDIRA-26-FUR-KR-000001'), 26);
     }
 
     #[DataProvider('massLabelPageCountProvider')]
@@ -225,12 +233,11 @@ class InventoryMassLabels30Test extends TestCase
         return [
             '1 item' => [1, 1],
             '5 items' => [5, 1],
-            '39 items' => [39, 1],
-            '40 items' => [40, 1],
-            '41 items' => [41, 2],
-            '45 items' => [45, 2],
-            '80 items' => [80, 2],
-            '81 items' => [81, 3],
+            '44 items' => [44, 1],
+            '45 items' => [45, 1],
+            '46 items' => [46, 2],
+            '90 items' => [90, 2],
+            '91 items' => [91, 3],
             '100 items' => [100, 3],
         ];
     }
@@ -269,8 +276,8 @@ class InventoryMassLabels30Test extends TestCase
             ->get(route('inventory.items'))
             ->assertOk()
             ->assertSee('Cetak Label QR')
-            ->assertSee('40 Label / A4')
-            ->assertSee('5 kolom × 8 baris')
+            ->assertSee('45 Label / A4')
+            ->assertSee('5 kolom × 9 baris')
             ->assertDontSee('30 Label / A4')
             ->assertSee('id="massLabelsModal"', false)
             ->assertSee(route('inventory.labels.mass30', [], false), false)
@@ -296,7 +303,7 @@ class InventoryMassLabels30Test extends TestCase
             ->get(route('inventory.label.print', $item))
             ->assertOk()
             ->assertSee('Cetak Label')
-            ->assertDontSee('40 Label / A4');
+            ->assertDontSee('45 Label / A4');
     }
 
     public function test_legacy_labels_route_still_works(): void

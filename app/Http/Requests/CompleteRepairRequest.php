@@ -18,7 +18,7 @@ class CompleteRepairRequest extends FormRequest
             'work_performed' => ['required', 'string'],
             'notes' => ['nullable', 'string'],
             'cost' => ['nullable', 'numeric', 'min:0'],
-            'photos_after' => ['nullable', 'array', 'max:10'],
+            'photos_after' => ['nullable', 'array', 'max:1'],
             'photos_after.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
@@ -28,6 +28,7 @@ class CompleteRepairRequest extends FormRequest
         return [
             'work_performed.required' => 'Pekerjaan yang dilakukan wajib diisi.',
             'completed_at.required' => 'Tanggal selesai wajib diisi.',
+            'photos_after.max' => 'Hanya boleh mengunggah 1 foto per work order.',
             'photos_after.*.mimes' => 'Format foto harus JPG, JPEG, PNG, atau WEBP.',
             'photos_after.*.max' => 'Ukuran foto maksimal 5 MB.',
         ];

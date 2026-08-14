@@ -2,6 +2,10 @@
 
 @section('title', 'Master Data - Inventaris UNDIRA')
 
+@push('styles')
+@include('partials.select2-cdn-css')
+@endpush
+
 @section('content')
 <x-page-header
     title="Master Data"

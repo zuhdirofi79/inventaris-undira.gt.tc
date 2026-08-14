@@ -49,6 +49,7 @@
 
 @push('scripts')
 @php $subMap = $options['subCategories']->groupBy('category_id'); @endphp
+@include('partials.chartjs-cdn')
 <script>
 (function () {
     const subCategoryMap = @json($subMap);

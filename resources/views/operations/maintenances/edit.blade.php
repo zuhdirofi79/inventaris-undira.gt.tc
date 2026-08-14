@@ -103,32 +103,22 @@
                     <textarea name="notes" class="form-control" rows="2">{{ old('notes', $maintenance->notes) }}</textarea>
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Foto Saat Perbaikan</label>
-                    @php $duringPhotos = $maintenance->photos->where('type', 'during')->filter(fn ($p) => filled($p->path) && filled($p->url)); @endphp
-                    @if($duringPhotos->isNotEmpty())
+                    <label class="form-label">Foto Work Order</label>
+                    @php
+                        $existingPhotos = $maintenance->photos->filter(fn ($p) => filled($p->path) && filled($p->url));
+                    @endphp
+                    @if($existingPhotos->isNotEmpty())
                         <div class="d-flex flex-wrap gap-2 mb-2">
-                            @foreach($duringPhotos as $photo)
-                                <img src="{{ $photo->url }}" alt="Foto saat" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
+                            @foreach($existingPhotos as $photo)
+                                <img src="{{ $photo->url }}" alt="Foto work order" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
                             @endforeach
                         </div>
-                        <div class="form-text mb-1">Foto tersimpan di detail. Upload di sini akan menambah foto baru (foto lama tetap).</div>
+                        <div class="form-text">Sudah ada foto. Hapus/ganti dari halaman detail work order.</div>
+                    @else
+                        <input type="file" name="photos_during[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-preview="previewDuring">
+                        <div class="form-text">Opsional · 1 foto · JPG/PNG/WEBP · maks. 5 MB</div>
+                        <div id="previewDuring" class="d-flex flex-wrap gap-2 mt-2"></div>
                     @endif
-                    <input type="file" name="photos_during[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewDuring">
-                    <div id="previewDuring" class="d-flex flex-wrap gap-2 mt-2"></div>
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Foto Sesudah</label>
-                    @php $afterPhotos = $maintenance->photos->where('type', 'after')->filter(fn ($p) => filled($p->path) && filled($p->url)); @endphp
-                    @if($afterPhotos->isNotEmpty())
-                        <div class="d-flex flex-wrap gap-2 mb-2">
-                            @foreach($afterPhotos as $photo)
-                                <img src="{{ $photo->url }}" alt="Foto sesudah" class="rounded border" style="height:72px;width:72px;object-fit:cover;" loading="lazy">
-                            @endforeach
-                        </div>
-                        <div class="form-text mb-1">Foto tersimpan di detail. Upload di sini akan menambah foto baru (foto lama tetap).</div>
-                    @endif
-                    <input type="file" name="photos_after[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewAfter">
-                    <div id="previewAfter" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>
         </div>
@@ -140,7 +130,12 @@
 </form>
 @endsection
 
+@push('styles')
+@include('partials.select2-cdn-css')
+@endpush
+
 @push('scripts')
+@include('partials.select2-cdn-js')
 <script>
 $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
 document.querySelectorAll('.js-maint-photo-input').forEach(function (input) {

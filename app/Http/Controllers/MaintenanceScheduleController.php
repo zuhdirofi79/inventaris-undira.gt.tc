@@ -6,12 +6,15 @@ use App\Enums\MaintenanceIntervalUnit;
 use App\Enums\MaintenanceType;
 use App\Http\Requests\StoreMaintenanceScheduleRequest;
 use App\Http\Requests\UpdateMaintenanceScheduleRequest;
+use App\Models\Campus;
 use App\Models\MaintenanceSchedule;
 use App\Services\InventorySearchService;
 use App\Services\MaintenanceScheduleService;
+use App\Support\InventarisCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -24,35 +27,68 @@ class MaintenanceScheduleController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate([
+            'q' => ['nullable', 'string', 'max:255'],
+            'campus_id' => ['nullable', 'integer', 'exists:campuses,id'],
+            'type' => ['nullable', 'string', 'max:50'],
+            'status' => ['nullable', 'string', 'in:all,active,inactive,overdue'],
+            'filter' => ['nullable', 'string', 'in:all,due_today,due_week,overdue,inactive'],
+        ]);
+
         $filter = $request->string('filter')->toString() ?: 'all';
+        $status = $request->string('status')->toString();
+        $campusId = $request->filled('campus_id') ? $request->integer('campus_id') : null;
+        $type = $request->filled('type') ? $request->string('type')->toString() : null;
+        $q = $request->filled('q') ? $request->string('q')->toString() : null;
+
+        $shared = [
+            'q' => $q,
+            'campus_id' => $campusId,
+            'type' => $type,
+        ];
+        $listFilters = [
+            ...$shared,
+            'status' => $status !== '' ? $status : null,
+            'filter' => $filter,
+        ];
 
         $query = MaintenanceSchedule::query()
-            ->with(['inventoryItem.room.floor.building.campus'])
-            ->when($request->filled('q'), function ($q) use ($request) {
-                $term = '%'.$request->string('q').'%';
-                $q->where(function ($inner) use ($term) {
-                    $inner->where('responsible_pic', 'like', $term)
-                        ->orWhereHas('inventoryItem', function ($item) use ($term) {
-                            $item->where('inventory_number', 'like', $term)
-                                ->orWhere('name', 'like', $term);
-                        });
-                });
-            });
+            ->with([
+                'inventoryItem:id,inventory_number,name,room_id',
+                'inventoryItem.room:id,name,code,floor_id',
+                'inventoryItem.room.floor:id,name,code,floor_number,building_id',
+                'inventoryItem.room.floor.building:id,name,code,campus_id',
+                'inventoryItem.room.floor.building.campus:id,name,code',
+            ]);
 
-        $query = match ($filter) {
-            'due_today' => $query->dueToday(),
-            'due_week' => $query->dueThisWeek(),
-            'overdue' => $query->overdue(),
-            'inactive' => $query->where('is_active', false),
-            default => $query->active(),
-        };
+        $this->schedules->applySharedFilters($query, $shared);
+        $this->schedules->applyStatusAndCardFilter($query, $listFilters);
 
         $items = $query->orderBy('next_maintenance_date')->paginate(20)->withQueryString();
 
+        $filterQuery = array_filter([
+            'q' => $q,
+            'campus_id' => $campusId,
+            'type' => $type,
+            'status' => $status !== '' ? $status : null,
+        ], fn ($v) => $v !== null && $v !== '');
+
         return view('operations.maintenance-schedules.index', [
             'schedules' => $items,
-            'summary' => $this->schedules->summaryCounts(),
+            'summary' => $this->schedules->summaryCounts($shared),
+            'campusCounts' => $this->schedules->countsByCampus($listFilters),
             'filter' => $filter,
+            'status' => $status,
+            'types' => MaintenanceType::cases(),
+            'campuses' => Cache::remember(
+                InventarisCache::key('campuses.active.dropdown'),
+                InventarisCache::TTL,
+                fn () => Campus::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+            ),
+            'filterQuery' => $filterQuery,
         ]);
     }
 
@@ -132,7 +168,14 @@ class MaintenanceScheduleController extends Controller
 
     public function show(MaintenanceSchedule $maintenance_schedule): View
     {
-        $maintenance_schedule->load(['inventoryItem.room.floor.building.campus', 'creator']);
+        $maintenance_schedule->load([
+            'inventoryItem:id,inventory_number,name,room_id',
+            'inventoryItem.room:id,name,code,floor_id',
+            'inventoryItem.room.floor:id,name,code,floor_number,building_id',
+            'inventoryItem.room.floor.building:id,name,code,campus_id',
+            'inventoryItem.room.floor.building.campus:id,name,code',
+            'creator:id,name',
+        ]);
 
         return view('operations.maintenance-schedules.show', [
             'schedule' => $maintenance_schedule,

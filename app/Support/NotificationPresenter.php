@@ -36,6 +36,7 @@ class NotificationPresenter
         $subject = self::nullableString($data['wo_number'] ?? $data['subject'] ?? null);
         $subtitle = self::nullableString($data['asset_name'] ?? $data['subtitle'] ?? null);
         $code = self::nullableString($data['asset_code'] ?? null);
+        $campus = self::nullableString($data['campus'] ?? null);
         $summary = self::nullableString($data['summary'] ?? null);
 
         if ($subject === null && preg_match('/\b((?:MNT|WO)-[\w-]+)\b/i', $message, $m)) {
@@ -51,6 +52,10 @@ class NotificationPresenter
 
         if ($subtitle !== null && $code !== null && ! str_contains($subtitle, $code)) {
             $subtitle = $subtitle.' ('.$code.')';
+        }
+
+        if ($summary === null && $campus !== null) {
+            $summary = $campus;
         }
 
         if ($summary === null) {

@@ -1445,6 +1445,53 @@ body.dark-mode .undira-notif-item-page.is-unread {
   background: rgba(144, 164, 255, 0.08) !important;
 }
 
+/* Approve maintenance modal — dark mode */
+body.dark-mode .undira-approve-modal .modal-content {
+  background: var(--dm-elevated) !important;
+  border-color: var(--dm-border) !important;
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .undira-approve-modal__title,
+body.dark-mode .undira-approve-modal__wo,
+body.dark-mode .undira-approve-modal__meta dd {
+  color: var(--dm-text) !important;
+}
+
+body.dark-mode .undira-approve-modal__desc,
+body.dark-mode .undira-approve-modal__details-label,
+body.dark-mode .undira-approve-modal__meta dt,
+body.dark-mode .undira-approve-modal__hint {
+  color: var(--dm-muted) !important;
+}
+
+body.dark-mode .undira-approve-modal__icon {
+  background: rgba(46, 125, 50, 0.22);
+  color: #81C784;
+}
+
+body.dark-mode .undira-approve-modal__details {
+  background: rgba(15, 23, 42, 0.35);
+  border-color: var(--dm-border);
+}
+
+body.dark-mode .undira-approve-modal__footer {
+  border-top-color: var(--dm-border);
+  background: var(--dm-elevated);
+}
+
+body.dark-mode .undira-approve-modal__footer .btn-outline-secondary {
+  color: var(--dm-text);
+  border-color: var(--dm-border);
+}
+
+body.dark-mode .undira-approve-modal__footer .btn-outline-secondary:hover,
+body.dark-mode .undira-approve-modal__footer .btn-outline-secondary:focus-visible {
+  background: var(--dm-hover);
+  color: #fff;
+  border-color: var(--dm-border);
+}
+
 /* Print must stay light / ink-friendly */
 @media print {
   body.dark-mode,

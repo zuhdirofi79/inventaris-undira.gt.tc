@@ -229,14 +229,26 @@ class MaintenanceApprovalReturnTest extends TestCase
             ->assertOk()
             ->assertSee('Kembalikan')
             ->assertSee('id="rejectMaintenanceModal"', false)
+            ->assertSee('id="approveMaintenanceModal"', false)
+            ->assertSee('Konfirmasi Approval', false)
+            ->assertSee('Approve Perbaikan', false)
+            ->assertDontSee("confirm('", false)
             ->assertSee('data-reject-url="'.route('maintenance-approvals.reject', $wo).'"', false)
+            ->assertSee('data-approve-url="'.route('maintenance-approvals.approve', $wo).'"', false)
             ->getContent();
 
         $tablePos = strpos($html, 'table-responsive');
         $modalPos = strpos($html, 'id="rejectMaintenanceModal"');
+        $approveModalPos = strpos($html, 'id="approveMaintenanceModal"');
+        $sidebarBackdropPos = strpos($html, 'id="sidebarBackdrop"');
+
         $this->assertNotFalse($tablePos);
         $this->assertNotFalse($modalPos);
+        $this->assertNotFalse($approveModalPos);
+        $this->assertNotFalse($sidebarBackdropPos);
         $this->assertGreaterThan($tablePos, $modalPos, 'Reject modal must be rendered outside table-responsive');
+        $this->assertLessThan($sidebarBackdropPos, $modalPos, 'Reject modal must use @stack(modals) outside content-wrapper');
+        $this->assertLessThan($sidebarBackdropPos, $approveModalPos, 'Approve modal must use @stack(modals) outside content-wrapper');
     }
 
     public function test_double_reject_does_not_duplicate_history(): void

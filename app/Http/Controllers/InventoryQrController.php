@@ -153,7 +153,7 @@ class InventoryQrController extends Controller
     }
 
     /**
-     * Mass print QR labels on A4 (configurable grid; default 5×8 = 40/page).
+     * Mass print QR labels on A4 (configurable grid; default 5×9 = 45/page).
      * Does not replace inventory.labels or individual label print.
      */
     public function massLabels30(Request $request): Response|RedirectResponse

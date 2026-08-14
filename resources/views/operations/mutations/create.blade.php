@@ -61,6 +61,7 @@
 @push('scripts')
 <script>
 (function () {
+    if (!$.fn.select2) return;
     function bindAjaxSelect($el) {
         $el.select2({
             theme: 'bootstrap-5',

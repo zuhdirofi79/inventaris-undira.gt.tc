@@ -42,7 +42,12 @@
 </form>
 @endsection
 
+@push('styles')
+@include('partials.select2-cdn-css')
+@endpush
+
 @push('scripts')
+@include('partials.select2-cdn-js')
 @include('inventory._location-cascade-script', [
     'selectedCampusId' => old('campus_id', $inventory->room?->floor?->building?->campus_id),
     'selectedBuildingId' => old('building_id', $inventory->room?->floor?->building_id),

@@ -27,7 +27,12 @@
 </form>
 @endsection
 
+@push('styles')
+@include('partials.select2-cdn-css')
+@endpush
+
 @push('scripts')
+@include('partials.select2-cdn-js')
 @include('inventory._location-cascade-script', [
     'selectedCampusId' => old('campus_id', request('campus_id')),
     'selectedBuildingId' => old('building_id', request('building_id')),
@@ -36,4 +41,17 @@
     'selectedCategoryId' => old('category_id', request('category_id')),
     'selectedSubCategoryId' => old('sub_category_id'),
 ])
+<script>
+(function () {
+    const $pic = $('#inventory_pic_id');
+    if ($pic.length && $.fn.select2) {
+        $pic.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            allowClear: true,
+            placeholder: $pic.data('placeholder') || 'Pilih PIC (Opsional)',
+        });
+    }
+})();
+</script>
 @endpush

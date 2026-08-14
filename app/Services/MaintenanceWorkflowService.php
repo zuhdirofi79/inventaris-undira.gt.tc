@@ -255,7 +255,11 @@ class MaintenanceWorkflowService
         });
 
         // Notify after commit so a notification failure cannot roll back the status change.
-        $this->notifications->notifyMaintenanceApproval($fresh, 'rejected', $reason);
+        try {
+            $this->notifications->notifyMaintenanceApproval($fresh, 'rejected', $reason);
+        } catch (\Throwable $e) {
+            report($e);
+        }
 
         return $fresh;
     }
@@ -340,7 +344,9 @@ class MaintenanceWorkflowService
             }
 
             $this->storePhotos($maintenance, 'during', $duringPhotos);
-            $this->storePhotos($maintenance, 'after', $afterPhotos);
+            if ($duringPhotos === [] || $duringPhotos === null) {
+                $this->storePhotos($maintenance, 'after', $afterPhotos);
+            }
 
             $code = match ($maintenance->status) {
                 MaintenanceStatus::InProgress => 'MAINTENANCE_STARTED',
@@ -600,10 +606,11 @@ class MaintenanceWorkflowService
     }
 
     /**
-     * Append photos for a WO stage (does not remove existing photos of other/same type).
+     * Store at most one photo for a work order.
+     * Rejects when the WO already has a photo (enforced server-side).
      *
      * @param  array<int, UploadedFile>|UploadedFile|null  $files
-     * @return int Number of files stored
+     * @return int Number of files stored (0 or 1)
      */
     public function addPhotos(Maintenance $maintenance, string $type, array|UploadedFile|null $files): int
     {
@@ -616,14 +623,15 @@ class MaintenanceWorkflowService
             throw new RuntimeException('Foto tidak terkait dengan work order ini.');
         }
 
-        $path = $photo->path;
+        $path = $photo->storagePath();
         $photoId = $photo->id;
         $type = $photo->type;
 
-        if (filled($path)) {
-            Storage::disk('public')->delete(ltrim(str_replace('\\', '/', (string) $path), '/'));
-        }
         $photo->delete();
+
+        if ($path !== '') {
+            Storage::disk('public')->delete($path);
+        }
 
         $this->audit->log(
             $actor,
@@ -636,7 +644,8 @@ class MaintenanceWorkflowService
     }
 
     /**
-     * Store photos for a WO stage (append). Empty upload keeps existing photos.
+     * Store a single photo for a WO. Empty upload keeps existing photos.
+     * Throws when a photo already exists and a new file is provided.
      *
      * @param  array<int, UploadedFile>|UploadedFile|null  $files
      * @return int
@@ -648,33 +657,40 @@ class MaintenanceWorkflowService
             return 0;
         }
 
+        // Business rule: maksimal 1 foto total per Work Order.
+        if ($maintenance->photos()->exists()) {
+            throw new RuntimeException('Work order ini sudah memiliki foto. Hapus foto yang ada terlebih dahulu jika ingin mengganti.');
+        }
+
+        $file = $files[0];
+        $type = in_array($type, ['before', 'during', 'after'], true) ? $type : 'before';
+
         $dir = sprintf(
-            'maintenance/%s/%s/%d/%s',
+            'maintenance/%s/%s/%d',
             now()->format('Y'),
             now()->format('m'),
-            $maintenance->id,
-            $type
+            $maintenance->id
         );
 
-        $stored = 0;
-        foreach ($files as $file) {
-            $storedPath = $file->store($dir, 'public');
-            if (! is_string($storedPath) || $storedPath === '') {
-                continue;
-            }
+        $storedPath = $file->store($dir, 'public');
+        if (! is_string($storedPath) || $storedPath === '') {
+            throw new RuntimeException('Gagal menyimpan file foto ke storage.');
+        }
 
-            // Normalize Windows separators so public URLs stay valid.
-            $path = str_replace('\\', '/', $storedPath);
+        $path = str_replace('\\', '/', $storedPath);
 
+        try {
             MaintenancePhoto::query()->create([
                 'maintenance_id' => $maintenance->id,
                 'type' => $type,
                 'path' => $path,
             ]);
-            $stored++;
+        } catch (\Throwable $e) {
+            Storage::disk('public')->delete($path);
+            throw $e;
         }
 
-        return $stored;
+        return 1;
     }
 
     /**

@@ -6,9 +6,11 @@ use App\Enums\AuditAction;
 use App\Enums\MaintenanceIntervalUnit;
 use App\Enums\MaintenanceStatus;
 use App\Enums\MaintenanceType;
+use App\Models\Campus;
 use App\Models\Maintenance;
 use App\Models\MaintenanceSchedule;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -358,16 +360,156 @@ class MaintenanceScheduleService
     }
 
     /**
+     * Shared list filters (search / campus / type). Status & card filters applied separately.
+     *
+     * @param  array{q?: string|null, campus_id?: int|null, type?: string|null}  $filters
+     */
+    public function applySharedFilters(Builder $query, array $filters): Builder
+    {
+        $q = trim((string) ($filters['q'] ?? ''));
+        if ($q !== '') {
+            $term = '%'.$q.'%';
+            $query->where(function (Builder $inner) use ($term) {
+                $inner->where('responsible_pic', 'like', $term)
+                    ->orWhereHas('inventoryItem', function (Builder $item) use ($term) {
+                        $item->where('inventory_number', 'like', $term)
+                            ->orWhere('name', 'like', $term);
+                    });
+            });
+        }
+
+        $campusId = (int) ($filters['campus_id'] ?? 0);
+        if ($campusId > 0) {
+            $query->forCampus($campusId);
+        }
+
+        $type = trim((string) ($filters['type'] ?? ''));
+        if ($type !== '') {
+            $query->where('maintenance_type', $type);
+        }
+
+        return $query;
+    }
+
+    /**
+     * @param  array{q?: string|null, campus_id?: int|null, type?: string|null}  $filters
      * @return array{due_today: int, due_this_week: int, overdue: int, active: int}
      */
-    public function summaryCounts(): array
+    public function summaryCounts(array $filters = []): array
     {
+        $base = MaintenanceSchedule::query();
+        $this->applySharedFilters($base, $filters);
+
         return [
-            'due_today' => MaintenanceSchedule::query()->dueToday()->count(),
-            'due_this_week' => MaintenanceSchedule::query()->dueThisWeek()->count(),
-            'overdue' => MaintenanceSchedule::query()->overdue()->count(),
-            'active' => MaintenanceSchedule::query()->active()->count(),
+            'due_today' => (clone $base)->dueToday()->count(),
+            'due_this_week' => (clone $base)->dueThisWeek()->count(),
+            'overdue' => (clone $base)->overdue()->count(),
+            'active' => (clone $base)->active()->count(),
         ];
+    }
+
+    /**
+     * Per-campus schedule totals for the index summary strip (respects shared filters).
+     *
+     * @param  array{q?: string|null, campus_id?: int|null, type?: string|null, status?: string|null, filter?: string|null}  $filters
+     * @return list<array{id: int, name: string, total: int}>
+     */
+    public function countsByCampus(array $filters = []): array
+    {
+        $query = MaintenanceSchedule::query()
+            ->join('inventory_items', 'inventory_items.id', '=', 'maintenance_schedules.inventory_item_id')
+            ->join('rooms', 'rooms.id', '=', 'inventory_items.room_id')
+            ->join('floors', 'floors.id', '=', 'rooms.floor_id')
+            ->join('buildings', 'buildings.id', '=', 'floors.building_id')
+            ->join('campuses', 'campuses.id', '=', 'buildings.campus_id')
+            ->whereNull('inventory_items.deleted_at')
+            ->whereNull('rooms.deleted_at')
+            ->whereNull('floors.deleted_at')
+            ->whereNull('buildings.deleted_at')
+            ->whereNull('campuses.deleted_at');
+
+        $q = trim((string) ($filters['q'] ?? ''));
+        if ($q !== '') {
+            $term = '%'.$q.'%';
+            $query->where(function ($inner) use ($term) {
+                $inner->where('maintenance_schedules.responsible_pic', 'like', $term)
+                    ->orWhere('inventory_items.inventory_number', 'like', $term)
+                    ->orWhere('inventory_items.name', 'like', $term);
+            });
+        }
+
+        $campusId = (int) ($filters['campus_id'] ?? 0);
+        if ($campusId > 0) {
+            $query->where('campuses.id', $campusId);
+        }
+
+        $type = trim((string) ($filters['type'] ?? ''));
+        if ($type !== '') {
+            $query->where('maintenance_schedules.maintenance_type', $type);
+        }
+
+        $this->applyStatusAndCardFilter($query, $filters, tablePrefix: 'maintenance_schedules.');
+
+        return $query
+            ->groupBy('campuses.id', 'campuses.name')
+            ->orderBy('campuses.name')
+            ->selectRaw('campuses.id as id, campuses.name as name, COUNT(maintenance_schedules.id) as total')
+            ->get()
+            ->map(fn ($row) => [
+                'id' => (int) $row->id,
+                'name' => (string) $row->name,
+                'total' => (int) $row->total,
+            ])
+            ->all();
+    }
+
+    /**
+     * Apply status dropdown + summary-card filter to a schedule query.
+     *
+     * @param  array{status?: string|null, filter?: string|null}  $filters
+     */
+    public function applyStatusAndCardFilter(Builder $query, array $filters, string $tablePrefix = ''): Builder
+    {
+        $card = (string) ($filters['filter'] ?? 'all');
+        $status = (string) ($filters['status'] ?? '');
+
+        // Summary cards take precedence when set to a due window.
+        if (in_array($card, ['due_today', 'due_week', 'overdue', 'inactive'], true)) {
+            return match ($card) {
+                'due_today' => $query->where($tablePrefix.'is_active', true)
+                    ->whereDate($tablePrefix.'next_maintenance_date', now()->toDateString()),
+                'due_week' => $query->where($tablePrefix.'is_active', true)
+                    ->whereDate($tablePrefix.'next_maintenance_date', '>=', now()->startOfDay()->toDateString())
+                    ->whereDate($tablePrefix.'next_maintenance_date', '<=', now()->endOfWeek()->toDateString()),
+                'overdue' => $query->where($tablePrefix.'is_active', true)
+                    ->whereDate($tablePrefix.'next_maintenance_date', '<', now()->toDateString()),
+                'inactive' => $query->where($tablePrefix.'is_active', false),
+                default => $query,
+            };
+        }
+
+        return match ($status) {
+            'all' => $query,
+            'active' => $query->where($tablePrefix.'is_active', true),
+            'inactive' => $query->where($tablePrefix.'is_active', false),
+            'overdue' => $query->where($tablePrefix.'is_active', true)
+                ->whereDate($tablePrefix.'next_maintenance_date', '<', now()->toDateString()),
+            // Default landing / card "Jadwal Aktif": only active schedules.
+            default => $query->where($tablePrefix.'is_active', true),
+        };
+    }
+
+    /**
+     * Active campuses for filter dropdown (id + name only).
+     *
+     * @return Collection<int, Campus>
+     */
+    public function activeCampuses(): Collection
+    {
+        return Campus::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name']);
     }
 
     /**
@@ -382,7 +524,13 @@ class MaintenanceScheduleService
         return MaintenanceSchedule::query()
             ->active()
             ->whereDate('next_maintenance_date', '<=', $horizon)
-            ->with(['inventoryItem'])
+            ->with([
+                'inventoryItem:id,inventory_number,name,room_id',
+                'inventoryItem.room:id,floor_id',
+                'inventoryItem.room.floor:id,building_id',
+                'inventoryItem.room.floor.building:id,campus_id',
+                'inventoryItem.room.floor.building.campus:id,name',
+            ])
             ->get()
             ->filter(fn (MaintenanceSchedule $s) => $s->isInReminderWindow())
             ->values();

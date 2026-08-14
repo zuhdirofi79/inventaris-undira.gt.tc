@@ -23,15 +23,13 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css">
-    {{-- DataTables CSS is page-scoped via @stack('styles') + partials/datatables-cdn-css --}}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css">
+    {{-- DataTables / Select2 / Chart.js are page-scoped via @stack + partials --}}
     <link rel="stylesheet" href="{{ asset('css/undira.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-layout.css') }}">
     <link rel="stylesheet" href="{{ asset('css/undira-ui.css') }}">
@@ -264,10 +262,8 @@ window.UNDIRA_LOADING = {
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
-{{-- DataTables JS is page-scoped via @stack('scripts') + partials/datatables-cdn-js --}}
+{{-- DataTables / Select2 / Chart.js are page-scoped via @stack('scripts') + partials --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="{{ asset('js/undira-loading.js') }}"></script>
 <script>
 $.ajaxSetup({
@@ -480,8 +476,33 @@ window.addEventListener('pageshow', function () {
     }
 
     @if(auth()->check())
+    var POLL_MS = 90000;
+    var pollTimer = null;
+
+    function startPolling() {
+        if (pollTimer) return;
+        pollTimer = window.setInterval(function () {
+            if (document.visibilityState === 'hidden') return;
+            window.loadNotifications();
+        }, POLL_MS);
+    }
+
+    function stopPolling() {
+        if (!pollTimer) return;
+        window.clearInterval(pollTimer);
+        pollTimer = null;
+    }
+
     window.loadNotifications();
-    setInterval(window.loadNotifications, 60000);
+    startPolling();
+    document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+            window.loadNotifications();
+            startPolling();
+        } else {
+            stopPolling();
+        }
+    });
     @endif
 })();
 

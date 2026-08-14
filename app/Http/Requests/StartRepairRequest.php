@@ -25,7 +25,7 @@ class StartRepairRequest extends FormRequest
             'estimated_completion' => ['nullable', 'date', 'after_or_equal:service_date'],
             'notes' => ['nullable', 'string'],
             'description' => ['nullable', 'string'],
-            'photos_before' => ['nullable', 'array', 'max:10'],
+            'photos_before' => ['nullable', 'array', 'max:1'],
             'photos_before.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
         ];
     }
@@ -36,6 +36,7 @@ class StartRepairRequest extends FormRequest
             'damage_type.required' => 'Jenis kerusakan wajib diisi.',
             'analysis.required' => 'Analisa wajib diisi.',
             'service_date.required' => 'Tanggal wajib diisi.',
+            'photos_before.max' => 'Hanya boleh mengunggah 1 foto per work order.',
             'photos_before.*.mimes' => 'Format foto harus JPG, JPEG, PNG, atau WEBP.',
             'photos_before.*.max' => 'Ukuran foto maksimal 5 MB.',
         ];

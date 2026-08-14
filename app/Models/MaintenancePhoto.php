@@ -21,11 +21,20 @@ class MaintenancePhoto extends Model
     }
 
     /**
-     * Normalized relative path on the public disk (forward slashes, no leading slash).
+     * Normalized relative path on the public disk (forward slashes, no leading slash / disk prefix).
      */
     public function storagePath(): string
     {
-        return ltrim(str_replace('\\', '/', (string) $this->path), '/');
+        $path = ltrim(str_replace('\\', '/', (string) $this->path), '/');
+
+        // Normalize accidental prefixes from older saves / manual edits.
+        foreach (['storage/app/public/', 'app/public/', 'public/', 'storage/'] as $prefix) {
+            if (str_starts_with(strtolower($path), $prefix)) {
+                $path = substr($path, strlen($prefix));
+            }
+        }
+
+        return ltrim($path, '/');
     }
 
     public function fileExists(): bool
@@ -47,12 +56,25 @@ class MaintenancePhoto extends Model
             return null;
         }
 
-        $url = Storage::disk('public')->url($path);
+        // Prefer an explicit host-relative URL (avoids APP_URL / double-prefix issues).
+        $relative = '/storage/'.$path;
 
-        if (str_starts_with($url, 'http://') || str_starts_with($url, 'https://')) {
-            return parse_url($url, PHP_URL_PATH) ?: $url;
+        // Still consult the disk for non-local adapters, then normalize to a path.
+        $diskUrl = Storage::disk('public')->url($path);
+        if (is_string($diskUrl) && $diskUrl !== '') {
+            if (str_starts_with($diskUrl, 'http://') || str_starts_with($diskUrl, 'https://')) {
+                $parsed = parse_url($diskUrl, PHP_URL_PATH);
+
+                return is_string($parsed) && $parsed !== '' ? $parsed : $relative;
+            }
+
+            $normalized = '/'.ltrim(str_replace('\\', '/', $diskUrl), '/');
+            // Guard against /storage/storage/...
+            $normalized = preg_replace('#^/storage/storage/#', '/storage/', $normalized) ?: $normalized;
+
+            return $normalized;
         }
 
-        return $url;
+        return $relative;
     }
 }

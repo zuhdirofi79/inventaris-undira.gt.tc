@@ -21,9 +21,11 @@ use App\Models\Vendor;
 use App\Services\AuditLogService;
 use App\Services\InventorySearchService;
 use App\Services\MaintenanceWorkflowService;
+use App\Support\InventarisCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -49,7 +51,10 @@ class MaintenanceController extends Controller
         $campusId = $request->filled('campus_id') ? $request->integer('campus_id') : null;
 
         $maintenances = Maintenance::query()
-            ->with(['inventoryItem', 'vendor'])
+            ->with([
+                'inventoryItem:id,inventory_number,name',
+                'vendor:id,name',
+            ])
             ->when($request->filled('q'), function ($q) use ($request) {
                 $term = '%'.$request->string('q').'%';
                 $q->where(function ($inner) use ($term) {
@@ -83,10 +88,14 @@ class MaintenanceController extends Controller
             'maintenances' => $maintenances,
             'statuses' => MaintenanceStatus::cases(),
             'types' => MaintenanceType::cases(),
-            'campuses' => Campus::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name']),
+            'campuses' => Cache::remember(
+                InventarisCache::key('campuses.active.dropdown'),
+                InventarisCache::TTL,
+                fn () => Campus::query()
+                    ->where('is_active', true)
+                    ->orderBy('name')
+                    ->get(['id', 'name'])
+            ),
         ]);
     }
 
@@ -298,18 +307,20 @@ class MaintenanceController extends Controller
 
     public function storePhotos(StoreMaintenancePhotoRequest $request, Maintenance $maintenance): RedirectResponse
     {
-        $type = (string) $request->validated('type');
+        $type = (string) ($request->validated('type') ?: 'before');
         $files = $this->uploadedImageFiles($request, 'photos');
 
-        $count = $this->workflow->addPhotos($maintenance, $type, $files);
+        try {
+            $count = $this->workflow->addPhotos($maintenance, $type, $files);
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
 
         if ($count === 0) {
             return back()->with('error', 'Tidak ada foto valid yang dapat diunggah.');
         }
 
-        $labels = ['before' => 'sebelum', 'during' => 'saat pengerjaan', 'after' => 'sesudah'];
-
-        return back()->with('success', $count.' foto '.$labels[$type].' berhasil diunggah.');
+        return back()->with('success', 'Foto berhasil diunggah.');
     }
 
     public function destroyPhoto(Request $request, Maintenance $maintenance, MaintenancePhoto $photo): RedirectResponse

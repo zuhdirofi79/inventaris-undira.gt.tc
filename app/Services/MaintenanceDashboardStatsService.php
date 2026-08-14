@@ -7,6 +7,8 @@ use App\Enums\MaintenanceStatus;
 use App\Models\InventoryItem;
 use App\Models\Maintenance;
 use App\Models\MaintenanceSchedule;
+use App\Support\InventarisCache;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class MaintenanceDashboardStatsService
@@ -19,6 +21,18 @@ class MaintenanceDashboardStatsService
      * @return array<string, mixed>
      */
     public function summary(): array
+    {
+        return Cache::remember(
+            InventarisCache::key('maintenance.dashboard.summary.v1'),
+            InventarisCache::TTL,
+            fn () => $this->buildSummary()
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function buildSummary(): array
     {
         $scheduleSummary = $this->schedules->summaryCounts();
 
@@ -47,7 +61,7 @@ class MaintenanceDashboardStatsService
 
         return [
             'cards' => [
-                'total' => Maintenance::query()->count(),
+                'total' => (int) $statusCounts->sum(),
                 'waiting' => (int) ($statusCounts[MaintenanceStatus::Waiting->value] ?? 0),
                 'on_progress' => (int) ($statusCounts[MaintenanceStatus::InProgress->value] ?? 0),
                 'completed_today' => $completedToday,

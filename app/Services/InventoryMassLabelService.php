@@ -52,18 +52,20 @@ class InventoryMassLabelService
     public function layout(): array
     {
         $columns = max(1, (int) config('inventory_labels.columns', 5));
-        $rows = max(1, (int) config('inventory_labels.rows', 8));
-        $pageMargin = max(6.0, min(10.0, (float) config('inventory_labels.page_margin_mm', 8)));
-        $gapX = max(2.5, min(6.0, (float) config('inventory_labels.gap_x_mm', 3)));
-        $gapY = max(3.5, min(6.5, (float) config('inventory_labels.gap_y_mm', 5)));
-        // Modest QR — text + full inventory number take priority on a ~30mm card.
-        $qrSize = max(13.0, min(16.5, (float) config('inventory_labels.qr_size_mm', 15)));
-        $logoWidth = max(8.0, min(14.0, (float) config('inventory_labels.logo_width_mm', 11)));
-        $logoMaxHeight = max(3.2, min(5.0, (float) config('inventory_labels.logo_max_height_mm', 3.8)));
-        $labelPadding = max(1.0, min(2.0, (float) config('inventory_labels.label_padding_mm', 1.3)));
-        $labelPaddingBottom = max(0.8, min(2.0, (float) config('inventory_labels.label_padding_bottom_mm', 1.0)));
-        $fontPt = max(5.5, min(9.0, (float) config('inventory_labels.font_size_pt', 6.5)));
-        $numberRowMm = 2.6;
+        $rows = max(1, (int) config('inventory_labels.rows', 9));
+        // Tight but printable margins — required to fit 5×9 on A4 in DomPDF.
+        $pageMargin = max(4.0, min(8.0, (float) config('inventory_labels.page_margin_mm', 5)));
+        $gapX = max(1.2, min(4.0, (float) config('inventory_labels.gap_x_mm', 2)));
+        $gapY = max(1.2, min(4.0, (float) config('inventory_labels.gap_y_mm', 1.8)));
+        // Keep QR scannable but compact so text column + number row fit the cell.
+        $qrSize = max(12.0, min(15.0, (float) config('inventory_labels.qr_size_mm', 13.5)));
+        $logoWidth = max(7.0, min(12.0, (float) config('inventory_labels.logo_width_mm', 10)));
+        $logoMaxHeight = max(2.6, min(4.0, (float) config('inventory_labels.logo_max_height_mm', 3.2)));
+        $labelPadding = max(0.7, min(1.6, (float) config('inventory_labels.label_padding_mm', 1.0)));
+        $labelPaddingBottom = max(0.5, min(1.5, (float) config('inventory_labels.label_padding_bottom_mm', 0.7)));
+        $fontPt = max(5.0, min(8.0, (float) config('inventory_labels.font_size_pt', 6.0)));
+        // Allow up to ~2 lines for long inventory numbers (no ellipsis / no clip).
+        $numberRowMm = 4.6;
 
         /*
          * DomPDF-safe grid: divide the usable area into equal cells.
@@ -71,23 +73,31 @@ class InventoryMassLabelService
          *
          * DomPDF often ignores box-sizing:border-box, so CSS cell height is set to
          * LABEL height while padding supplies the cutting gap. Row pitch ≈
-         * labelHeight + gapY. Extra vertical slack prevents phantom blank pages.
+         * labelHeight + gapY. Small vertical slack prevents phantom blank pages.
          */
         $usableWidth = 210.0 - (2 * $pageMargin);
-        $verticalSlack = 2.0;
+        $verticalSlack = 1.2;
         $usableHeight = max(1.0, 297.0 - (2 * $pageMargin) - $verticalSlack);
         $rowPitch = $usableHeight / $rows;
         $colPitch = $usableWidth / $columns;
 
         // Ease vertical gap only if the label box cannot hold QR + number row.
-        $minGap = 3.5;
+        $minGap = 1.2;
         while ($gapY > $minGap + 0.001) {
             $labelHeight = $rowPitch - $gapY;
-            $minLabelHeight = $qrSize + $numberRowMm + $labelPadding + $labelPaddingBottom + 0.4;
+            $minLabelHeight = $qrSize + $numberRowMm + $labelPadding + $labelPaddingBottom + 0.3;
             if ($labelHeight + 0.001 >= $minLabelHeight) {
                 break;
             }
-            $gapY = round($gapY - 0.25, 2);
+            $gapY = round($gapY - 0.15, 2);
+        }
+
+        // If still too tight, shrink QR slightly (never below 12mm).
+        $labelHeight = max(1.0, $rowPitch - $gapY);
+        $minLabelHeight = $qrSize + $numberRowMm + $labelPadding + $labelPaddingBottom + 0.3;
+        while ($labelHeight + 0.001 < $minLabelHeight && $qrSize > 12.0) {
+            $qrSize = round($qrSize - 0.25, 2);
+            $minLabelHeight = $qrSize + $numberRowMm + $labelPadding + $labelPaddingBottom + 0.3;
         }
 
         $cellPadX = $gapX / 2;
@@ -99,7 +109,7 @@ class InventoryMassLabelService
         $cellWidth = $colPitch;
 
         // QR column hugs the QR; leave most width for text (horizontal card).
-        $qrColPct = min(48.0, max(34.0, (($qrSize + 0.6) / max(1.0, $labelWidth)) * 100));
+        $qrColPct = min(46.0, max(32.0, (($qrSize + 0.5) / max(1.0, $labelWidth)) * 100));
 
         return [
             'columns' => $columns,
@@ -118,7 +128,7 @@ class InventoryMassLabelService
             'number_row_mm' => $numberRowMm,
             'qr_col_width_pct' => round($qrColPct, 2),
             'font_size_pt' => $fontPt,
-            'name_max_chars' => max(18, (int) config('inventory_labels.name_max_chars', 52)),
+            'name_max_chars' => max(18, (int) config('inventory_labels.name_max_chars', 48)),
             'max_items' => max(1, (int) config('inventory_labels.max_items', 500)),
             'cell_width_pct' => 100 / $columns,
             'cell_height_mm' => round($cellHeight, 2),
@@ -227,8 +237,8 @@ class InventoryMassLabelService
             $category = trim((string) ($item->category?->name ?? ''));
             $room = $this->formatRoomLabel($item);
             $nameMeta = $this->nameTypography((string) $item->name, $layout['name_max_chars']);
-            $categoryMeta = $this->singleLineTypography($category !== '' ? $category : '—', 28, 7.0, 6.2);
-            $roomMeta = $this->singleLineTypography($room, 28, 7.0, 6.2);
+            $categoryMeta = $this->singleLineTypography($category !== '' ? $category : '—', 26, 5.8, 5.2);
+            $roomMeta = $this->singleLineTypography($room, 26, 5.8, 5.2);
             $numberMeta = $this->inventoryNumberTypography($number);
 
             if ($numberMeta['edge_case']) {
@@ -483,11 +493,11 @@ class InventoryMassLabelService
      *
      * @return array{text: string, pt: float, max_height_pt: float}
      */
-    public function nameTypography(string $name, int $hardMaxChars = 52): array
+    public function nameTypography(string $name, int $hardMaxChars = 48): array
     {
         $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
         if ($name === '') {
-            return ['text' => '—', 'pt' => 8.5, 'max_height_pt' => 10.0];
+            return ['text' => '—', 'pt' => 7.0, 'max_height_pt' => 8.0];
         }
 
         $len = mb_strlen($name);
@@ -498,24 +508,25 @@ class InventoryMassLabelService
             $len = mb_strlen($name);
         }
 
-        if ($len <= 18) {
-            return ['text' => $name, 'pt' => 8.2, 'max_height_pt' => 9.5];
+        // Keep max-height tight so DomPDF does not expand the QR-height text column.
+        if ($len <= 16) {
+            return ['text' => $name, 'pt' => 7.0, 'max_height_pt' => 8.0];
         }
 
-        if ($len <= 28) {
-            return ['text' => $name, 'pt' => 7.2, 'max_height_pt' => 16.0];
+        if ($len <= 26) {
+            return ['text' => $name, 'pt' => 6.2, 'max_height_pt' => 13.5];
         }
 
-        if ($len <= 40) {
-            // Allow up to 2 lines at slightly smaller size.
-            return ['text' => $name, 'pt' => 6.5, 'max_height_pt' => 15.0];
+        if ($len <= 36) {
+            return ['text' => $name, 'pt' => 5.6, 'max_height_pt' => 12.5];
         }
 
-        return ['text' => $name, 'pt' => 6.0, 'max_height_pt' => 14.0];
+        return ['text' => $name, 'pt' => 5.2, 'max_height_pt' => 12.0];
     }
 
     /**
-     * Full inventory number on one line — never ellipsis. Shrink font / letter-spacing.
+     * Full inventory number — never ellipsis / never clip.
+     * Prefer slight shrink; allow wrap to 2 lines for very long codes.
      *
      * @return array{pt: float, letter_spacing: string, edge_case: bool}
      */
@@ -524,23 +535,23 @@ class InventoryMassLabelService
         $len = mb_strlen(trim($number));
 
         if ($len <= 22) {
-            return ['pt' => 6.3, 'letter_spacing' => '-0.01em', 'edge_case' => false];
+            return ['pt' => 6.0, 'letter_spacing' => '-0.01em', 'edge_case' => false];
         }
 
         if ($len <= 26) {
-            return ['pt' => 5.9, 'letter_spacing' => '-0.02em', 'edge_case' => false];
+            return ['pt' => 5.5, 'letter_spacing' => '-0.02em', 'edge_case' => false];
         }
 
         if ($len <= 30) {
-            return ['pt' => 5.5, 'letter_spacing' => '-0.035em', 'edge_case' => false];
+            return ['pt' => 5.1, 'letter_spacing' => '-0.03em', 'edge_case' => false];
         }
 
-        if ($len <= 34) {
-            return ['pt' => 5.2, 'letter_spacing' => '-0.045em', 'edge_case' => false];
+        if ($len <= 36) {
+            return ['pt' => 4.8, 'letter_spacing' => '-0.04em', 'edge_case' => false];
         }
 
-        // Below readable comfort on ~36mm label — still render full text; log as edge case.
-        return ['pt' => 4.9, 'letter_spacing' => '-0.055em', 'edge_case' => true];
+        // Still render the full number (may wrap to 2 lines).
+        return ['pt' => 4.5, 'letter_spacing' => '-0.05em', 'edge_case' => true];
     }
 
     /**

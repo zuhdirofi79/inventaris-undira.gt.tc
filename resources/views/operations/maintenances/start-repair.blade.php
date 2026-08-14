@@ -75,9 +75,9 @@
                     <textarea name="notes" class="form-control" rows="2">{{ old('notes') }}</textarea>
                 </div>
                 <div class="col-12">
-                    <label class="form-label">Upload Foto Sebelum</label>
-                    <input type="file" name="photos_before[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewBefore">
-                    <div class="form-text">JPG/PNG/WEBP, maks. 10 foto, 5 MB per file.</div>
+                    <label class="form-label">Upload Foto</label>
+                    <input type="file" name="photos_before[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-preview="previewBefore">
+                    <div class="form-text">Opsional · 1 foto · JPG/PNG/WEBP · maks. 5 MB</div>
                     <div id="previewBefore" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>

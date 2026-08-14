@@ -4,6 +4,7 @@
 
 @push('styles')
 @include('partials.datatables-cdn-css')
+@include('partials.select2-cdn-css')
 <style>
 /* Scoped to Inventory Items — keep page width = viewport; table scrolls inside DT shell. */
 .inventory-items-page {
@@ -292,11 +293,11 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="massLabelsModalLabel">Print Barcode (40 Label / A4)</h5>
+                <h5 class="modal-title" id="massLabelsModalLabel">Print Barcode (45 Label / A4)</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>5 kolom × 8 baris</strong> (40 label/halaman).</p>
+                <p class="mb-2">Generate PDF A4 Portrait — grid <strong>5 kolom × 9 baris</strong> (45 label/halaman).</p>
                 <p class="small text-muted mb-3">Fitur ini terpisah dari Cetak Label individual. QR tetap fokus utama pada setiap label.</p>
                 <div class="d-grid gap-2">
                     <button type="button" class="btn btn-undira" id="btnPrintSelectedLabels" data-no-loader="1">
@@ -314,6 +315,7 @@
 
 @push('scripts')
 @include('partials.datatables-cdn-js')
+@include('partials.select2-cdn-js')
 <script>
 const locationData = @json($locationData);
 const selectedIds = new Set();

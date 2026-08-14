@@ -5,15 +5,17 @@
     <title>Cetak Label QR Inventaris</title>
     <style>
         /*
-         * DomPDF mass labels — A4 portrait, 5×8 = 40 / page.
+         * DomPDF mass labels — A4 portrait, 5×9 = 45 / page.
          *
-         * CRITICAL (empty-page bug):
+         * CRITICAL (empty-page / sparse-page bugs):
          * - NEVER put page-break-inside:avoid on .page or full grid rows.
          *   DomPDF pushes overflowing "avoid" blocks → blank sheets.
          * - NEVER use border-spacing / height:100% / 100vh / min-height:297mm.
          * - DomPDF often ignores box-sizing: treat cell height as LABEL height;
          *   cell padding = cutting gap (content-box safe).
          * - Page break ONLY between chunk wrappers.
+         * - Images MUST have fixed mm width+height (height:auto expands rows).
+         * - Inventory number may wrap 1–2 lines; NEVER ellipsis / NEVER clip digits.
          */
         @page {
             size: A4 portrait;
@@ -61,7 +63,7 @@
         .label {
             width: 100%;
             height: {{ $layout['label_height_mm'] }}mm;
-            border: 0.4pt solid #D1D5DB;
+            border: 0.35pt solid #D1D5DB;
             background: #fff;
             overflow: hidden;
         }
@@ -102,7 +104,7 @@
         td.col-text {
             width: {{ max(48, 100 - $layout['qr_col_width_pct']) }}%;
             vertical-align: top;
-            padding: 0 0.5mm 0 {{ $layout['label_padding_mm'] }}mm;
+            padding: 0 0.4mm 0 {{ $layout['label_padding_mm'] }}mm;
             overflow: hidden;
         }
 
@@ -115,30 +117,33 @@
 
         td.col-number {
             height: {{ $layout['number_row_mm'] }}mm;
+            max-height: {{ $layout['number_row_mm'] }}mm;
             vertical-align: middle;
-            padding: 0.2mm {{ $layout['label_padding_mm'] }}mm 0 {{ $layout['label_padding_mm'] }}mm;
-            border-top: 0.3pt solid #E5E7EB;
+            padding: 0.15mm {{ $layout['label_padding_mm'] }}mm 0 {{ $layout['label_padding_mm'] }}mm;
+            border-top: 0.25pt solid #E5E7EB;
             overflow: visible;
         }
 
         .logo-wrap {
             height: {{ $layout['logo_max_height_mm'] }}mm;
-            margin: 0 0 0.3mm 0;
+            max-height: {{ $layout['logo_max_height_mm'] }}mm;
+            margin: 0 0 0.25mm 0;
             overflow: hidden;
             text-align: left;
-            line-height: 1;
+            line-height: 0;
         }
 
+        /* Fixed mm size — DomPDF height:auto on PNG often blows up row height. */
         img.logo {
             width: {{ $layout['logo_width_mm'] }}mm;
+            height: {{ $layout['logo_max_height_mm'] }}mm;
             max-width: {{ $layout['logo_width_mm'] }}mm;
             max-height: {{ $layout['logo_max_height_mm'] }}mm;
-            height: auto;
             display: block;
         }
 
         .logo-missing {
-            font-size: 4.5pt;
+            font-size: 4pt;
             color: #B91C1C;
             line-height: 1.05;
             text-align: left;
@@ -147,9 +152,9 @@
 
         .name {
             font-weight: bold;
-            line-height: 1.1;
+            line-height: 1.08;
             color: #111827;
-            margin: 0 0 0.2mm 0;
+            margin: 0 0 0.15mm 0;
             overflow: hidden;
             word-wrap: break-word;
         }
@@ -159,7 +164,7 @@
             line-height: 1.05;
             color: #374151;
             margin: 0 0 0.1mm 0;
-            max-height: 7.5pt;
+            max-height: 6.5pt;
             overflow: hidden;
             white-space: nowrap;
         }
@@ -169,22 +174,25 @@
             line-height: 1.05;
             color: #374151;
             margin: 0;
-            max-height: 7.5pt;
+            max-height: 6.5pt;
             overflow: hidden;
             white-space: nowrap;
         }
 
         /*
          * Inventory number: full-width bottom zone.
-         * MUST stay one line; NEVER use text-overflow: ellipsis.
+         * MUST show complete code — wrap 1–2 lines if needed.
+         * NEVER text-overflow:ellipsis / NEVER overflow:hidden that clips digits.
          */
         .number {
             font-weight: bold;
-            line-height: 1.05;
+            line-height: 1.12;
             color: #111827;
             text-align: left;
-            white-space: nowrap;
-            word-break: keep-all;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            word-break: break-all;
             overflow: visible;
         }
 
@@ -195,6 +203,7 @@
             text-align: center;
             line-height: 0;
             margin-left: auto;
+            overflow: hidden;
         }
 
         img.qr {
@@ -257,9 +266,9 @@
                                             </div>
                                         @endif
                                     </div>
-                                    <div class="name" style="font-size: {{ $label->name_pt ?? 8.2 }}pt; max-height: {{ $label->name_max_height_pt ?? 9.5 }}pt;">{{ $label->name }}</div>
-                                    <div class="category" style="font-size: {{ $label->category_pt ?? 7 }}pt;">{{ $label->category }}</div>
-                                    <div class="room" style="font-size: {{ $label->room_pt ?? 7 }}pt;">{{ $label->room }}</div>
+                                    <div class="name" style="font-size: {{ $label->name_pt ?? 7 }}pt; max-height: {{ $label->name_max_height_pt ?? 8 }}pt;">{{ $label->name }}</div>
+                                    <div class="category" style="font-size: {{ $label->category_pt ?? 5.8 }}pt;">{{ $label->category }}</div>
+                                    <div class="room" style="font-size: {{ $label->room_pt ?? 5.8 }}pt;">{{ $label->room }}</div>
                                 </td>
                                 <td class="col-qr">
                                     <div class="qr-wrap">
@@ -269,7 +278,7 @@
                             </tr>
                             <tr>
                                 <td class="col-number" colspan="2">
-                                    <div class="number" style="font-size: {{ $label->number_pt ?? 6.2 }}pt; letter-spacing: {{ $label->number_letter_spacing ?? '-0.02em' }};">{{ $label->inventory_number }}</div>
+                                    <div class="number" style="font-size: {{ $label->number_pt ?? 5.5 }}pt; letter-spacing: {{ $label->number_letter_spacing ?? '-0.02em' }};">{{ $label->inventory_number }}</div>
                                 </td>
                             </tr>
                             <tr>

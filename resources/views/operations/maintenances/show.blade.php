@@ -23,10 +23,12 @@
     @endcan
     @can('maintenance.approve')
         @if($maintenance->status?->value === 'pending_approval')
-        <form action="{{ route('maintenance-approvals.approve', $maintenance) }}" method="POST" class="d-inline" data-no-loading>
-            @csrf
-            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Approve perbaikan ini?')">Approve</button>
-        </form>
+        <button
+            type="button"
+            class="btn btn-success btn-sm"
+            data-bs-toggle="modal"
+            data-bs-target="#approveMaintenanceShowModal"
+        >Approve</button>
         <button
             type="button"
             class="btn btn-outline-danger btn-sm"
@@ -96,7 +98,7 @@
         <div class="card card-undira mb-3">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="mb-0">Foto</h5>
-                <span class="small text-muted">JPG / PNG / WEBP · maks. 5 MB</span>
+                <span class="small text-muted">Maks. 1 foto · JPG / PNG / WEBP · 5 MB</span>
             </div>
             <div class="card-body">
                 @if ($errors->any())
@@ -105,23 +107,16 @@
                     </div>
                 @endif
                 @php
-                    $groups = [
-                        'before' => 'Sebelum',
-                        'during' => 'Saat Pengerjaan',
-                        'after' => 'Sesudah',
-                    ];
+                    $woPhotos = $maintenance->photos
+                        ->filter(fn ($photo) => filled($photo->path))
+                        ->sortBy('id')
+                        ->values();
+                    $hasPhoto = $woPhotos->isNotEmpty();
                 @endphp
-                @foreach($groups as $key => $label)
-                    @php
-                        $stagePhotos = $maintenance->photos
-                            ->where('type', $key)
-                            ->filter(fn ($photo) => filled($photo->path))
-                            ->values();
-                    @endphp
-                    <div class="maint-photo-stage mb-4" data-type="{{ $key }}">
-                        <h6 class="text-muted mb-2">{{ $label }}</h6>
-                        <div class="d-flex flex-wrap gap-2 align-items-start">
-                            @can('maintenance.update')
+                <div class="maint-photo-stage" data-type="before">
+                    <div class="d-flex flex-wrap gap-2 align-items-start">
+                        @can('maintenance.update')
+                            @unless($hasPhoto)
                             <form
                                 action="{{ route('maintenances.photos.store', $maintenance) }}"
                                 method="POST"
@@ -131,79 +126,68 @@
                                 data-no-loading
                             >
                                 @csrf
-                                <input type="hidden" name="type" value="{{ $key }}">
+                                <input type="hidden" name="type" value="before">
                                 <input
                                     type="file"
                                     name="photos[]"
                                     class="d-none"
                                     accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
-                                    multiple
                                     data-file-input
                                 >
-                                <div class="maint-photo-dropzone__inner" data-drop-trigger role="button" tabindex="0" aria-label="Unggah foto {{ $label }}">
+                                <div class="maint-photo-dropzone__inner" data-drop-trigger role="button" tabindex="0" aria-label="Unggah foto work order">
                                     <i class="bi bi-cloud-arrow-up fs-4 d-block mb-1" aria-hidden="true"></i>
                                     <span class="fw-semibold">Drag &amp; drop foto di sini</span>
-                                    <span class="small text-muted d-block">atau klik untuk memilih file</span>
+                                    <span class="small text-muted d-block">atau klik untuk memilih 1 file</span>
                                 </div>
                                 <div class="maint-photo-preview d-flex flex-wrap gap-2 mt-2" data-preview></div>
                             </form>
-                            @endcan
+                            @endunless
+                        @endcan
 
-                            @forelse($stagePhotos as $photo)
-                                @php $photoUrl = $photo->url; @endphp
-                                <div class="maint-photo-thumb position-relative">
-                                    @if($photoUrl)
-                                    <a href="{{ $photoUrl }}" target="_blank" rel="noopener" class="d-block">
-                                        <img
-                                            src="{{ $photoUrl }}"
-                                            alt="Foto {{ $label }}"
-                                            loading="lazy"
-                                            onerror="this.classList.add('is-broken'); this.closest('.maint-photo-thumb')?.classList.add('is-broken');"
-                                        >
-                                    </a>
-                                    @else
-                                    <div class="maint-photo-thumb__missing small text-muted d-flex align-items-center justify-content-center h-100 px-1 text-center">
-                                        File tidak ditemukan
-                                    </div>
-                                    @endif
-                                    @can('maintenance.update')
-                                    <form
-                                        action="{{ route('maintenances.photos.destroy', [$maintenance, $photo]) }}"
-                                        method="POST"
-                                        class="maint-photo-thumb__delete"
-                                        onsubmit="return confirm('Hapus foto ini?');"
+                        @forelse($woPhotos as $photo)
+                            @php $photoUrl = $photo->url; @endphp
+                            <div class="maint-photo-thumb position-relative {{ $photoUrl ? '' : 'is-broken' }}">
+                                @if($photoUrl)
+                                <a href="{{ $photoUrl }}" target="_blank" rel="noopener" class="d-block">
+                                    <img
+                                        src="{{ $photoUrl }}"
+                                        alt="Foto work order"
+                                        loading="lazy"
+                                        onerror="this.classList.add('is-broken'); this.closest('.maint-photo-thumb')?.classList.add('is-broken');"
                                     >
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="btn btn-sm btn-danger rounded-circle" title="Hapus foto" aria-label="Hapus foto">
-                                            <i class="bi bi-x" aria-hidden="true"></i>
-                                        </button>
-                                    </form>
-                                    @endcan
+                                </a>
+                                @else
+                                <div class="maint-photo-thumb__missing small text-muted d-flex align-items-center justify-content-center h-100 px-1 text-center">
+                                    File tidak ditemukan
                                 </div>
-                            @empty
-                                @cannot('maintenance.update')
-                                <span class="text-muted small d-inline-flex align-items-center gap-1 py-3">
-                                    <i class="bi bi-image" aria-hidden="true"></i> Belum ada foto
-                                </span>
-                                @endcannot
-                            @endforelse
-
-                            @can('maintenance.update')
-                            <button
-                                type="button"
-                                class="maint-photo-add"
-                                data-add-trigger
-                                title="Tambah foto {{ $label }}"
-                                aria-label="Tambah foto {{ $label }}"
-                            >
-                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                                <span class="small">Tambah Foto</span>
-                            </button>
-                            @endcan
-                        </div>
+                                @endif
+                                @can('maintenance.update')
+                                <form
+                                    action="{{ route('maintenances.photos.destroy', [$maintenance, $photo]) }}"
+                                    method="POST"
+                                    class="maint-photo-thumb__delete"
+                                    onsubmit="return confirm('Hapus foto ini?');"
+                                >
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="btn btn-sm btn-danger rounded-circle" title="Hapus foto" aria-label="Hapus foto">
+                                        <i class="bi bi-x" aria-hidden="true"></i>
+                                    </button>
+                                </form>
+                                @endcan
+                            </div>
+                        @empty
+                            @cannot('maintenance.update')
+                            <span class="text-muted small d-inline-flex align-items-center gap-1 py-3">
+                                <i class="bi bi-image" aria-hidden="true"></i> Belum ada foto
+                            </span>
+                            @endcannot
+                        @endforelse
                     </div>
-                @endforeach
+                    @if($hasPhoto)
+                        <div class="form-text mt-2">Work order ini sudah memiliki foto. Hapus foto lama jika ingin mengganti.</div>
+                    @endif
+                </div>
             </div>
         </div>
 
@@ -248,23 +232,38 @@
     </div>
 </div>
 
+@endsection
+
 @can('maintenance.approve')
 @if($maintenance->status?->value === 'pending_approval')
-<div class="modal fade" id="rejectMaintenanceShowModal" tabindex="-1" aria-hidden="true">
+@push('modals')
+@include('partials.maintenance-approve-modal', [
+    'modalId' => 'approveMaintenanceShowModal',
+    'formId' => 'approveMaintenanceShowForm',
+    'submitId' => 'approveMaintenanceShowSubmit',
+    'action' => route('maintenance-approvals.approve', $maintenance),
+    'woNumber' => $maintenance->maintenance_number,
+    'itemName' => $maintenance->inventoryItem?->name ?? '—',
+    'itemNumber' => $maintenance->inventoryItem?->inventory_number ?? '—',
+    'typeLabel' => $maintenance->maintenance_type?->label() ?? '—',
+    'priorityLabel' => $maintenance->priority?->label() ?? '—',
+])
+<div class="modal fade" id="rejectMaintenanceShowModal" tabindex="-1" aria-labelledby="rejectMaintenanceShowModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <form
             method="POST"
             action="{{ route('maintenance-approvals.reject', $maintenance) }}"
+            id="rejectMaintenanceShowForm"
             class="modal-content"
             data-no-loading
-            onsubmit="var b=this.querySelector('[type=submit]'); if(b){ b.disabled=true; b.textContent='Memproses...'; }"
         >
             @csrf
             <div class="modal-header">
-                <h5 class="modal-title">Kembalikan ke Teknisi</h5>
+                <h5 class="modal-title" id="rejectMaintenanceShowModalLabel">Kembalikan ke Teknisi</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
+                <div id="rejectMaintenanceShowClientError" class="alert alert-danger py-2 small d-none" role="alert"></div>
                 <p class="small text-muted mb-2">Work Order: <strong>{{ $maintenance->maintenance_number }}</strong></p>
                 <label class="form-label" for="show_rejection_reason">Alasan revisi <span class="text-danger">*</span></label>
                 <textarea
@@ -276,19 +275,136 @@
                     maxlength="2000"
                 >{{ old('rejection_reason') }}</textarea>
                 @error('rejection_reason')
-                    <div class="invalid-feedback">{{ $message }}</div>
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
+                <div class="form-text">WO akan kembali ke menu Work Order dengan status Revisi Perbaikan.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">Kembalikan</button>
+                <button type="submit" class="btn btn-danger" id="rejectMaintenanceShowSubmit">Kembalikan</button>
             </div>
         </form>
     </div>
 </div>
+@endpush
+
+@push('scripts')
+<script>
+(function () {
+    var approveForm = document.getElementById('approveMaintenanceShowForm');
+    var approveBtn = document.getElementById('approveMaintenanceShowSubmit');
+    var approveModal = document.getElementById('approveMaintenanceShowModal');
+    var approveSubmitting = false;
+
+    function cleanupBackdrop() {
+        if (document.querySelector('.modal.show')) return;
+        document.querySelectorAll('.modal-backdrop').forEach(function (node) {
+            if (node.parentNode) node.parentNode.removeChild(node);
+        });
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    }
+
+    function resetApproveBtn() {
+        approveSubmitting = false;
+        if (!approveBtn) return;
+        approveBtn.disabled = false;
+        approveBtn.classList.remove('is-loading');
+        approveBtn.innerHTML = '<i class="bi bi-check-lg me-1" aria-hidden="true"></i>Approve Perbaikan';
+    }
+
+    if (approveForm) {
+        approveForm.addEventListener('submit', function (e) {
+            if (approveSubmitting) {
+                e.preventDefault();
+                return;
+            }
+            approveSubmitting = true;
+            window.setTimeout(function () {
+                if (!approveBtn) return;
+                approveBtn.disabled = true;
+                approveBtn.classList.add('is-loading');
+                approveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Memproses...';
+            }, 0);
+        });
+    }
+
+    if (approveModal) {
+        approveModal.addEventListener('hidden.bs.modal', function () {
+            cleanupBackdrop();
+            if (!approveSubmitting) resetApproveBtn();
+        });
+    }
+
+    var form = document.getElementById('rejectMaintenanceShowForm');
+    var reasonInput = document.getElementById('show_rejection_reason');
+    var submitBtn = document.getElementById('rejectMaintenanceShowSubmit');
+    var clientError = document.getElementById('rejectMaintenanceShowClientError');
+    var modalEl = document.getElementById('rejectMaintenanceShowModal');
+    var submitting = false;
+    if (!form) return;
+
+    function resetSubmitButton() {
+        submitting = false;
+        if (!submitBtn) return;
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Kembalikan';
+    }
+
+    function showClientError(message) {
+        if (!clientError) { return; }
+        clientError.textContent = message;
+        clientError.classList.remove('d-none');
+    }
+
+    form.addEventListener('submit', function (e) {
+        if (clientError) clientError.classList.add('d-none');
+        var reason = reasonInput ? String(reasonInput.value || '').trim() : '';
+        if (reason.length < 3) {
+            e.preventDefault();
+            showClientError('Alasan revisi minimal 3 karakter.');
+            if (reasonInput) { reasonInput.classList.add('is-invalid'); reasonInput.focus(); }
+            resetSubmitButton();
+            return;
+        }
+        if (reasonInput) reasonInput.value = reason;
+        if (submitting) { e.preventDefault(); return; }
+        submitting = true;
+        window.setTimeout(function () {
+            if (!submitBtn) return;
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Memproses...';
+        }, 0);
+    });
+
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', function () {
+            cleanupBackdrop();
+            if (!submitting) resetSubmitButton();
+        });
+    }
+
+    window.addEventListener('pageshow', function () {
+        resetApproveBtn();
+        resetSubmitButton();
+        cleanupBackdrop();
+        if (typeof window.hideLoading === 'function') window.hideLoading();
+    });
+
+    @if($errors->has('rejection_reason'))
+    document.addEventListener('DOMContentLoaded', function () {
+        cleanupBackdrop();
+        if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+            bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+    });
+    @endif
+})();
+</script>
+@endpush
 @endif
 @endcan
-@endsection
 
 @push('styles')
 <style>
@@ -399,7 +515,6 @@ body.dark-mode .maint-photo-add {
         var input = form.querySelector('[data-file-input]');
         var trigger = form.querySelector('[data-drop-trigger]');
         var preview = form.querySelector('[data-preview]');
-        var addBtn = stage.querySelector('[data-add-trigger]');
 
         function openPicker() {
             input.click();
@@ -408,27 +523,29 @@ body.dark-mode .maint-photo-add {
         function renderPreview(files) {
             if (!preview) return;
             preview.innerHTML = '';
-            Array.from(files || []).forEach(function (file) {
-                if (!file.type || file.type.indexOf('image/') !== 0) return;
-                var img = document.createElement('img');
-                img.src = URL.createObjectURL(file);
-                img.alt = file.name;
-                preview.appendChild(img);
-            });
+            var file = files && files[0];
+            if (!file || !file.type || file.type.indexOf('image/') !== 0) return;
+            var img = document.createElement('img');
+            img.src = URL.createObjectURL(file);
+            img.alt = file.name;
+            preview.appendChild(img);
         }
 
         function assignFiles(fileList) {
             if (!fileList || !fileList.length) return;
-            var dt = new DataTransfer();
-            Array.from(fileList).forEach(function (file) {
-                if (file.type && file.type.indexOf('image/') === 0) {
-                    dt.items.add(file);
-                }
+            var file = Array.from(fileList).find(function (f) {
+                return f.type && f.type.indexOf('image/') === 0;
             });
-            if (!dt.files.length) {
+            if (!file) {
                 alert('Pilih file gambar (JPG, PNG, atau WEBP).');
                 return;
             }
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Ukuran foto maksimal 5 MB.');
+                return;
+            }
+            var dt = new DataTransfer();
+            dt.items.add(file);
             input.files = dt.files;
             renderPreview(input.files);
             form.submit();
@@ -441,12 +558,10 @@ body.dark-mode .maint-photo-add {
                 openPicker();
             }
         });
-        addBtn?.addEventListener('click', openPicker);
 
         input?.addEventListener('change', function () {
             if (input.files && input.files.length) {
-                renderPreview(input.files);
-                form.submit();
+                assignFiles(input.files);
             }
         });
 

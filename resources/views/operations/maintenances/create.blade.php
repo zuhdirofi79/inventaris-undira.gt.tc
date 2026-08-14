@@ -64,7 +64,7 @@
                     <label class="form-label">Jenis Pemeliharaan <span class="text-danger">*</span></label>
                     <select name="maintenance_type" class="form-select" required>
                         @foreach($types as $type)
-                            <option value="{{ $type->value }}" @selected(old('maintenance_type', 'repair') === $type->value)>{{ $type->label() }}</option>
+                            <option value="{{ $type->value }}" @selected(old('maintenance_type', request('maintenance_type', 'repair')) === $type->value)>{{ $type->label() }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -128,9 +128,9 @@
                     <textarea name="notes" class="form-control" rows="2">{{ old('notes') }}</textarea>
                 </div>
                 <div class="col-12 mb-3">
-                    <label class="form-label">Foto Sebelum Perbaikan</label>
-                    <input type="file" name="photos_before[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" multiple data-preview="previewBefore">
-                    <div class="form-text">Maks. 10 foto, 5 MB per file (JPG/PNG/WEBP).</div>
+                    <label class="form-label">Foto Work Order</label>
+                    <input type="file" name="photos_before[]" class="form-control js-maint-photo-input" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" data-preview="previewBefore">
+                    <div class="form-text">Opsional · 1 foto · JPG/PNG/WEBP · maks. 5 MB</div>
                     <div id="previewBefore" class="d-flex flex-wrap gap-2 mt-2"></div>
                 </div>
             </div>
@@ -147,7 +147,9 @@
 <script src="{{ asset('js/inventory-maintenance-context.js') }}?v={{ @filemtime(public_path('js/inventory-maintenance-context.js')) ?: time() }}"></script>
 <script>
 (function () {
-    $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+    if ($.fn.select2) {
+        $('.select2').select2({ theme: 'bootstrap-5', width: '100%' });
+    }
     document.querySelectorAll('.js-maint-photo-input').forEach(function (input) {
         input.addEventListener('change', function () {
             var box = document.getElementById(input.getAttribute('data-preview'));

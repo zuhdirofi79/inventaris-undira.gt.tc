@@ -27,9 +27,11 @@ use App\Services\InventoryFilterService;
 use App\Services\InventorySearchService;
 use App\Services\LocationHierarchyService;
 use App\Services\TrashCascadeService;
+use App\Support\InventarisCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
@@ -777,7 +779,11 @@ class InventoryController extends Controller
                     'pic:id,name',
                 ]);
 
-            $recordsTotal = InventoryItem::count();
+            $recordsTotal = Cache::remember(
+                InventarisCache::key('inventory.items.total_count'),
+                InventarisCache::TTL,
+                fn () => InventoryItem::query()->count()
+            );
             $recordsFiltered = (clone $query)->count();
 
             $orderColumn = $request->input('order.0.column', 0);

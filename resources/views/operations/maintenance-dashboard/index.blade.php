@@ -169,6 +169,7 @@
 @endsection
 
 @push('scripts')
+@include('partials.chartjs-cdn')
 <script>
 (function () {
     const charts = @json($charts);

@@ -19,10 +19,17 @@ class NotificationController extends Controller
     public function unread(): JsonResponse
     {
         $user = auth()->user();
-        $notifications = $user->unreadNotifications()->limit(10)->get();
+
+        // Fetch 11 to know whether a separate COUNT query is needed.
+        $rows = $user->unreadNotifications()->limit(11)->get();
+        $hasMore = $rows->count() > 10;
+        $notifications = $rows->take(10);
+        $count = $hasMore
+            ? $user->unreadNotifications()->count()
+            : $notifications->count();
 
         return response()->json([
-            'count' => $user->unreadNotifications()->count(),
+            'count' => $count,
             'notifications' => $notifications->map(
                 fn ($notification) => NotificationPresenter::forDropdown($notification)
             )->values(),

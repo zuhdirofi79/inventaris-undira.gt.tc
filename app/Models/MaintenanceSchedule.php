@@ -73,6 +73,17 @@ class MaintenanceSchedule extends Model
         return $query->active()->whereDate('next_maintenance_date', '<', now()->toDateString());
     }
 
+    /**
+     * Filter schedules whose inventory lives on a campus (via room → floor → building).
+     */
+    public function scopeForCampus(Builder $query, int $campusId): Builder
+    {
+        return $query->whereHas(
+            'inventoryItem',
+            fn (Builder $item) => $item->forCampus($campusId)
+        );
+    }
+
     public function isOverdue(): bool
     {
         return $this->next_maintenance_date !== null
