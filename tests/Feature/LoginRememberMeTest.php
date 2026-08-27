@@ -10,6 +10,19 @@ use Tests\TestCase;
 class LoginRememberMeTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_login_page_shows_loadout_branding(): void
+    {
+        $html = $this->get(route('login'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('>LOADOUT</h1>', $html);
+        $this->assertStringContainsString('(List of Operational Assets, Data, Organization,', $html);
+        $this->assertStringContainsString('Utilization &amp; Tracking)', $html);
+        $this->assertStringContainsString('auth-tagline', $html);
+        $this->assertStringContainsString('&copy; '.date('Y').' Inventaris UNDIRA', $html);
+        $this->assertStringNotContainsString('Sistem Manajemen Inventaris', $html);
+    }
+
     public function test_login_succeeds_without_remember_me(): void
     {
         $user = User::factory()->create([

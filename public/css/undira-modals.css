@@ -99,6 +99,11 @@ body.modal-open .undira-sidebar-backdrop {
   color: var(--text-heading) !important;
 }
 
+.app-identity-subtitle,
+.app-identity-subtitle em {
+  color: var(--ui-muted, var(--undira-muted, #64748B));
+}
+
 .form-label,
 .col-form-label {
   color: var(--text-primary);

@@ -170,6 +170,8 @@ class InventoryReportTest extends TestCase
             ->buildInventoryDocument($request, \App\Enums\InventoryReportType::Complete, 'portrait');
         $htmlPortrait = view('exports.inventory-pdf', $docPortrait)->render();
         $this->assertStringContainsString('rpt-table--portrait', $htmlPortrait);
+        $this->assertStringContainsString('size: A4 portrait', $htmlPortrait);
+        $this->assertStringContainsString('193mm', $htmlPortrait);
         $this->assertStringNotContainsString('Serial Number', $htmlPortrait);
         $this->assertStringNotContainsString('>Merk<', $htmlPortrait);
 
@@ -180,6 +182,17 @@ class InventoryReportTest extends TestCase
         $this->assertStringContainsString('Serial Number', $htmlLandscape);
         $this->assertStringContainsString('Merk', $htmlLandscape);
         $this->assertStringNotContainsString('Nilai', $htmlLandscape);
+        $this->assertStringNotContainsString('bottom: -6mm', $htmlLandscape);
+        $this->assertStringContainsString('Meja Kerja Panjang Sekali Nama Barang Report', $htmlLandscape);
+        $this->assertStringContainsString('CBB-UNDIRA-26-FUR-MJA-000999', $htmlLandscape);
+
+        $pdfPortrait = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.inventory-pdf', $docPortrait);
+        $pdfPortrait->setPaper('a4', 'portrait');
+        $dompdfPortrait = $pdfPortrait->getDomPDF();
+        $dompdfPortrait->render();
+        $canvasPortrait = $dompdfPortrait->getCanvas();
+        $this->assertGreaterThan($canvasPortrait->get_width(), $canvasPortrait->get_height());
+        $this->assertStringStartsWith('%PDF', $dompdfPortrait->output());
 
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.inventory-pdf', $docLandscape);
         $pdf->setPaper('a4', 'landscape');
@@ -187,6 +200,61 @@ class InventoryReportTest extends TestCase
         $dompdf->render();
         $canvas = $dompdf->getCanvas();
         $this->assertGreaterThan($canvas->get_height(), $canvas->get_width());
+        $this->assertStringStartsWith('%PDF', $dompdf->output());
+    }
+
+    public function test_complete_pdf_layout_keeps_long_cell_text(): void
+    {
+        $admin = $this->makeSuperAdmin();
+        [$campus, $room, $category, $sub] = $this->seedLocationWithCategory();
+
+        InventoryItem::query()->create([
+            'name' => 'Monitor LED 24 Inch Samsung Professional Display',
+            'inventory_number' => 'CBB-UNDIRA-26-FUR-KR-000001',
+            'barcode' => 'CBB-UNDIRA-26-FUR-KR-000001',
+            'room_id' => $room->id,
+            'category_id' => $category->id,
+            'sub_category_id' => $sub->id,
+            'condition' => 'bagus',
+            'status' => 'aktif',
+            'purchase_year' => 2026,
+            'quantity' => 1,
+        ]);
+
+        $request = \Illuminate\Http\Request::create('/reports/lengkap/export', 'POST', [
+            'campus_id' => $campus->id,
+        ]);
+        $request->setUserResolver(fn () => $admin);
+
+        $doc = app(\App\Services\Reports\EamReportService::class)
+            ->buildInventoryDocument($request, \App\Enums\InventoryReportType::Complete, 'portrait');
+
+        $this->assertSame(1, $doc['summary']['total_items']);
+
+        $html = view('exports.inventory-pdf', $doc)->render();
+        $this->assertStringContainsString('Monitor LED 24 Inch Samsung Professional Display', $html);
+        $this->assertStringContainsString('CBB-UNDIRA-26-FUR-KR-000001', $html);
+        $this->assertStringContainsString('UNDIRA CIBUBUR', $html);
+        $this->assertStringContainsString('Gedung A', $html);
+        $this->assertStringContainsString('Nomor Inventaris', $html);
+        $this->assertStringContainsString('Nama Barang', $html);
+        $this->assertStringContainsString('Lokasi', $html);
+        $this->assertStringContainsString('Tahun Pengadaan', $html);
+        $this->assertStringNotContainsString('bottom: -6mm', $html);
+        $this->assertStringContainsString('page-break-inside: avoid', $html);
+        $this->assertStringContainsString('size: A4 portrait', $html);
+        $this->assertStringContainsString('193mm', $html);
+        $this->assertStringContainsString('width: 10mm', $html);
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.inventory-pdf', $doc);
+        $pdf->setPaper('a4', 'portrait');
+        $dompdf = $pdf->getDomPDF();
+        $dompdf->render();
+        $canvas = $dompdf->getCanvas();
+        $this->assertGreaterThan($canvas->get_width(), $canvas->get_height());
+        $output = $dompdf->output();
+        $this->assertStringStartsWith('%PDF', $output);
+        $this->assertGreaterThan(1000, strlen($output));
     }
 
     public function test_viewer_can_load_cascade_buildings_for_report(): void

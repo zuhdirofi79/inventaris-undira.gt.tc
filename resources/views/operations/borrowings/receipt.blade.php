@@ -65,7 +65,8 @@
     <tr><th>Jumlah Item</th><td>{{ $items?->count() ?: ($item ? 1 : 0) }}</td></tr>
     <tr><th>Disetujui Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '—' }}</td></tr>
     <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
-    <tr><th>Catatan</th><td>{{ $borrowing->approval_notes ?: ($borrowing->notes ?: '—') }}</td></tr>
+    <tr><th>Keperluan</th><td>{{ $borrowing->notes ?: '—' }}</td></tr>
+    <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?: '—' }}</td></tr>
 </table>
 
 @if($items && $items->count())

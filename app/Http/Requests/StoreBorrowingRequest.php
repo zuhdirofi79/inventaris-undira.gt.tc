@@ -32,10 +32,10 @@ class StoreBorrowingRequest extends FormRequest
             'items.*.qty' => ['nullable', 'integer', 'min:1', 'max:500'],
             'borrower_name' => ['required', 'string', 'max:255'],
             'borrower_email' => ['nullable', 'email', 'max:255'],
-            'borrower_phone' => ['nullable', 'string', 'max:50'],
+            'borrower_phone' => ['required', 'string', 'max:50', 'regex:/^(?:\+62|62|0)[\s.\-]*8[1-9](?:[\s.\-]*[0-9]){6,11}$/'],
             'borrow_date' => ['required', 'date'],
             'expected_return_date' => ['required', 'date', 'after_or_equal:borrow_date'],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['required', 'string'],
             'status' => ['nullable', Rule::enum(BorrowingStatus::class)],
         ];
     }
@@ -76,9 +76,12 @@ class StoreBorrowingRequest extends FormRequest
             'items.required' => 'Minimal satu barang inventaris harus ditambahkan.',
             'items.*.inventory_item_id.required_with' => 'Barang inventaris wajib dipilih.',
             'borrower_name.required' => 'Nama peminjam wajib diisi.',
+            'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
+            'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
             'borrow_date.required' => 'Tanggal pinjam wajib diisi.',
             'expected_return_date.required' => 'Tanggal rencana kembali wajib diisi.',
             'expected_return_date.after_or_equal' => 'Tanggal rencana kembali tidak boleh sebelum tanggal pinjam.',
+            'notes.required' => 'Keperluan wajib diisi.',
         ];
     }
 }

@@ -74,8 +74,13 @@
                 </a>
             </li>
             <li class="nav-item min-w-0">
-                <a href="{{ route('dashboard') }}" class="nav-link app-identity" title="{{ $undiraAppName }}">
-                    <span class="app-identity-title">{{ $undiraAppName }}</span>
+                <a href="{{ route('dashboard') }}" class="nav-link app-identity" title="LOADOUT">
+                    <span class="app-identity-stack">
+                        <span class="app-identity-title">LOADOUT</span>
+                        <span class="app-identity-subtitle">
+                            <em>(List of Operational Assets, Data, Organization, Utilization &amp; Tracking)</em>
+                        </span>
+                    </span>
                 </a>
             </li>
         </ul>

@@ -147,6 +147,11 @@
   animation: authSlideUp 420ms var(--auth-ease) 220ms forwards;
 }
 
+.auth-page--glass .auth-title--loadout {
+  font-size: 1.75rem;
+  margin: 0 0 0.4rem;
+}
+
 .auth-page--glass .auth-subtitle {
   color: var(--auth-muted);
   font-size: 0.84rem;
@@ -156,6 +161,23 @@
   opacity: 0;
   transform: translateY(10px);
   animation: authSlideUp 420ms var(--auth-ease) 280ms forwards;
+}
+
+.auth-page--glass .auth-tagline {
+  font-size: 0.72rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.5;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 0.35rem 0.15rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}
+
+.auth-page--glass .auth-tagline em {
+  font-style: italic;
+  font-weight: 400;
 }
 
 .auth-page--glass .auth-card-body {
@@ -583,6 +605,16 @@
 
   .auth-page--glass .auth-title {
     font-size: 1.25rem;
+  }
+
+  .auth-page--glass .auth-title--loadout {
+    font-size: 1.5rem;
+  }
+
+  .auth-page--glass .auth-tagline {
+    font-size: 0.68rem;
+    line-height: 1.45;
+    padding: 0 0.15rem 0.1rem;
   }
 }
 

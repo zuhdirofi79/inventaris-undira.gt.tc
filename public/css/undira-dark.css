@@ -194,6 +194,11 @@ body.dark-mode .app-identity-title {
   color: var(--dm-text) !important;
 }
 
+body.dark-mode .app-identity-subtitle,
+body.dark-mode .app-identity-subtitle em {
+  color: var(--dm-muted) !important;
+}
+
 body.dark-mode .navbar-undira .nav-link:hover,
 body.dark-mode .navbar-undira .nav-link:focus-visible {
   color: #fff !important;
@@ -915,6 +920,10 @@ body.dark-mode .alert-danger {
   background-color: rgba(239, 68, 68, 0.18) !important;
   color: #FCA5A5 !important;
   border-color: rgba(239, 68, 68, 0.35) !important;
+}
+
+body.dark-mode .invalid-feedback {
+  color: #FCA5A5 !important;
 }
 
 body.dark-mode .alert-info {

@@ -6,21 +6,26 @@
     <title>{{ $meta['title'] ?? 'Laporan Inventaris' }}</title>
     @php
         $orientation = ($meta['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
-        $pageMargin = $orientation === 'landscape' ? '8mm' : '10mm';
-        $bottomMargin = $orientation === 'landscape' ? '12mm' : '14mm';
+        $isLandscape = $orientation === 'landscape';
+        // A4 = 210×297mm. Content width must stay inside @page left/right margins.
+        $pageSize = $isLandscape ? 'A4 landscape' : 'A4 portrait';
+        $pageMargin = $isLandscape ? '8mm 8mm 16mm 8mm' : '10mm 8mm 16mm 8mm';
+        $contentWidth = $isLandscape ? '281mm' : '194mm'; // 297-16 or 210-16
+        $tableWidth = $isLandscape ? '280mm' : '193mm';
     @endphp
     <style>
         {!! file_get_contents(public_path('css/print.css')) !!}
 
-        /* Margins only — paper size/orientation come from DomPDF setPaper() */
         @page {
-            margin: {{ $pageMargin }} {{ $pageMargin }} {{ $bottomMargin }} {{ $pageMargin }};
+            size: {{ $pageSize }};
+            margin: {{ $pageMargin }};
         }
 
         html, body {
-            width: 100%;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            width: auto !important;
+            max-width: 100% !important;
         }
 
         body.rpt-pdf {
@@ -28,22 +33,81 @@
         }
 
         .rpt-doc {
+            width: {{ $contentWidth }} !important;
+            max-width: {{ $contentWidth }} !important;
+            margin: 0 !important;
+            padding: 0 0 3mm 0 !important;
+            border: none !important;
+            overflow: visible;
+        }
+
+        .rpt-header-table,
+        .rpt-filters,
+        .rpt-summary,
+        .rpt-composition,
+        .rpt-table-wrap,
+        .rpt-grand {
             width: 100%;
-            max-width: none;
-            margin: 0;
-            padding: 0 0 8mm 0;
-            border: none;
+            max-width: {{ $contentWidth }};
+        }
+
+        .rpt-table {
+            width: {{ $tableWidth }};
+            max-width: {{ $tableWidth }};
+            table-layout: fixed;
+        }
+
+        body.rpt-pdf .rpt-composition-layout {
+            width: 100%;
+            max-width: 100%;
+            border-spacing: 3px 4px;
+        }
+
+        /* Portrait: explicit mm columns that sum to 193mm (inside 194mm content box). */
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-no { width: 8mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-qr { width: 15mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-inv { width: 34mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-name { width: 42mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-loc { width: 52mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-status { width: 15mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-cond { width: 14mm; }
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-col-year { width: 13mm; }
+
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait {
+            font-size: 8pt;
+        }
+
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait th {
+            font-size: 7.5pt;
+            padding: 3px 2px;
+            line-height: 1.3;
+        }
+
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait td {
+            padding: 3px 2px;
+            font-size: 8pt;
+            line-height: 1.35;
+        }
+
+        body.rpt-pdf.rpt-portrait .rpt-qr,
+        body.rpt-pdf.rpt-portrait .rpt-table--portrait .rpt-qr {
+            width: 10mm;
+            height: 10mm;
+            max-width: 10mm;
+            max-height: 10mm;
         }
 
         .rpt-page-footer {
             position: fixed;
             left: 0;
             right: 0;
-            bottom: -6mm;
-            height: 9mm;
+            bottom: 0;
+            height: 8mm;
             border-top: 0.6pt solid #666;
-            padding-top: 2px;
-            font-size: 8px;
+            padding-top: 1.5pt;
+            font-size: 7pt;
+            line-height: 1.3;
+            background: #fff;
         }
 
         .rpt-pagenum:after { content: counter(page); }

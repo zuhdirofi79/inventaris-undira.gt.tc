@@ -397,7 +397,35 @@ class BorrowingApprovalService
     protected function sendBorrowerMail(Borrowing $borrowing, object $mailable): void
     {
         $email = trim((string) $borrowing->borrower_email);
+
         if ($email === '') {
+            Log::info('Email notifikasi peminjaman tidak dikirim: alamat peminjam kosong.', [
+                'borrowing_id' => $borrowing->id,
+                'approval_number' => $borrowing->approval_number,
+                'mailable' => $mailable::class,
+            ]);
+
+            return;
+        }
+
+        if (filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            Log::info('Email notifikasi peminjaman tidak dikirim: alamat peminjam tidak valid.', [
+                'borrowing_id' => $borrowing->id,
+                'approval_number' => $borrowing->approval_number,
+                'email' => $email,
+                'mailable' => $mailable::class,
+            ]);
+
+            return;
+        }
+
+        if ($borrowing->notification_sent) {
+            Log::info('Email notifikasi peminjaman dilewati: notifikasi sudah pernah dikirim.', [
+                'borrowing_id' => $borrowing->id,
+                'approval_number' => $borrowing->approval_number,
+                'mailable' => $mailable::class,
+            ]);
+
             return;
         }
 
@@ -407,6 +435,7 @@ class BorrowingApprovalService
         } catch (\Throwable $e) {
             Log::warning('Gagal mengirim email notifikasi peminjaman ke peminjam.', [
                 'borrowing_id' => $borrowing->id,
+                'approval_number' => $borrowing->approval_number,
                 'email' => $email,
                 'error' => $e->getMessage(),
             ]);

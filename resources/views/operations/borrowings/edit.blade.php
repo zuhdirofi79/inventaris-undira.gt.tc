@@ -31,8 +31,11 @@
                     <input type="email" name="borrower_email" class="form-control" value="{{ old('borrower_email', $borrowing->borrower_email) }}">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Telepon</label>
-                    <input type="text" name="borrower_phone" class="form-control" value="{{ old('borrower_phone', $borrowing->borrower_phone) }}">
+                    <label class="form-label">Telepon / No. HP <span class="text-danger">*</span></label>
+                    <input type="text" name="borrower_phone" class="form-control @error('borrower_phone') is-invalid @enderror" value="{{ old('borrower_phone', $borrowing->borrower_phone) }}" autocomplete="tel" required>
+                    @error('borrower_phone')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Status</label>
@@ -55,8 +58,11 @@
                     <input type="date" name="return_date" class="form-control" value="{{ old('return_date', $borrowing->return_date?->format('Y-m-d')) }}">
                 </div>
                 <div class="col-12 mb-3">
-                    <label class="form-label">Catatan</label>
-                    <textarea name="notes" class="form-control" rows="2">{{ old('notes', $borrowing->notes) }}</textarea>
+                    <label class="form-label">Keperluan <span class="text-danger">*</span></label>
+                    <textarea name="notes" class="form-control @error('notes') is-invalid @enderror" rows="2" placeholder="Contoh: kegiatan akademik, rapat, praktikum, acara kampus…" required>{{ old('notes', $borrowing->notes) }}</textarea>
+                    @error('notes')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
         </div>

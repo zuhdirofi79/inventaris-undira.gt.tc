@@ -44,8 +44,10 @@ class AuditAndNotificationPhase4Test extends TestCase
             ->post(route('borrowings.store'), [
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Budi',
+                'borrower_phone' => '081234567890',
                 'borrow_date' => now()->toDateString(),
                 'expected_return_date' => now()->addDays(3)->toDateString(),
+                'notes' => 'Rapat',
             ])
             ->assertRedirect(route('borrowings.index'));
 

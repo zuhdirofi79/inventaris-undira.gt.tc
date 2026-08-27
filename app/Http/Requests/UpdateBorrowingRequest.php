@@ -23,12 +23,21 @@ class UpdateBorrowingRequest extends FormRequest
         return [
             'borrower_name' => ['sometimes', 'required', 'string', 'max:255'],
             'borrower_email' => ['nullable', 'email', 'max:255'],
-            'borrower_phone' => ['nullable', 'string', 'max:50'],
+            'borrower_phone' => ['required', 'string', 'max:50', 'regex:/^(?:\+62|62|0)[\s.\-]*8[1-9](?:[\s.\-]*[0-9]){6,11}$/'],
             'borrow_date' => ['sometimes', 'required', 'date'],
             'return_date' => ['nullable', 'date'],
             'expected_return_date' => ['sometimes', 'required', 'date'],
             'status' => ['sometimes', 'required', Rule::enum(BorrowingStatus::class)],
-            'notes' => ['nullable', 'string'],
+            'notes' => ['required', 'string'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
+            'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
+            'notes.required' => 'Keperluan wajib diisi.',
         ];
     }
 }

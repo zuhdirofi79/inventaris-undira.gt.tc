@@ -18,7 +18,7 @@ class SuperAdminSeeder extends Seeder
         if ($user->trashed()) {
             $user->restore();
         }
-
+---
         // Password + default_password only on first create — never overwrite on reseed.
         if (! $user->exists) {
             $user->password = self::DEFAULT_PASSWORD;

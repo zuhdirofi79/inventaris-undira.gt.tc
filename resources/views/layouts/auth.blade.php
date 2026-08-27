@@ -33,11 +33,15 @@
                      alt="Logo Universitas Dian Nusantara"
                      decoding="async">
             </div>
-            <h1 class="auth-title">Inventaris UNDIRA</h1>
-            <p class="auth-subtitle mb-0">
-                Sistem Manajemen Inventaris<br>
-                Universitas Dian Nusantara
-            </p>
+            @hasSection('auth-branding')
+                @yield('auth-branding')
+            @else
+                <h1 class="auth-title">Inventaris UNDIRA</h1>
+                <p class="auth-subtitle mb-0">
+                    Sistem Manajemen Inventaris<br>
+                    Universitas Dian Nusantara
+                </p>
+            @endif
         </div>
         <div class="auth-card-body">
             @include('components.auth-alert')

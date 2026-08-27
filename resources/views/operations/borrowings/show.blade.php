@@ -67,7 +67,7 @@
                     <tr><th>Tanggal Penolakan</th><td>{{ $borrowing->rejected_at?->format('d/m/Y H:i') ?? '-' }}</td></tr>
                     <tr><th>Alasan Penolakan</th><td>{{ $borrowing->rejection_reason ?? '-' }}</td></tr>
                     <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?? '-' }}</td></tr>
-                    <tr><th>Catatan</th><td>{{ $borrowing->notes ?? '-' }}</td></tr>
+                    <tr><th>Keperluan</th><td>{{ $borrowing->notes ?? '-' }}</td></tr>
                 </table>
             </div>
         </div>

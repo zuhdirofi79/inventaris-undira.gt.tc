@@ -2,6 +2,13 @@
 
 @section('title', 'Login - Inventaris UNDIRA')
 
+@section('auth-branding')
+    <h1 class="auth-title auth-title--loadout">LOADOUT</h1>
+    <p class="auth-subtitle auth-tagline mb-0">
+        <em>(List of Operational Assets, Data, Organization,<br>Utilization &amp; Tracking)</em>
+    </p>
+@endsection
+
 @section('content')
 <form action="{{ route('login') }}" method="POST" class="auth-form" id="loginForm" novalidate>
     @csrf

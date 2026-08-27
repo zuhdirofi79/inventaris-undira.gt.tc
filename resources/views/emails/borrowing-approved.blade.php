@@ -2,6 +2,8 @@
 @php
     $logoPath = public_path('images/logo-undira.png');
     $logo = is_file($logoPath) ? $message->embed($logoPath) : null;
+    $lines = isset($items) ? $items : collect();
+    $nomor = $borrowing->approval_number ?: '—';
 @endphp
 
 @if($logo)
@@ -10,35 +12,42 @@
 </div>
 @endif
 
-# Peminjaman Inventaris Disetujui
+# Pengajuan Peminjaman Inventaris Disetujui
 
-Halo **{{ $borrowing->borrower_name }}**,
+Yth. **{{ $borrowing->borrower_name }}**,
 
-Pengajuan peminjaman Anda telah **disetujui**.
+Kami menginformasikan bahwa pengajuan peminjaman inventaris Anda telah **DISETUJUI** oleh Admin.
 
-**Nomor Approval:** {{ $borrowing->approval_number ?? '—' }}  
-**Status:** {{ $borrowing->status?->label() ?? 'Disetujui' }}  
-**Tanggal Pinjam:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '-' }}  
-**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}  
-**Jumlah Item:** {{ isset($items) ? $items->count() : ($item ? 1 : 0) }}
+**Detail Peminjaman**
 
-@if(isset($items) && $items->count())
-**Daftar Barang:**
-@foreach($items as $line)
-- {{ $line->inventoryItem?->inventory_number ?? '-' }} — {{ $line->inventoryItem?->name ?? '-' }}
+**Nomor Peminjaman:** {{ $nomor }}  
+**Nama Peminjam:** {{ $borrowing->borrower_name }}  
+**Tanggal Peminjaman:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}  
+**Tanggal Pengembalian:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}  
+**Keperluan:** {{ filled($borrowing->notes) ? $borrowing->notes : '—' }}  
+**Status:** DISETUJUI
+
+@if($lines->isNotEmpty())
+**Daftar Inventaris:**
+
+| No | Nomor Inventaris | Nama Barang | Kategori | Jumlah |
+|:--:|:-----------------|:------------|:---------|-------:|
+@foreach($lines as $index => $line)
+| {{ $index + 1 }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->inventory_number ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->name ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->category?->name ?? '—')) }} | {{ (int) ($line->qty ?: 1) }} |
 @endforeach
-@elseif($item)
-**Nomor Inventaris:** {{ $item->inventory_number ?? '-' }}  
-**Nama Barang:** {{ $item->name ?? '-' }}
 @endif
 
-Silakan mengambil inventaris sesuai jadwal.
+Silakan menggunakan inventaris sesuai dengan tanggal dan ketentuan peminjaman yang berlaku.
 
 @if(!empty($borrowing->approval_number))
 <x-mail::button :url="route('borrowing.approval.public', $borrowing->approval_number)">
-Lihat Detail
+Lihat Detail Peminjaman
 </x-mail::button>
 @endif
 
+Terima kasih.
+
+Inventaris UNDIRA  
+Biro P3A  
 Universitas Dian Nusantara
 </x-mail::message>

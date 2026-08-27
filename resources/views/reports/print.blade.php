@@ -9,12 +9,13 @@
     @php
         $orientation = ($meta['orientation'] ?? 'portrait') === 'landscape' ? 'landscape' : 'portrait';
         $pageMargin = $orientation === 'landscape' ? '8mm' : '10mm';
+        $bottomMargin = '16mm';
     @endphp
     <style>
         body { font-family: Poppins, DejaVu Sans, Arial, sans-serif; }
         @page {
             size: A4 {{ $orientation }};
-            margin: {{ $pageMargin }};
+            margin: {{ $pageMargin }} {{ $pageMargin }} {{ $bottomMargin }} {{ $pageMargin }};
         }
         .rpt-toolbar { display:flex; gap:8px; margin-bottom:12px; font-family: system-ui,sans-serif; }
         .rpt-toolbar button, .rpt-toolbar a {

@@ -49,7 +49,8 @@
                 <tr><th>Rejected At</th><td>{{ $borrowing->rejected_at?->format('d/m/Y H:i') }}</td></tr>
                 <tr><th>Alasan Penolakan</th><td>{{ $borrowing->rejection_reason ?? '—' }}</td></tr>
                 @endif
-                <tr><th>Catatan</th><td>{{ $borrowing->approval_notes ?: ($borrowing->notes ?: '—') }}</td></tr>
+                <tr><th>Keperluan</th><td>{{ $borrowing->notes ?: '—' }}</td></tr>
+                <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?: '—' }}</td></tr>
             </table>
 
             <h2 class="h6">Daftar Barang</h2>

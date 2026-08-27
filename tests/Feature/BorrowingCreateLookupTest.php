@@ -177,8 +177,10 @@ class BorrowingCreateLookupTest extends TestCase
             ->post(route('borrowings.store'), [
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Orang Lain',
+                'borrower_phone' => '081234567890',
                 'borrow_date' => now()->toDateString(),
                 'expected_return_date' => now()->addDay()->toDateString(),
+                'notes' => 'Kuliah',
             ])
             ->assertRedirect(route('borrowings.create'))
             ->assertSessionHasErrors('inventory_item_id');
@@ -199,6 +201,7 @@ class BorrowingCreateLookupTest extends TestCase
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Ani',
                 'borrower_email' => 'ani@undira.ac.id',
+                'borrower_phone' => '081234567890',
                 'borrow_date' => now()->toDateString(),
                 'expected_return_date' => now()->addDays(2)->toDateString(),
                 'notes' => 'Kuliah',

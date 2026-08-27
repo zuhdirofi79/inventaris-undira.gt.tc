@@ -48,8 +48,11 @@
                     <input type="email" name="borrower_email" class="form-control" value="{{ old('borrower_email') }}" autocomplete="email">
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Telepon / No. HP</label>
-                    <input type="text" name="borrower_phone" class="form-control" value="{{ old('borrower_phone') }}" autocomplete="tel">
+                    <label class="form-label">Telepon / No. HP <span class="text-danger">*</span></label>
+                    <input type="text" name="borrower_phone" class="form-control @error('borrower_phone') is-invalid @enderror" value="{{ old('borrower_phone') }}" autocomplete="tel" required>
+                    @error('borrower_phone')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="col-md-3 mb-3">
                     <label class="form-label">Tanggal Pinjam <span class="text-danger">*</span></label>
@@ -60,8 +63,11 @@
                     <input type="date" name="expected_return_date" class="form-control" value="{{ old('expected_return_date') }}" required>
                 </div>
                 <div class="col-12 mb-0">
-                    <label class="form-label">Keperluan / Catatan</label>
-                    <textarea name="notes" class="form-control" rows="2" placeholder="Contoh: dipakai kuliah / rapat / praktikum…">{{ old('notes') }}</textarea>
+                    <label class="form-label">Keperluan <span class="text-danger">*</span></label>
+                    <textarea name="notes" class="form-control @error('notes') is-invalid @enderror" rows="2" placeholder="Contoh: kegiatan akademik, rapat, praktikum, acara kampus…" required>{{ old('notes') }}</textarea>
+                    @error('notes')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
             </div>
         </div>

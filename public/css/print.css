@@ -32,8 +32,8 @@ html, body {
 /* —— Document header —— */
 .rpt-header {
     border-bottom: 2px solid #1a1a1a;
-    padding-bottom: 6px;
-    margin-bottom: 8px;
+    padding-bottom: 8px;
+    margin-bottom: 10px;
 }
 
 .rpt-header-table {
@@ -129,16 +129,17 @@ html, body {
 .rpt-summary {
     width: 100%;
     border-collapse: collapse;
-    margin: 0 0 10px;
+    margin: 0 0 12px;
     font-size: 8px;
 }
 
 .rpt-summary th,
 .rpt-summary td {
     border: 1px solid #777;
-    padding: 3px 4px;
+    padding: 4px 4px;
     text-align: center;
     vertical-align: middle;
+    line-height: 1.35;
 }
 
 .rpt-summary th {
@@ -219,7 +220,7 @@ html, body {
 
 /* —— Data table —— */
 .rpt-table-wrap {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
     width: 100%;
 }
 
@@ -227,7 +228,8 @@ html, body {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
-    font-size: 8px;
+    font-size: 7.5pt;
+    line-height: 1.4;
 }
 
 .rpt-table thead {
@@ -247,21 +249,25 @@ html, body {
     background: #4a4a4a;
     color: #fff;
     font-weight: 700;
-    font-size: 8px;
+    font-size: 7pt;
+    line-height: 1.3;
     text-align: left;
     border: 0.5pt solid #333;
-    padding: 3px 3px;
+    padding: 4px 3px;
     vertical-align: middle;
 }
 
 .rpt-table td {
     border: 0.5pt solid #999;
-    padding: 3px 3px;
+    padding: 4px 3px;
     vertical-align: middle;
     color: #111;
+    height: auto;
+    word-wrap: break-word;
     word-break: break-word;
     overflow-wrap: break-word;
     white-space: normal;
+    line-height: 1.4;
 }
 
 .rpt-table tbody tr:nth-child(odd) td {
@@ -275,67 +281,83 @@ html, body {
 .rpt-qr {
     display: block;
     margin: 0 auto;
-    width: 18mm;
-    height: 18mm;
-    max-width: 18mm;
-    max-height: 18mm;
+    width: 10mm;
+    height: 10mm;
+    max-width: 100%;
+    max-height: 10mm;
 }
 
 .rpt-qr-cell {
     text-align: center;
     vertical-align: middle !important;
-    padding: 2px !important;
+    padding: 3px 2px !important;
+    line-height: 1;
 }
 
-/* Portrait column widths (8 cols) */
-.rpt-table--portrait .rpt-col-no { width: 4%; text-align: center; }
-.rpt-table--portrait .rpt-col-qr { width: 11%; }
-.rpt-table--portrait .rpt-col-inv { width: 16%; }
-.rpt-table--portrait .rpt-col-name { width: 16%; }
-.rpt-table--portrait .rpt-col-loc { width: 23%; }
-.rpt-table--portrait .rpt-col-status { width: 9%; }
-.rpt-table--portrait .rpt-col-cond { width: 9%; }
-.rpt-table--portrait .rpt-col-year { width: 12%; text-align: center; }
+.rpt-col-inv {
+    font-size: 7pt;
+    line-height: 1.35;
+}
+
+.rpt-col-name,
+.rpt-col-loc {
+    font-size: 7.5pt;
+    line-height: 1.4;
+}
+
+/* Portrait column widths (8 cols) in mm — 193mm total inside A4 210mm − 8mm×2. */
+.rpt-table--portrait { width: 193mm; max-width: 193mm; }
+.rpt-table--portrait .rpt-col-no { width: 8mm; text-align: center; }
+.rpt-table--portrait .rpt-col-qr { width: 15mm; }
+.rpt-table--portrait .rpt-col-inv { width: 34mm; }
+.rpt-table--portrait .rpt-col-name { width: 42mm; }
+.rpt-table--portrait .rpt-col-loc { width: 52mm; }
+.rpt-table--portrait .rpt-col-status { width: 15mm; }
+.rpt-table--portrait .rpt-col-cond { width: 14mm; }
+.rpt-table--portrait .rpt-col-year { width: 13mm; text-align: center; }
 .rpt-table--portrait .rpt-qr {
-    width: 18mm;
-    height: 18mm;
-    max-width: 18mm;
-    max-height: 18mm;
+    width: 10mm;
+    height: 10mm;
+    max-width: 10mm;
+    max-height: 10mm;
 }
 
-/* Landscape column widths (14 cols) — fill page width */
+/* Landscape column widths (14 cols) — QR column must be wider than the QR image */
 .rpt-table--landscape .rpt-col-no { width: 3%; text-align: center; }
-.rpt-table--landscape .rpt-col-qr { width: 6%; }
-.rpt-table--landscape .rpt-col-inv { width: 10%; }
-.rpt-table--landscape .rpt-col-name { width: 10%; }
+.rpt-table--landscape .rpt-col-qr { width: 8%; }
+.rpt-table--landscape .rpt-col-inv { width: 11%; }
+.rpt-table--landscape .rpt-col-name { width: 12%; }
 .rpt-table--landscape .rpt-col-cat { width: 6%; }
 .rpt-table--landscape .rpt-col-sub { width: 6%; }
 .rpt-table--landscape .rpt-col-brand { width: 6%; }
-.rpt-table--landscape .rpt-col-sn { width: 8%; }
-.rpt-table--landscape .rpt-col-loc { width: 11%; }
+.rpt-table--landscape .rpt-col-sn { width: 7%; }
+.rpt-table--landscape .rpt-col-loc { width: 12%; }
 .rpt-table--landscape .rpt-col-pic { width: 7%; }
 .rpt-table--landscape .rpt-col-status { width: 5%; }
 .rpt-table--landscape .rpt-col-cond { width: 5%; }
-.rpt-table--landscape .rpt-col-year { width: 6%; text-align: center; }
+.rpt-table--landscape .rpt-col-year { width: 5%; text-align: center; }
 .rpt-table--landscape .rpt-col-date { width: 7%; }
 .rpt-table--landscape .rpt-qr {
-    width: 18mm;
-    height: 18mm;
-    max-width: 18mm;
-    max-height: 18mm;
+    width: 12mm;
+    height: 12mm;
+    max-width: 12mm;
+    max-height: 12mm;
 }
 
 .rpt-table--landscape {
-    font-size: 7.5px;
+    font-size: 7pt;
 }
 
 .rpt-table--landscape th {
-    font-size: 7.5px;
-    padding: 2px 2px;
+    font-size: 6.5pt;
+    padding: 3px 2px;
+    line-height: 1.3;
 }
 
 .rpt-table--landscape td {
-    padding: 2px 2px;
+    padding: 3px 2px;
+    font-size: 7pt;
+    line-height: 1.35;
 }
 
 /* —— Sub-category recap (additive) —— */
@@ -548,9 +570,10 @@ html, body {
 
 /* —— Grand total —— */
 .rpt-grand {
-    margin-top: 10px;
+    margin-top: 12px;
+    margin-bottom: 2mm;
     border: 1.5px solid #222;
-    padding: 5px 6px;
+    padding: 6px 6px;
     page-break-inside: avoid;
     font-size: 9px;
 }
@@ -578,11 +601,13 @@ html, body {
     left: 0;
     right: 0;
     bottom: 0;
-    height: 10mm;
+    height: 8mm;
     border-top: 1px solid #666;
-    font-size: 8px;
+    font-size: 7.5pt;
+    line-height: 1.3;
     color: #333;
-    padding-top: 2px;
+    padding-top: 1.5pt;
+    background: #fff;
 }
 
 .rpt-page-footer-table {
@@ -605,42 +630,42 @@ html, body {
     display: none !important;
 }
 
-/* —— Screen preview —— */
+/* —— Screen preview (browser only; must not apply inside DomPDF) —— */
 @media screen {
     body.rpt-screen {
         background: #ececec;
         padding: 16px;
     }
 
-    .rpt-doc {
+    body.rpt-screen .rpt-doc {
         margin: 0 auto;
         background: #fff;
         border: 1px solid #ccc;
         box-shadow: none;
     }
 
-    .rpt-doc.rpt-portrait {
+    body.rpt-screen .rpt-doc.rpt-portrait {
         max-width: 210mm;
-        padding: 10mm;
+        padding: 8mm;
     }
 
-    .rpt-doc.rpt-landscape {
+    body.rpt-screen .rpt-doc.rpt-landscape {
         max-width: 297mm;
         padding: 8mm;
     }
 
-    .rpt-toolbar {
+    body.rpt-screen .rpt-toolbar {
         max-width: 210mm;
         margin: 0 auto 10px;
     }
 
-    .rpt-page-footer {
+    body.rpt-screen .rpt-page-footer {
         position: static;
         margin-top: 16px;
         height: auto;
     }
 
-    .no-print {
+    body.rpt-screen .no-print {
         display: block !important;
     }
 }

@@ -16,6 +16,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
@@ -36,8 +37,10 @@ class BorrowingApprovalTest extends TestCase
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Ani',
                 'borrower_email' => 'ani@undira.ac.id',
+                'borrower_phone' => '081234567890',
                 'borrow_date' => now()->toDateString(),
                 'expected_return_date' => now()->addDays(2)->toDateString(),
+                'notes' => 'Kuliah',
             ])
             ->assertRedirect(route('borrowings.index'))
             ->assertSessionHas('success', 'Peminjaman berhasil diajukan dan menunggu persetujuan.');
@@ -65,6 +68,7 @@ class BorrowingApprovalTest extends TestCase
             'borrower_email' => 'budi@undira.ac.id',
             'borrow_date' => now()->toDateString(),
             'expected_return_date' => now()->addDays(3)->toDateString(),
+            'notes' => 'Praktikum jaringan',
             'status' => BorrowingStatus::MenungguPersetujuan,
             'requested_by' => $requester->id,
         ]);
@@ -86,7 +90,17 @@ class BorrowingApprovalTest extends TestCase
         $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
         $this->assertTrue(AuditLog::query()->where('description', 'BORROWING_APPROVED')->exists());
 
-        Mail::assertSent(BorrowingApprovedMail::class, fn ($mail) => $mail->hasTo('budi@undira.ac.id'));
+        Mail::assertSent(BorrowingApprovedMail::class, function (BorrowingApprovedMail $mail) use ($item, $borrowing) {
+            $borrowing->refresh();
+            $html = $mail->render();
+
+            return $mail->hasTo('budi@undira.ac.id')
+                && $mail->envelope()->subject === 'Pengajuan Peminjaman Inventaris Disetujui - '.$borrowing->approval_number
+                && str_contains($html, $item->inventory_number)
+                && str_contains($html, 'Laptop Approval')
+                && str_contains($html, 'Budi')
+                && str_contains($html, 'Praktikum jaringan');
+        });
 
         $this->get(route('borrowing.approval.public', $borrowing->approval_number))
             ->assertOk()
@@ -131,6 +145,8 @@ class BorrowingApprovalTest extends TestCase
 
     public function test_staff_cannot_approve(): void
     {
+        Mail::fake();
+
         $staff = $this->makeStaff();
         $item = $this->makeItem();
         $borrowing = Borrowing::query()->create([
@@ -145,6 +161,8 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($staff)
             ->post(route('borrowings.approve', $borrowing))
             ->assertForbidden();
+
+        Mail::assertNothingSent();
     }
 
     public function test_cannot_self_approve(): void
@@ -167,6 +185,8 @@ class BorrowingApprovalTest extends TestCase
 
     public function test_cannot_approve_twice(): void
     {
+        Mail::fake();
+
         $requester = $this->makeStaff(['email' => 'staff-twice@undira.ac.id']);
         $admin = $this->makeAdmin(['email' => 'admin-twice@undira.ac.id']);
         $item = $this->makeItem();
@@ -185,6 +205,9 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($admin)
             ->post(route('borrowings.approve', $borrowing))
             ->assertForbidden();
+
+        Mail::assertNothingSent();
+        Mail::assertNotSent(BorrowingApprovedMail::class);
     }
 
     public function test_reject_requires_reason(): void
@@ -242,6 +265,8 @@ class BorrowingApprovalTest extends TestCase
 
     public function test_cannot_approve_when_inventory_already_borrowed(): void
     {
+        Mail::fake();
+
         $requester = $this->makeStaff(['email' => 'staff-busy@undira.ac.id']);
         $admin = $this->makeAdmin(['email' => 'admin-busy@undira.ac.id']);
         $item = $this->makeItem(['status' => InventoryStatus::Dipinjam]);
@@ -260,6 +285,10 @@ class BorrowingApprovalTest extends TestCase
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect(route('borrowings.show', $borrowing))
             ->assertSessionHasErrors('inventory_item_id');
+
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
+        Mail::assertNothingSent();
+        Mail::assertNotSent(BorrowingApprovedMail::class);
     }
 
     public function test_approval_history_and_status_filter(): void
@@ -352,8 +381,10 @@ class BorrowingApprovalTest extends TestCase
                 'inventory_item_ids' => [$itemA->id, $itemB->id],
                 'borrower_name' => 'Multi User',
                 'borrower_email' => 'multi@undira.ac.id',
+                'borrower_phone' => '081234567890',
                 'borrow_date' => now()->toDateString(),
                 'expected_return_date' => now()->addDays(2)->toDateString(),
+                'notes' => 'Kegiatan akademik',
             ])
             ->assertRedirect(route('borrowings.index'));
 
@@ -372,6 +403,17 @@ class BorrowingApprovalTest extends TestCase
 
         $this->assertSame(InventoryStatus::Dipinjam, $itemA->fresh()->status);
         $this->assertSame(InventoryStatus::Dipinjam, $itemB->fresh()->status);
+
+        Mail::assertSent(BorrowingApprovedMail::class, function (BorrowingApprovedMail $mail) use ($itemA, $itemB) {
+            $html = $mail->render();
+
+            return $mail->hasTo('multi@undira.ac.id')
+                && str_contains($html, $itemA->inventory_number)
+                && str_contains($html, 'Laptop A')
+                && str_contains($html, $itemB->inventory_number)
+                && str_contains($html, 'Proyektor B');
+        });
+        Mail::assertSent(BorrowingApprovedMail::class, 1);
 
         $this->actingAs($approver)
             ->post(route('borrowings.return-items', $borrowing), [
@@ -397,6 +439,142 @@ class BorrowingApprovalTest extends TestCase
         $this->assertSame(BorrowingStatus::Dikembalikan, $borrowing->fresh()->status);
         $this->assertSame(InventoryStatus::Aktif, $itemA->fresh()->status);
         $this->assertSame(InventoryStatus::Aktif, $itemB->fresh()->status);
+    }
+
+    public function test_approve_without_borrower_email_still_succeeds(): void
+    {
+        Mail::fake();
+
+        $logged = [];
+        Log::listen(function ($event) use (&$logged): void {
+            $logged[] = $event->message;
+        });
+
+        $requester = $this->makeStaff(['email' => 'staff-noemail@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-noemail@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Lina',
+            'borrower_email' => null,
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::MenungguPersetujuan,
+            'requested_by' => $requester->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.approve', $borrowing))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
+        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        Mail::assertNothingSent();
+        $this->assertTrue(collect($logged)->contains(
+            fn ($message) => str_contains((string) $message, 'alamat peminjam kosong')
+        ));
+    }
+
+    public function test_approve_with_invalid_borrower_email_still_succeeds(): void
+    {
+        Mail::fake();
+
+        $logged = [];
+        Log::listen(function ($event) use (&$logged): void {
+            $logged[] = $event->message;
+        });
+
+        $requester = $this->makeStaff(['email' => 'staff-bademail@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-bademail@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Mira',
+            'borrower_email' => 'bukan-email-valid',
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::MenungguPersetujuan,
+            'requested_by' => $requester->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.approve', $borrowing))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
+        Mail::assertNothingSent();
+        $this->assertTrue(collect($logged)->contains(
+            fn ($message) => str_contains((string) $message, 'alamat peminjam tidak valid')
+        ));
+    }
+
+    public function test_mail_failure_does_not_rollback_approval(): void
+    {
+        $logged = [];
+        Log::listen(function ($event) use (&$logged): void {
+            $logged[] = $event->message;
+        });
+
+        Mail::shouldReceive('to')
+            ->once()
+            ->andThrow(new \RuntimeException('SMTP connection failed'));
+
+        $requester = $this->makeStaff(['email' => 'staff-smtp@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-smtp@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Kiki',
+            'borrower_email' => 'kiki@undira.ac.id',
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::MenungguPersetujuan,
+            'requested_by' => $requester->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.approve', $borrowing))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
+        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertTrue(collect($logged)->contains(
+            fn ($message) => str_contains((string) $message, 'Gagal mengirim email notifikasi peminjaman')
+        ));
+    }
+
+    public function test_super_admin_approve_sends_borrower_mail(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-sa@undira.ac.id']);
+        $superAdmin = $this->makeSuperAdmin(['email' => 'super-appr@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Nia',
+            'borrower_email' => 'nia@undira.ac.id',
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::MenungguPersetujuan,
+            'requested_by' => $requester->id,
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->post(route('borrowings.approve', $borrowing))
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
+        Mail::assertSent(BorrowingApprovedMail::class, fn ($mail) => $mail->hasTo('nia@undira.ac.id'));
+        Mail::assertSent(BorrowingApprovedMail::class, 1);
     }
 
     protected function makeItem(array $overrides = []): InventoryItem

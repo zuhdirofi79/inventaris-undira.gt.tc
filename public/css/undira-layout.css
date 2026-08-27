@@ -115,30 +115,68 @@ body.layout-fixed .main-sidebar > .undira-sidebar-brand {
   outline: none;
 }
 
+.navbar-undira .navbar-nav > .nav-item.min-w-0 {
+  white-space: normal;
+  min-width: 0;
+}
+
+.navbar-undira .nav-link.app-identity,
 .app-identity {
   display: flex;
+  flex-direction: column;
   flex-wrap: nowrap;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
   min-width: 0;
-  max-width: min(380px, 48vw);
-  height: 100%;
-  padding: 0.15rem 0.35rem;
+  max-width: min(440px, 46vw);
+  height: auto !important;
+  min-height: 0;
+  padding: 0.15rem 0.45rem;
   text-decoration: none !important;
-  line-height: 1;
+  line-height: 1.15;
   overflow: hidden;
+}
+
+.app-identity-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.12rem;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .app-identity-title {
   display: block;
   min-width: 0;
-  font-size: 17px;
+  font-size: 1.2rem;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.15;
   color: var(--text-heading, var(--undira-blue, #1A237E));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+.app-identity-subtitle {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  max-width: 100%;
+  font-size: 0.68rem;
+  font-weight: 400;
+  font-style: italic;
+  line-height: 1.3;
+  color: var(--ui-muted, var(--undira-muted, #64748B));
+  white-space: normal;
+}
+
+.app-identity-subtitle em {
+  font-style: italic;
+  font-weight: 400;
 }
 
 /* —— Sidebar brand (full logo expanded / 32px mark collapsed) —— */
@@ -755,11 +793,16 @@ body.sidebar-open .undira-sidebar-backdrop {
   }
 
   .app-identity {
-    max-width: min(280px, 42vw);
+    max-width: min(300px, 42vw);
   }
 
   .app-identity-title {
-    font-size: 16px;
+    font-size: 1.05rem;
+  }
+
+  .app-identity-subtitle {
+    font-size: 0.62rem;
+    line-height: 1.28;
   }
 
   .page-header-undira h1 {
@@ -893,11 +936,16 @@ body.sidebar-open .undira-sidebar-backdrop {
   }
 
   .app-identity {
-    max-width: min(220px, 55vw);
+    max-width: min(220px, 52vw);
   }
 
   .app-identity-title {
-    font-size: 15px;
+    font-size: 1rem;
+  }
+
+  .app-identity-subtitle {
+    font-size: 0.58rem;
+    line-height: 1.25;
   }
 
   .page-header-undira h1 {
@@ -907,7 +955,15 @@ body.sidebar-open .undira-sidebar-backdrop {
 
 @media (max-width: 575.98px) {
   .app-identity {
-    max-width: min(180px, 48vw);
+    max-width: min(196px, 46vw);
+  }
+
+  .app-identity-title {
+    font-size: 0.95rem;
+  }
+
+  .app-identity-subtitle {
+    font-size: 0.55rem;
   }
 }
 
@@ -919,6 +975,11 @@ body.dark-mode .undira-sidebar-brand.brand-link {
 
 body.dark-mode .app-identity-title {
   color: var(--text-heading) !important;
+}
+
+body.dark-mode .app-identity-subtitle,
+body.dark-mode .app-identity-subtitle em {
+  color: var(--ui-muted, var(--dm-muted, #B4BCC8)) !important;
 }
 
 body.dark-mode .navbar-undira .nav-link[data-widget="pushmenu"] {
