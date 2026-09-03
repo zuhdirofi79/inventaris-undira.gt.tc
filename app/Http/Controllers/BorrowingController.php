@@ -4,12 +4,18 @@ namespace App\Http\Controllers;
 
 use App\Enums\AuditAction;
 use App\Enums\BorrowingStatus;
+use App\Http\Requests\ApproveBorrowingItemRequest;
 use App\Http\Requests\ApproveBorrowingRequest;
+use App\Http\Requests\HandoverBorrowingItemRequest;
+use App\Http\Requests\RejectBorrowingItemRequest;
 use App\Http\Requests\RejectBorrowingRequest;
 use App\Http\Requests\ReturnBorrowingItemsRequest;
 use App\Http\Requests\StoreBorrowingRequest;
 use App\Http\Requests\UpdateBorrowingRequest;
 use App\Models\Borrowing;
+use App\Models\BorrowingItem;
+use App\Models\Campus;
+use Carbon\Carbon;
 use App\Services\AuditLogService;
 use App\Services\BorrowingApprovalService;
 use App\Services\BorrowingReceiptService;
@@ -19,6 +25,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -33,19 +40,36 @@ class BorrowingController extends Controller
 
     public function index(Request $request): View
     {
+        $request->validate([
+            'status' => ['nullable', 'string', 'max:40'],
+            'campus_id' => ['nullable', 'integer', 'exists:campuses,id'],
+        ]);
+
         $statusFilter = $request->input('status');
+        $campusId = $request->filled('campus_id') ? $request->integer('campus_id') : null;
         $user = $request->user();
 
         $borrowings = Borrowing::query()
             ->with([
                 'inventoryItem.category',
-                'inventoryItem.room',
-                'items.inventoryItem',
+                'inventoryItem.room.floor.building.campus:id,name',
+                'items.inventoryItem.room.floor.building.campus:id,name',
                 'approvedBy',
                 'requestedBy',
             ])
             ->withCount('items')
             ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
+            ->when($campusId, function ($q) use ($campusId) {
+                // Match via line items, or legacy header inventory when no lines exist.
+                // Multi-campus transactions appear if ANY item is on the selected campus.
+                $q->where(function ($inner) use ($campusId) {
+                    $inner->whereHas('items.inventoryItem', fn ($item) => $item->forCampus($campusId))
+                        ->orWhere(function ($legacy) use ($campusId) {
+                            $legacy->whereDoesntHave('items')
+                                ->whereHas('inventoryItem', fn ($item) => $item->forCampus($campusId));
+                        });
+                });
+            })
             // Viewer/peminjam: hanya riwayat miliknya (requested_by).
             ->when(
                 $user && $user->hasRole('viewer') && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']),
@@ -55,10 +79,22 @@ class BorrowingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
+        // Models (id, name) — never pluck() strings; Blade needs $campus->id / $campus->name.
+        $campuses = Cache::remember(
+            InventarisCache::key('campuses.active.dropdown'),
+            InventarisCache::TTL,
+            fn () => Campus::query()
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(['id', 'name'])
+        );
+
         return view('operations.borrowings.index', [
             'borrowings' => $borrowings,
             'statusFilter' => $statusFilter,
+            'campusFilter' => $campusId,
             'statusOptions' => BorrowingStatus::cases(),
+            'campuses' => $campuses,
         ]);
     }
 
@@ -110,16 +146,18 @@ class BorrowingController extends Controller
         $borrowing->load([
             'items.inventoryItem.category',
             'items.inventoryItem.subCategory',
-            'items.inventoryItem.room.floor.building.campus',
+            'items.inventoryItem.room.floor.building.campus:id,name',
             'inventoryItem.category',
             'inventoryItem.subCategory',
-            'inventoryItem.room.floor.building.campus',
+            'inventoryItem.room.floor.building.campus:id,name',
             'approvedBy',
             'requestedBy',
         ]);
 
         return view('operations.borrowings.show', [
             'borrowing' => $borrowing,
+            'campusNames' => $borrowing->campusNames(),
+            'campusSummary' => $borrowing->campusSummary(),
             'qrDataUri' => $borrowing->approval_number ? $this->receipts->qrDataUri($borrowing) : null,
             'approvalUrl' => $this->receipts->approvalPublicUrl($borrowing),
         ]);
@@ -179,7 +217,11 @@ class BorrowingController extends Controller
             ? null
             : array_map('intval', (array) $request->input('item_ids', []));
 
-        $borrowing = $this->approval->returnItems($borrowing, $itemIds);
+        $returnedAt = $request->filled('returned_at')
+            ? Carbon::parse((string) $request->input('returned_at'))
+            : null;
+
+        $borrowing = $this->approval->returnItems($borrowing, $itemIds, $returnedAt);
 
         $this->audit->log(
             $request->user(),
@@ -190,6 +232,7 @@ class BorrowingController extends Controller
                 'status' => $borrowing->status,
                 'returned_item_ids' => $itemIds,
                 'return_all' => (bool) $request->input('return_all'),
+                'returned_at' => $returnedAt?->toDateTimeString(),
             ],
             'BORROWING_RETURNED',
             "{$request->user()->name} mengembalikan barang peminjaman.",
@@ -219,10 +262,15 @@ class BorrowingController extends Controller
             $old,
             $borrowing->only(['status', 'approved_by', 'approved_at', 'approval_notes', 'approval_number']),
             'BORROWING_APPROVED',
-            "{$request->user()->name} menyetujui peminjaman {$borrowing->approval_number}.",
+            "{$request->user()->name} menyetujui seluruh item menunggu pada peminjaman "
+                .($borrowing->approval_number ?? '#'.$borrowing->id).'.',
         );
 
-        return back()->with('success', 'Peminjaman berhasil disetujui.');
+        $message = $borrowing->status === BorrowingStatus::MenungguPersetujuan
+            ? 'Item menunggu berhasil disetujui. Selesaikan item lain yang masih menunggu.'
+            : 'Peminjaman berhasil disetujui. Serahkan barang untuk mencatat tanggal pinjam aktual.';
+
+        return back()->with('success', $message);
     }
 
     public function reject(RejectBorrowingRequest $request, Borrowing $borrowing): RedirectResponse
@@ -242,10 +290,107 @@ class BorrowingController extends Controller
             $old,
             $borrowing->only(['status', 'approved_by', 'rejected_at', 'rejection_reason']),
             'BORROWING_REJECTED',
-            "{$request->user()->name} menolak peminjaman. Alasan: ".$request->input('rejection_reason'),
+            "{$request->user()->name} menolak item menunggu pada peminjaman. Alasan: ".$request->input('rejection_reason'),
         );
 
-        return back()->with('success', 'Peminjaman berhasil ditolak.');
+        $message = $borrowing->status === BorrowingStatus::Ditolak
+            ? 'Peminjaman berhasil ditolak.'
+            : 'Item menunggu berhasil ditolak. Status transaksi diperbarui sesuai hasil approval.';
+
+        return back()->with('success', $message);
+    }
+
+    public function approveItem(
+        ApproveBorrowingItemRequest $request,
+        Borrowing $borrowing,
+        BorrowingItem $borrowingItem,
+    ): RedirectResponse {
+        $oldStatus = $borrowingItem->status?->value;
+
+        $borrowing = $this->approval->approveItem($borrowing, $borrowingItem, $request->user());
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $borrowing,
+            ['item_id' => $borrowingItem->id, 'status' => $oldStatus],
+            ['item_id' => $borrowingItem->id, 'status' => 'disetujui', 'borrowing_status' => $borrowing->status?->value],
+            'BORROWING_ITEM_APPROVED',
+            "{$request->user()->name} menyetujui item #{$borrowingItem->id} pada peminjaman #{$borrowing->id}.",
+        );
+
+        $message = $borrowing->status === BorrowingStatus::MenungguPersetujuan
+            ? 'Inventaris disetujui. Masih ada item yang menunggu persetujuan.'
+            : 'Inventaris disetujui. Persetujuan transaksi selesai.';
+
+        return back()->with('success', $message);
+    }
+
+    public function rejectItem(
+        RejectBorrowingItemRequest $request,
+        Borrowing $borrowing,
+        BorrowingItem $borrowingItem,
+    ): RedirectResponse {
+        $oldStatus = $borrowingItem->status?->value;
+        $reason = (string) $request->input('rejection_reason');
+
+        $borrowing = $this->approval->rejectItem($borrowing, $borrowingItem, $request->user(), $reason);
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $borrowing,
+            ['item_id' => $borrowingItem->id, 'status' => $oldStatus],
+            [
+                'item_id' => $borrowingItem->id,
+                'status' => 'ditolak',
+                'rejection_reason' => $reason,
+                'borrowing_status' => $borrowing->status?->value,
+            ],
+            'BORROWING_ITEM_REJECTED',
+            "{$request->user()->name} menolak item #{$borrowingItem->id}. Alasan: {$reason}",
+        );
+
+        $message = $borrowing->status === BorrowingStatus::MenungguPersetujuan
+            ? 'Inventaris ditolak. Masih ada item yang menunggu persetujuan.'
+            : ($borrowing->status === BorrowingStatus::Ditolak
+                ? 'Inventaris ditolak. Seluruh pengajuan ditolak.'
+                : 'Inventaris ditolak. Persetujuan transaksi selesai (sebagian disetujui).');
+
+        return back()->with('success', $message);
+    }
+
+    public function handoverItem(
+        HandoverBorrowingItemRequest $request,
+        Borrowing $borrowing,
+        BorrowingItem $borrowingItem,
+    ): RedirectResponse {
+        $borrowedAt = $request->filled('borrowed_at')
+            ? Carbon::parse((string) $request->input('borrowed_at'))
+            : null;
+
+        $borrowing = $this->approval->handoverItem(
+            $borrowing,
+            $borrowingItem,
+            $request->user(),
+            $borrowedAt,
+        );
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $borrowing,
+            null,
+            [
+                'item_id' => $borrowingItem->id,
+                'status' => 'dipinjam',
+                'borrowed_at' => $borrowedAt?->toDateTimeString() ?? now()->toDateTimeString(),
+            ],
+            'BORROWING_ITEM_HANDED_OVER',
+            "{$request->user()->name} menyerahkan item #{$borrowingItem->id} (tanggal pinjam aktual dicatat).",
+        );
+
+        return back()->with('success', 'Barang berhasil diserahkan. Status inventaris menjadi Dipinjam.');
     }
 
     public function receipt(Borrowing $borrowing): View|RedirectResponse

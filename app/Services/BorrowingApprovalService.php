@@ -13,6 +13,7 @@ use App\Models\BorrowingItem;
 use App\Models\InventoryItem;
 use App\Models\User;
 use App\Support\InventarisCache;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -73,104 +74,261 @@ class BorrowingApprovalService
         return $borrowing;
     }
 
+    /**
+     * Approve all remaining pending items (transaction-level convenience).
+     * Inventory stays available until each item is handed over.
+     */
     public function approve(Borrowing $borrowing, User $approver, ?string $notes = null): Borrowing
     {
         $this->assertPending($borrowing);
         $this->assertNotSelfApproval($borrowing, $approver);
 
-        $borrowing = DB::transaction(function () use ($borrowing, $approver, $notes) {
+        $finalized = false;
+
+        $borrowing = DB::transaction(function () use ($borrowing, $approver, $notes, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertApprovalNumberImmutable($locked);
+            $this->assertNotSelfApproval($locked, $approver);
             $this->ensureItems($locked);
-            $this->assertItemsAvailableForApproval($locked);
 
-            $approvalNumber = $locked->approval_number ?: $this->approvalNumbers->generate();
+            $pendingIds = BorrowingItem::query()
+                ->where('borrowing_id', $locked->id)
+                ->where('status', BorrowingItemStatus::MenungguPersetujuan)
+                ->pluck('inventory_item_id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
 
-            $locked->update([
-                'status' => BorrowingStatus::Disetujui,
-                'approval_number' => $approvalNumber,
-                'approved_by' => $approver->id,
-                'approved_at' => now(),
-                'rejected_at' => null,
-                'rejection_reason' => null,
-                'approval_notes' => $notes,
-            ]);
+            if ($pendingIds === []) {
+                throw ValidationException::withMessages([
+                    'items' => 'Tidak ada inventaris yang masih menunggu persetujuan.',
+                ]);
+            }
 
-            $itemIds = $this->inventoryIdsFor($locked);
+            $this->assertInventoriesAvailable($pendingIds, (int) $locked->id);
 
             BorrowingItem::query()
                 ->where('borrowing_id', $locked->id)
                 ->where('status', BorrowingItemStatus::MenungguPersetujuan)
-                ->update(['status' => BorrowingItemStatus::Dipinjam]);
+                ->update([
+                    'status' => BorrowingItemStatus::Disetujui,
+                    'rejection_reason' => null,
+                ]);
 
-            if ($itemIds !== []) {
-                InventoryItem::query()
-                    ->whereIn('id', $itemIds)
-                    ->update(['status' => InventoryStatus::Dipinjam]);
+            if ($notes !== null && $notes !== '') {
+                $locked->update(['approval_notes' => $notes]);
             }
 
-            return $locked->fresh([
-                'items.inventoryItem.category',
-                'items.inventoryItem.subCategory',
-                'items.inventoryItem.room',
-                'inventoryItem.category',
-                'inventoryItem.subCategory',
-                'inventoryItem.room',
-                'approvedBy',
-                'requestedBy',
-            ]);
+            $finalized = $this->finalizeHeaderIfReady($locked, $approver);
+
+            return $locked->fresh($this->defaultRelations());
         });
 
-        $this->notifications->notifyBorrowingApproved($borrowing);
-        $this->sendBorrowerMail($borrowing, new BorrowingApprovedMail($borrowing));
-        InventarisCache::flush();
+        if ($finalized) {
+            $this->notifyAfterFinalDecision($borrowing);
+        }
 
-        return $borrowing;
-    }
-
-    public function reject(Borrowing $borrowing, User $approver, string $reason): Borrowing
-    {
-        $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
-        $borrowing = DB::transaction(function () use ($borrowing, $approver, $reason) {
-            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
-            $this->assertPending($locked);
-
-            $locked->update([
-                'status' => BorrowingStatus::Ditolak,
-                'approved_by' => $approver->id,
-                'approved_at' => null,
-                'rejected_at' => now(),
-                'rejection_reason' => $reason,
-                'approval_notes' => null,
-            ]);
-
-            // Items stay menunggu / unused — inventory never flipped on submit.
-            return $locked->fresh([
-                'items.inventoryItem',
-                'inventoryItem',
-                'approvedBy',
-                'requestedBy',
-            ]);
-        });
-
-        $this->notifications->notifyBorrowingRejected($borrowing);
-        $this->sendBorrowerMail($borrowing, new BorrowingRejectedMail($borrowing));
         InventarisCache::flush();
 
         return $borrowing;
     }
 
     /**
-     * Return selected line items (or all open lines). Updates header when all returned.
-     *
-     * @param  list<int>|null  $borrowingItemIds  null = return all open items
+     * Reject all remaining pending items (transaction-level convenience).
      */
-    public function returnItems(Borrowing $borrowing, ?array $borrowingItemIds = null): Borrowing
+    public function reject(Borrowing $borrowing, User $approver, string $reason): Borrowing
     {
-        return DB::transaction(function () use ($borrowing, $borrowingItemIds) {
+        $this->assertPending($borrowing);
+        $this->assertNotSelfApproval($borrowing, $approver);
+
+        $finalized = false;
+
+        $borrowing = DB::transaction(function () use ($borrowing, $approver, $reason, &$finalized) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $this->assertPending($locked);
+            $this->assertNotSelfApproval($locked, $approver);
+            $this->ensureItems($locked);
+
+            $updated = BorrowingItem::query()
+                ->where('borrowing_id', $locked->id)
+                ->where('status', BorrowingItemStatus::MenungguPersetujuan)
+                ->update([
+                    'status' => BorrowingItemStatus::Ditolak,
+                    'rejection_reason' => $reason,
+                ]);
+
+            if ($updated < 1) {
+                throw ValidationException::withMessages([
+                    'items' => 'Tidak ada inventaris yang masih menunggu persetujuan.',
+                ]);
+            }
+
+            $locked->update(['rejection_reason' => $reason]);
+
+            $finalized = $this->finalizeHeaderIfReady($locked, $approver);
+
+            return $locked->fresh($this->defaultRelations());
+        });
+
+        if ($finalized) {
+            $this->notifyAfterFinalDecision($borrowing);
+        }
+
+        InventarisCache::flush();
+
+        return $borrowing;
+    }
+
+    public function approveItem(Borrowing $borrowing, BorrowingItem $item, User $approver): Borrowing
+    {
+        $this->assertItemBelongs($borrowing, $item);
+        $this->assertPending($borrowing);
+        $this->assertNotSelfApproval($borrowing, $approver);
+
+        $finalized = false;
+
+        $borrowing = DB::transaction(function () use ($borrowing, $item, $approver, &$finalized) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $this->assertPending($locked);
+            $this->assertNotSelfApproval($locked, $approver);
+
+            $line = BorrowingItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+            $this->assertItemBelongs($locked, $line);
+
+            if ($line->status !== BorrowingItemStatus::MenungguPersetujuan) {
+                throw ValidationException::withMessages([
+                    'item' => 'Inventaris ini sudah diproses sebelumnya.',
+                ]);
+            }
+
+            $this->assertInventoriesAvailable([(int) $line->inventory_item_id], (int) $locked->id);
+
+            $line->update([
+                'status' => BorrowingItemStatus::Disetujui,
+                'rejection_reason' => null,
+            ]);
+
+            $finalized = $this->finalizeHeaderIfReady($locked, $approver);
+
+            return $locked->fresh($this->defaultRelations());
+        });
+
+        if ($finalized) {
+            $this->notifyAfterFinalDecision($borrowing);
+        }
+
+        InventarisCache::flush();
+
+        return $borrowing;
+    }
+
+    public function rejectItem(Borrowing $borrowing, BorrowingItem $item, User $approver, string $reason): Borrowing
+    {
+        $this->assertItemBelongs($borrowing, $item);
+        $this->assertPending($borrowing);
+        $this->assertNotSelfApproval($borrowing, $approver);
+
+        $finalized = false;
+
+        $borrowing = DB::transaction(function () use ($borrowing, $item, $approver, $reason, &$finalized) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $this->assertPending($locked);
+            $this->assertNotSelfApproval($locked, $approver);
+
+            $line = BorrowingItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+            $this->assertItemBelongs($locked, $line);
+
+            if ($line->status !== BorrowingItemStatus::MenungguPersetujuan) {
+                throw ValidationException::withMessages([
+                    'item' => 'Inventaris ini sudah diproses sebelumnya.',
+                ]);
+            }
+
+            $line->update([
+                'status' => BorrowingItemStatus::Ditolak,
+                'rejection_reason' => $reason,
+            ]);
+
+            $finalized = $this->finalizeHeaderIfReady($locked, $approver);
+
+            return $locked->fresh($this->defaultRelations());
+        });
+
+        if ($finalized) {
+            $this->notifyAfterFinalDecision($borrowing);
+        }
+
+        InventarisCache::flush();
+
+        return $borrowing;
+    }
+
+    /**
+     * Physical handover: Disetujui → Dipinjam + borrowed_at + inventory.dipinjam.
+     */
+    public function handoverItem(
+        Borrowing $borrowing,
+        BorrowingItem $item,
+        User $actor,
+        ?CarbonInterface $borrowedAt = null,
+    ): Borrowing {
+        $this->assertItemBelongs($borrowing, $item);
+
+        return DB::transaction(function () use ($borrowing, $item, $borrowedAt) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+
+            if (! in_array($locked->status, [
+                BorrowingStatus::Disetujui,
+                BorrowingStatus::Dipinjam,
+                BorrowingStatus::Terlambat,
+            ], true)) {
+                throw ValidationException::withMessages([
+                    'status' => 'Serah terima hanya dapat dilakukan pada peminjaman yang sudah disetujui.',
+                ]);
+            }
+
+            $line = BorrowingItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
+            $this->assertItemBelongs($locked, $line);
+
+            if ($line->status !== BorrowingItemStatus::Disetujui) {
+                throw ValidationException::withMessages([
+                    'item' => 'Hanya inventaris berstatus Disetujui yang dapat diserahkan.',
+                ]);
+            }
+
+            $this->assertInventoriesAvailable([(int) $line->inventory_item_id], (int) $locked->id);
+
+            $at = $borrowedAt ?? now();
+
+            $line->update([
+                'status' => BorrowingItemStatus::Dipinjam,
+                'borrowed_at' => $at,
+            ]);
+
+            InventoryItem::query()
+                ->whereKey($line->inventory_item_id)
+                ->update(['status' => InventoryStatus::Dipinjam]);
+
+            if ($locked->status === BorrowingStatus::Disetujui) {
+                $locked->update(['status' => BorrowingStatus::Dipinjam]);
+            }
+
+            InventarisCache::flush();
+
+            return $locked->fresh($this->defaultRelations());
+        });
+    }
+
+    /**
+     * Return selected line items (or all open borrowed lines). Updates header when settled.
+     *
+     * @param  list<int>|null  $borrowingItemIds  null = return all borrowed items
+     */
+    public function returnItems(
+        Borrowing $borrowing,
+        ?array $borrowingItemIds = null,
+        ?CarbonInterface $returnedAt = null,
+    ): Borrowing {
+        return DB::transaction(function () use ($borrowing, $borrowingItemIds, $returnedAt) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
 
             if (! in_array($locked->status, [
@@ -202,11 +360,11 @@ class BorrowingApprovalService
                 ]);
             }
 
-            $now = now();
+            $at = $returnedAt ?? now();
             foreach ($lines as $line) {
                 $line->update([
                     'status' => BorrowingItemStatus::Dikembalikan,
-                    'returned_at' => $now,
+                    'returned_at' => $at,
                 ]);
             }
 
@@ -219,20 +377,13 @@ class BorrowingApprovalService
             if ($locked->allItemsReturned()) {
                 $locked->update([
                     'status' => BorrowingStatus::Dikembalikan,
-                    'return_date' => $locked->return_date ?? $now->toDateString(),
+                    'return_date' => $locked->return_date ?? $at->toDateString(),
                 ]);
             }
 
             InventarisCache::flush();
 
-            return $locked->fresh([
-                'items.inventoryItem.category',
-                'items.inventoryItem.subCategory',
-                'items.inventoryItem.room.floor.building.campus',
-                'inventoryItem',
-                'approvedBy',
-                'requestedBy',
-            ]);
+            return $locked->fresh($this->defaultRelations());
         });
     }
 
@@ -245,7 +396,13 @@ class BorrowingApprovalService
             return;
         }
 
-        $ids = $this->inventoryIdsFor($borrowing);
+        $ids = BorrowingItem::query()
+            ->where('borrowing_id', $borrowing->id)
+            ->where('status', BorrowingItemStatus::Dipinjam)
+            ->pluck('inventory_item_id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         if ($ids === []) {
             return;
         }
@@ -254,6 +411,125 @@ class BorrowingApprovalService
             ->whereIn('id', $ids)
             ->where('status', InventoryStatus::Dipinjam)
             ->update(['status' => InventoryStatus::Aktif]);
+    }
+
+    /**
+     * Finalize header when every line has left menunggu_persetujuan.
+     * Returns true if header transitioned out of pending in this call.
+     */
+    protected function finalizeHeaderIfReady(Borrowing $locked, User $approver): bool
+    {
+        $locked->load('items');
+
+        if ($locked->status !== BorrowingStatus::MenungguPersetujuan) {
+            return false;
+        }
+
+        if ($locked->hasPendingItemApprovals()) {
+            return false;
+        }
+
+        $counts = $locked->itemDecisionCounts();
+
+        if ($counts['approved'] === 0) {
+            $reason = BorrowingItem::query()
+                ->where('borrowing_id', $locked->id)
+                ->where('status', BorrowingItemStatus::Ditolak)
+                ->whereNotNull('rejection_reason')
+                ->value('rejection_reason')
+                ?? $locked->rejection_reason
+                ?? 'Semua inventaris ditolak.';
+
+            $locked->update([
+                'status' => BorrowingStatus::Ditolak,
+                'approved_by' => $approver->id,
+                'approved_at' => null,
+                'rejected_at' => now(),
+                'rejection_reason' => $reason,
+            ]);
+
+            return true;
+        }
+
+        $this->assertApprovalNumberImmutable($locked);
+        $approvalNumber = $locked->approval_number ?: $this->approvalNumbers->generate();
+
+        $notes = $locked->approval_notes;
+        if ($counts['rejected'] > 0) {
+            $summary = "{$counts['approved']} inventaris disetujui, {$counts['rejected']} inventaris ditolak.";
+            $notes = filled($notes) ? trim($notes.' '.$summary) : $summary;
+        }
+
+        $locked->update([
+            'status' => BorrowingStatus::Disetujui,
+            'approval_number' => $approvalNumber,
+            'approved_by' => $approver->id,
+            'approved_at' => now(),
+            'rejected_at' => null,
+            'approval_notes' => $notes,
+        ]);
+
+        return true;
+    }
+
+    protected function notifyAfterFinalDecision(Borrowing $borrowing): void
+    {
+        $borrowing->loadMissing(['items.inventoryItem.category', 'inventoryItem', 'requestedBy', 'approvedBy']);
+
+        if ($borrowing->status === BorrowingStatus::Ditolak) {
+            $this->notifications->notifyBorrowingRejected($borrowing);
+            $this->sendBorrowerMail($borrowing, new BorrowingRejectedMail($borrowing));
+
+            return;
+        }
+
+        if ($borrowing->status === BorrowingStatus::Disetujui) {
+            $this->notifications->notifyBorrowingApproved($borrowing);
+            $this->sendBorrowerMail($borrowing, new BorrowingApprovedMail($borrowing));
+        }
+    }
+
+    /**
+     * @param  list<int>  $inventoryIds
+     */
+    protected function assertInventoriesAvailable(array $inventoryIds, int $exceptBorrowingId): void
+    {
+        if ($inventoryIds === []) {
+            throw ValidationException::withMessages([
+                'items' => 'Peminjaman tidak memiliki daftar barang.',
+            ]);
+        }
+
+        $items = InventoryItem::query()
+            ->whereIn('id', $inventoryIds)
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        foreach ($inventoryIds as $id) {
+            $item = $items->get($id);
+            if (! $item) {
+                throw ValidationException::withMessages([
+                    'inventory_item_id' => 'Inventaris tidak ditemukan.',
+                ]);
+            }
+
+            $status = $item->status instanceof InventoryStatus
+                ? $item->status
+                : InventoryStatus::tryFrom((string) $item->status);
+
+            if ($status === InventoryStatus::Dipinjam) {
+                throw ValidationException::withMessages([
+                    'inventory_item_id' => "Tidak dapat diproses karena {$item->inventory_number} sedang Dipinjam.",
+                ]);
+            }
+
+            if (Borrowing::inventoryIsBlocked((int) $id, $exceptBorrowingId)) {
+                throw ValidationException::withMessages([
+                    'inventory_item_id' => "Tidak dapat diproses karena {$item->inventory_number} sedang dalam transaksi peminjaman lain.",
+                ]);
+            }
+        }
     }
 
     protected function assertPending(Borrowing $borrowing): void
@@ -283,64 +559,13 @@ class BorrowingApprovalService
         }
     }
 
-    protected function assertItemsAvailableForApproval(Borrowing $borrowing): void
+    protected function assertItemBelongs(Borrowing $borrowing, BorrowingItem $item): void
     {
-        $ids = $this->inventoryIdsFor($borrowing);
-
-        if ($ids === []) {
+        if ((int) $item->borrowing_id !== (int) $borrowing->id) {
             throw ValidationException::withMessages([
-                'items' => 'Peminjaman tidak memiliki daftar barang.',
+                'item' => 'Inventaris tidak termasuk dalam transaksi ini.',
             ]);
         }
-
-        $items = InventoryItem::query()
-            ->whereIn('id', $ids)
-            ->lockForUpdate()
-            ->get()
-            ->keyBy('id');
-
-        foreach ($ids as $id) {
-            $item = $items->get($id);
-            if (! $item) {
-                throw ValidationException::withMessages([
-                    'inventory_item_id' => 'Inventaris tidak ditemukan.',
-                ]);
-            }
-
-            $status = $item->status instanceof InventoryStatus
-                ? $item->status
-                : InventoryStatus::tryFrom((string) $item->status);
-
-            if ($status === InventoryStatus::Dipinjam) {
-                throw ValidationException::withMessages([
-                    'inventory_item_id' => "Approval tidak dapat dilakukan karena {$item->inventory_number} sedang Dipinjam.",
-                ]);
-            }
-
-            if (Borrowing::inventoryIsBlocked((int) $id, (int) $borrowing->id)) {
-                throw ValidationException::withMessages([
-                    'inventory_item_id' => "Approval tidak dapat dilakukan karena {$item->inventory_number} sedang Dipinjam.",
-                ]);
-            }
-        }
-    }
-
-    /**
-     * @return list<int>
-     */
-    protected function inventoryIdsFor(Borrowing $borrowing): array
-    {
-        $ids = BorrowingItem::query()
-            ->where('borrowing_id', $borrowing->id)
-            ->pluck('inventory_item_id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
-
-        if ($ids !== []) {
-            return $ids;
-        }
-
-        return $borrowing->inventory_item_id ? [(int) $borrowing->inventory_item_id] : [];
     }
 
     /**
@@ -358,7 +583,8 @@ class BorrowingApprovalService
 
         $status = match ($borrowing->status) {
             BorrowingStatus::Dikembalikan => BorrowingItemStatus::Dikembalikan,
-            BorrowingStatus::Disetujui,
+            BorrowingStatus::Ditolak => BorrowingItemStatus::Ditolak,
+            BorrowingStatus::Disetujui => BorrowingItemStatus::Disetujui,
             BorrowingStatus::Dipinjam,
             BorrowingStatus::Terlambat => BorrowingItemStatus::Dipinjam,
             default => BorrowingItemStatus::MenungguPersetujuan,
@@ -369,8 +595,26 @@ class BorrowingApprovalService
             'inventory_item_id' => $borrowing->inventory_item_id,
             'qty' => 1,
             'status' => $status,
+            'borrowed_at' => $status === BorrowingItemStatus::Dipinjam ? now() : null,
             'returned_at' => $status === BorrowingItemStatus::Dikembalikan ? now() : null,
         ]);
+    }
+
+    /**
+     * @return list<string>
+     */
+    protected function defaultRelations(): array
+    {
+        return [
+            'items.inventoryItem.category',
+            'items.inventoryItem.subCategory',
+            'items.inventoryItem.room.floor.building.campus',
+            'inventoryItem.category',
+            'inventoryItem.subCategory',
+            'inventoryItem.room',
+            'approvedBy',
+            'requestedBy',
+        ];
     }
 
     protected function notifyAdminsByEmail(Borrowing $borrowing): void

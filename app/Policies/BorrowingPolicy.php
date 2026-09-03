@@ -54,4 +54,20 @@ class BorrowingPolicy
     {
         return $this->approve($user, $borrowing);
     }
+
+    /**
+     * Physical handover / mark as borrowed after item-level approval.
+     */
+    public function handover(User $user, Borrowing $borrowing): bool
+    {
+        if (! $user->can('borrowing.approve')) {
+            return false;
+        }
+
+        return in_array($borrowing->status, [
+            BorrowingStatus::Disetujui,
+            BorrowingStatus::Dipinjam,
+            BorrowingStatus::Terlambat,
+        ], true);
+    }
 }

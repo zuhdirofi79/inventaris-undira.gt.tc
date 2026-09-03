@@ -23,6 +23,7 @@ class ReturnBorrowingItemsRequest extends FormRequest
             'return_all' => ['nullable', 'boolean'],
             'item_ids' => ['nullable', 'array'],
             'item_ids.*' => ['integer'],
+            'returned_at' => ['nullable', 'date'],
         ];
     }
 

@@ -24,10 +24,20 @@ class BorrowingApprovedMail extends Mailable
 
     public function envelope(): Envelope
     {
+        $this->borrowing->loadMissing('items');
+        $counts = $this->borrowing->itemDecisionCounts();
         $number = $this->borrowing->approval_number;
-        $subject = $number
-            ? "Pengajuan Peminjaman Inventaris Disetujui - {$number}"
-            : 'Pengajuan Peminjaman Inventaris Disetujui';
+        $isPartial = $counts['approved'] > 0 && $counts['rejected'] > 0;
+
+        if ($isPartial) {
+            $subject = $number
+                ? "Hasil Persetujuan Peminjaman (Sebagian) - {$number}"
+                : 'Hasil Persetujuan Peminjaman (Sebagian)';
+        } else {
+            $subject = $number
+                ? "Pengajuan Peminjaman Inventaris Disetujui - {$number}"
+                : 'Pengajuan Peminjaman Inventaris Disetujui';
+        }
 
         return new Envelope(subject: $subject);
     }

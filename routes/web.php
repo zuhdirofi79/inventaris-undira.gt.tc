@@ -351,6 +351,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:borrowing.approve')->group(function () {
         Route::post('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');
         Route::post('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
+        Route::post('/borrowings/{borrowing}/items/{borrowingItem}/approve', [BorrowingController::class, 'approveItem'])->name('borrowings.items.approve');
+        Route::post('/borrowings/{borrowing}/items/{borrowingItem}/reject', [BorrowingController::class, 'rejectItem'])->name('borrowings.items.reject');
+        Route::post('/borrowings/{borrowing}/items/{borrowingItem}/handover', [BorrowingController::class, 'handoverItem'])->name('borrowings.items.handover');
         Route::get('/borrowing-approvals', [BorrowingApprovalHistoryController::class, 'index'])->name('borrowing-approvals.index');
         Route::get('/borrowing-approvals/export/pdf', [BorrowingApprovalHistoryController::class, 'exportPdf'])->name('borrowing-approvals.export.pdf');
         Route::get('/borrowing-approvals/export/excel', [BorrowingApprovalHistoryController::class, 'exportExcel'])->name('borrowing-approvals.export.excel');

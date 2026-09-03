@@ -96,7 +96,8 @@ class Borrowing extends Model
                     'qty' => 1,
                     'status' => match ($this->status) {
                         BorrowingStatus::Dikembalikan => BorrowingItemStatus::Dikembalikan,
-                        BorrowingStatus::Disetujui,
+                        BorrowingStatus::Ditolak => BorrowingItemStatus::Ditolak,
+                        BorrowingStatus::Disetujui => BorrowingItemStatus::Disetujui,
                         BorrowingStatus::Dipinjam,
                         BorrowingStatus::Terlambat => BorrowingItemStatus::Dipinjam,
                         default => BorrowingItemStatus::MenungguPersetujuan,
@@ -127,9 +128,42 @@ class Borrowing extends Model
             return $this->status === BorrowingStatus::Dikembalikan;
         }
 
+        // Rejected lines are settled without physical return.
         return $items->every(
             fn (BorrowingItem $item) => $item->status === BorrowingItemStatus::Dikembalikan
+                || $item->status === BorrowingItemStatus::Ditolak
+        ) && $items->contains(
+            fn (BorrowingItem $item) => $item->status === BorrowingItemStatus::Dikembalikan
         );
+    }
+
+    public function hasPendingItemApprovals(): bool
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        return $items->contains(
+            fn (BorrowingItem $item) => $item->status === BorrowingItemStatus::MenungguPersetujuan
+        );
+    }
+
+    /**
+     * @return array{approved: int, rejected: int, pending: int, borrowed: int, returned: int}
+     */
+    public function itemDecisionCounts(): array
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+
+        return [
+            'pending' => $items->where('status', BorrowingItemStatus::MenungguPersetujuan)->count(),
+            'approved' => $items->whereIn('status', [
+                BorrowingItemStatus::Disetujui,
+                BorrowingItemStatus::Dipinjam,
+                BorrowingItemStatus::Dikembalikan,
+            ])->count(),
+            'rejected' => $items->where('status', BorrowingItemStatus::Ditolak)->count(),
+            'borrowed' => $items->where('status', BorrowingItemStatus::Dipinjam)->count(),
+            'returned' => $items->where('status', BorrowingItemStatus::Dikembalikan)->count(),
+        ];
     }
 
     public function approvalStatusLabel(): string
@@ -152,6 +186,66 @@ class Borrowing extends Model
         }
 
         return $this->status?->label() ?? '-';
+    }
+
+    /**
+     * Unique campus names for this transaction (eager-load safe).
+     * Path: BorrowingItem → InventoryItem → Room → Floor → Building → Campus
+     * (legacy header inventoryItem used when no line items exist).
+     *
+     * @return Collection<int, string>
+     */
+    public function campusNames(): Collection
+    {
+        $inventories = collect();
+
+        if ($this->relationLoaded('items') && $this->items->isNotEmpty()) {
+            $inventories = $this->items
+                ->map(fn (BorrowingItem $line) => $line->relationLoaded('inventoryItem')
+                    ? $line->inventoryItem
+                    : $line->inventoryItem()->with('room.floor.building.campus')->first())
+                ->filter();
+        } elseif ($this->items()->exists()) {
+            $inventories = $this->items()
+                ->with('inventoryItem.room.floor.building.campus')
+                ->get()
+                ->pluck('inventoryItem')
+                ->filter();
+        } elseif ($this->inventory_item_id) {
+            $this->loadMissing('inventoryItem.room.floor.building.campus');
+            if ($this->inventoryItem) {
+                $inventories = collect([$this->inventoryItem]);
+            }
+        }
+
+        return $inventories
+            ->map(fn ($item) => $item?->room?->floor?->building?->campus?->name)
+            ->filter(fn ($name) => filled($name))
+            ->unique()
+            ->values();
+    }
+
+    /**
+     * Compact campus label for list/detail UI.
+     */
+    public function campusSummary(): string
+    {
+        $names = $this->campusNames();
+
+        if ($names->isEmpty()) {
+            return '—';
+        }
+
+        if ($names->count() > 1) {
+            return 'Multi Kampus';
+        }
+
+        return (string) $names->first();
+    }
+
+    public function isMultiCampus(): bool
+    {
+        return $this->campusNames()->count() > 1;
     }
 
     /**

@@ -13,7 +13,9 @@ class BorrowingItem extends Model
         'inventory_item_id',
         'qty',
         'status',
+        'borrowed_at',
         'returned_at',
+        'rejection_reason',
     ];
 
     protected function casts(): array
@@ -21,6 +23,7 @@ class BorrowingItem extends Model
         return [
             'qty' => 'integer',
             'status' => BorrowingItemStatus::class,
+            'borrowed_at' => 'datetime',
             'returned_at' => 'datetime',
         ];
     }

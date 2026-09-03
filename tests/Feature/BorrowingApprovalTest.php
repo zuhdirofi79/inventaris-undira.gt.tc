@@ -78,17 +78,30 @@ class BorrowingApprovalTest extends TestCase
                 'approval_notes' => 'OK diambil jam 10',
             ])
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+            ->assertSessionHas('success');
 
-        $borrowing->refresh();
+        $borrowing->refresh()->load('items');
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->status);
         $this->assertSame($admin->id, $borrowing->approved_by);
         $this->assertNotNull($borrowing->approved_at);
         $this->assertNotNull($borrowing->approval_number);
         $this->assertMatchesRegularExpression('/^APR-\d{8}-\d{6}$/', $borrowing->approval_number);
         $this->assertSame('OK diambil jam 10', $borrowing->approval_notes);
-        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame('disetujui', $borrowing->items->first()->status->value);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
         $this->assertTrue(AuditLog::query()->where('description', 'BORROWING_APPROVED')->exists());
+
+        $line = $borrowing->items->first();
+        $this->actingAs($admin)
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => now()->format('Y-m-d H:i:s'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame('dipinjam', $line->fresh()->status->value);
+        $this->assertNotNull($line->fresh()->borrowed_at);
 
         Mail::assertSent(BorrowingApprovedMail::class, function (BorrowingApprovedMail $mail) use ($item, $borrowing) {
             $borrowing->refresh();
@@ -401,8 +414,10 @@ class BorrowingApprovalTest extends TestCase
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect();
 
-        $this->assertSame(InventoryStatus::Dipinjam, $itemA->fresh()->status);
-        $this->assertSame(InventoryStatus::Dipinjam, $itemB->fresh()->status);
+        $borrowing->refresh()->load('items');
+        $this->assertSame(InventoryStatus::Aktif, $itemA->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $itemB->fresh()->status);
+        $this->assertTrue($borrowing->items->every(fn ($i) => $i->status->value === 'disetujui'));
 
         Mail::assertSent(BorrowingApprovedMail::class, function (BorrowingApprovedMail $mail) use ($itemA, $itemB) {
             $html = $mail->render();
@@ -415,6 +430,16 @@ class BorrowingApprovalTest extends TestCase
         });
         Mail::assertSent(BorrowingApprovedMail::class, 1);
 
+        foreach ($borrowing->items as $line) {
+            $this->actingAs($approver)
+                ->post(route('borrowings.items.handover', [$borrowing, $line]))
+                ->assertRedirect();
+        }
+
+        $this->assertSame(InventoryStatus::Dipinjam, $itemA->fresh()->status);
+        $this->assertSame(InventoryStatus::Dipinjam, $itemB->fresh()->status);
+
+        $borrowing->refresh()->load('items');
         $this->actingAs($approver)
             ->post(route('borrowings.return-items', $borrowing), [
                 'item_ids' => [$borrowing->items()->first()->id],
@@ -467,10 +492,10 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($admin)
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+            ->assertSessionHas('success');
 
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
-        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
         Mail::assertNothingSent();
         $this->assertTrue(collect($logged)->contains(
             fn ($message) => str_contains((string) $message, 'alamat peminjam kosong')
@@ -503,7 +528,7 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($admin)
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+            ->assertSessionHas('success');
 
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
         Mail::assertNothingSent();
@@ -540,10 +565,10 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($admin)
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+            ->assertSessionHas('success');
 
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
-        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
         $this->assertTrue(collect($logged)->contains(
             fn ($message) => str_contains((string) $message, 'Gagal mengirim email notifikasi peminjaman')
         ));
@@ -570,7 +595,7 @@ class BorrowingApprovalTest extends TestCase
         $this->actingAs($superAdmin)
             ->post(route('borrowings.approve', $borrowing))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil disetujui.');
+            ->assertSessionHas('success');
 
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
         Mail::assertSent(BorrowingApprovedMail::class, fn ($mail) => $mail->hasTo('nia@undira.ac.id'));
