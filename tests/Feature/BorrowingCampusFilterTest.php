@@ -206,10 +206,64 @@ class BorrowingCampusFilterTest extends TestCase
     public function test_invalid_campus_id_is_rejected(): void
     {
         $admin = $this->makeAdmin();
+        [, $item] = $this->makeCampusWithItem('Valid');
+        $this->createBorrowing($item, 'Valid User', BorrowingStatus::MenungguPersetujuan);
 
         $this->actingAs($admin)
             ->get(route('borrowings.index', ['campus_id' => 999999]))
-            ->assertSessionHasErrors('campus_id');
+            ->assertOk()
+            ->assertSee('Tidak ada peminjaman pada kampus yang dipilih.')
+            ->assertDontSee('Valid User');
+
+        $this->actingAs($admin)
+            ->get(route('borrowings.index', ['campus_id' => 'Tanjung Duren']))
+            ->assertOk()
+            ->assertSee('Tidak ada peminjaman pada kampus yang dipilih.');
+    }
+
+    public function test_tanjung_duren_filter_does_not_treat_campus_as_string(): void
+    {
+        $admin = $this->makeAdmin();
+        [$campusTd, $itemTd] = $this->makeCampusWithItem('Tanjung Duren');
+        [, $itemOther] = $this->makeCampusWithItem('Cibubur');
+
+        $this->createBorrowing($itemTd, 'Peminjam Tanjung Duren', BorrowingStatus::MenungguPersetujuan);
+        $this->createBorrowing($itemOther, 'Peminjam Cibubur', BorrowingStatus::MenungguPersetujuan);
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.index', ['campus_id' => $campusTd->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Peminjam Tanjung Duren', $html);
+        $this->assertStringNotContainsString('Peminjam Cibubur', $html);
+        $this->assertStringContainsString('Kampus Tanjung Duren', $html);
+        $this->assertMatchesRegularExpression('/<option value="'.$campusTd->id.'"[^>]*selected/', $html);
+    }
+
+    public function test_index_ignores_poisoned_shared_campus_dropdown_cache(): void
+    {
+        $admin = $this->makeAdmin();
+        [$campus, $item] = $this->makeCampusWithItem('Tanjung Duren');
+        $this->createBorrowing($item, 'Poison Cache User', BorrowingStatus::MenungguPersetujuan);
+
+        \Illuminate\Support\Facades\Cache::put(
+            \App\Support\InventarisCache::key('campuses.active.dropdown'),
+            collect(['Undira Tanjung Duren', 'Undira Cibubur', 'Undira Greenville']),
+            120
+        );
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.index', ['campus_id' => $campus->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Poison Cache User', $html);
+        $this->assertStringContainsString('Kampus Tanjung Duren', $html);
+        $this->assertMatchesRegularExpression('/<option value="'.$campus->id.'"/', $html);
+        $this->assertStringNotContainsString('Attempt to read property', $html);
+
+        \Illuminate\Support\Facades\Cache::flush();
     }
 
     /**

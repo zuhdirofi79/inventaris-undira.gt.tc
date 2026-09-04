@@ -212,6 +212,10 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
         $this->assertStringContainsString('Tolak', $html);
         $this->assertStringContainsString('Status Persetujuan', $html);
         $this->assertStringContainsString('Tgl Pinjam Aktual', $html);
+        $this->assertStringContainsString('approveItemModal', $html);
+        $this->assertStringContainsString('rejectItemModal', $html);
+        $this->assertStringContainsString('borrowing-items-table', $html);
+        $this->assertStringContainsString('col-aksi', $html);
     }
 
     public function test_cannot_approve_item_twice(): void

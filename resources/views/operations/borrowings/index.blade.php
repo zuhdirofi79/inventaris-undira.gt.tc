@@ -44,7 +44,7 @@
         <div class="col-12 col-lg-3">
             <div class="d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-sm btn-undira">Filter</button>
-                @if(!empty($campusFilter) || filled($statusFilter ?? null))
+                @if(!empty($campusFilter) || !empty($campusFilterActive) || filled($statusFilter ?? null))
                     <a href="{{ route('borrowings.index') }}" class="btn btn-sm btn-outline-secondary">Reset</a>
                 @endif
             </div>
@@ -155,7 +155,7 @@
                     @empty
                     <tr>
                         <td colspan="9" class="text-center text-muted py-4">
-                            @if(!empty($campusFilter))
+                            @if(!empty($campusFilter) || !empty($campusFilterActive))
                                 Tidak ada peminjaman pada kampus yang dipilih.
                             @elseif(filled($statusFilter ?? null))
                                 Tidak ada peminjaman dengan status yang dipilih.

@@ -25,7 +25,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -40,13 +40,8 @@ class BorrowingController extends Controller
 
     public function index(Request $request): View
     {
-        $request->validate([
-            'status' => ['nullable', 'string', 'max:40'],
-            'campus_id' => ['nullable', 'integer', 'exists:campuses,id'],
-        ]);
-
-        $statusFilter = $request->input('status');
-        $campusId = $request->filled('campus_id') ? $request->integer('campus_id') : null;
+        $statusFilter = $this->resolveStatusFilter($request);
+        $campusId = $this->resolveCampusFilter($request);
         $user = $request->user();
 
         $borrowings = Borrowing::query()
@@ -59,6 +54,7 @@ class BorrowingController extends Controller
             ])
             ->withCount('items')
             ->when($statusFilter, fn ($q) => $q->where('status', $statusFilter))
+            ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when($campusId, function ($q) use ($campusId) {
                 // Match via line items, or legacy header inventory when no lines exist.
                 // Multi-campus transactions appear if ANY item is on the selected campus.
@@ -79,22 +75,13 @@ class BorrowingController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        // Models (id, name) — never pluck() strings; Blade needs $campus->id / $campus->name.
-        $campuses = Cache::remember(
-            InventarisCache::key('campuses.active.dropdown'),
-            InventarisCache::TTL,
-            fn () => Campus::query()
-                ->where('is_active', true)
-                ->orderBy('name')
-                ->get(['id', 'name'])
-        );
-
         return view('operations.borrowings.index', [
             'borrowings' => $borrowings,
             'statusFilter' => $statusFilter,
-            'campusFilter' => $campusId,
+            'campusFilter' => $campusId && $campusId > 0 ? $campusId : null,
+            'campusFilterActive' => $request->filled('campus_id'),
             'statusOptions' => BorrowingStatus::cases(),
-            'campuses' => $campuses,
+            'campuses' => $this->campusDropdownOptions(),
         ]);
     }
 
@@ -415,6 +402,50 @@ class BorrowingController extends Controller
         return Pdf::loadView('operations.borrowings.receipt', $payload)
             ->setPaper('a4', 'portrait')
             ->download('receipt_'.$borrowing->approval_number.'.pdf');
+    }
+
+    /**
+     * Dropdown kampus untuk /borrowings saja.
+     * Tidak memakai cache key bersama `campuses.active.dropdown`
+     * (bisa terisi pluck string dari modul lain → $campus->id on string).
+     *
+     * @return Collection<int, Campus>
+     */
+    protected function campusDropdownOptions(): Collection
+    {
+        return Campus::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->filter(fn ($campus) => $campus instanceof Campus && isset($campus->id));
+    }
+
+    protected function resolveCampusFilter(Request $request): ?int
+    {
+        if (! $request->filled('campus_id')) {
+            return null;
+        }
+
+        $raw = $request->input('campus_id');
+        if (! is_numeric($raw) || (int) $raw < 1) {
+            return 0;
+        }
+
+        $id = (int) $raw;
+
+        return Campus::query()->whereKey($id)->exists() ? $id : 0;
+    }
+
+    protected function resolveStatusFilter(Request $request): ?string
+    {
+        $status = trim((string) $request->input('status', ''));
+        if ($status === '') {
+            return null;
+        }
+
+        $allowed = array_map(fn (BorrowingStatus $case) => $case->value, BorrowingStatus::cases());
+
+        return in_array($status, $allowed, true) ? $status : null;
     }
 
     public function destroy(Borrowing $borrowing): RedirectResponse
