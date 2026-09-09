@@ -108,7 +108,7 @@ class BorrowingApprovalTest extends TestCase
             $html = $mail->render();
 
             return $mail->hasTo('budi@undira.ac.id')
-                && $mail->envelope()->subject === 'Pengajuan Peminjaman Inventaris Disetujui - '.$borrowing->approval_number
+                && $mail->envelope()->subject === 'Persetujuan Peminjaman Inventaris - '.$borrowing->approval_number
                 && str_contains($html, $item->inventory_number)
                 && str_contains($html, 'Laptop Approval')
                 && str_contains($html, 'Budi')

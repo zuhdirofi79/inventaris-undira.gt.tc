@@ -178,6 +178,93 @@ class BorrowingApprovalService
         return $borrowing;
     }
 
+    /**
+     * Persist all pending item decisions in one transaction, then finalize the header.
+     *
+     * @param  list<array{id: int, action: string, rejection_reason?: string}>  $decisions
+     */
+    public function saveItemDecisions(Borrowing $borrowing, User $approver, array $decisions): Borrowing
+    {
+        $this->assertPending($borrowing);
+        $this->assertNotSelfApproval($borrowing, $approver);
+
+        $finalized = false;
+
+        $borrowing = DB::transaction(function () use ($borrowing, $approver, $decisions, &$finalized) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $this->assertPending($locked);
+            $this->assertNotSelfApproval($locked, $approver);
+            $this->ensureItems($locked);
+
+            $pending = BorrowingItem::query()
+                ->where('borrowing_id', $locked->id)
+                ->where('status', BorrowingItemStatus::MenungguPersetujuan)
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id');
+
+            if ($pending->isEmpty()) {
+                throw ValidationException::withMessages([
+                    'items' => 'Tidak ada inventaris yang masih menunggu persetujuan.',
+                ]);
+            }
+
+            $byId = collect($decisions)->keyBy(fn (array $row) => (int) ($row['id'] ?? 0));
+
+            foreach ($pending as $id => $line) {
+                $row = $byId->get($id);
+                $action = is_array($row) ? ($row['action'] ?? null) : null;
+                if (! in_array($action, ['approve', 'reject'], true)) {
+                    throw ValidationException::withMessages([
+                        'items' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
+                    ]);
+                }
+            }
+
+            $approveInventoryIds = [];
+            foreach ($pending as $id => $line) {
+                $row = $byId->get($id);
+                if (is_array($row) && ($row['action'] ?? null) === 'approve') {
+                    $approveInventoryIds[] = (int) $line->inventory_item_id;
+                }
+            }
+
+            if ($approveInventoryIds !== []) {
+                $this->assertInventoriesAvailable($approveInventoryIds, (int) $locked->id);
+            }
+
+            foreach ($pending as $id => $line) {
+                $row = $byId->get($id);
+                if (($row['action'] ?? null) === 'approve') {
+                    $line->update([
+                        'status' => BorrowingItemStatus::Disetujui,
+                        'rejection_reason' => null,
+                    ]);
+
+                    continue;
+                }
+
+                $reason = trim((string) ($row['rejection_reason'] ?? ''));
+                $line->update([
+                    'status' => BorrowingItemStatus::Ditolak,
+                    'rejection_reason' => $reason !== '' ? $reason : 'Ditolak oleh admin.',
+                ]);
+            }
+
+            $finalized = $this->finalizeHeaderIfReady($locked, $approver);
+
+            return $locked->fresh($this->defaultRelations());
+        });
+
+        if ($finalized) {
+            $this->notifyAfterFinalDecision($borrowing);
+        }
+
+        InventarisCache::flush();
+
+        return $borrowing;
+    }
+
     public function approveItem(Borrowing $borrowing, BorrowingItem $item, User $approver): Borrowing
     {
         $this->assertItemBelongs($borrowing, $item);

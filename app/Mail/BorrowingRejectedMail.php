@@ -16,13 +16,18 @@ class BorrowingRejectedMail extends Mailable
     public function __construct(
         public Borrowing $borrowing,
     ) {
-        $this->borrowing->loadMissing('inventoryItem');
+        $this->borrowing->loadMissing([
+            'inventoryItem.category',
+            'inventoryItem.room.floor.building.campus',
+            'items.inventoryItem.category',
+            'items.inventoryItem.room.floor.building.campus',
+        ]);
     }
 
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Peminjaman Inventaris Ditolak',
+            subject: 'Pengajuan Peminjaman Inventaris Tidak Disetujui',
         );
     }
 
@@ -33,6 +38,7 @@ class BorrowingRejectedMail extends Mailable
             with: [
                 'borrowing' => $this->borrowing,
                 'item' => $this->borrowing->inventoryItem,
+                'items' => $this->borrowing->lineItems(),
             ],
         );
     }

@@ -351,6 +351,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:borrowing.approve')->group(function () {
         Route::post('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');
         Route::post('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
+        Route::post('/borrowings/{borrowing}/save-approvals', [BorrowingController::class, 'saveApprovals'])->name('borrowings.save-approvals');
         Route::post('/borrowings/{borrowing}/items/{borrowingItem}/approve', [BorrowingController::class, 'approveItem'])->name('borrowings.items.approve');
         Route::post('/borrowings/{borrowing}/items/{borrowingItem}/reject', [BorrowingController::class, 'rejectItem'])->name('borrowings.items.reject');
         Route::post('/borrowings/{borrowing}/items/{borrowingItem}/handover', [BorrowingController::class, 'handoverItem'])->name('borrowings.items.handover');

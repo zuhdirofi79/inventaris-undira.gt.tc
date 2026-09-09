@@ -18,7 +18,9 @@ class BorrowingApprovedMail extends Mailable
     ) {
         $this->borrowing->loadMissing([
             'inventoryItem.category',
+            'inventoryItem.room.floor.building.campus',
             'items.inventoryItem.category',
+            'items.inventoryItem.room.floor.building.campus',
         ]);
     }
 
@@ -31,12 +33,12 @@ class BorrowingApprovedMail extends Mailable
 
         if ($isPartial) {
             $subject = $number
-                ? "Hasil Persetujuan Peminjaman (Sebagian) - {$number}"
-                : 'Hasil Persetujuan Peminjaman (Sebagian)';
+                ? "Persetujuan Peminjaman Inventaris (Sebagian) - {$number}"
+                : 'Persetujuan Peminjaman Inventaris (Sebagian)';
         } else {
             $subject = $number
-                ? "Pengajuan Peminjaman Inventaris Disetujui - {$number}"
-                : 'Pengajuan Peminjaman Inventaris Disetujui';
+                ? "Persetujuan Peminjaman Inventaris - {$number}"
+                : 'Persetujuan Peminjaman Inventaris';
         }
 
         return new Envelope(subject: $subject);

@@ -12,6 +12,7 @@
     $canReturn = auth()->user()?->can('update', $borrowing)
         && in_array($borrowing->status, [BorrowingStatus::Disetujui, BorrowingStatus::Dipinjam, BorrowingStatus::Terlambat], true);
     $openBorrowed = $lines->filter(fn ($l) => $l->status === BorrowingItemStatus::Dipinjam);
+    $pendingLines = $lines->filter(fn ($l) => $l->status === BorrowingItemStatus::MenungguPersetujuan);
     $expectedPast = $borrowing->expected_return_date
         && $borrowing->expected_return_date->copy()->startOfDay()->lt(now()->copy()->startOfDay());
     $nowLocal = now()->format('Y-m-d\TH:i');
@@ -44,8 +45,8 @@
 .borrowing-items-table .col-aksi {
   position: sticky;
   right: 0;
-  min-width: 196px;
-  width: 196px;
+  min-width: 220px;
+  width: 220px;
   background: var(--ui-surface, #fff);
   box-shadow: -8px 0 12px -10px rgba(15, 23, 42, 0.28);
   z-index: 2;
@@ -74,6 +75,45 @@ body.dark-mode .borrowing-items-table .col-aksi {
 body.dark-mode .borrowing-loc__meta {
   color: var(--dm-muted, #B4BCC8);
 }
+.borrowing-decision {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.borrowing-decision__btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.borrowing-decision .btn.is-selected.btn-outline-success {
+  background: #198754;
+  border-color: #198754;
+  color: #fff;
+}
+.borrowing-decision .btn.is-selected.btn-outline-danger {
+  background: #dc3545;
+  border-color: #dc3545;
+  color: #fff;
+}
+.borrowing-save-bar {
+  border-top: 1px solid var(--ui-border, #e5e7eb);
+  padding: 1rem 1.15rem;
+  background: var(--ui-surface, #fff);
+}
+body.dark-mode .borrowing-save-bar {
+  background: var(--dm-card, #1F2937);
+  border-top-color: var(--dm-border, #374151);
+}
+body.dark-mode .borrowing-decision .btn.is-selected.btn-outline-success {
+  background: #157347;
+  border-color: #157347;
+  color: #fff;
+}
+body.dark-mode .borrowing-decision .btn.is-selected.btn-outline-danger {
+  background: #bb2d3b;
+  border-color: #bb2d3b;
+  color: #fff;
+}
 </style>
 @endpush
 
@@ -96,17 +136,6 @@ body.dark-mode .borrowing-loc__meta {
     @if($borrowing->approval_number)
     <a href="{{ route('borrowings.receipt', $borrowing) }}" class="btn btn-outline-primary btn-sm"><i class="fas fa-receipt me-1"></i>Receipt</a>
     <a href="{{ route('borrowings.receipt.pdf', $borrowing) }}" class="btn btn-outline-danger btn-sm"><i class="fas fa-file-pdf me-1"></i>PDF</a>
-    @endif
-    @if($canApproveTx)
-    <form action="{{ route('borrowings.approve', $borrowing) }}" method="POST" class="d-inline js-once-submit">
-        @csrf
-        <button type="submit" class="btn btn-success btn-sm" title="Setujui semua item yang masih menunggu">
-            <i class="fas fa-check-double me-1"></i>Setujui Semua Menunggu
-        </button>
-    </form>
-    <button type="button" class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectBorrowingModal">
-        <i class="fas fa-times me-1"></i>Tolak Semua Menunggu
-    </button>
     @endif
 </x-page-header>
 
@@ -277,7 +306,7 @@ body.dark-mode .borrowing-loc__meta {
                                 @endif
                             </td>
                             <td class="col-status">
-                                <span class="badge bg-{{ $approvalBadge[0] }}">{{ $approvalBadge[1] }}</span>
+                                <span class="badge bg-{{ $approvalBadge[0] }} js-approval-badge" data-default-color="{{ $approvalBadge[0] }}" data-default-label="{{ $approvalBadge[1] }}">{{ $approvalBadge[1] }}</span>
                                 @if($line->status === BorrowingItemStatus::Ditolak && filled($line->rejection_reason))
                                     <div class="small text-muted mt-1">{{ $line->rejection_reason }}</div>
                                 @endif
@@ -288,26 +317,27 @@ body.dark-mode .borrowing-loc__meta {
                             <td class="col-aksi">
                                 <div class="borrowing-actions">
                                     @if($canApproveTx && $line->status === BorrowingItemStatus::MenungguPersetujuan)
-                                        <button type="button"
-                                                class="btn btn-success btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#approveItemModal"
-                                                data-approve-url="{{ route('borrowings.items.approve', [$borrowing, $line]) }}"
-                                                data-item-number="{{ $inv?->inventory_number ?? '—' }}"
-                                                data-item-name="{{ $inv?->name ?? '—' }}"
-                                                data-item-campus="{{ $campusName ?? '—' }}">
-                                            <i class="fas fa-check me-1"></i>Setujui
-                                        </button>
-                                        <button type="button"
-                                                class="btn btn-danger btn-sm"
-                                                data-bs-toggle="modal"
-                                                data-bs-target="#rejectItemModal"
-                                                data-reject-url="{{ route('borrowings.items.reject', [$borrowing, $line]) }}"
-                                                data-item-number="{{ $inv?->inventory_number ?? '—' }}"
-                                                data-item-name="{{ $inv?->name ?? '—' }}"
-                                                data-item-campus="{{ $campusName ?? '—' }}">
-                                            <i class="fas fa-times me-1"></i>Tolak
-                                        </button>
+                                        <div class="borrowing-decision js-item-decision" data-item-id="{{ $line->id }}">
+                                            <div class="borrowing-decision__btns">
+                                                <button type="button"
+                                                        class="btn btn-outline-success btn-sm js-decide-btn"
+                                                        data-action="approve"
+                                                        aria-pressed="false">
+                                                    <i class="fas fa-check me-1"></i>Setujui
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-outline-danger btn-sm js-decide-btn"
+                                                        data-action="reject"
+                                                        aria-pressed="false">
+                                                    <i class="fas fa-times me-1"></i>Tolak
+                                                </button>
+                                            </div>
+                                            <input type="text"
+                                                   class="form-control form-control-sm js-reject-reason d-none"
+                                                   maxlength="1000"
+                                                   placeholder="Alasan penolakan (opsional)"
+                                                   aria-label="Alasan penolakan">
+                                        </div>
                                     @endif
 
                                     @if($canHandover && $line->status === BorrowingItemStatus::Disetujui)
@@ -360,72 +390,55 @@ body.dark-mode .borrowing-loc__meta {
                 </tbody>
             </table>
         </div>
+        @if($canApproveTx && $pendingLines->isNotEmpty())
+        <div class="borrowing-save-bar">
+            @if($errors->has('items') || $errors->has('decisions') || $errors->has('decisions.0.action'))
+                <div class="alert alert-warning py-2 small mb-3" role="alert">
+                    {{ $errors->first('items') ?: ($errors->first('decisions') ?: 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.') }}
+                </div>
+            @endif
+            <div id="saveApprovalClientError" class="alert alert-warning py-2 small mb-3 d-none" role="alert">
+                Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.
+            </div>
+            <p class="small text-muted mb-2">Pastikan seluruh keputusan inventaris sudah benar sebelum menyimpan.</p>
+            <form id="saveApprovalsForm" method="POST" action="{{ route('borrowings.save-approvals', $borrowing) }}" class="js-once-submit">
+                @csrf
+                <div id="saveApprovalsFields"></div>
+                <button type="button"
+                        class="btn btn-success"
+                        id="openSaveApprovalModal"
+                        disabled>
+                    <i class="fas fa-save me-1"></i>Simpan Approval
+                </button>
+            </form>
+        </div>
+        @endif
     </div>
 </div>
 
-@if($canApproveTx)
-<div class="modal fade" id="rejectBorrowingModal" tabindex="-1">
+@if($canApproveTx && $pendingLines->isNotEmpty())
+<div class="modal fade" id="saveApprovalModal" tabindex="-1" aria-labelledby="saveApprovalModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <form action="{{ route('borrowings.reject', $borrowing) }}" method="POST" class="modal-content js-once-submit">
-            @csrf
+        <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">Tolak Semua Item Menunggu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="saveApprovalModalLabel">Konfirmasi Approval</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <label class="form-label">Alasan Penolakan <span class="text-danger">*</span></label>
-                <textarea name="rejection_reason" class="form-control" rows="3" required></textarea>
+                <p class="mb-2">Anda akan menyimpan keputusan untuk <strong id="saveApprovalTotal">0</strong> inventaris:</p>
+                <ul class="mb-3">
+                    <li><span class="text-success">✓ Disetujui:</span> <strong id="saveApprovalApprovedCount">0</strong></li>
+                    <li><span class="text-danger">✕ Ditolak:</span> <strong id="saveApprovalRejectedCount">0</strong></li>
+                </ul>
+                <p class="mb-0 small text-muted">Pastikan keputusan sudah benar. Email akan dikirim kepada peminjam setelah penyimpanan berhasil.</p>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">Tolak Inventaris</button>
+                <button type="button" class="btn btn-success" id="confirmSaveApproval">
+                    <i class="fas fa-save me-1"></i>Simpan Approval
+                </button>
             </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="approveItemModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content js-once-submit" id="approveItemForm">
-            @csrf
-            <div class="modal-header">
-                <h5 class="modal-title">Konfirmasi Persetujuan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-3">Apakah Anda yakin ingin menyetujui inventaris ini?</p>
-                <p class="mb-1"><strong>Nomor Inventaris:</strong> <span id="approveItemNumber">—</span></p>
-                <p class="mb-1"><strong>Nama:</strong> <span id="approveItemName">—</span></p>
-                <p class="mb-0"><strong>Kampus:</strong> <span id="approveItemCampus">—</span></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-success">Setujui Inventaris</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<div class="modal fade" id="rejectItemModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content js-once-submit" id="rejectItemForm">
-            @csrf
-            <div class="modal-header">
-                <h5 class="modal-title">Tolak Inventaris</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-1"><strong>Nomor Inventaris:</strong> <span id="rejectItemNumber">—</span></p>
-                <p class="mb-1"><strong>Nama:</strong> <span id="rejectItemName">—</span></p>
-                <p class="mb-3"><strong>Kampus:</strong> <span id="rejectItemCampus">—</span></p>
-                <label class="form-label" for="rejectItemReason">Alasan Penolakan <span class="text-danger">*</span></label>
-                <textarea name="rejection_reason" id="rejectItemReason" class="form-control" rows="3" required minlength="3"></textarea>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="submit" class="btn btn-danger">Tolak Inventaris</button>
-            </div>
-        </form>
+        </div>
     </div>
 </div>
 @endif
@@ -502,21 +515,6 @@ body.dark-mode .borrowing-loc__meta {
         });
     }
 
-    bindModal('approveItemModal', function (button) {
-        document.getElementById('approveItemForm').action = button.getAttribute('data-approve-url') || '';
-        document.getElementById('approveItemNumber').textContent = button.getAttribute('data-item-number') || '—';
-        document.getElementById('approveItemName').textContent = button.getAttribute('data-item-name') || '—';
-        document.getElementById('approveItemCampus').textContent = button.getAttribute('data-item-campus') || '—';
-    });
-
-    bindModal('rejectItemModal', function (button) {
-        document.getElementById('rejectItemForm').action = button.getAttribute('data-reject-url') || '';
-        document.getElementById('rejectItemNumber').textContent = button.getAttribute('data-item-number') || '—';
-        document.getElementById('rejectItemName').textContent = button.getAttribute('data-item-name') || '—';
-        document.getElementById('rejectItemCampus').textContent = button.getAttribute('data-item-campus') || '—';
-        document.getElementById('rejectItemReason').value = '';
-    });
-
     bindModal('handoverItemModal', function (button) {
         document.getElementById('handoverItemForm').action = button.getAttribute('data-handover-url') || '';
         document.getElementById('handoverItemNumber').textContent = button.getAttribute('data-item-number') || '—';
@@ -529,6 +527,130 @@ body.dark-mode .borrowing-loc__meta {
         document.getElementById('returnItemNumber').textContent = button.getAttribute('data-item-number') || '—';
         document.getElementById('returnItemName').textContent = button.getAttribute('data-item-name') || '—';
     });
+
+    var decisionRows = Array.prototype.slice.call(document.querySelectorAll('.js-item-decision'));
+    var openSaveBtn = document.getElementById('openSaveApprovalModal');
+    var confirmSaveBtn = document.getElementById('confirmSaveApproval');
+    var saveForm = document.getElementById('saveApprovalsForm');
+    var saveFields = document.getElementById('saveApprovalsFields');
+    var clientError = document.getElementById('saveApprovalClientError');
+    var saveModalEl = document.getElementById('saveApprovalModal');
+    var submitting = false;
+
+    function setBadge(row, action) {
+        var tr = row.closest('tr');
+        var badge = tr ? tr.querySelector('.js-approval-badge') : null;
+        if (!badge) return;
+        badge.classList.remove('bg-warning', 'bg-success', 'bg-danger', 'bg-secondary');
+        if (action === 'approve') {
+            badge.classList.add('bg-success');
+            badge.textContent = '✓ Disetujui';
+        } else if (action === 'reject') {
+            badge.classList.add('bg-danger');
+            badge.textContent = '✕ Ditolak';
+        } else {
+            badge.classList.add('bg-' + (badge.getAttribute('data-default-color') || 'warning'));
+            badge.textContent = badge.getAttribute('data-default-label') || 'Menunggu';
+        }
+    }
+
+    function collectDecisions() {
+        return decisionRows.map(function (row) {
+            var selected = row.querySelector('.js-decide-btn.is-selected');
+            var reasonInput = row.querySelector('.js-reject-reason');
+            return {
+                id: row.getAttribute('data-item-id'),
+                action: selected ? selected.getAttribute('data-action') : '',
+                rejection_reason: reasonInput ? reasonInput.value.trim() : '',
+                complete: !!selected
+            };
+        });
+    }
+
+    function refreshSaveState() {
+        var decisions = collectDecisions();
+        var complete = decisions.length > 0 && decisions.every(function (d) { return d.complete; });
+        if (openSaveBtn) {
+            openSaveBtn.disabled = !complete;
+        }
+        if (complete && clientError) {
+            clientError.classList.add('d-none');
+        }
+    }
+
+    decisionRows.forEach(function (row) {
+        row.querySelectorAll('.js-decide-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var action = btn.getAttribute('data-action');
+                row.querySelectorAll('.js-decide-btn').forEach(function (other) {
+                    var selected = other === btn;
+                    other.classList.toggle('is-selected', selected);
+                    other.setAttribute('aria-pressed', selected ? 'true' : 'false');
+                });
+                var reason = row.querySelector('.js-reject-reason');
+                if (reason) {
+                    reason.classList.toggle('d-none', action !== 'reject');
+                    if (action !== 'reject') reason.value = '';
+                }
+                setBadge(row, action);
+                refreshSaveState();
+            });
+        });
+    });
+
+    refreshSaveState();
+
+    function showIncompleteMessage() {
+        if (clientError) {
+            clientError.classList.remove('d-none');
+            clientError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+
+    if (openSaveBtn && saveModalEl) {
+        openSaveBtn.addEventListener('click', function () {
+            var decisions = collectDecisions();
+            if (!decisions.length || decisions.some(function (d) { return !d.complete; })) {
+                showIncompleteMessage();
+                return;
+            }
+            var approved = decisions.filter(function (d) { return d.action === 'approve'; }).length;
+            var rejected = decisions.filter(function (d) { return d.action === 'reject'; }).length;
+            document.getElementById('saveApprovalTotal').textContent = String(decisions.length);
+            document.getElementById('saveApprovalApprovedCount').textContent = String(approved);
+            document.getElementById('saveApprovalRejectedCount').textContent = String(rejected);
+            bootstrap.Modal.getOrCreateInstance(saveModalEl).show();
+        });
+    }
+
+    if (confirmSaveBtn && saveForm && saveFields) {
+        confirmSaveBtn.addEventListener('click', function () {
+            if (submitting) return;
+            var decisions = collectDecisions();
+            if (!decisions.length || decisions.some(function (d) { return !d.complete; })) {
+                showIncompleteMessage();
+                return;
+            }
+
+            submitting = true;
+            confirmSaveBtn.disabled = true;
+            confirmSaveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Memproses...';
+            if (openSaveBtn) openSaveBtn.disabled = true;
+
+            saveFields.innerHTML = '';
+            decisions.forEach(function (d, index) {
+                ['id', 'action', 'rejection_reason'].forEach(function (key) {
+                    var input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = 'decisions[' + index + '][' + key + ']';
+                    input.value = d[key] || '';
+                    saveFields.appendChild(input);
+                });
+            });
+
+            saveForm.submit();
+        });
+    }
 })();
 </script>
 @endpush

@@ -101,7 +101,7 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
 
             return $mail->hasTo('flow@undira.ac.id')
                 && str_contains($mail->envelope()->subject, 'Sebagian')
-                && str_contains($html, 'DISETUJUI SEBAGIAN')
+                && str_contains($html, 'Sebagian inventaris telah disetujui')
                 && str_contains($html, 'Inventaris Disetujui')
                 && str_contains($html, 'Inventaris Ditolak');
         });
@@ -210,12 +210,14 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
 
         $this->assertStringContainsString('Setujui', $html);
         $this->assertStringContainsString('Tolak', $html);
+        $this->assertStringContainsString('Simpan Approval', $html);
         $this->assertStringContainsString('Status Persetujuan', $html);
         $this->assertStringContainsString('Tgl Pinjam Aktual', $html);
-        $this->assertStringContainsString('approveItemModal', $html);
-        $this->assertStringContainsString('rejectItemModal', $html);
+        $this->assertStringContainsString('saveApprovalModal', $html);
+        $this->assertStringContainsString('js-item-decision', $html);
         $this->assertStringContainsString('borrowing-items-table', $html);
         $this->assertStringContainsString('col-aksi', $html);
+        $this->assertStringNotContainsString('approveItemModal', $html);
     }
 
     public function test_cannot_approve_item_twice(): void

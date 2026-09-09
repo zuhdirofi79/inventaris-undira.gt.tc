@@ -12,6 +12,7 @@
     $rejected = $lines->filter(fn ($line) => $line->status === \App\Enums\BorrowingItemStatus::Ditolak);
     $isPartial = $approved->isNotEmpty() && $rejected->isNotEmpty();
     $nomor = $borrowing->approval_number ?: '—';
+    $campusLabel = $borrowing->campusSummary();
 @endphp
 
 @if($logo)
@@ -25,19 +26,24 @@
 Yth. **{{ $borrowing->borrower_name }}**,
 
 @if($isPartial)
-Kami menginformasikan bahwa pengajuan peminjaman inventaris Anda telah **DISETUJUI SEBAGIAN**.
+Pengajuan peminjaman inventaris Anda telah diproses oleh Admin.
+
+Sebagian inventaris telah disetujui dan sebagian lainnya ditolak.
 @else
-Kami menginformasikan bahwa pengajuan peminjaman inventaris Anda telah **DISETUJUI** oleh Admin.
+Pengajuan peminjaman inventaris Anda telah diproses oleh Admin.
+
+Berikut inventaris yang disetujui untuk dipinjam.
 @endif
 
 **Detail Peminjaman**
 
 **Nomor Peminjaman:** {{ $nomor }}  
 **Nama Peminjam:** {{ $borrowing->borrower_name }}  
-**Tanggal Peminjaman (Rencana):** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}  
-**Tanggal Pengembalian (Rencana):** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}  
+**Tanggal Peminjaman:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}  
+**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}  
+**Lokasi Kampus:** {{ $campusLabel }}  
 **Keperluan:** {{ filled($borrowing->notes) ? $borrowing->notes : '—' }}  
-**Status Transaksi:** {{ $isPartial ? 'DISETUJUI (sebagian item ditolak)' : 'DISETUJUI' }}  
+**Status:** {{ $isPartial ? 'Disetujui sebagian' : 'Disetujui' }}  
 @if($isPartial)
 **Ringkasan:** {{ $approved->count() }} inventaris disetujui, {{ $rejected->count() }} inventaris ditolak.
 @endif
@@ -45,24 +51,23 @@ Kami menginformasikan bahwa pengajuan peminjaman inventaris Anda telah **DISETUJ
 @if($approved->isNotEmpty())
 **Inventaris Disetujui:**
 
-| No | Nomor Inventaris | Nama Barang | Kategori | Jumlah |
-|:--:|:-----------------|:------------|:---------|-------:|
 @foreach($approved as $index => $line)
-| {{ $index + 1 }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->inventory_number ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->name ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->category?->name ?? '—')) }} | {{ (int) ($line->qty ?: 1) }} |
+{{ $index + 1 }}. {{ $line->inventoryItem?->inventory_number ?? '—' }}  
+{{ $line->inventoryItem?->name ?? '—' }}
+
 @endforeach
 @endif
 
 @if($rejected->isNotEmpty())
 **Inventaris Ditolak:**
 
-| No | Nomor Inventaris | Nama Barang | Alasan |
-|:--:|:-----------------|:------------|:-------|
 @foreach($rejected as $index => $line)
-| {{ $index + 1 }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->inventory_number ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->inventoryItem?->name ?? '—')) }} | {{ str_replace('|', '/', (string) ($line->rejection_reason ?: '—')) }} |
+- {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}@if(filled($line->rejection_reason)) ({{ $line->rejection_reason }})@endif
+
 @endforeach
 @endif
 
-Silakan mengambil inventaris yang disetujui sesuai ketentuan. Barang baru tercatat sebagai dipinjam setelah serah terima.
+Silakan mengambil inventaris yang **disetujui** sesuai ketentuan. Barang baru tercatat sebagai dipinjam setelah serah terima. Inventaris yang ditolak tidak dapat dipinjam pada transaksi ini.
 
 @if(!empty($borrowing->approval_number))
 <x-mail::button :url="route('borrowing.approval.public', $borrowing->approval_number)">

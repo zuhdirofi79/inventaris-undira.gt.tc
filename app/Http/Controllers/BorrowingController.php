@@ -10,6 +10,7 @@ use App\Http\Requests\HandoverBorrowingItemRequest;
 use App\Http\Requests\RejectBorrowingItemRequest;
 use App\Http\Requests\RejectBorrowingRequest;
 use App\Http\Requests\ReturnBorrowingItemsRequest;
+use App\Http\Requests\SaveBorrowingItemApprovalsRequest;
 use App\Http\Requests\StoreBorrowingRequest;
 use App\Http\Requests\UpdateBorrowingRequest;
 use App\Models\Borrowing;
@@ -285,6 +286,46 @@ class BorrowingController extends Controller
             : 'Item menunggu berhasil ditolak. Status transaksi diperbarui sesuai hasil approval.';
 
         return back()->with('success', $message);
+    }
+
+    public function saveApprovals(SaveBorrowingItemApprovalsRequest $request, Borrowing $borrowing): RedirectResponse
+    {
+        $old = $borrowing->only(['status', 'approved_by', 'approved_at', 'rejected_at', 'approval_number']);
+
+        $borrowing = $this->approval->saveItemDecisions(
+            $borrowing,
+            $request->user(),
+            $request->decisionsPayload(),
+        );
+
+        $counts = $borrowing->itemDecisionCounts();
+
+        $this->audit->log(
+            $request->user(),
+            AuditAction::Update,
+            $borrowing,
+            $old,
+            [
+                'status' => $borrowing->status?->value,
+                'approved_by' => $borrowing->approved_by,
+                'approved_at' => $borrowing->approved_at,
+                'rejected_at' => $borrowing->rejected_at,
+                'approval_number' => $borrowing->approval_number,
+                'approved_count' => $counts['approved'],
+                'rejected_count' => $counts['rejected'],
+            ],
+            'BORROWING_ITEMS_APPROVED_BATCH',
+            "{$request->user()->name} menyimpan approval peminjaman #{$borrowing->id} "
+                ."({$counts['approved']} disetujui, {$counts['rejected']} ditolak).",
+        );
+
+        $message = match ($borrowing->status) {
+            BorrowingStatus::Ditolak => 'Approval disimpan. Seluruh pengajuan ditolak.',
+            BorrowingStatus::Disetujui => 'Approval disimpan. Persetujuan transaksi selesai.',
+            default => 'Approval disimpan.',
+        };
+
+        return redirect()->route('borrowings.show', $borrowing)->with('success', $message);
     }
 
     public function approveItem(
