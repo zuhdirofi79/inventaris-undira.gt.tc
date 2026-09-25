@@ -342,6 +342,8 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/borrowings/{borrowing}', [BorrowingController::class, 'show'])->name('borrowings.show');
         Route::get('/borrowings/{borrowing}/receipt', [BorrowingController::class, 'receipt'])->name('borrowings.receipt');
         Route::get('/borrowings/{borrowing}/receipt/pdf', [BorrowingController::class, 'receiptPdf'])->name('borrowings.receipt.pdf');
+        Route::get('/borrowings/{borrowing}/supporting-document', [BorrowingController::class, 'viewSupportingDocument'])->name('borrowings.supporting-document.view');
+        Route::get('/borrowings/{borrowing}/supporting-document/download', [BorrowingController::class, 'downloadSupportingDocument'])->name('borrowings.supporting-document.download');
     });
     Route::middleware('permission:borrowing.update')->group(function () {
         Route::get('/borrowings/{borrowing}/edit', [BorrowingController::class, 'edit'])->name('borrowings.edit');

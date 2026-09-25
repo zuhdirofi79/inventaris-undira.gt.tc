@@ -252,6 +252,36 @@ class MaintenanceScheduleCampusFilterTest extends TestCase
             ->assertDontSee('EMP-OTHER', false);
     }
 
+    public function test_index_ignores_poisoned_shared_campus_dropdown_cache(): void
+    {
+        $admin = $this->makeAdmin();
+        [$campus, $item] = $this->makeCampusWithItem('Undira Tanjung Duren', 'TJD', 'PM-TJD-1');
+        $this->makeSchedule($item, [
+            'maintenance_type' => MaintenanceType::Cleaning,
+            'responsible_pic' => 'PIC Tanjung Duren',
+        ]);
+
+        \Illuminate\Support\Facades\Cache::put(
+            \App\Support\InventarisCache::key('campuses.active.dropdown'),
+            collect(['Undira Tanjung Duren', 'Undira Cibubur', 'Undira Greenville']),
+            120
+        );
+
+        $html = $this->actingAs($admin)
+            ->get(route('maintenance-schedules.index', ['campus_id' => $campus->id]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('PM-TJD-1', $html);
+        $this->assertStringContainsString('Undira Tanjung Duren', $html);
+        $this->assertMatchesRegularExpression('/<option value="'.$campus->id.'"/', $html);
+        $this->assertStringNotContainsString('Attempt to read property', $html);
+
+        \Illuminate\Support\Facades\Cache::forget(
+            \App\Support\InventarisCache::key('campuses.active.dropdown')
+        );
+    }
+
     /**
      * @param  array{building?: string, floor?: string, room?: string, name?: string}  $labels
      * @return array{0: Campus, 1: InventoryItem}

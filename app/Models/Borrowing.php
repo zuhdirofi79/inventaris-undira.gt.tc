@@ -32,6 +32,9 @@ class Borrowing extends Model
         'approval_notes',
         'approval_number',
         'notification_sent',
+        'supporting_document_path',
+        'supporting_document_original_name',
+        'supporting_document_size',
     ];
 
     protected function casts(): array
@@ -43,8 +46,14 @@ class Borrowing extends Model
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'notification_sent' => 'boolean',
+            'supporting_document_size' => 'integer',
             'status' => BorrowingStatus::class,
         ];
+    }
+
+    public function hasSupportingDocument(): bool
+    {
+        return filled($this->supporting_document_path);
     }
 
     /**

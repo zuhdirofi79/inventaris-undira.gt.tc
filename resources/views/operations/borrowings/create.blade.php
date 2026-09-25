@@ -27,7 +27,7 @@
     </div>
 @endif
 
-<form action="{{ route('borrowings.store') }}" method="POST" id="borrowForm" data-no-loading>
+<form action="{{ route('borrowings.store') }}" method="POST" id="borrowForm" data-no-loading enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="status" value="menunggu_persetujuan">
     <div id="borrowCartInputs"></div>
@@ -68,6 +68,23 @@
                     @error('notes')
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
+                </div>
+                <div class="col-12 mt-3 mb-0">
+                    <label class="form-label" for="supporting_document">Dokumen Pendukung</label>
+                    <input
+                        type="file"
+                        name="supporting_document"
+                        id="supporting_document"
+                        class="form-control @error('supporting_document') is-invalid @enderror"
+                        accept="application/pdf,.pdf"
+                    >
+                    <div class="form-text">Opsional. Format PDF, maksimal 5 MB.</div>
+                    <div id="supportingDocumentInfo" class="small mt-2 d-none"></div>
+                    <div id="supportingDocumentClientError" class="invalid-feedback d-block d-none"></div>
+                    @error('supporting_document')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-2 d-none" id="supportingDocumentClear">Hapus</button>
                 </div>
             </div>
         </div>
@@ -308,6 +325,78 @@
         $addBtn.prop('disabled', false);
         $qtyHint.text('Tersedia: ' + (bootstrapDetail.available_qty || 1) + ' unit');
     }
+
+    var $docInput = $('#supporting_document');
+    var $docInfo = $('#supportingDocumentInfo');
+    var $docError = $('#supportingDocumentClientError');
+    var $docClear = $('#supportingDocumentClear');
+    var maxBytes = 5 * 1024 * 1024;
+
+    function formatSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function clearDocumentSelection() {
+        $docInput.val('');
+        $docInfo.addClass('d-none').empty();
+        $docError.addClass('d-none').text('');
+        $docClear.addClass('d-none');
+        $docInput.removeClass('is-invalid');
+    }
+
+    function validateDocumentFile(file) {
+        if (!file) return true;
+        var name = (file.name || '').toLowerCase();
+        var type = (file.type || '').toLowerCase();
+        var isPdfExt = name.endsWith('.pdf');
+        var isPdfMime = !type || type === 'application/pdf';
+        if (!isPdfExt || !isPdfMime) {
+            $docError.removeClass('d-none').text('File harus berformat PDF.');
+            $docInput.addClass('is-invalid');
+            return false;
+        }
+        if (file.size > maxBytes) {
+            $docError.removeClass('d-none').text('Ukuran file maksimal 5 MB.');
+            $docInput.addClass('is-invalid');
+            return false;
+        }
+        return true;
+    }
+
+    $docInput.on('change', function () {
+        var file = this.files && this.files[0] ? this.files[0] : null;
+        $docError.addClass('d-none').text('');
+        $docInput.removeClass('is-invalid');
+        if (!file) {
+            clearDocumentSelection();
+            return;
+        }
+        if (!validateDocumentFile(file)) {
+            $docInfo.addClass('d-none').empty();
+            $docClear.removeClass('d-none');
+            this.value = '';
+            return;
+        }
+        $docInfo.removeClass('d-none').html(
+            '<div class="fw-semibold">' + $('<div>').text(file.name).html() + '</div>' +
+            '<div class="text-muted">' + formatSize(file.size) + ' · PDF valid</div>'
+        );
+        $docClear.removeClass('d-none');
+    });
+
+    $docClear.on('click', function () {
+        clearDocumentSelection();
+    });
+
+    $('#borrowForm').on('submit', function (e) {
+        var file = $docInput[0].files && $docInput[0].files[0] ? $docInput[0].files[0] : null;
+        if (file && !validateDocumentFile(file)) {
+            e.preventDefault();
+            return false;
+        }
+    });
 })(window.jQuery);
 </script>
 @endpush

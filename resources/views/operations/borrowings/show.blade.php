@@ -182,6 +182,27 @@ body.dark-mode .borrowing-decision .btn.is-selected.btn-outline-danger {
                     <tr><th>Alasan Penolakan</th><td>{{ $borrowing->rejection_reason ?? '-' }}</td></tr>
                     <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?? '-' }}</td></tr>
                     <tr><th>Keperluan</th><td>{{ $borrowing->notes ?? '-' }}</td></tr>
+                    <tr>
+                        <th>Dokumen Pendukung</th>
+                        <td>
+                            @if($borrowing->hasSupportingDocument())
+                                <div class="fw-semibold">{{ $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf' }}</div>
+                                <div class="small text-muted mb-2">
+                                    {{ app(\App\Services\BorrowingSupportingDocumentService::class)->humanSize($borrowing->supporting_document_size) }}
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    <a href="{{ route('borrowings.supporting-document.view', $borrowing) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" data-no-loader="1">
+                                        <i class="fas fa-eye me-1"></i>Lihat Dokumen
+                                    </a>
+                                    <a href="{{ route('borrowings.supporting-document.download', $borrowing) }}" class="btn btn-sm btn-outline-secondary" data-no-loader="1">
+                                        <i class="fas fa-download me-1"></i>Download
+                                    </a>
+                                </div>
+                            @else
+                                —
+                            @endif
+                        </td>
+                    </tr>
                 </table>
             </div>
         </div>

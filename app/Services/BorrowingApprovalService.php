@@ -25,6 +25,7 @@ class BorrowingApprovalService
         protected NotificationService $notifications,
         protected BorrowingApprovalNumberService $approvalNumbers,
         protected BorrowingItemResolver $itemResolver,
+        protected BorrowingSupportingDocumentService $supportingDocuments,
     ) {}
 
     /**
@@ -32,7 +33,7 @@ class BorrowingApprovalService
      *
      * @param  array<string, mixed>  $data
      */
-    public function submit(array $data, User $requester): Borrowing
+    public function submit(array $data, User $requester, ?\Illuminate\Http\UploadedFile $supportingDocument = null): Borrowing
     {
         $inventoryIds = $this->itemResolver->normalizeRequestItems($data);
         $header = collect($data)->except([
@@ -40,30 +41,51 @@ class BorrowingApprovalService
             'inventory_item_ids',
             'items',
             'status',
+            'supporting_document',
+            'remove_supporting_document',
         ])->all();
 
-        $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester) {
-            $borrowing = Borrowing::query()->create([
-                ...$header,
-                // Keep first item on header for backward-compatible code paths.
-                'inventory_item_id' => $inventoryIds[0] ?? null,
-                'status' => BorrowingStatus::MenungguPersetujuan,
-                'requested_by' => $requester->id,
-                'approved_by' => null,
-                'approved_at' => null,
-                'rejected_at' => null,
-                'rejection_reason' => null,
-                'approval_notes' => null,
-                'approval_number' => null,
-                'notification_sent' => false,
-            ]);
+        $storedPath = null;
 
-            foreach ($this->itemResolver->buildItemRows($inventoryIds) as $row) {
-                $borrowing->items()->create($row);
+        try {
+            $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester) {
+                $borrowing = Borrowing::query()->create([
+                    ...$header,
+                    // Keep first item on header for backward-compatible code paths.
+                    'inventory_item_id' => $inventoryIds[0] ?? null,
+                    'status' => BorrowingStatus::MenungguPersetujuan,
+                    'requested_by' => $requester->id,
+                    'approved_by' => null,
+                    'approved_at' => null,
+                    'rejected_at' => null,
+                    'rejection_reason' => null,
+                    'approval_notes' => null,
+                    'approval_number' => null,
+                    'notification_sent' => false,
+                    'supporting_document_path' => null,
+                    'supporting_document_original_name' => null,
+                    'supporting_document_size' => null,
+                ]);
+
+                foreach ($this->itemResolver->buildItemRows($inventoryIds) as $row) {
+                    $borrowing->items()->create($row);
+                }
+
+                return $borrowing;
+            });
+
+            if ($supportingDocument) {
+                $meta = $this->supportingDocuments->store($borrowing, $supportingDocument);
+                $storedPath = $meta['supporting_document_path'];
+                $borrowing->update($meta);
+            }
+        } catch (\Throwable $e) {
+            if ($storedPath) {
+                $this->supportingDocuments->deletePath($storedPath);
             }
 
-            return $borrowing;
-        });
+            throw $e;
+        }
 
         $borrowing->load(['items.inventoryItem', 'inventoryItem', 'requestedBy']);
 

@@ -20,6 +20,7 @@ use Carbon\Carbon;
 use App\Services\AuditLogService;
 use App\Services\BorrowingApprovalService;
 use App\Services\BorrowingReceiptService;
+use App\Services\BorrowingSupportingDocumentService;
 use App\Services\InventorySearchService;
 use App\Support\InventarisCache;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -29,6 +30,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class BorrowingController extends Controller
 {
@@ -37,6 +39,7 @@ class BorrowingController extends Controller
         protected InventorySearchService $inventorySearch,
         protected BorrowingApprovalService $approval,
         protected BorrowingReceiptService $receipts,
+        protected BorrowingSupportingDocumentService $supportingDocuments,
     ) {}
 
     public function index(Request $request): View
@@ -102,9 +105,13 @@ class BorrowingController extends Controller
 
     public function store(StoreBorrowingRequest $request): RedirectResponse
     {
-        $data = $request->safe()->except(['status']);
+        $data = $request->safe()->except(['status', 'supporting_document']);
 
-        $borrowing = $this->approval->submit($data, $request->user());
+        $borrowing = $this->approval->submit(
+            $data,
+            $request->user(),
+            $request->file('supporting_document'),
+        );
 
         $this->audit->log(
             $request->user(),
@@ -120,6 +127,7 @@ class BorrowingController extends Controller
                 'expected_return_date' => $borrowing->expected_return_date,
                 'status' => $borrowing->status,
                 'requested_by' => $borrowing->requested_by,
+                'has_supporting_document' => $borrowing->hasSupportingDocument(),
             ],
             'BORROWING_CREATED',
             "{$request->user()->name} membuat peminjaman ({$borrowing->items->count()} item).",
@@ -162,24 +170,49 @@ class BorrowingController extends Controller
     {
         $old = $borrowing->only(['status', 'return_date', 'expected_return_date', 'borrower_name']);
         $wasReturned = false;
-        $validated = $request->validated();
+        $validated = $request->safe()->except(['supporting_document', 'remove_supporting_document']);
         $wantsFullReturn = ($validated['status'] ?? null) === BorrowingStatus::Dikembalikan
             || ($validated['status'] ?? null) === BorrowingStatus::Dikembalikan->value;
+        $uploadedFile = $request->file('supporting_document');
+        $removeDocument = $request->boolean('remove_supporting_document') && ! $uploadedFile;
+        $newDocPath = null;
+        $oldDocPath = $borrowing->supporting_document_path;
 
-        DB::transaction(function () use ($borrowing, $validated, $wantsFullReturn, &$wasReturned) {
-            if ($wantsFullReturn && $borrowing->status?->isActiveLoan()) {
-                unset($validated['status']);
-                if ($validated !== []) {
-                    $borrowing->update($validated);
+        try {
+            DB::transaction(function () use ($borrowing, $validated, $wantsFullReturn, &$wasReturned) {
+                if ($wantsFullReturn && $borrowing->status?->isActiveLoan()) {
+                    unset($validated['status']);
+                    if ($validated !== []) {
+                        $borrowing->update($validated);
+                    }
+                    $this->approval->returnItems($borrowing->fresh(), null);
+                    $wasReturned = true;
+
+                    return;
                 }
-                $this->approval->returnItems($borrowing->fresh(), null);
-                $wasReturned = true;
 
-                return;
+                $borrowing->update($validated);
+            });
+
+            $borrowing->refresh();
+
+            if ($uploadedFile) {
+                $meta = $this->supportingDocuments->store($borrowing, $uploadedFile);
+                $newDocPath = $meta['supporting_document_path'];
+                $borrowing->update($meta);
+                if (is_string($oldDocPath) && $oldDocPath !== '' && $oldDocPath !== $newDocPath) {
+                    $this->supportingDocuments->deletePath($oldDocPath);
+                }
+            } elseif ($removeDocument && $borrowing->hasSupportingDocument()) {
+                $this->supportingDocuments->clear($borrowing);
+            }
+        } catch (\Throwable $e) {
+            if ($newDocPath) {
+                $this->supportingDocuments->deletePath($newDocPath);
             }
 
-            $borrowing->update($validated);
-        });
+            throw $e;
+        }
 
         $borrowing->refresh();
         InventarisCache::flush();
@@ -197,6 +230,22 @@ class BorrowingController extends Controller
         );
 
         return redirect()->route('borrowings.show', $borrowing)->with('success', 'Peminjaman berhasil diperbarui.');
+    }
+
+    public function downloadSupportingDocument(Borrowing $borrowing): StreamedResponse
+    {
+        $this->authorize('view', $borrowing);
+        abort_unless($this->supportingDocuments->exists($borrowing), 404);
+
+        return $this->supportingDocuments->stream($borrowing, download: true);
+    }
+
+    public function viewSupportingDocument(Borrowing $borrowing): StreamedResponse
+    {
+        $this->authorize('view', $borrowing);
+        abort_unless($this->supportingDocuments->exists($borrowing), 404);
+
+        return $this->supportingDocuments->stream($borrowing, download: false);
     }
 
     public function returnItems(ReturnBorrowingItemsRequest $request, Borrowing $borrowing): RedirectResponse

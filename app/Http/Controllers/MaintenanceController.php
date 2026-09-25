@@ -21,11 +21,10 @@ use App\Models\Vendor;
 use App\Services\AuditLogService;
 use App\Services\InventorySearchService;
 use App\Services\MaintenanceWorkflowService;
-use App\Support\InventarisCache;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 use RuntimeException;
 
@@ -88,15 +87,24 @@ class MaintenanceController extends Controller
             'maintenances' => $maintenances,
             'statuses' => MaintenanceStatus::cases(),
             'types' => MaintenanceType::cases(),
-            'campuses' => Cache::remember(
-                InventarisCache::key('campuses.active.dropdown'),
-                InventarisCache::TTL,
-                fn () => Campus::query()
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->get(['id', 'name'])
-            ),
+            'campuses' => $this->campusDropdownOptions(),
         ]);
+    }
+
+    /**
+     * Dropdown kampus untuk /maintenances saja.
+     * Tidak memakai cache key bersama `campuses.active.dropdown`
+     * (bisa terisi pluck string → $campus->id on string di Blade).
+     *
+     * @return Collection<int, Campus>
+     */
+    protected function campusDropdownOptions(): Collection
+    {
+        return Campus::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->filter(fn ($campus) => $campus instanceof Campus && isset($campus->id));
     }
 
     public function scan(): View

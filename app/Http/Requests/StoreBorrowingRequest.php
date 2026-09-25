@@ -37,6 +37,12 @@ class StoreBorrowingRequest extends FormRequest
             'expected_return_date' => ['required', 'date', 'after_or_equal:borrow_date'],
             'notes' => ['required', 'string'],
             'status' => ['nullable', Rule::enum(BorrowingStatus::class)],
+            'supporting_document' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'max:5120',
+            ],
         ];
     }
 
@@ -51,6 +57,14 @@ class StoreBorrowingRequest extends FormRequest
                 $validator->errors()->add('items', 'Minimal satu barang inventaris harus ditambahkan.');
 
                 return;
+            }
+
+            $file = $this->file('supporting_document');
+            if ($file && ! $validator->errors()->has('supporting_document')) {
+                $ext = strtolower((string) $file->getClientOriginalExtension());
+                if ($ext !== 'pdf') {
+                    $validator->errors()->add('supporting_document', 'Dokumen pendukung harus berupa PDF.');
+                }
             }
 
             if ($validator->errors()->isNotEmpty()) {
@@ -82,6 +96,9 @@ class StoreBorrowingRequest extends FormRequest
             'expected_return_date.required' => 'Tanggal rencana kembali wajib diisi.',
             'expected_return_date.after_or_equal' => 'Tanggal rencana kembali tidak boleh sebelum tanggal pinjam.',
             'notes.required' => 'Keperluan wajib diisi.',
+            'supporting_document.mimes' => 'Dokumen pendukung harus berupa PDF.',
+            'supporting_document.max' => 'Ukuran dokumen maksimal 5 MB.',
+            'supporting_document.file' => 'Dokumen pendukung tidak valid.',
         ];
     }
 }

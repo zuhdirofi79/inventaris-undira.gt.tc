@@ -29,6 +29,13 @@ class UpdateBorrowingRequest extends FormRequest
             'expected_return_date' => ['sometimes', 'required', 'date'],
             'status' => ['sometimes', 'required', Rule::enum(BorrowingStatus::class)],
             'notes' => ['required', 'string'],
+            'supporting_document' => [
+                'nullable',
+                'file',
+                'mimes:pdf',
+                'max:5120',
+            ],
+            'remove_supporting_document' => ['nullable', 'boolean'],
         ];
     }
 
@@ -38,6 +45,9 @@ class UpdateBorrowingRequest extends FormRequest
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
             'notes.required' => 'Keperluan wajib diisi.',
+            'supporting_document.mimes' => 'Dokumen pendukung harus berupa PDF.',
+            'supporting_document.max' => 'Ukuran dokumen maksimal 5 MB.',
+            'supporting_document.file' => 'Dokumen pendukung tidak valid.',
         ];
     }
 }
