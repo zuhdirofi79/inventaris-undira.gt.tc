@@ -43,13 +43,36 @@
     <a href="{{ route('inventory.edit', $inventory) }}" class="btn btn-warning btn-sm" title="Ubah data"><i class="bi bi-pencil-square me-1"></i>Edit</a>
     @endcan
     @can('inventory.delete')
-    <form action="{{ route('inventory.destroy', $inventory) }}" method="POST"
-          data-confirm-title="Pindahkan data ke Trash?"
-          data-confirm="Data masih dapat dipulihkan dari menu Trash."
-          data-confirm-button="Pindahkan ke Trash">
-        @csrf @method('DELETE')
-        <button type="submit" class="btn btn-danger btn-sm" title="Hapus"><i class="bi bi-trash me-1"></i>Hapus</button>
-    </form>
+    @php
+        $hasTransactionHistory = $inventory->borrowings()->exists()
+            || $inventory->borrowingItems()->exists()
+            || $inventory->maintenances()->exists()
+            || $inventory->maintenanceSchedules()->exists()
+            || $inventory->mutations()->exists()
+            || $inventory->stockOpnameItems()->exists();
+    @endphp
+    <div class="btn-group">
+        <form action="{{ route('inventory.destroy', $inventory) }}" method="POST"
+              data-confirm-title="Pindahkan data ke Trash?"
+              data-confirm="Data masih dapat dipulihkan dari menu Trash."
+              data-confirm-button="Pindahkan ke Trash">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-outline-danger btn-sm" title="Pindahkan ke Trash"><i class="bi bi-trash me-1"></i>Trash</button>
+        </form>
+        @unless($hasTransactionHistory)
+        <form action="{{ route('inventory.force-destroy', $inventory) }}" method="POST"
+              data-confirm-title="Hapus Permanen?"
+              data-confirm="Data akan DIHAPUS PERMANEN dan tidak dapat dipulihkan. Gunakan ini hanya untuk inventaris yang salah input."
+              data-confirm-button="Hapus Permanen"
+              data-confirm-button-color="#dc3545">
+            @csrf @method('DELETE')
+            <button type="submit" class="btn btn-danger btn-sm" title="Hapus Permanen"><i class="bi bi-trash-fill me-1"></i>Hapus Permanen</button>
+        </form>
+        @endunless
+    </div>
+    @if($hasTransactionHistory)
+    <small class="d-block text-muted mt-1" style="font-size: 0.7rem;">Hapus permanen tidak tersedia karena ada riwayat transaksi.</small>
+    @endif
     @endcan
     @cannot('inventory.update')
         @cannot('maintenance.create')

@@ -670,11 +670,111 @@ class InventoryController extends Controller
     public function destroy(Request $request, InventoryItem $inventory): RedirectResponse
     {
         $categoryId = $inventory->category_id;
+        $forceDelete = $request->boolean('force_delete');
+
+        // Check if inventory has any transaction history
+        $hasHistory = $this->inventoryHasTransactionHistory($inventory);
+
+        if ($forceDelete && ! $hasHistory) {
+            // Permanent delete for items without transaction history
+            return $this->permanentDelete($request, $inventory, $categoryId);
+        }
+
+        // Soft delete (move to trash)
         $this->trash->softDelete($inventory, $request->user());
+
+        // Ensure caches are invalidated
+        $this->invalidateInventoryCaches();
 
         return redirect()
             ->route('inventory.category', $categoryId)
             ->with('success', 'Inventaris dipindahkan ke Trash.');
+    }
+
+    /**
+     * Permanent delete inventory (for items without transaction history).
+     */
+    public function forceDestroy(Request $request, InventoryItem $inventory): RedirectResponse
+    {
+        abort_unless($request->user()?->can('inventory.delete'), 403);
+
+        $categoryId = $inventory->category_id;
+        $hasHistory = $this->inventoryHasTransactionHistory($inventory);
+
+        if ($hasHistory) {
+            return back()->with('error', 'Inventaris tidak dapat dihapus permanen karena memiliki riwayat transaksi (peminjaman/maintenance). Gunakan fitur "Pindahkan ke Trash" atau hapus permanen dari halaman Trash.');
+        }
+
+        return $this->permanentDelete($request, $inventory, $categoryId);
+    }
+
+    /**
+     * Perform permanent delete with cleanup.
+     */
+    protected function permanentDelete(Request $request, InventoryItem $inventory, int $categoryId): RedirectResponse
+    {
+        $inventoryData = [
+            'id' => $inventory->id,
+            'inventory_number' => $inventory->inventory_number,
+            'name' => $inventory->name,
+            'category_id' => $categoryId,
+        ];
+
+        DB::transaction(function () use ($inventory, $request) {
+            // Clean up photos and files
+            $this->trash->forceDelete($inventory, $request->user());
+        });
+
+        // Ensure all caches are invalidated
+        $this->invalidateInventoryCaches();
+
+        $this->auditLogService->log(
+            $request->user(),
+            \App\Enums\AuditAction::ForceDelete,
+            null,
+            $inventoryData,
+            null,
+            'INVENTORY_PERMANENT_DELETED',
+            "Inventaris {$inventoryData['inventory_number']} dihapus permanen.",
+        );
+
+        return redirect()
+            ->route('inventory.category', $categoryId)
+            ->with('success', 'Inventaris berhasil dihapus permanen dari sistem.');
+    }
+
+    /**
+     * Check if inventory has any transaction history.
+     */
+    protected function inventoryHasTransactionHistory(InventoryItem $inventory): bool
+    {
+        // Check borrowings (legacy single-item and new multi-item)
+        $hasBorrowings = $inventory->borrowings()->exists()
+            || $inventory->borrowingItems()->exists();
+
+        // Check maintenances
+        $hasMaintenances = $inventory->maintenances()->exists();
+
+        // Check maintenance schedules
+        $hasSchedules = $inventory->maintenanceSchedules()->exists();
+
+        // Check mutations
+        $hasMutations = $inventory->mutations()->exists();
+
+        // Check stock opname items
+        $hasStockOpname = $inventory->stockOpnameItems()->exists();
+
+        return $hasBorrowings || $hasMaintenances || $hasSchedules || $hasMutations || $hasStockOpname;
+    }
+
+    /**
+     * Invalidate all inventory-related caches.
+     */
+    protected function invalidateInventoryCaches(): void
+    {
+        InventarisCache::flush();
+        DashboardTreeService::flushCache();
+        Cache::forget(InventarisCache::key('inventory.items.total_count'));
     }
 
     public function trash(): RedirectResponse

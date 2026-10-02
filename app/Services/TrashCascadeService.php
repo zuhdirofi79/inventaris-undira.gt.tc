@@ -292,10 +292,12 @@ class TrashCascadeService
     {
         $disk = Storage::disk('public');
 
+        // Delete QR code file
         if (filled($item->qr_code_path) && $disk->exists($item->qr_code_path)) {
             $disk->delete($item->qr_code_path);
         }
 
+        // Delete barcode file
         $code = $item->barcode ?: $item->inventory_number;
         if (filled($code)) {
             $safeName = str_replace(['/', '\\'], '-', (string) $code);
@@ -305,12 +307,23 @@ class TrashCascadeService
             }
         }
 
+        // Delete all photos
         InventoryPhoto::query()->where('inventory_item_id', $item->id)->each(function (InventoryPhoto $photo) use ($disk) {
             if (filled($photo->path) && $disk->exists($photo->path)) {
                 $disk->delete($photo->path);
             }
-            $photo->delete();
+            $photo->forceDelete();
         });
+
+        // Delete all attachments
+        if (class_exists(\App\Models\InventoryAttachment::class)) {
+            \App\Models\InventoryAttachment::query()->where('inventory_item_id', $item->id)->each(function ($attachment) use ($disk) {
+                if (filled($attachment->path) && $disk->exists($attachment->path)) {
+                    $disk->delete($attachment->path);
+                }
+                $attachment->forceDelete();
+            });
+        }
     }
 
     protected function performSoftDelete(Model $model, User $actor): void

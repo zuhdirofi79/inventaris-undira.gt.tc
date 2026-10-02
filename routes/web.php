@@ -235,6 +235,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
 
     Route::middleware('permission:inventory.delete')->group(function () {
         Route::delete('/inventory/{inventory}', [InventoryController::class, 'destroy'])->name('inventory.destroy');
+        Route::delete('/inventory/{inventory}/force', [InventoryController::class, 'forceDestroy'])->name('inventory.force-destroy');
     });
 
     Route::get('/categories', [CategoryController::class, 'index'])
