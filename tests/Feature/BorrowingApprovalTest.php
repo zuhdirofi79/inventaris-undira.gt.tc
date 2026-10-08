@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
@@ -9,6 +10,7 @@ use App\Mail\BorrowingApprovedMail;
 use App\Mail\BorrowingRejectedMail;
 use App\Models\AuditLog;
 use App\Models\Borrowing;
+use App\Models\BorrowingItem;
 use App\Models\Building;
 use App\Models\Campus;
 use App\Models\Category;
@@ -178,22 +180,54 @@ class BorrowingApprovalTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_cannot_self_approve(): void
+    public function test_admin_who_created_the_request_sees_item_actions_and_can_save(): void
     {
-        $admin = $this->makeAdmin();
+        Mail::fake();
+
+        $admin = $this->makeAdmin(['email' => 'admin-self@undira.ac.id']);
         $item = $this->makeItem();
         $borrowing = Borrowing::query()->create([
             'inventory_item_id' => $item->id,
             'borrower_name' => 'Admin Self',
+            'borrower_email' => 'peminjam@undira.ac.id',
             'borrow_date' => now()->toDateString(),
             'expected_return_date' => now()->addDay()->toDateString(),
             'status' => BorrowingStatus::MenungguPersetujuan,
             'requested_by' => $admin->id,
         ]);
+        $line = BorrowingItem::query()->create([
+            'borrowing_id' => $borrowing->id,
+            'inventory_item_id' => $item->id,
+            'qty' => 1,
+            'status' => BorrowingItemStatus::MenungguPersetujuan,
+        ]);
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.show', $borrowing))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('js-decide-btn', $html);
+        $this->assertStringContainsString('Setujui', $html);
+        $this->assertStringContainsString('Tolak', $html);
+        $this->assertStringContainsString('Simpan Approval', $html);
+        $this->assertStringContainsString('id="rejectItemModal"', $html);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.approve', $borrowing))
-            ->assertForbidden();
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => [[
+                    'id' => $line->id,
+                    'action' => 'approve',
+                    'rejection_reason' => '',
+                ]],
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHas('success');
+
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::Disetujui, $line->fresh()->status);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+        $this->assertNull($line->fresh()->borrowed_at);
     }
 
     public function test_cannot_approve_twice(): void

@@ -101,9 +101,9 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
 
             return $mail->hasTo('flow@undira.ac.id')
                 && str_contains($mail->envelope()->subject, 'Sebagian')
-                && str_contains($html, 'Sebagian inventaris telah disetujui')
-                && str_contains($html, 'Inventaris Disetujui')
-                && str_contains($html, 'Inventaris Ditolak');
+                && str_contains($html, 'Sebagian inventaris pada pengajuan Anda telah disetujui')
+                && str_contains($html, 'INVENTARIS DISETUJUI')
+                && str_contains($html, 'INVENTARIS TIDAK DISETUJUI');
         });
         Mail::assertSent(BorrowingApprovedMail::class, 1);
 

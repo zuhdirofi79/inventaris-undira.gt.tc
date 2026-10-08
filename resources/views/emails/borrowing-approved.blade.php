@@ -28,11 +28,11 @@ Yth. **{{ $borrowing->borrower_name }}**,
 @if($isPartial)
 Pengajuan peminjaman inventaris Anda telah diproses oleh Admin.
 
-Sebagian inventaris telah disetujui dan sebagian lainnya ditolak.
+Sebagian inventaris pada pengajuan Anda telah disetujui.
 @else
 Pengajuan peminjaman inventaris Anda telah diproses oleh Admin.
 
-Berikut inventaris yang disetujui untuk dipinjam.
+Seluruh inventaris pada pengajuan Anda telah disetujui.
 @endif
 
 **Detail Peminjaman**
@@ -49,20 +49,19 @@ Berikut inventaris yang disetujui untuk dipinjam.
 @endif
 
 @if($approved->isNotEmpty())
-**Inventaris Disetujui:**
+**INVENTARIS DISETUJUI**
 
 @foreach($approved as $index => $line)
-{{ $index + 1 }}. {{ $line->inventoryItem?->inventory_number ?? '—' }}  
-{{ $line->inventoryItem?->name ?? '—' }}
+{{ $index + 1 }}. {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}
 
 @endforeach
 @endif
 
 @if($rejected->isNotEmpty())
-**Inventaris Ditolak:**
+**INVENTARIS TIDAK DISETUJUI**
 
 @foreach($rejected as $index => $line)
-- {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}@if(filled($line->rejection_reason)) ({{ $line->rejection_reason }})@endif
+{{ $index + 1 }}. {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}@if(filled($line->rejection_reason)) ({{ $line->rejection_reason }})@endif
 
 @endforeach
 @endif

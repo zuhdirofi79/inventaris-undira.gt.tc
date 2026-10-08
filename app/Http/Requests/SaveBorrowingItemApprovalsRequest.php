@@ -29,11 +29,30 @@ class SaveBorrowingItemApprovalsRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'decisions.required' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
-            'decisions.min' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
-            'decisions.*.action.in' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
-            'decisions.*.action.required' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
+            'decisions.required' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
+            'decisions.min' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
+            'decisions.*.action.in' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
+            'decisions.*.action.required' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
+            'decisions.*.rejection_reason.required' => 'Alasan penolakan wajib diisi.',
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            foreach ($this->input('decisions', []) as $index => $row) {
+                if (! is_array($row) || ($row['action'] ?? null) !== 'reject') {
+                    continue;
+                }
+
+                if (trim((string) ($row['rejection_reason'] ?? '')) === '') {
+                    $validator->errors()->add(
+                        "decisions.$index.rejection_reason",
+                        'Alasan penolakan wajib diisi.',
+                    );
+                }
+            }
+        });
     }
 
     /**

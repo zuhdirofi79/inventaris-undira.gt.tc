@@ -18,7 +18,7 @@
 
 Yth. **{{ $borrowing->borrower_name }}**,
 
-Pengajuan peminjaman inventaris Anda belum dapat disetujui.
+Pengajuan peminjaman inventaris Anda tidak disetujui.
 
 **Detail Peminjaman**
 
@@ -34,10 +34,10 @@ Pengajuan peminjaman inventaris Anda belum dapat disetujui.
 @endif
 
 @if($rejected->isNotEmpty())
-**Inventaris Ditolak:**
+**INVENTARIS TIDAK DISETUJUI**
 
 @foreach($rejected as $index => $line)
-- {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}@if(filled($line->rejection_reason)) ({{ $line->rejection_reason }})@endif
+{{ $index + 1 }}. {{ $line->inventoryItem?->inventory_number ?? '—' }} — {{ $line->inventoryItem?->name ?? '—' }}@if(filled($line->rejection_reason)) ({{ $line->rejection_reason }})@endif
 
 @endforeach
 @endif

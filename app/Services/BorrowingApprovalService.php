@@ -103,14 +103,11 @@ class BorrowingApprovalService
     public function approve(Borrowing $borrowing, User $approver, ?string $notes = null): Borrowing
     {
         $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
         $finalized = false;
 
         $borrowing = DB::transaction(function () use ($borrowing, $approver, $notes, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertNotSelfApproval($locked, $approver);
             $this->ensureItems($locked);
 
             $pendingIds = BorrowingItem::query()
@@ -160,14 +157,11 @@ class BorrowingApprovalService
     public function reject(Borrowing $borrowing, User $approver, string $reason): Borrowing
     {
         $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
         $finalized = false;
 
         $borrowing = DB::transaction(function () use ($borrowing, $approver, $reason, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertNotSelfApproval($locked, $approver);
             $this->ensureItems($locked);
 
             $updated = BorrowingItem::query()
@@ -208,14 +202,11 @@ class BorrowingApprovalService
     public function saveItemDecisions(Borrowing $borrowing, User $approver, array $decisions): Borrowing
     {
         $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
         $finalized = false;
 
         $borrowing = DB::transaction(function () use ($borrowing, $approver, $decisions, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertNotSelfApproval($locked, $approver);
             $this->ensureItems($locked);
 
             $pending = BorrowingItem::query()
@@ -231,6 +222,21 @@ class BorrowingApprovalService
                 ]);
             }
 
+            $ownedIds = BorrowingItem::query()
+                ->where('borrowing_id', $locked->id)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
+            foreach ($decisions as $row) {
+                $decisionId = (int) ($row['id'] ?? 0);
+                if (! in_array($decisionId, $ownedIds, true)) {
+                    throw ValidationException::withMessages([
+                        'decisions' => 'Inventaris tidak termasuk dalam transaksi ini.',
+                    ]);
+                }
+            }
+
             $byId = collect($decisions)->keyBy(fn (array $row) => (int) ($row['id'] ?? 0));
 
             foreach ($pending as $id => $line) {
@@ -238,7 +244,7 @@ class BorrowingApprovalService
                 $action = is_array($row) ? ($row['action'] ?? null) : null;
                 if (! in_array($action, ['approve', 'reject'], true)) {
                     throw ValidationException::withMessages([
-                        'items' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
+                        'items' => 'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
                     ]);
                 }
             }
@@ -267,9 +273,15 @@ class BorrowingApprovalService
                 }
 
                 $reason = trim((string) ($row['rejection_reason'] ?? ''));
+                if ($reason === '') {
+                    throw ValidationException::withMessages([
+                        'decisions' => 'Alasan penolakan wajib diisi.',
+                    ]);
+                }
+
                 $line->update([
                     'status' => BorrowingItemStatus::Ditolak,
-                    'rejection_reason' => $reason !== '' ? $reason : 'Ditolak oleh admin.',
+                    'rejection_reason' => $reason,
                 ]);
             }
 
@@ -291,15 +303,11 @@ class BorrowingApprovalService
     {
         $this->assertItemBelongs($borrowing, $item);
         $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
         $finalized = false;
 
         $borrowing = DB::transaction(function () use ($borrowing, $item, $approver, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertNotSelfApproval($locked, $approver);
-
             $line = BorrowingItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $this->assertItemBelongs($locked, $line);
 
@@ -334,15 +342,11 @@ class BorrowingApprovalService
     {
         $this->assertItemBelongs($borrowing, $item);
         $this->assertPending($borrowing);
-        $this->assertNotSelfApproval($borrowing, $approver);
-
         $finalized = false;
 
         $borrowing = DB::transaction(function () use ($borrowing, $item, $approver, $reason, &$finalized) {
             $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
             $this->assertPending($locked);
-            $this->assertNotSelfApproval($locked, $approver);
-
             $line = BorrowingItem::query()->whereKey($item->id)->lockForUpdate()->firstOrFail();
             $this->assertItemBelongs($locked, $line);
 
@@ -646,15 +650,6 @@ class BorrowingApprovalService
         if ($borrowing->status !== BorrowingStatus::MenungguPersetujuan) {
             throw ValidationException::withMessages([
                 'status' => 'Peminjaman ini sudah diproses dan tidak dapat diapprove/reject ulang.',
-            ]);
-        }
-    }
-
-    protected function assertNotSelfApproval(Borrowing $borrowing, User $approver): void
-    {
-        if ($borrowing->requested_by !== null && (int) $borrowing->requested_by === (int) $approver->id) {
-            throw ValidationException::withMessages([
-                'approved_by' => 'Anda tidak dapat menyetujui atau menolak pengajuan yang Anda buat sendiri.',
             ]);
         }
     }

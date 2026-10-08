@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use App\Models\Borrowing;
 use App\Models\User;
@@ -39,15 +40,13 @@ class BorrowingPolicy
             return false;
         }
 
-        if ($borrowing->status !== BorrowingStatus::MenungguPersetujuan) {
-            return false;
+        if ($borrowing->status === BorrowingStatus::MenungguPersetujuan) {
+            return true;
         }
 
-        if ($borrowing->requested_by !== null && (int) $borrowing->requested_by === (int) $user->id) {
-            return false;
-        }
-
-        return true;
+        return $borrowing->items()
+            ->where('status', BorrowingItemStatus::MenungguPersetujuan)
+            ->exists();
     }
 
     public function reject(User $user, Borrowing $borrowing): bool

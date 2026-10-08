@@ -63,9 +63,9 @@ class BorrowingBatchApprovalTest extends TestCase
 
             return $mail->hasTo('batch@undira.ac.id')
                 && str_contains($mail->envelope()->subject, 'Sebagian')
-                && str_contains($html, 'Sebagian inventaris telah disetujui')
-                && str_contains($html, 'Inventaris Disetujui')
-                && str_contains($html, 'Inventaris Ditolak')
+                && str_contains($html, 'Sebagian inventaris pada pengajuan Anda telah disetujui')
+                && str_contains($html, 'INVENTARIS DISETUJUI')
+                && str_contains($html, 'INVENTARIS TIDAK DISETUJUI')
                 && $approvedNumbers->every(fn ($number) => str_contains($html, $number))
                 && $rejectedNumbers->every(fn ($number) => str_contains($html, $number));
         });
@@ -96,8 +96,8 @@ class BorrowingBatchApprovalTest extends TestCase
 
             return $mail->hasTo('allok@undira.ac.id')
                 && $mail->envelope()->subject === 'Persetujuan Peminjaman Inventaris - '.$borrowing->approval_number
-                && str_contains($html, 'disetujui untuk dipinjam')
-                && ! str_contains($html, 'Sebagian inventaris telah disetujui');
+                && str_contains($html, 'Seluruh inventaris pada pengajuan Anda telah disetujui')
+                && ! str_contains($html, 'Sebagian inventaris pada pengajuan Anda telah disetujui');
         });
         Mail::assertSent(BorrowingApprovedMail::class, 1);
     }
@@ -127,7 +127,7 @@ class BorrowingBatchApprovalTest extends TestCase
 
             return $mail->hasTo('allno@undira.ac.id')
                 && $mail->envelope()->subject === 'Pengajuan Peminjaman Inventaris Tidak Disetujui'
-                && str_contains($html, 'belum dapat disetujui')
+                && str_contains($html, 'Pengajuan peminjaman inventaris Anda tidak disetujui.')
                 && str_contains($html, 'Stok tidak tersedia')
                 && ! str_contains($html, 'disetujui untuk dipinjam');
         });
@@ -151,7 +151,7 @@ class BorrowingBatchApprovalTest extends TestCase
             ->assertSessionHasErrors('items');
 
         $this->assertSame(
-            'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak terlebih dahulu.',
+            'Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.',
             session('errors')->first('items')
         );
 
@@ -289,10 +289,118 @@ class BorrowingBatchApprovalTest extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('body.dark-mode .borrowing-save-bar', $html);
-        $this->assertStringContainsString('body.dark-mode .borrowing-decision .btn.is-selected.btn-outline-success', $html);
+        $this->assertStringContainsString('body.dark-mode .borrowing-decision__btns .btn-success', $html);
         $this->assertStringContainsString('saveApprovalModal', $html);
         $this->assertStringContainsString('openSaveApprovalModal', $html);
         $this->assertStringContainsString('disabled', $html);
+    }
+
+    public function test_pending_rows_render_approve_and_reject_in_the_action_column(): void
+    {
+        $requester = $this->makeStaff(['email' => 'staff-rows@undira.ac.id']);
+        $admin = $this->makeAdmin();
+        [$borrowing] = $this->makePendingBorrowing($requester, 5, 'rows@undira.ac.id');
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.show', $borrowing))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(5, substr_count($html, 'data-action="approve"'));
+        $this->assertSame(5, substr_count($html, 'data-action="reject"'));
+        $this->assertStringContainsString('btn btn-success btn-sm js-decide-btn', $html);
+        $this->assertStringContainsString('btn btn-danger btn-sm js-decide-btn', $html);
+        $this->assertStringContainsString('id="openSaveApprovalModal"', $html);
+        $this->assertStringContainsString('id="rejectItemModal"', $html);
+    }
+
+    public function test_one_approved_and_four_rejected_keeps_transaction_approved(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-one@undira.ac.id']);
+        $admin = $this->makeAdmin();
+        [$borrowing, $lines] = $this->makePendingBorrowing($requester, 5, 'one@undira.ac.id');
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => $this->decisions($lines, [0], [1, 2, 3, 4], 'Tidak tersedia'),
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        $borrowing->refresh()->load('items.inventoryItem');
+        $this->assertSame(BorrowingStatus::Disetujui, $borrowing->status);
+        $this->assertCount(1, $borrowing->items->where('status', BorrowingItemStatus::Disetujui));
+        $this->assertCount(4, $borrowing->items->where('status', BorrowingItemStatus::Ditolak));
+        $this->assertTrue($borrowing->items->every(
+            fn ($line) => $line->inventoryItem->fresh()->status === InventoryStatus::Aktif
+        ));
+
+        $rejected = $borrowing->items->firstWhere('status', BorrowingItemStatus::Ditolak);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.items.handover', [$borrowing, $rejected]))
+            ->assertRedirect()
+            ->assertSessionHasErrors('item');
+
+        $this->assertSame(BorrowingItemStatus::Ditolak, $rejected->fresh()->status);
+
+        Mail::assertSent(BorrowingApprovedMail::class, function (BorrowingApprovedMail $mail) {
+            $html = $mail->render();
+
+            return str_contains($html, 'Sebagian inventaris pada pengajuan Anda telah disetujui')
+                && str_contains($html, 'INVENTARIS DISETUJUI')
+                && str_contains($html, 'INVENTARIS TIDAK DISETUJUI');
+        });
+    }
+
+    public function test_foreign_item_decision_is_rejected_without_changes(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-foreign@undira.ac.id']);
+        $admin = $this->makeAdmin();
+        [$borrowing, $lines] = $this->makePendingBorrowing($requester, 1, 'foreign@undira.ac.id');
+        [$other, $otherLines] = $this->makePendingBorrowing($requester, 1, 'foreign-other@undira.ac.id');
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => [[
+                    'id' => $otherLines[0]->id,
+                    'action' => 'approve',
+                    'rejection_reason' => '',
+                ]],
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHasErrors('decisions');
+
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $lines[0]->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $otherLines[0]->fresh()->status);
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $other->fresh()->status);
+        Mail::assertNothingSent();
+    }
+
+    public function test_reject_without_reason_does_not_save(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-reason-batch@undira.ac.id']);
+        $admin = $this->makeAdmin();
+        [$borrowing, $lines] = $this->makePendingBorrowing($requester, 1, 'reason@undira.ac.id');
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => $this->decisions($lines, [], [0], ''),
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHasErrors('decisions.0.rejection_reason');
+
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $lines[0]->fresh()->status);
+        Mail::assertNothingSent();
     }
 
     /**
