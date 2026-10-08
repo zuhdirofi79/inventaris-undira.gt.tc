@@ -284,57 +284,18 @@ class BorrowingController extends Controller
 
     public function approve(ApproveBorrowingRequest $request, Borrowing $borrowing): RedirectResponse
     {
-        $old = $borrowing->only(['status', 'approved_by', 'approved_at', 'approval_number']);
-
-        $borrowing = $this->approval->approve(
-            $borrowing,
-            $request->user(),
-            $request->input('approval_notes'),
+        return back()->with(
+            'error',
+            'Persetujuan dilakukan per inventaris pada halaman detail peminjaman, lalu disimpan dengan Simpan Approval.',
         );
-
-        $this->audit->log(
-            $request->user(),
-            AuditAction::Update,
-            $borrowing,
-            $old,
-            $borrowing->only(['status', 'approved_by', 'approved_at', 'approval_notes', 'approval_number']),
-            'BORROWING_APPROVED',
-            "{$request->user()->name} menyetujui seluruh item menunggu pada peminjaman "
-                .($borrowing->approval_number ?? '#'.$borrowing->id).'.',
-        );
-
-        $message = $borrowing->status === BorrowingStatus::MenungguPersetujuan
-            ? 'Item menunggu berhasil disetujui. Selesaikan item lain yang masih menunggu.'
-            : 'Peminjaman berhasil disetujui. Serahkan barang untuk mencatat tanggal pinjam aktual.';
-
-        return back()->with('success', $message);
     }
 
     public function reject(RejectBorrowingRequest $request, Borrowing $borrowing): RedirectResponse
     {
-        $old = $borrowing->only(['status', 'approved_by', 'rejected_at', 'rejection_reason']);
-
-        $borrowing = $this->approval->reject(
-            $borrowing,
-            $request->user(),
-            (string) $request->input('rejection_reason'),
+        return back()->with(
+            'error',
+            'Penolakan dilakukan per inventaris pada halaman detail peminjaman, lalu disimpan dengan Simpan Approval.',
         );
-
-        $this->audit->log(
-            $request->user(),
-            AuditAction::Update,
-            $borrowing,
-            $old,
-            $borrowing->only(['status', 'approved_by', 'rejected_at', 'rejection_reason']),
-            'BORROWING_REJECTED',
-            "{$request->user()->name} menolak item menunggu pada peminjaman. Alasan: ".$request->input('rejection_reason'),
-        );
-
-        $message = $borrowing->status === BorrowingStatus::Ditolak
-            ? 'Peminjaman berhasil ditolak.'
-            : 'Item menunggu berhasil ditolak. Status transaksi diperbarui sesuai hasil approval.';
-
-        return back()->with('success', $message);
     }
 
     public function saveApprovals(SaveBorrowingItemApprovalsRequest $request, Borrowing $borrowing): RedirectResponse

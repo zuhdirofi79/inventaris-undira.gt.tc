@@ -40,7 +40,8 @@
 .borrowing-items-table .col-number { min-width: 168px; max-width: 210px; }
 .borrowing-items-table .col-name { min-width: 150px; max-width: 220px; }
 .borrowing-items-table .col-loc { min-width: 160px; max-width: 210px; }
-.borrowing-items-table .col-status { min-width: 118px; white-space: nowrap; }
+.borrowing-items-table .col-status { min-width: 140px; white-space: normal; }
+.borrowing-items-table .col-status .badge { white-space: normal; text-align: left; }
 .borrowing-items-table .col-date { min-width: 118px; white-space: nowrap; }
 .borrowing-items-table .col-aksi {
   position: sticky;
@@ -357,6 +358,7 @@ body.dark-mode .borrowing-save-bar {
                             </td>
                             <td class="col-status">
                                 <span class="badge bg-{{ $approvalBadge[0] }} js-approval-badge" data-default-color="{{ $approvalBadge[0] }}" data-default-label="{{ $approvalBadge[1] }}">{{ $approvalBadge[1] }}</span>
+                                <div class="small text-muted mt-1 js-draft-note d-none"></div>
                                 @if($line->status === BorrowingItemStatus::Ditolak && filled($line->rejection_reason))
                                     <div class="small text-muted mt-1">{{ $line->rejection_reason }}</div>
                                 @endif
@@ -454,14 +456,19 @@ body.dark-mode .borrowing-save-bar {
             <div id="saveApprovalClientError" class="alert alert-warning py-2 small mb-3 d-none" role="alert">
                 Masih ada inventaris yang belum diproses. Silakan pilih Setujui atau Tolak untuk seluruh inventaris.
             </div>
-            <p class="small text-muted mb-2">Pastikan seluruh keputusan inventaris sudah benar sebelum menyimpan.</p>
+            <p class="small fw-semibold mb-2">Ringkasan Keputusan</p>
+            <div class="d-flex flex-wrap gap-3 small mb-2" id="approvalDraftSummary" aria-live="polite">
+                <span>Disetujui: <strong id="draftApprovedCount">0</strong></span>
+                <span>Ditolak: <strong id="draftRejectedCount">0</strong></span>
+                <span>Belum Diproses: <strong id="draftPendingCount">{{ $pendingLines->count() }}</strong></span>
+            </div>
+            <p class="small text-muted mb-2">Angka di atas adalah keputusan sementara. Status tersimpan baru berubah setelah Simpan Approval.</p>
             <form id="saveApprovalsForm" method="POST" action="{{ route('borrowings.save-approvals', $borrowing) }}" class="js-once-submit">
                 @csrf
                 <div id="saveApprovalsFields"></div>
                 <button type="button"
                         class="btn btn-success"
-                        id="openSaveApprovalModal"
-                        disabled>
+                        id="openSaveApprovalModal">
                     <i class="fas fa-save me-1"></i>Simpan Approval
                 </button>
             </form>
@@ -503,16 +510,16 @@ body.dark-mode .borrowing-save-bar {
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
-                <p class="mb-1"><strong>Nomor Inventaris:</strong> <span id="rejectItemNumber">—</span></p>
-                <p class="mb-3"><strong>Nama:</strong> <span id="rejectItemName">—</span></p>
-                <label class="form-label" for="rejectItemReason">Alasan Penolakan</label>
+                <p class="mb-1"><strong>Nomor inventaris:</strong> <span id="rejectItemNumber">—</span></p>
+                <p class="mb-3"><strong>Nama barang:</strong> <span id="rejectItemName">—</span></p>
+                <label class="form-label" for="rejectItemReason">Alasan Penolakan <span class="text-danger">*</span></label>
                 <textarea id="rejectItemReason" class="form-control" rows="3" maxlength="1000" required></textarea>
                 <div id="rejectItemReasonError" class="text-danger small mt-2 d-none">Alasan penolakan wajib diisi.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
                 <button type="button" class="btn btn-danger" id="confirmRejectItem">
-                    <i class="fas fa-times me-1"></i>Tolak
+                    <i class="fas fa-times me-1"></i>Tolak Inventaris
                 </button>
             </div>
         </div>
@@ -617,14 +624,24 @@ body.dark-mode .borrowing-save-bar {
     function setBadge(row, action) {
         var tr = row.closest('tr');
         var badge = tr ? tr.querySelector('.js-approval-badge') : null;
+        var note = tr ? tr.querySelector('.js-draft-note') : null;
         if (!badge) return;
-        badge.classList.remove('bg-warning', 'bg-success', 'bg-danger', 'bg-secondary');
+        badge.classList.remove('bg-warning', 'bg-success', 'bg-danger', 'bg-secondary', 'bg-info', 'text-dark');
+        if (note) {
+            note.textContent = '';
+            note.classList.add('d-none');
+        }
         if (action === 'approve') {
-            badge.classList.add('bg-success');
-            badge.textContent = '✓ Disetujui';
+            badge.classList.add('bg-info', 'text-dark');
+            badge.textContent = 'Dipilih: Setujui (Belum Disimpan)';
         } else if (action === 'reject') {
-            badge.classList.add('bg-danger');
-            badge.textContent = '✕ Ditolak';
+            badge.classList.add('bg-secondary');
+            badge.textContent = 'Dipilih: Tolak (Belum Disimpan)';
+            var reason = row.querySelector('.js-reject-reason');
+            if (note && reason && reason.value.trim() !== '') {
+                note.textContent = reason.value.trim();
+                note.classList.remove('d-none');
+            }
         } else {
             badge.classList.add('bg-' + (badge.getAttribute('data-default-color') || 'warning'));
             badge.textContent = badge.getAttribute('data-default-label') || 'Menunggu';
@@ -646,24 +663,25 @@ body.dark-mode .borrowing-save-bar {
 
     function refreshSaveState() {
         var decisions = collectDecisions();
-        var complete = decisions.length > 0 && decisions.every(function (d) { return d.complete; });
-        if (openSaveBtn) {
-            openSaveBtn.disabled = !complete;
-        }
-        if (complete && clientError) {
+        var approved = decisions.filter(function (d) { return d.action === 'approve'; }).length;
+        var rejected = decisions.filter(function (d) { return d.action === 'reject'; }).length;
+        var pending = decisions.filter(function (d) { return !d.complete; }).length;
+        var approvedEl = document.getElementById('draftApprovedCount');
+        var rejectedEl = document.getElementById('draftRejectedCount');
+        var pendingEl = document.getElementById('draftPendingCount');
+        if (approvedEl) approvedEl.textContent = String(approved);
+        if (rejectedEl) rejectedEl.textContent = String(rejected);
+        if (pendingEl) pendingEl.textContent = String(pending);
+        if (pending === 0 && clientError) {
             clientError.classList.add('d-none');
         }
     }
 
-    function decisionLabel(action, selected) {
+    function decisionLabel(action) {
         if (action === 'approve') {
-            return selected
-                ? '<i class="fas fa-check me-1"></i>Disetujui'
-                : '<i class="fas fa-check me-1"></i>Setujui';
+            return '<i class="fas fa-check me-1"></i>Setujui';
         }
-        return selected
-            ? '<i class="fas fa-times me-1"></i>Ditolak'
-            : '<i class="fas fa-times me-1"></i>Tolak';
+        return '<i class="fas fa-times me-1"></i>Tolak';
     }
 
     function applyDecision(row, btn) {
@@ -672,7 +690,7 @@ body.dark-mode .borrowing-save-bar {
             var selected = other === btn;
             other.classList.toggle('is-selected', selected);
             other.setAttribute('aria-pressed', selected ? 'true' : 'false');
-            other.innerHTML = decisionLabel(other.getAttribute('data-action'), selected);
+            other.innerHTML = decisionLabel(other.getAttribute('data-action'));
         });
         var reason = row.querySelector('.js-reject-reason');
         if (reason && action !== 'reject') {
@@ -731,7 +749,13 @@ body.dark-mode .borrowing-save-bar {
     function showIncompleteMessage() {
         if (clientError) {
             clientError.classList.remove('d-none');
-            clientError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        var missing = decisionRows.find(function (row) {
+            return !row.querySelector('.js-decide-btn.is-selected');
+        });
+        var target = missing ? (missing.closest('tr') || missing) : clientError;
+        if (target && target.scrollIntoView) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 

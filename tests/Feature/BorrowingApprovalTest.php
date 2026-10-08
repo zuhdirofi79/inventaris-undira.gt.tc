@@ -76,9 +76,7 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.approve', $borrowing), [
-                'approval_notes' => 'OK diambil jam 10',
-            ])
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -88,10 +86,9 @@ class BorrowingApprovalTest extends TestCase
         $this->assertNotNull($borrowing->approved_at);
         $this->assertNotNull($borrowing->approval_number);
         $this->assertMatchesRegularExpression('/^APR-\d{8}-\d{6}$/', $borrowing->approval_number);
-        $this->assertSame('OK diambil jam 10', $borrowing->approval_notes);
         $this->assertSame('disetujui', $borrowing->items->first()->status->value);
         $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
-        $this->assertTrue(AuditLog::query()->where('description', 'BORROWING_APPROVED')->exists());
+        $this->assertTrue(AuditLog::query()->where('description', 'BORROWING_ITEMS_APPROVED_BATCH')->exists());
 
         $line = $borrowing->items->first();
         $this->actingAs($admin)
@@ -142,11 +139,9 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.reject', $borrowing), [
-                'rejection_reason' => 'Barang sedang dipakai internal',
-            ])
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'reject', 'Barang sedang dipakai internal'))
             ->assertRedirect()
-            ->assertSessionHas('success', 'Peminjaman berhasil ditolak.');
+            ->assertSessionHas('success', 'Approval disimpan. Seluruh pengajuan ditolak.');
 
         $borrowing->refresh();
         $this->assertSame(BorrowingStatus::Ditolak, $borrowing->status);
@@ -293,21 +288,83 @@ class BorrowingApprovalTest extends TestCase
             'status' => BorrowingStatus::MenungguPersetujuan,
             'requested_by' => $requester->id,
         ]);
+        Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Final User',
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::Disetujui,
+            'approval_number' => 'APR-'.now()->format('Ymd').'-000111',
+            'requested_by' => $requester->id,
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+        ]);
 
         $adminHtml = $this->actingAs($admin)
             ->get(route('borrowings.index'))
             ->assertOk()
             ->getContent();
-        $this->assertStringContainsString('Approve', $adminHtml);
-        $this->assertStringContainsString('Reject', $adminHtml);
+        $this->assertSame(1, substr_count($adminHtml, '>Approval</a>'));
+        $this->assertStringContainsString(route('borrowings.show', Borrowing::query()->first()), $adminHtml);
+        $this->assertStringNotContainsString('>Approve</button>', $adminHtml);
+        $this->assertStringNotContainsString('>Reject</button>', $adminHtml);
+        $this->assertStringNotContainsString('rejectBorrowingModal', $adminHtml);
+        $this->assertStringNotContainsString(route('borrowings.approve', Borrowing::query()->first()), $adminHtml);
         $this->assertStringContainsString('Menunggu Persetujuan', $adminHtml);
+        $this->assertStringContainsString('borrowing-row-actions', $adminHtml);
 
         $staffHtml = $this->actingAs($requester)
             ->get(route('borrowings.index'))
             ->assertOk()
             ->getContent();
+        $this->assertStringNotContainsString('>Approval</a>', $staffHtml);
         $this->assertStringNotContainsString('>Approve</button>', $staffHtml);
         $this->assertStringNotContainsString('>Reject</button>', $staffHtml);
+        $this->assertStringNotContainsString('rejectBorrowingModal', $staffHtml);
+    }
+
+    public function test_transaction_level_endpoints_do_not_bypass_item_approval(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-bypass@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-bypass@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Bypass',
+            'borrower_email' => 'bypass@undira.ac.id',
+            'borrow_date' => now()->toDateString(),
+            'expected_return_date' => now()->addDay()->toDateString(),
+            'status' => BorrowingStatus::MenungguPersetujuan,
+            'requested_by' => $requester->id,
+        ]);
+        $line = BorrowingItem::query()->create([
+            'borrowing_id' => $borrowing->id,
+            'inventory_item_id' => $item->id,
+            'qty' => 1,
+            'status' => BorrowingItemStatus::MenungguPersetujuan,
+        ]);
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.index'))
+            ->post(route('borrowings.approve', $borrowing), ['approval_notes' => 'lewati'])
+            ->assertRedirect(route('borrowings.index'))
+            ->assertSessionHas('error');
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.index'))
+            ->post(route('borrowings.reject', $borrowing), [
+                'rejection_reason' => 'lewati dari daftar',
+            ])
+            ->assertRedirect(route('borrowings.index'))
+            ->assertSessionHas('error');
+
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $line->fresh()->status);
+        $this->assertNull($borrowing->fresh()->approval_number);
+        Mail::assertNothingSent();
     }
 
     public function test_cannot_approve_when_inventory_already_borrowed(): void
@@ -329,7 +386,7 @@ class BorrowingApprovalTest extends TestCase
 
         $this->actingAs($admin)
             ->from(route('borrowings.show', $borrowing))
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect(route('borrowings.show', $borrowing))
             ->assertSessionHasErrors('inventory_item_id');
 
@@ -390,7 +447,9 @@ class BorrowingApprovalTest extends TestCase
             'requested_by' => $requester->id,
         ]);
 
-        $this->actingAs($admin)->post(route('borrowings.approve', $borrowing))->assertRedirect();
+        $this->actingAs($admin)
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
+            ->assertRedirect();
         $borrowing->refresh();
 
         $this->actingAs($admin)
@@ -445,7 +504,7 @@ class BorrowingApprovalTest extends TestCase
 
         $approver = $this->makeAdmin(['email' => 'admin-multi@undira.ac.id']);
         $this->actingAs($approver)
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect();
 
         $borrowing->refresh()->load('items');
@@ -524,7 +583,7 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -560,7 +619,7 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -597,7 +656,7 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect()
             ->assertSessionHas('success');
 
@@ -627,13 +686,36 @@ class BorrowingApprovalTest extends TestCase
         ]);
 
         $this->actingAs($superAdmin)
-            ->post(route('borrowings.approve', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), $this->decisionPayload($borrowing, 'approve'))
             ->assertRedirect()
             ->assertSessionHas('success');
 
         $this->assertSame(BorrowingStatus::Disetujui, $borrowing->fresh()->status);
         Mail::assertSent(BorrowingApprovedMail::class, fn ($mail) => $mail->hasTo('nia@undira.ac.id'));
         Mail::assertSent(BorrowingApprovedMail::class, 1);
+    }
+
+    /**
+     * @return array{decisions: list<array{id: int, action: string, rejection_reason: string}>}
+     */
+    protected function decisionPayload(Borrowing $borrowing, string $action, string $reason = ''): array
+    {
+        if (! $borrowing->items()->exists() && $borrowing->inventory_item_id) {
+            BorrowingItem::query()->create([
+                'borrowing_id' => $borrowing->id,
+                'inventory_item_id' => $borrowing->inventory_item_id,
+                'qty' => 1,
+                'status' => BorrowingItemStatus::MenungguPersetujuan,
+            ]);
+        }
+
+        return [
+            'decisions' => $borrowing->items()->orderBy('id')->get()->map(fn (BorrowingItem $line) => [
+                'id' => $line->id,
+                'action' => $action,
+                'rejection_reason' => $action === 'reject' ? $reason : '',
+            ])->values()->all(),
+        ];
     }
 
     protected function makeItem(array $overrides = []): InventoryItem

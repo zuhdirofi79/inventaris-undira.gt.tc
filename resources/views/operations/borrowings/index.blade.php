@@ -2,6 +2,38 @@
 
 @section('title', 'Peminjaman - Inventaris UNDIRA')
 
+@push('styles')
+<style>
+.borrowing-list-table th,
+.borrowing-list-table td {
+  vertical-align: middle;
+  font-size: 0.875rem;
+  line-height: 1.35;
+}
+.borrowing-list-table .borrowing-inv__number {
+  display: inline-block;
+  white-space: nowrap;
+  font-weight: 600;
+}
+.borrowing-list-table .col-aksi {
+  width: 1%;
+  white-space: nowrap;
+}
+.borrowing-row-actions {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.borrowing-row-actions .btn {
+  white-space: nowrap;
+}
+.borrowing-list-table .badge {
+  white-space: nowrap;
+}
+</style>
+@endpush
+
 @section('content')
 <x-page-header
     title="Peminjaman"
@@ -55,7 +87,7 @@
 <div class="card card-undira">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover table-sm mb-0 borrowing-list-table">
                 <thead>
                     <tr>
                         <th>No. Approval</th>
@@ -85,12 +117,12 @@
                                 <span class="text-muted">—</span>
                             @endif
                         </td>
-                        <td>
+                        <td class="borrowing-inv">
                             @if($first)
-                                <a href="{{ route('inventory.show', $first) }}">{{ $first->inventory_number }}</a>
-                                <br><small class="text-muted">{{ $first->name }}</small>
+                                <a class="borrowing-inv__number" href="{{ route('inventory.show', $first) }}">{{ $first->inventory_number }}</a>
+                                <div class="small text-muted">{{ $first->name }}</div>
                                 @if($count > 1)
-                                    <br><small class="text-muted">+{{ $count - 1 }} barang lain</small>
+                                    <div class="small text-muted">+{{ $count - 1 }} barang lain</div>
                                 @endif
                             @else
                                 <span class="text-muted">—</span>
@@ -110,48 +142,18 @@
                         <td>
                             <span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span>
                         </td>
-                        <td>
-                            <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i></a>
-                            @can('borrowing.update')
-                            <a href="{{ route('borrowings.edit', $borrowing) }}" class="btn btn-sm btn-outline-warning"><i class="fas fa-edit"></i></a>
-                            @endcan
-                            @can('approve', $borrowing)
-                            <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-primary" title="Approval per item">
-                                <i class="fas fa-tasks"></i> Approval
-                            </a>
-                            <form action="{{ route('borrowings.approve', $borrowing) }}" method="POST" class="d-inline">
-                                @csrf
-                                <button type="submit" class="btn btn-sm btn-success" title="Setujui semua item menunggu"><i class="fas fa-check"></i> Approve</button>
-                            </form>
-                            <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#rejectBorrowingModal{{ $borrowing->id }}" title="Tolak semua item menunggu">
-                                <i class="fas fa-times"></i> Reject
-                            </button>
-                            @endcan
+                        <td class="col-aksi">
+                            <div class="borrowing-row-actions">
+                                <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-primary" title="Lihat" aria-label="Lihat"><i class="fas fa-eye" aria-hidden="true"></i></a>
+                                @can('borrowing.update')
+                                <a href="{{ route('borrowings.edit', $borrowing) }}" class="btn btn-sm btn-outline-warning" title="Edit" aria-label="Edit"><i class="fas fa-edit" aria-hidden="true"></i></a>
+                                @endcan
+                                @can('approve', $borrowing)
+                                <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-undira">Approval</a>
+                                @endcan
+                            </div>
                         </td>
                     </tr>
-                    @can('approve', $borrowing)
-                    @if($borrowing->status?->isPending())
-                    <div class="modal fade" id="rejectBorrowingModal{{ $borrowing->id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <form action="{{ route('borrowings.reject', $borrowing) }}" method="POST" class="modal-content">
-                                @csrf
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Tolak Peminjaman</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <label class="form-label">Alasan Penolakan <span class="text-danger">*</span></label>
-                                    <textarea name="rejection_reason" class="form-control" rows="3" required></textarea>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
-                                    <button type="submit" class="btn btn-danger">Tolak</button>
-                                </div>
-                            </form>
-                        </div>
-                    </div>
-                    @endif
-                    @endcan
                     @empty
                     <tr>
                         <td colspan="9" class="text-center text-muted py-4">

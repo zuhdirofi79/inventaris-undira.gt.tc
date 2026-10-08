@@ -228,8 +228,16 @@ class BorrowingApprovalService
                 ->map(fn ($id) => (int) $id)
                 ->all();
 
+            $seen = [];
             foreach ($decisions as $row) {
                 $decisionId = (int) ($row['id'] ?? 0);
+                if (isset($seen[$decisionId])) {
+                    throw ValidationException::withMessages([
+                        'decisions' => 'Keputusan inventaris duplikat tidak diterima.',
+                    ]);
+                }
+                $seen[$decisionId] = true;
+
                 if (! in_array($decisionId, $ownedIds, true)) {
                     throw ValidationException::withMessages([
                         'decisions' => 'Inventaris tidak termasuk dalam transaksi ini.',

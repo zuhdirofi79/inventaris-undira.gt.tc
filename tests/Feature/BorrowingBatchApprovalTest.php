@@ -312,6 +312,10 @@ class BorrowingBatchApprovalTest extends TestCase
         $this->assertStringContainsString('btn btn-danger btn-sm js-decide-btn', $html);
         $this->assertStringContainsString('id="openSaveApprovalModal"', $html);
         $this->assertStringContainsString('id="rejectItemModal"', $html);
+        $this->assertStringContainsString('Tolak Inventaris', $html);
+        $this->assertStringContainsString('Ringkasan Keputusan', $html);
+        $this->assertStringContainsString('Belum Diproses', $html);
+        $this->assertStringContainsString('Dipilih: Setujui (Belum Disimpan)', $html);
     }
 
     public function test_one_approved_and_four_rejected_keeps_transaction_approved(): void
@@ -397,6 +401,30 @@ class BorrowingBatchApprovalTest extends TestCase
             ])
             ->assertRedirect(route('borrowings.show', $borrowing))
             ->assertSessionHasErrors('decisions.0.rejection_reason');
+
+        $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $lines[0]->fresh()->status);
+        Mail::assertNothingSent();
+    }
+
+    public function test_duplicate_item_decision_is_rejected_without_changes(): void
+    {
+        Mail::fake();
+
+        $requester = $this->makeStaff(['email' => 'staff-dup-id@undira.ac.id']);
+        $admin = $this->makeAdmin();
+        [$borrowing, $lines] = $this->makePendingBorrowing($requester, 1, 'dup-id@undira.ac.id');
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $borrowing))
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => [
+                    ['id' => $lines[0]->id, 'action' => 'approve', 'rejection_reason' => ''],
+                    ['id' => $lines[0]->id, 'action' => 'reject', 'rejection_reason' => 'ganda'],
+                ],
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHasErrors('decisions');
 
         $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->fresh()->status);
         $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $lines[0]->fresh()->status);
