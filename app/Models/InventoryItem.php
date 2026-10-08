@@ -2,8 +2,10 @@
 
 namespace App\Models;
 
-use App\Enums\InventoryCondition;
+use App\Casts\InventoryConditionCast;
 use App\Enums\InventoryStatus;
+use App\Support\InventoryConditionCatalog;
+use App\Support\InventoryConditionValue;
 use App\Models\Concerns\TracksTrashMeta;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -65,7 +67,7 @@ class InventoryItem extends Model
             'purchase_date' => 'date',
             'price' => 'decimal:2',
             'depreciation_value' => 'decimal:2',
-            'condition' => InventoryCondition::class,
+            'condition' => InventoryConditionCast::class,
             'status' => InventoryStatus::class,
             'warranty_expiry' => 'date',
             'quantity' => 'integer',
@@ -232,11 +234,11 @@ class InventoryItem extends Model
         return $query->where('status', $value);
     }
 
-    public function scopeCondition(Builder $query, InventoryCondition|string $condition): Builder
+    public function scopeCondition(Builder $query, InventoryConditionValue|string $condition): Builder
     {
-        $value = $condition instanceof InventoryCondition ? $condition->value : $condition;
+        $value = $condition instanceof InventoryConditionValue ? $condition->value : (string) $condition;
 
-        return $query->where('condition', $value);
+        return $query->whereIn('condition', InventoryConditionCatalog::filterValues($value));
     }
 
     public function scopeInCategory(Builder $query, int $categoryId): Builder

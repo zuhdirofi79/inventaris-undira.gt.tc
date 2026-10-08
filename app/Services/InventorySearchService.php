@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Enums\MaintenanceStatus;
 use App\Models\Borrowing;
@@ -258,9 +257,7 @@ class InventorySearchService
             ? $item->status
             : InventoryStatus::tryFrom((string) $item->status);
 
-        $condition = $item->condition instanceof InventoryCondition
-            ? $item->condition
-            : InventoryCondition::tryFrom((string) $item->condition);
+        $condition = $item->condition;
 
         $activeBorrowing = null;
         $openBorrowing = Borrowing::query()

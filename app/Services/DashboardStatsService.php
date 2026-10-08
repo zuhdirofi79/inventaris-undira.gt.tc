@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\InventoryCondition;
+use App\Support\InventoryConditionCatalog;
 use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
 use App\Models\Building;
@@ -48,10 +48,12 @@ class DashboardStatsService
                 ->pluck('total', 'cond');
 
             $scheduleSummary = $this->schedules->summaryCounts();
-            $goodCondition = (int) ($conditionCounts[InventoryCondition::Baru->value] ?? 0)
-                + (int) ($conditionCounts[InventoryCondition::Bagus->value] ?? 0);
-            $minorDamage = (int) ($conditionCounts[InventoryCondition::RusakRingan->value] ?? 0);
-            $majorDamage = (int) ($conditionCounts[InventoryCondition::RusakBerat->value] ?? 0);
+            $goodCondition = (int) ($conditionCounts['baru'] ?? 0)
+                + (int) ($conditionCounts['bagus'] ?? 0)
+                + (int) ($conditionCounts['BAIK'] ?? 0);
+            $minorDamage = (int) ($conditionCounts['rusak_ringan'] ?? 0);
+            $majorDamage = (int) ($conditionCounts['rusak_berat'] ?? 0)
+                + (int) ($conditionCounts['RUSAK'] ?? 0);
             $borrowed = (int) ($statusCounts[InventoryStatus::Dipinjam->value] ?? 0);
             $maintenance = (int) ($statusCounts[InventoryStatus::Maintenance->value] ?? 0);
             $lost = (int) ($statusCounts[InventoryStatus::Hilang->value] ?? 0);
@@ -94,6 +96,7 @@ class DashboardStatsService
                 'rejected_today' => $approvalStats['rejected_today'],
                 'active_loans' => $approvalStats['active_loans'],
                 'overdue_loans' => $approvalStats['overdue_loans'],
+                'condition_cards' => InventoryConditionCatalog::cards($conditionCounts),
                 'widgets' => [
                     'total_inventory' => $totalInventory,
                     'good_condition' => $goodCondition,
@@ -471,10 +474,8 @@ class DashboardStatsService
             ->groupBy('condition')
             ->get()
             ->map(function ($row) {
-                $enum = InventoryCondition::tryFrom((string) $row->label_key);
-
                 return [
-                    'label' => $enum?->label() ?? str_replace('_', ' ', (string) $row->label_key),
+                    'label' => InventoryConditionCatalog::label((string) $row->label_key),
                     'total' => (int) $row->total,
                 ];
             })

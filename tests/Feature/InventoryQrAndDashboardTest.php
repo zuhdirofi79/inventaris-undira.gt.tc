@@ -140,6 +140,12 @@ class InventoryQrAndDashboardTest extends TestCase
     public function test_dashboard_stats_come_from_database(): void
     {
         $admin = $this->makeSuperAdmin();
+        \App\Models\InventoryConditionMaster::query()->firstOrCreate(
+            ['code' => 'BAIK'],
+            ['name' => 'Baik', 'is_active' => true, 'sort_order' => 1],
+        );
+        \App\Support\InventoryConditionCatalog::flush();
+        \App\Support\InventarisCache::flush();
         $this->makeItem(['price' => 1500000, 'name' => 'Kursi Dashboard']);
 
         $response = $this->actingAs($admin)->get(route('dashboard'));

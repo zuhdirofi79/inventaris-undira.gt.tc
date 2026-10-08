@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\AuditAction;
 use App\Enums\BorrowingStatus;
-use App\Enums\InventoryCondition;
 use App\Enums\MaintenanceStatus;
 use App\Enums\MaintenanceType;
 use App\Models\AuditLog;
@@ -172,8 +171,8 @@ class InventoryMasterConfigurationDeleteTest extends TestCase
             ->where('inventory_condition_id', $base['inventory_condition_id'])
             ->firstOrFail();
 
-        $this->assertSame(InventoryCondition::Bagus, InventoryItem::query()->where('name', 'Pulpen Baik')->firstOrFail()->condition);
-        $this->assertSame(InventoryCondition::RusakBerat, InventoryItem::query()->where('name', 'Pulpen Rusak')->firstOrFail()->condition);
+        $this->assertSame('BAIK', InventoryItem::query()->where('name', 'Pulpen Baik')->firstOrFail()->condition->value);
+        $this->assertSame('RUSAK', InventoryItem::query()->where('name', 'Pulpen Rusak')->firstOrFail()->condition->value);
 
         $this->actingAs($admin)->delete(route('master-configurations.destroy', $baikConfig))->assertRedirect();
 

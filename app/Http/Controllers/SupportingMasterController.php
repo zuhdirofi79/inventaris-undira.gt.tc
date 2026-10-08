@@ -160,6 +160,8 @@ class SupportingMasterController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active', true),
         ]);
+        \App\Support\InventoryConditionCatalog::flush();
+        \App\Support\InventarisCache::flush();
 
         return redirect()
             ->route('categories.index', ['tab' => 'lokasi', 'section' => 'kondisi'])
@@ -186,6 +188,8 @@ class SupportingMasterController extends Controller
             'sort_order' => $data['sort_order'] ?? 0,
             'is_active' => $request->boolean('is_active'),
         ]);
+        \App\Support\InventoryConditionCatalog::flush();
+        \App\Support\InventarisCache::flush();
 
         return redirect()
             ->route('categories.index', ['tab' => 'lokasi', 'section' => 'kondisi'])
@@ -198,6 +202,8 @@ class SupportingMasterController extends Controller
 
         if ($inventoryCondition->configurations()->exists()) {
             $inventoryCondition->update(['is_active' => false]);
+            \App\Support\InventoryConditionCatalog::flush();
+            \App\Support\InventarisCache::flush();
 
             return redirect()
                 ->route('categories.index', ['tab' => 'lokasi', 'section' => 'kondisi'])
@@ -205,6 +211,8 @@ class SupportingMasterController extends Controller
         }
 
         $inventoryCondition->delete();
+        \App\Support\InventoryConditionCatalog::flush();
+        \App\Support\InventarisCache::flush();
 
         return redirect()
             ->route('categories.index', ['tab' => 'lokasi', 'section' => 'kondisi'])

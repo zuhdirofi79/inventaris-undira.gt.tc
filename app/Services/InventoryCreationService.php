@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Category;
 use App\Models\InventoryConditionMaster;
@@ -92,7 +91,7 @@ class InventoryCreationService
             $quantity = max(1, (int) ($asset['quantity'] ?? 1));
             $name = trim((string) $asset['name']);
             $groupKey = $this->codes->generateGroupKey($name, $room->id, $category->id);
-            $condition = $this->mapCondition($conditionMaster);
+            $condition = $conditionMaster->code;
             $picId = ! empty($asset['pic_id']) ? (int) $asset['pic_id'] : null;
             $picName = $picId
                 ? User::query()->whereKey($picId)->value('name')
@@ -150,22 +149,8 @@ class InventoryCreationService
         });
     }
 
-    public function mapCondition(InventoryConditionMaster $master): InventoryCondition
+    public function mapCondition(InventoryConditionMaster $master): string
     {
-        $code = strtolower(trim($master->code));
-        $name = strtolower(trim($master->name));
-
-        if ($fromCode = InventoryCondition::tryFrom($code)) {
-            return $fromCode;
-        }
-
-        return match (true) {
-            in_array($code, ['baik', 'bagus', 'good'], true) || str_contains($name, 'baik') || str_contains($name, 'bagus') => InventoryCondition::Bagus,
-            in_array($code, ['baru', 'new'], true) || str_contains($name, 'baru') => InventoryCondition::Baru,
-            in_array($code, ['layak', 'cukup'], true) || str_contains($name, 'layak') || str_contains($name, 'cukup') => InventoryCondition::Cukup,
-            str_contains($code, 'ringan') || str_contains($name, 'ringan') => InventoryCondition::RusakRingan,
-            in_array($code, ['rusak', 'rusak_berat', 'berat'], true) || str_contains($name, 'rusak') => InventoryCondition::RusakBerat,
-            default => InventoryCondition::Bagus,
-        };
+        return $master->code;
     }
 }

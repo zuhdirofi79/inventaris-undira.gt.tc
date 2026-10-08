@@ -77,7 +77,7 @@
                     <label class="form-label" for="condition">Kondisi</label>
                     <select name="condition" id="condition" class="form-select">
                         <option value="">Semua</option>
-                        @foreach(\App\Enums\InventoryCondition::cases() as $cond)
+                        @foreach(\App\Support\InventoryConditionCatalog::filterOptions() as $cond)
                             <option value="{{ $cond->value }}">{{ $cond->label() }}</option>
                         @endforeach
                     </select>

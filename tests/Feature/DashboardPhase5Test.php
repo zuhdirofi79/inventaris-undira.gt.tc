@@ -101,6 +101,12 @@ class DashboardPhase5Test extends TestCase
     public function test_dashboard_page_shows_quick_actions_and_new_stat_labels(): void
     {
         $admin = $this->makeSuperAdmin();
+        \App\Models\InventoryConditionMaster::query()->firstOrCreate(
+            ['code' => 'BAIK'],
+            ['name' => 'Baik', 'is_active' => true, 'sort_order' => 1],
+        );
+        \App\Support\InventoryConditionCatalog::flush();
+        \App\Support\InventarisCache::flush();
         Supplier::query()->create(['name' => 'PT Sumber', 'is_active' => true]);
 
         $html = $this->actingAs($admin)

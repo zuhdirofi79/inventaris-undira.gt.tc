@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Enums\InventoryCondition;
+use App\Support\InventoryConditionCatalog;
 use App\Models\Borrowing;
 use App\Models\BorrowingItem;
 use App\Models\DeletionApproval;
@@ -35,7 +35,6 @@ use Illuminate\Validation\ValidationException;
 class InventoryMasterConfigurationDeletionService
 {
     public function __construct(
-        protected InventoryCreationService $creation,
         protected TrashCascadeService $trash,
     ) {}
 
@@ -132,9 +131,9 @@ class InventoryMasterConfigurationDeletionService
     protected function applyMatch(Builder $query, InventoryMasterConfiguration $configuration): void
     {
         $year = (int) ($configuration->purchaseYear?->year ?? 0);
-        $condition = $this->mappedCondition($configuration);
+        $master = $configuration->inventoryCondition;
 
-        if ($year < 1 || ! $condition) {
+        if ($year < 1 || ! $master) {
             $query->whereRaw('0 = 1');
 
             return;
@@ -145,7 +144,7 @@ class InventoryMasterConfigurationDeletionService
             ->where('org_unit_id', $configuration->org_unit_id)
             ->where('procurement_type_id', $configuration->procurement_type_id)
             ->where('purchase_year', $year)
-            ->where('condition', $condition->value)
+            ->whereIn('condition', InventoryConditionCatalog::equivalentStoredValues($master))
             ->where(function (Builder $location) use ($configuration) {
                 $location->where('room_id', $configuration->room_id)
                     ->orWhereHas('mutations', function (Builder $mutations) use ($configuration) {
@@ -157,8 +156,13 @@ class InventoryMasterConfigurationDeletionService
     protected function itemMatches(InventoryItem $item, InventoryMasterConfiguration $configuration): bool
     {
         $year = (int) ($configuration->purchaseYear?->year ?? 0);
-        $condition = $this->mappedCondition($configuration);
-        if ($year < 1 || ! $condition) {
+        $master = $configuration->inventoryCondition;
+        if ($year < 1 || ! $master) {
+            return false;
+        }
+
+        $stored = $item->condition?->value;
+        if (! is_string($stored) || ! in_array($stored, InventoryConditionCatalog::equivalentStoredValues($master), true)) {
             return false;
         }
 
@@ -167,14 +171,6 @@ class InventoryMasterConfigurationDeletionService
             || (int) $item->org_unit_id !== (int) $configuration->org_unit_id
             || (int) $item->procurement_type_id !== (int) $configuration->procurement_type_id
             || (int) $item->purchase_year !== $year) {
-            return false;
-        }
-
-        $itemCondition = $item->condition instanceof InventoryCondition
-            ? $item->condition
-            : InventoryCondition::tryFrom((string) $item->condition);
-
-        if ($itemCondition !== $condition) {
             return false;
         }
 
@@ -189,16 +185,6 @@ class InventoryMasterConfigurationDeletionService
         return $mutations->contains(
             fn (InventoryMutation $mutation) => (int) $mutation->from_room_id === (int) $configuration->room_id
         );
-    }
-
-    protected function mappedCondition(InventoryMasterConfiguration $configuration): ?InventoryCondition
-    {
-        $master = $configuration->inventoryCondition;
-        if (! $master) {
-            return null;
-        }
-
-        return $this->creation->mapCondition($master);
     }
 
     /**

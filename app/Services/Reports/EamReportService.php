@@ -3,7 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Enums\BorrowingStatus;
-use App\Enums\InventoryCondition;
+use App\Support\InventoryConditionCatalog;
 use App\Enums\InventoryReportType;
 use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
@@ -54,7 +54,7 @@ class EamReportService
             'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'vendors' => Vendor::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'statuses' => InventoryStatus::cases(),
-            'conditions' => InventoryCondition::cases(),
+            'conditions' => InventoryConditionCatalog::filterOptions(),
             'subCategories' => SubCategory::query()->where('is_active', true)->orderBy('name')->get(['id', 'category_id', 'name', 'code']),
         ];
     }
@@ -79,10 +79,7 @@ class EamReportService
             ]),
             InventoryReportType::Damaged => $query->where(function (Builder $q) {
                 $q->whereIn('status', InventoryStatus::damagedValues())
-                    ->orWhereIn('condition', [
-                        InventoryCondition::RusakRingan->value,
-                        InventoryCondition::RusakBerat->value,
-                    ]);
+                    ->orWhereIn('condition', InventoryConditionCatalog::damagedStoredValues());
             }),
             InventoryReportType::Inactive => $query->whereIn('status', array_merge(
                 InventoryStatus::terminalValues(),
@@ -275,10 +272,7 @@ class EamReportService
         $dipinjam = (clone $base)->where('status', InventoryStatus::Dipinjam)->count();
         $rusak = (clone $base)->where(function (Builder $q) {
             $q->whereIn('status', InventoryStatus::damagedValues())
-                ->orWhereIn('condition', [
-                    InventoryCondition::RusakRingan->value,
-                    InventoryCondition::RusakBerat->value,
-                ]);
+                ->orWhereIn('condition', InventoryConditionCatalog::damagedStoredValues());
         })->count();
         $maintenance = (clone $base)->whereIn('status', [
             InventoryStatus::Maintenance->value,
@@ -318,7 +312,7 @@ class EamReportService
             ->selectRaw("{$conditionCol} as label, COUNT(*) as total")
             ->get()
             ->map(fn ($row) => [
-                'label' => InventoryCondition::tryFrom((string) $row->label)?->label() ?? ($row->label ?: '—'),
+                'label' => InventoryConditionCatalog::label((string) $row->label),
                 'total' => (int) $row->total,
             ]);
 

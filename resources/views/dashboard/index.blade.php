@@ -220,9 +220,6 @@ body.dark-mode .dash-ent .dash-activity-item:hover { background: rgba(148,163,18
     $w = $widgets ?? [];
     $widgetDefs = [
         ['key' => 'total_inventory', 'label' => 'Total Inventaris', 'icon' => 'bi bi-box-seam', 'tone' => 'blue', 'see' => 'Jumlah Inventaris'],
-        ['key' => 'good_condition', 'label' => 'Kondisi Baik', 'icon' => 'bi bi-check2-circle', 'tone' => 'green'],
-        ['key' => 'minor_damage', 'label' => 'Rusak Ringan', 'icon' => 'bi bi-exclamation-circle', 'tone' => 'warning'],
-        ['key' => 'major_damage', 'label' => 'Rusak Berat', 'icon' => 'bi bi-exclamation-triangle', 'tone' => 'danger'],
         ['key' => 'borrowed', 'label' => 'Dipinjam', 'icon' => 'bi bi-hand-index', 'tone' => 'warning'],
         ['key' => 'pending_approval', 'label' => 'Menunggu Approval', 'icon' => 'bi bi-hourglass-split', 'tone' => 'warning'],
         ['key' => 'approved_today', 'label' => 'Disetujui Hari Ini', 'icon' => 'bi bi-check2-circle', 'tone' => 'green'],
@@ -288,6 +285,26 @@ body.dark-mode .dash-ent .dash-activity-item:hover { background: rgba(148,163,18
 
 <x-ui.section-title title="Status Inventaris" icon="bi bi-grid-1x2" subtitle="Metrik kondisi & operasional aset" />
 <div class="row g-3 mb-4">
+    @foreach($condition_cards ?? [] as $card)
+    @php
+        $cardTone = match ($card['tone'] ?? 'good') {
+            'damaged' => 'danger',
+            'fair' => 'warning',
+            default => 'green',
+        };
+    @endphp
+    <div class="col-6 col-md-4 col-xl-2">
+        <div class="dash-widget dash-widget--{{ $cardTone }}">
+            <div class="dash-widget__body">
+                <span class="dash-widget__icon" aria-hidden="true"><i class="bi bi-check2-circle"></i></span>
+                <div class="min-w-0">
+                    <div class="dash-widget__label">Kondisi {{ $card['label'] }}</div>
+                    <div class="dash-widget__value">{{ number_format((int) $card['total']) }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endforeach
     @foreach($widgetDefs as $def)
     <div class="col-6 col-md-4 col-xl-2">
         <div class="dash-widget dash-widget--{{ $def['tone'] }}">

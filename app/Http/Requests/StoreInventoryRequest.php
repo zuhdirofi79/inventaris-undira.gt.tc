@@ -2,8 +2,9 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
+use App\Rules\ActiveInventoryCondition;
+use App\Support\InventoryConditionCatalog;
 use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -33,7 +34,7 @@ class StoreInventoryRequest extends FormRequest
             'procurement_type_id' => ['required', ActiveExists::rule('procurement_types')],
             'price' => ['nullable', 'numeric', 'min:0'],
             'depreciation_value' => ['nullable', 'numeric', 'min:0'],
-            'condition' => ['required', Rule::enum(InventoryCondition::class)],
+            'condition' => ['required', new ActiveInventoryCondition()],
             'status' => ['required', Rule::enum(InventoryStatus::class)],
             'responsible_person' => ['nullable', 'string', 'max:255'],
             'pic_id' => ['nullable', 'exists:users,id'],
@@ -70,10 +71,19 @@ class StoreInventoryRequest extends FormRequest
         // Inventory number is server-generated and immutable.
         $this->request->remove('inventory_number');
 
-        $this->merge([
+        $payload = [
             'price' => $this->filled('price') ? $this->input('price') : null,
             'depreciation_value' => $this->filled('depreciation_value') ? $this->input('depreciation_value') : null,
             'pic_id' => $this->filled('pic_id') ? $this->input('pic_id') : null,
-        ]);
+        ];
+
+        if ($this->filled('condition')) {
+            $canonical = InventoryConditionCatalog::canonicalActiveCode((string) $this->input('condition'));
+            if ($canonical !== null) {
+                $payload['condition'] = $canonical;
+            }
+        }
+
+        $this->merge($payload);
     }
 }

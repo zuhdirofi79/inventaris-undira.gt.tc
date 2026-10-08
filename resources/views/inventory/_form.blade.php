@@ -175,9 +175,13 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Kondisi <span class="text-danger">*</span></label>
+                    @php
+                        $conditionOptions = \App\Support\InventoryConditionCatalog::activeOptions(old('condition', $item?->condition?->value));
+                        $selectedCondition = old('condition', $item?->condition?->value ?? ($conditionOptions[0]->value ?? ''));
+                    @endphp
                     <select name="condition" class="form-select" required>
-                        @foreach(\App\Enums\InventoryCondition::cases() as $cond)
-                            <option value="{{ $cond->value }}" @selected(old('condition', $item?->condition?->value ?? 'bagus') == $cond->value)>{{ $cond->label() }}</option>
+                        @foreach($conditionOptions as $cond)
+                            <option value="{{ $cond->value }}" @selected((string) $selectedCondition === (string) $cond->value)>{{ $cond->label() }}</option>
                         @endforeach
                     </select>
                 </div>

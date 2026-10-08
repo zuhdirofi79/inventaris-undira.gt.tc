@@ -54,7 +54,7 @@ class InventoryTemplateExport implements FromArray, WithHeadings
                 '2026',
                 '2026-01-15',
                 'Hibah',
-                'bagus',
+                'BAIK',
                 'aktif',
                 'azwar@example.com',
                 'John Doe',

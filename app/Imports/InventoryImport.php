@@ -2,7 +2,6 @@
 
 namespace App\Imports;
 
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Category;
 use App\Models\InventoryItem;
@@ -13,6 +12,7 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Services\InventoryCodeService;
+use App\Support\InventoryConditionCatalog;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -48,7 +48,7 @@ class InventoryImport implements ToCollection, WithHeadingRow
                 'sub_category_code' => ['required', 'string'],
                 'procurement_type_code' => ['required', 'string'],
                 'room_code' => ['required', 'string'],
-                'condition' => ['required', Rule::enum(InventoryCondition::class)],
+                'condition' => ['required', 'string', 'max:30'],
                 'status' => ['required', Rule::enum(InventoryStatus::class)],
                 'purchase_year' => ['required', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
                 'purchase_date' => ['nullable', 'date'],
@@ -64,6 +64,17 @@ class InventoryImport implements ToCollection, WithHeadingRow
 
                 continue;
             }
+
+            $conditionCode = InventoryConditionCatalog::canonicalActiveCode((string) $data['condition']);
+            if ($conditionCode === null) {
+                $this->errors[] = [
+                    'row' => $rowNumber,
+                    'errors' => ['Kondisi "'.$data['condition'].'" tidak ditemukan pada Master Data Kondisi Aset.'],
+                ];
+
+                continue;
+            }
+            $data['condition'] = $conditionCode;
 
             $category = Category::query()->where('code', $data['category_code'])->first();
             $room = Room::query()->with('floor.building.campus')->where('code', $data['room_code'])->first();

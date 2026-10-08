@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Building;
 use App\Models\Campus;
@@ -312,7 +311,7 @@ class LocationExploreController extends Controller
 
         $rows = collect($paginator->items())->map(function (InventoryItem $item) use ($canBorrow, $canMaintenance, $canMutation) {
             $status = $item->status instanceof InventoryStatus ? $item->status : InventoryStatus::tryFrom((string) $item->status);
-            $condition = $item->condition instanceof InventoryCondition ? $item->condition : InventoryCondition::tryFrom((string) $item->condition);
+            $condition = $item->condition;
             $photo = $item->photos->first();
 
             return [
@@ -456,7 +455,7 @@ class LocationExploreController extends Controller
             'categories' => $categories,
             'sub_categories' => $subs,
             'statuses' => collect(InventoryStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
-            'conditions' => collect(InventoryCondition::cases())->map(fn ($c) => ['value' => $c->value, 'label' => $c->label()]),
+            'conditions' => collect(\App\Support\InventoryConditionCatalog::filterOptions())->map(fn ($c) => ['value' => $c->value, 'label' => $c->label()]),
         ]);
     }
 
@@ -489,7 +488,7 @@ class LocationExploreController extends Controller
             $query->where('status', $request->input('status'));
         }
         if ($request->filled('condition')) {
-            $query->where('condition', $request->input('condition'));
+            $query->whereIn('condition', \App\Support\InventoryConditionCatalog::filterValues((string) $request->input('condition')));
         }
         if ($request->filled('q') && mb_strlen(trim((string) $request->input('q'))) >= 2) {
             $q = trim((string) $request->input('q'));

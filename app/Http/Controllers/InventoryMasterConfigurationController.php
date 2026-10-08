@@ -255,6 +255,8 @@ class InventoryMasterConfigurationController extends Controller
                 'is_active' => $request->boolean('is_active', true),
                 'sort_order' => $data['sort_order'] ?? 0,
             ]);
+            \App\Support\InventoryConditionCatalog::flush();
+            \App\Support\InventarisCache::flush();
         }
 
         return response()->json([

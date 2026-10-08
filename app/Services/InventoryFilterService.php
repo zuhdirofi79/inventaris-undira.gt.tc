@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Enums\BorrowingStatus;
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\InventoryItem;
+use App\Support\InventoryConditionCatalog;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -38,10 +38,7 @@ class InventoryFilterService
             }))
             ->when(filter_var($filters['damaged'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->where(function (Builder $inner) {
                 $inner->whereIn('status', InventoryStatus::damagedValues())
-                    ->orWhereIn('condition', [
-                        InventoryCondition::RusakRingan->value,
-                        InventoryCondition::RusakBerat->value,
-                    ]);
+                    ->orWhereIn('condition', InventoryConditionCatalog::damagedStoredValues());
             }))
             ->when(filter_var($filters['maintenance'] ?? false, FILTER_VALIDATE_BOOLEAN), fn (Builder $q) => $q->whereIn('status', [
                 InventoryStatus::Maintenance->value,

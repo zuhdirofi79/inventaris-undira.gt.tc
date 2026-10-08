@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\InventoryCondition;
 use App\Enums\InventoryStatus;
 use App\Models\Building;
 use App\Models\Campus;
@@ -12,6 +11,7 @@ use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
 use App\Models\User;
+use App\Support\InventoryConditionCatalog;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 
@@ -355,12 +355,7 @@ class InventoryReportService
             }
         }
 
-        $conditionBuckets = [
-            'Bagus' => 0,
-            'Maintenance' => 0,
-            'Rusak' => 0,
-            'Non Aktif' => 0,
-        ];
+        $conditionBuckets = [];
         $statusBuckets = [
             'Aktif' => 0,
             'Dipinjam' => 0,
@@ -370,7 +365,8 @@ class InventoryReportService
         ];
 
         foreach ($items as $item) {
-            $conditionBuckets[$this->compositionConditionBucket($item)]++;
+            $label = $item->condition?->label() ?? '—';
+            $conditionBuckets[$label] = ($conditionBuckets[$label] ?? 0) + 1;
             $statusBuckets[$this->compositionStatusBucket($item)]++;
         }
 
@@ -417,29 +413,6 @@ class InventoryReportService
         }
 
         return $rows;
-    }
-
-    protected function compositionConditionBucket(InventoryItem $item): string
-    {
-        $status = $item->status;
-
-        if ($status instanceof InventoryStatus && $status->isTerminal()) {
-            return 'Non Aktif';
-        }
-
-        if ($this->isDamaged($item)) {
-            return 'Rusak';
-        }
-
-        if ($status instanceof InventoryStatus && in_array($status, [
-            InventoryStatus::Maintenance,
-            InventoryStatus::MenungguApproval,
-            InventoryStatus::RevisiPerbaikan,
-        ], true)) {
-            return 'Maintenance';
-        }
-
-        return 'Bagus';
     }
 
     protected function compositionStatusBucket(InventoryItem $item): string
@@ -549,7 +522,7 @@ class InventoryReportService
             'Kategori' => $category ?: 'Semua',
             'Sub Kategori' => $sub ?: 'Semua',
             'Status' => $status ? (InventoryStatus::tryFrom((string) $status)?->label() ?? (string) $status) : 'Semua',
-            'Kondisi' => $condition ? (InventoryCondition::tryFrom((string) $condition)?->label() ?? (string) $condition) : 'Semua',
+            'Kondisi' => $condition ? InventoryConditionCatalog::label((string) $condition) : 'Semua',
         ];
 
         if ($pic) {
@@ -601,10 +574,9 @@ class InventoryReportService
     protected function isDamaged(InventoryItem $item): bool
     {
         $status = $item->status;
-        $condition = $item->condition;
 
         return ($status instanceof InventoryStatus && $status->isDamagedList())
-            || in_array($condition, [InventoryCondition::RusakRingan, InventoryCondition::RusakBerat], true);
+            || InventoryConditionCatalog::isDamagedStored($item->condition?->value);
     }
 
     /**
