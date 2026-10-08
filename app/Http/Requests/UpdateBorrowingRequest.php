@@ -6,6 +6,7 @@ use App\Enums\BorrowingStatus;
 use App\Models\Borrowing;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdateBorrowingRequest extends FormRequest
 {
@@ -32,11 +33,24 @@ class UpdateBorrowingRequest extends FormRequest
             'supporting_document' => [
                 'nullable',
                 'file',
-                'mimes:pdf',
+                'mimes:pdf,jpg,jpeg',
                 'max:5120',
             ],
             'remove_supporting_document' => ['nullable', 'boolean'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            $file = $this->file('supporting_document');
+            if ($file && ! $validator->errors()->has('supporting_document')) {
+                $ext = strtolower((string) $file->getClientOriginalExtension());
+                if (! in_array($ext, ['pdf', 'jpg', 'jpeg'], true)) {
+                    $validator->errors()->add('supporting_document', 'Format file harus PDF, JPG, atau JPEG.');
+                }
+            }
+        });
     }
 
     public function messages(): array
@@ -45,8 +59,8 @@ class UpdateBorrowingRequest extends FormRequest
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
             'notes.required' => 'Keperluan wajib diisi.',
-            'supporting_document.mimes' => 'Dokumen pendukung harus berupa PDF.',
-            'supporting_document.max' => 'Ukuran dokumen maksimal 5 MB.',
+            'supporting_document.mimes' => 'Format file harus PDF, JPG, atau JPEG.',
+            'supporting_document.max' => 'Ukuran file maksimal 5 MB.',
             'supporting_document.file' => 'Dokumen pendukung tidak valid.',
         ];
     }

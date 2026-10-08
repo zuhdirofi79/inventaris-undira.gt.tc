@@ -17,12 +17,13 @@ use App\Models\RoomFunction;
 use App\Models\SubCategory;
 use App\Services\InventoryCodeService;
 use App\Services\InventoryCreationService;
+use App\Services\InventoryMasterConfigurationDeletionService;
 use App\Services\LocationCodeGeneratorService;
-use App\Services\TrashCascadeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InventoryMasterConfigurationController extends Controller
 {
@@ -30,7 +31,7 @@ class InventoryMasterConfigurationController extends Controller
         protected LocationCodeGeneratorService $locationCodes,
         protected InventoryCodeService $inventoryCodes,
         protected InventoryCreationService $inventoryCreation,
-        protected TrashCascadeService $trash,
+        protected InventoryMasterConfigurationDeletionService $configurationDeletion,
     ) {}
 
     public function store(StoreInventoryMasterConfigurationRequest $request): RedirectResponse
@@ -88,13 +89,24 @@ class InventoryMasterConfigurationController extends Controller
 
     public function destroy(Request $request, InventoryMasterConfiguration $configuration): RedirectResponse
     {
-        $this->authorizeManage();
+        abort_unless($request->user()?->can('category.manage'), 403);
 
-        $this->trash->softDelete($configuration, $request->user());
+        try {
+            $deletedItems = $this->configurationDeletion->delete($configuration, $request->user());
+        } catch (ValidationException $e) {
+            $message = collect($e->errors())->flatten()->first()
+                ?: 'Konfigurasi tidak dapat dihapus.';
+
+            return back()->with('error', $message);
+        }
+
+        $message = $deletedItems > 0
+            ? 'Konfigurasi dan data inventaris terkait berhasil dihapus.'
+            : 'Konfigurasi berhasil dihapus.';
 
         return redirect()
             ->route('categories.index', ['tab' => 'konfigurasi'])
-            ->with('success', 'Konfigurasi dipindahkan ke Trash.');
+            ->with('success', $message);
     }
 
     public function preview(Request $request): JsonResponse

@@ -15,14 +15,14 @@ class BorrowingSupportingDocumentService
     public const MAX_KILOBYTES = 5120;
 
     /**
-     * Store a new PDF for the borrowing. Does not delete any previous file.
+     * Store one supporting file (PDF, JPG, or JPEG). Does not delete any previous file.
      *
      * @return array{supporting_document_path: string, supporting_document_original_name: string, supporting_document_size: int}
      */
     public function store(Borrowing $borrowing, UploadedFile $file): array
     {
         $directory = 'borrowings/'.$borrowing->id;
-        $filename = Str::uuid()->toString().'.pdf';
+        $filename = Str::uuid()->toString().'.'.$this->storedExtension($file);
         $path = $file->storeAs($directory, $filename, self::DISK);
 
         if ($path === false || $path === '') {
@@ -86,17 +86,33 @@ class BorrowingSupportingDocumentService
         abort_unless($this->exists($borrowing), 404);
 
         $path = (string) $borrowing->supporting_document_path;
-        $name = $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf';
+        $name = $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.'.$this->extensionFromPath($path);
         $disposition = $download ? 'attachment' : 'inline';
 
         return Storage::disk(self::DISK)->response(
             $path,
             $name,
             [
-                'Content-Type' => 'application/pdf',
+                'Content-Type' => $this->contentType($borrowing),
+                'X-Content-Type-Options' => 'nosniff',
                 'Content-Disposition' => $disposition.'; filename="'.$this->headerFilename($name).'"',
             ]
         );
+    }
+
+    public function isImage(Borrowing $borrowing): bool
+    {
+        return in_array($this->extension($borrowing), ['jpg', 'jpeg'], true);
+    }
+
+    public function contentType(Borrowing $borrowing): string
+    {
+        return $this->isImage($borrowing) ? 'image/jpeg' : 'application/pdf';
+    }
+
+    public function extension(Borrowing $borrowing): string
+    {
+        return $this->extensionFromPath((string) $borrowing->supporting_document_path);
     }
 
     public function humanSize(?int $bytes): string
@@ -125,11 +141,31 @@ class BorrowingSupportingDocumentService
             return 'dokumen-pendukung.pdf';
         }
 
-        if (! str_ends_with(Str::lower($base), '.pdf')) {
+        $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+        if (! in_array($ext, ['pdf', 'jpg', 'jpeg'], true)) {
             $base .= '.pdf';
         }
 
         return Str::limit($base, 240, '');
+    }
+
+    protected function storedExtension(UploadedFile $file): string
+    {
+        $ext = strtolower((string) $file->getClientOriginalExtension());
+        if (in_array($ext, ['pdf', 'jpg', 'jpeg'], true)) {
+            return $ext;
+        }
+
+        $guessed = strtolower((string) $file->guessExtension());
+
+        return in_array($guessed, ['pdf', 'jpg', 'jpeg'], true) ? $guessed : 'pdf';
+    }
+
+    protected function extensionFromPath(string $path): string
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        return in_array($ext, ['pdf', 'jpg', 'jpeg'], true) ? $ext : 'pdf';
     }
 
     protected function headerFilename(string $name): string

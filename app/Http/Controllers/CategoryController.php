@@ -20,6 +20,7 @@ use App\Exports\MasterArrayExport;
 use App\Http\Requests\ImportMasterRequest;
 use App\Services\AuditLogService;
 use App\Services\InventoryCodeService;
+use App\Services\InventoryMasterConfigurationDeletionService;
 use App\Services\TrashCascadeService;
 use App\Support\MasterCsvReader;
 use App\Support\MasterListQuery;
@@ -36,6 +37,7 @@ class CategoryController extends Controller
     public function __construct(
         protected TrashCascadeService $trash,
         protected AuditLogService $audit,
+        protected InventoryMasterConfigurationDeletionService $configurationDeletion,
     ) {}
     public function index(Request $request): View
     {
@@ -100,6 +102,7 @@ class CategoryController extends Controller
                 ->withQueryString();
 
             $this->attachSequencePreviews($configurations);
+            $this->configurationDeletion->attachPreviews($configurations);
 
             $configLookups = [
                 'campuses' => Campus::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),

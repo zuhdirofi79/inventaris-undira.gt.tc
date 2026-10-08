@@ -15,8 +15,10 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use App\Mail\BorrowingApprovedMail;
 use App\Services\BorrowingSupportingDocumentService;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
@@ -42,7 +44,10 @@ class BorrowingSupportingDocumentTest extends TestCase
 
         $this->assertStringContainsString('Dokumen Pendukung', $html);
         $this->assertStringContainsString('name="supporting_document"', $html);
-        $this->assertStringContainsString('Opsional. Format PDF, maksimal 5 MB.', $html);
+        $this->assertStringContainsString('Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB.', $html);
+        $this->assertStringContainsString('Format file harus PDF, JPG, atau JPEG.', $html);
+        $this->assertStringContainsString('Ukuran file maksimal 5 MB.', $html);
+        $this->assertStringContainsString('accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"', $html);
         $this->assertStringContainsString('enctype="multipart/form-data"', $html);
         $this->assertDoesNotMatchRegularExpression('/name="supporting_document"[^>]*required/', $html);
     }
@@ -100,16 +105,67 @@ class BorrowingSupportingDocumentTest extends TestCase
         $this->assertSame(0, Borrowing::query()->count());
     }
 
+    public function test_store_accepts_jpg_and_jpeg(): void
+    {
+        $admin = $this->makeAdmin();
+
+        foreach (['foto_kegiatan.jpg', 'foto_kegiatan.jpeg'] as $name) {
+            $item = $this->makeItem();
+            $image = UploadedFile::fake()->image($name)->size(1024);
+
+            $this->actingAs($admin)
+                ->post(route('borrowings.store'), $this->payload($item, [
+                    'supporting_document' => $image,
+                ]))
+                ->assertRedirect(route('borrowings.index'));
+
+            $borrowing = Borrowing::query()->latest('id')->first();
+            $this->assertSame($name, $borrowing->supporting_document_original_name);
+            $this->assertStringEndsWith('.'.pathinfo($name, PATHINFO_EXTENSION), $borrowing->supporting_document_path);
+            Storage::disk(BorrowingSupportingDocumentService::DISK)->assertExists($borrowing->supporting_document_path);
+
+            $html = $this->actingAs($admin)
+                ->get(route('borrowings.show', $borrowing))
+                ->assertOk()
+                ->getContent();
+            $this->assertStringContainsString($name, $html);
+            $this->assertStringContainsString(route('borrowings.supporting-document.view', $borrowing), $html);
+
+            $this->actingAs($admin)
+                ->get(route('borrowings.supporting-document.view', $borrowing))
+                ->assertOk()
+                ->assertHeader('content-type', 'image/jpeg');
+        }
+    }
+
+    public function test_store_accepts_image_just_under_5mb(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $image = UploadedFile::fake()->image('hampir.jpg')->size(5120);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => $image,
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $this->assertTrue(Borrowing::query()->latest('id')->first()->hasSupportingDocument());
+    }
+
     public function test_reject_non_pdf_uploads(): void
     {
         $admin = $this->makeAdmin();
         $item = $this->makeItem();
 
         foreach ([
-            UploadedFile::fake()->image('foto.jpg'),
+            UploadedFile::fake()->image('foto.png'),
+            UploadedFile::fake()->create('gambar.webp', 100, 'image/webp'),
             UploadedFile::fake()->create('dokumen.docx', 100, 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+            UploadedFile::fake()->create('sheet.xlsx', 100, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'),
             UploadedFile::fake()->create('arsip.zip', 100, 'application/zip'),
             UploadedFile::fake()->create('virus.exe', 100, 'application/octet-stream'),
+            UploadedFile::fake()->image('disamarkan.jpg.png'),
         ] as $file) {
             $this->actingAs($admin)
                 ->from(route('borrowings.create'))
@@ -247,6 +303,113 @@ class BorrowingSupportingDocumentTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_replace_pdf_with_jpg_removes_old_file(): void
+    {
+        $admin = $this->makeAdmin();
+        $borrowing = $this->makeBorrowingWithDocument($admin);
+        $oldPath = $borrowing->supporting_document_path;
+
+        $this->actingAs($admin)
+            ->put(route('borrowings.update', $borrowing), [
+                'borrower_name' => $borrowing->borrower_name,
+                'borrower_email' => $borrowing->borrower_email,
+                'borrower_phone' => '081234567890',
+                'borrow_date' => $borrowing->borrow_date->format('Y-m-d'),
+                'expected_return_date' => $borrowing->expected_return_date->format('Y-m-d'),
+                'status' => $borrowing->status->value,
+                'notes' => $borrowing->notes,
+                'supporting_document' => UploadedFile::fake()->image('foto.jpg')->size(400),
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        $borrowing->refresh();
+        $this->assertSame('foto.jpg', $borrowing->supporting_document_original_name);
+        $this->assertStringEndsWith('.jpg', $borrowing->supporting_document_path);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertMissing($oldPath);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertExists($borrowing->supporting_document_path);
+    }
+
+    public function test_replace_jpg_with_jpeg(): void
+    {
+        $admin = $this->makeAdmin();
+        $borrowing = $this->makeBorrowingWithDocument($admin, UploadedFile::fake()->image('awal.jpg')->size(300));
+        $oldPath = $borrowing->supporting_document_path;
+
+        $this->actingAs($admin)
+            ->put(route('borrowings.update', $borrowing), [
+                'borrower_name' => $borrowing->borrower_name,
+                'borrower_email' => $borrowing->borrower_email,
+                'borrower_phone' => '081234567890',
+                'borrow_date' => $borrowing->borrow_date->format('Y-m-d'),
+                'expected_return_date' => $borrowing->expected_return_date->format('Y-m-d'),
+                'status' => $borrowing->status->value,
+                'notes' => $borrowing->notes,
+                'supporting_document' => UploadedFile::fake()->image('baru.jpeg')->size(350),
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        $borrowing->refresh();
+        $this->assertSame('baru.jpeg', $borrowing->supporting_document_original_name);
+        $this->assertStringEndsWith('.jpeg', $borrowing->supporting_document_path);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertMissing($oldPath);
+    }
+
+    public function test_failed_replacement_keeps_existing_document(): void
+    {
+        $admin = $this->makeAdmin();
+        $borrowing = $this->makeBorrowingWithDocument($admin);
+        $oldPath = $borrowing->supporting_document_path;
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.edit', $borrowing))
+            ->put(route('borrowings.update', $borrowing), [
+                'borrower_name' => $borrowing->borrower_name,
+                'borrower_email' => $borrowing->borrower_email,
+                'borrower_phone' => '081234567890',
+                'borrow_date' => $borrowing->borrow_date->format('Y-m-d'),
+                'expected_return_date' => $borrowing->expected_return_date->format('Y-m-d'),
+                'status' => $borrowing->status->value,
+                'notes' => $borrowing->notes,
+                'supporting_document' => UploadedFile::fake()->image('salah.png'),
+            ])
+            ->assertSessionHasErrors('supporting_document');
+
+        $borrowing->refresh();
+        $this->assertSame($oldPath, $borrowing->supporting_document_path);
+        $this->assertSame('laporan_kegiatan.pdf', $borrowing->supporting_document_original_name);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertExists($oldPath);
+    }
+
+    public function test_approval_email_does_not_attach_supporting_document(): void
+    {
+        Mail::fake();
+        $requester = $this->makeStaff(['email' => 'staff-doc-mail@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-doc-mail@undira.ac.id']);
+        $item = $this->makeItem();
+
+        $this->actingAs($requester)
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => UploadedFile::fake()->image('lampiran.jpg')->size(800),
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $borrowing = Borrowing::query()->latest('id')->first();
+        $line = $borrowing->items()->first();
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.save-approvals', $borrowing), [
+                'decisions' => [
+                    ['id' => $line->id, 'action' => 'approve', 'rejection_reason' => ''],
+                ],
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing));
+
+        Mail::assertSent(BorrowingApprovedMail::class, 1);
+        $html = Mail::sent(BorrowingApprovedMail::class)->first()->render();
+        $this->assertStringNotContainsString('lampiran.jpg', $html);
+        $this->assertTrue($borrowing->fresh()->hasSupportingDocument());
+    }
+
     public function test_approval_workflow_unaffected_when_document_present(): void
     {
         $requester = $this->makeStaff(['email' => 'staff-doc@undira.ac.id']);
@@ -293,7 +456,7 @@ class BorrowingSupportingDocumentTest extends TestCase
         ], $overrides);
     }
 
-    protected function makeBorrowingWithDocument($user): Borrowing
+    protected function makeBorrowingWithDocument($user, ?UploadedFile $file = null): Borrowing
     {
         $item = $this->makeItem();
         $borrowing = Borrowing::query()->create([
@@ -315,7 +478,7 @@ class BorrowingSupportingDocumentTest extends TestCase
             'status' => BorrowingItemStatus::MenungguPersetujuan,
         ]);
 
-        $pdf = UploadedFile::fake()->create('laporan_kegiatan.pdf', 900, 'application/pdf');
+        $pdf = $file ?? UploadedFile::fake()->create('laporan_kegiatan.pdf', 900, 'application/pdf');
         $meta = app(BorrowingSupportingDocumentService::class)->store($borrowing, $pdf);
         $borrowing->update($meta);
 

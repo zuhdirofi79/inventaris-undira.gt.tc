@@ -40,7 +40,7 @@ class StoreBorrowingRequest extends FormRequest
             'supporting_document' => [
                 'nullable',
                 'file',
-                'mimes:pdf',
+                'mimes:pdf,jpg,jpeg',
                 'max:5120',
             ],
         ];
@@ -62,8 +62,8 @@ class StoreBorrowingRequest extends FormRequest
             $file = $this->file('supporting_document');
             if ($file && ! $validator->errors()->has('supporting_document')) {
                 $ext = strtolower((string) $file->getClientOriginalExtension());
-                if ($ext !== 'pdf') {
-                    $validator->errors()->add('supporting_document', 'Dokumen pendukung harus berupa PDF.');
+                if (! in_array($ext, ['pdf', 'jpg', 'jpeg'], true)) {
+                    $validator->errors()->add('supporting_document', 'Format file harus PDF, JPG, atau JPEG.');
                 }
             }
 
@@ -96,8 +96,8 @@ class StoreBorrowingRequest extends FormRequest
             'expected_return_date.required' => 'Tanggal rencana kembali wajib diisi.',
             'expected_return_date.after_or_equal' => 'Tanggal rencana kembali tidak boleh sebelum tanggal pinjam.',
             'notes.required' => 'Keperluan wajib diisi.',
-            'supporting_document.mimes' => 'Dokumen pendukung harus berupa PDF.',
-            'supporting_document.max' => 'Ukuran dokumen maksimal 5 MB.',
+            'supporting_document.mimes' => 'Format file harus PDF, JPG, atau JPEG.',
+            'supporting_document.max' => 'Ukuran file maksimal 5 MB.',
             'supporting_document.file' => 'Dokumen pendukung tidak valid.',
         ];
     }

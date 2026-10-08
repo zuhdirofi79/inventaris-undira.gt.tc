@@ -126,13 +126,23 @@
                                 data-config="{{ e(json_encode($editPayload)) }}">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            @php
+                                $relatedCount = (int) ($cfg->related_inventory_count ?? 0);
+                                $blockedCount = (int) ($cfg->related_blocked_count ?? 0);
+                                $configLabel = trim(($cfg->category?->name ?? 'Klasifikasi').' / '.($cfg->subCategory?->name ?? 'Subkategori'));
+                                $deleteConfirm = $blockedCount > 0
+                                    ? $configLabel.'. '.$relatedCount.' inventaris terkait, '.$blockedCount.' sudah memiliki riwayat transaksi. Penghapusan permanen akan ditolak agar history tidak rusak.'
+                                    : $configLabel.'. '.$relatedCount.' inventaris terkait akan ikut dihapus permanen. Nomor inventaris yang sudah ada tidak berubah.';
+                            @endphp
                             <form action="{{ route('master-configurations.destroy', $cfg) }}" method="POST" class="d-inline"
-                                  data-confirm-title="Pindahkan data ke Trash?"
-                                  data-confirm="Konfigurasi masih dapat dipulihkan dari menu Trash."
-                                  data-confirm-button="Pindahkan ke Trash">
+                                  data-confirm-title="Hapus Konfigurasi Inventaris?"
+                                  data-confirm="{{ $deleteConfirm }}"
+                                  data-confirm-button="Hapus Permanen"
+                                  data-confirm-color="#dc3545">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Hapus permanen"><i class="fas fa-trash"></i></button>
                             </form>
+                            <div class="small text-muted">{{ $relatedCount }} inventaris terkait</div>
                             @endcan
                         </td>
                     </tr>

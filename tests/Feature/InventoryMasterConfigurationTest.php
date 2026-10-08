@@ -168,9 +168,17 @@ class InventoryMasterConfigurationTest extends TestCase
             $this->assertStringContainsString('<svg', strtolower($qr));
         }
 
-        $this->actingAs($admin)->get(route('rooms.show', $roomId))
+        $this->actingAs($admin)->get(route('rooms.show', $roomId))->assertOk();
+
+        $this->actingAs($admin)
+            ->getJson(route('locations.explore.items', [
+                'room' => $roomId,
+                'category' => $payload['category_id'],
+                'subCategory' => $payload['sub_category_id'],
+            ]))
             ->assertOk()
-            ->assertSee('Kursi Konfigurasi');
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonFragment(['name' => 'Kursi Konfigurasi']);
     }
 
     public function test_inventory_create_redirects_to_konfigurasi(): void

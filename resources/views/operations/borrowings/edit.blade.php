@@ -77,10 +77,18 @@
                 <div class="col-12 mb-0">
                     <label class="form-label" for="supporting_document">Dokumen Pendukung</label>
                     @if($borrowing->hasSupportingDocument())
+                        @php $docService = app(\App\Services\BorrowingSupportingDocumentService::class); @endphp
                         <div class="border rounded p-2 mb-2 small" id="existingSupportingDocument">
-                            <div class="fw-semibold">{{ $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf' }}</div>
-                            <div class="text-muted mb-2">
-                                {{ app(\App\Services\BorrowingSupportingDocumentService::class)->humanSize($borrowing->supporting_document_size) }}
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                @if($docService->isImage($borrowing))
+                                    <img src="{{ route('borrowings.supporting-document.view', $borrowing) }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)">
+                                @else
+                                    <span class="d-inline-flex align-items-center justify-content-center" style="width:72px;height:72px;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)"><i class="fas fa-file-pdf fa-2x text-danger"></i></span>
+                                @endif
+                                <div class="min-w-0">
+                                    <div class="fw-semibold text-break">{{ $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf' }}</div>
+                                    <div class="text-muted">{{ $docService->humanSize($borrowing->supporting_document_size) }}</div>
+                                </div>
                             </div>
                             <div class="d-flex flex-wrap gap-2">
                                 <a href="{{ route('borrowings.supporting-document.view', $borrowing) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" data-no-loader="1">Lihat</a>
@@ -97,9 +105,9 @@
                         name="supporting_document"
                         id="supporting_document"
                         class="form-control @error('supporting_document') is-invalid @enderror"
-                        accept="application/pdf,.pdf"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
                     >
-                    <div class="form-text">Opsional. Format PDF, maksimal 5 MB. Mengunggah file baru akan mengganti dokumen lama.</div>
+                    <div class="form-text">Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB. Mengunggah file baru akan mengganti dokumen lama.</div>
                     <div id="supportingDocumentInfo" class="small mt-2 d-none"></div>
                     <div id="supportingDocumentClientError" class="invalid-feedback d-block d-none"></div>
                     @error('supporting_document')
@@ -133,7 +141,17 @@
         return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
+    var previewUrl = null;
+
+    function revokePreview() {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+    }
+
     function clearDocumentSelection() {
+        revokePreview();
         $docInput.val('');
         $docInfo.addClass('d-none').empty();
         $docError.addClass('d-none').text('');
@@ -141,14 +159,23 @@
         $docInput.removeClass('is-invalid');
     }
 
-    function validateDocumentFile(file) {
-        if (!file) return true;
+    function documentKind(file) {
         var name = (file.name || '').toLowerCase();
         var type = (file.type || '').toLowerCase();
-        var isPdfExt = name.endsWith('.pdf');
-        var isPdfMime = !type || type === 'application/pdf';
-        if (!isPdfExt || !isPdfMime) {
-            $docError.removeClass('d-none').text('File harus berformat PDF.');
+        var ext = name.indexOf('.') === -1 ? '' : name.split('.').pop();
+        if (ext === 'pdf') {
+            return (!type || type === 'application/pdf') ? 'pdf' : null;
+        }
+        if (ext === 'jpg' || ext === 'jpeg') {
+            return (!type || type === 'image/jpeg' || type === 'image/jpg' || type === 'image/pjpeg') ? 'image' : null;
+        }
+        return null;
+    }
+
+    function validateDocumentFile(file) {
+        if (!file) return true;
+        if (!documentKind(file)) {
+            $docError.removeClass('d-none').text('Format file harus PDF, JPG, atau JPEG.');
             $docInput.addClass('is-invalid');
             return false;
         }
@@ -175,9 +202,20 @@
             this.value = '';
             return;
         }
+        revokePreview();
+        var kind = documentKind(file);
+        var safeName = $('<div>').text(file.name).html();
+        var visual = '';
+        if (kind === 'image') {
+            previewUrl = URL.createObjectURL(file);
+            visual = '<img src="' + previewUrl + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)">';
+        } else {
+            visual = '<span class="d-inline-flex align-items-center justify-content-center" style="width:72px;height:72px;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)"><i class="fas fa-file-pdf fa-2x text-danger"></i></span>';
+        }
         $docInfo.removeClass('d-none').html(
-            '<div class="fw-semibold">' + $('<div>').text(file.name).html() + '</div>' +
-            '<div class="text-muted">' + formatSize(file.size) + ' · PDF valid</div>'
+            '<div class="d-flex align-items-center gap-2">' + visual +
+            '<div class="min-w-0"><div class="fw-semibold text-break">' + safeName + '</div>' +
+            '<div class="text-muted">' + formatSize(file.size) + '</div></div></div>'
         );
         $docClear.removeClass('d-none');
     });

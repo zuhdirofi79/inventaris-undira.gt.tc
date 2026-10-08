@@ -76,9 +76,9 @@
                         name="supporting_document"
                         id="supporting_document"
                         class="form-control @error('supporting_document') is-invalid @enderror"
-                        accept="application/pdf,.pdf"
+                        accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
                     >
-                    <div class="form-text">Opsional. Format PDF, maksimal 5 MB.</div>
+                    <div class="form-text">Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB.</div>
                     <div id="supportingDocumentInfo" class="small mt-2 d-none"></div>
                     <div id="supportingDocumentClientError" class="invalid-feedback d-block d-none"></div>
                     @error('supporting_document')
@@ -339,6 +339,7 @@
     }
 
     function clearDocumentSelection() {
+        revokePreview();
         $docInput.val('');
         $docInfo.addClass('d-none').empty();
         $docError.addClass('d-none').text('');
@@ -346,14 +347,32 @@
         $docInput.removeClass('is-invalid');
     }
 
-    function validateDocumentFile(file) {
-        if (!file) return true;
+    var previewUrl = null;
+
+    function revokePreview() {
+        if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+            previewUrl = null;
+        }
+    }
+
+    function documentKind(file) {
         var name = (file.name || '').toLowerCase();
         var type = (file.type || '').toLowerCase();
-        var isPdfExt = name.endsWith('.pdf');
-        var isPdfMime = !type || type === 'application/pdf';
-        if (!isPdfExt || !isPdfMime) {
-            $docError.removeClass('d-none').text('File harus berformat PDF.');
+        var ext = name.indexOf('.') === -1 ? '' : name.split('.').pop();
+        if (ext === 'pdf') {
+            return (!type || type === 'application/pdf') ? 'pdf' : null;
+        }
+        if (ext === 'jpg' || ext === 'jpeg') {
+            return (!type || type === 'image/jpeg' || type === 'image/jpg' || type === 'image/pjpeg') ? 'image' : null;
+        }
+        return null;
+    }
+
+    function validateDocumentFile(file) {
+        if (!file) return true;
+        if (!documentKind(file)) {
+            $docError.removeClass('d-none').text('Format file harus PDF, JPG, atau JPEG.');
             $docInput.addClass('is-invalid');
             return false;
         }
@@ -379,9 +398,20 @@
             this.value = '';
             return;
         }
+        revokePreview();
+        var kind = documentKind(file);
+        var safeName = $('<div>').text(file.name).html();
+        var visual = '';
+        if (kind === 'image') {
+            previewUrl = URL.createObjectURL(file);
+            visual = '<img src="' + previewUrl + '" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)">';
+        } else {
+            visual = '<span class="d-inline-flex align-items-center justify-content-center" style="width:72px;height:72px;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)"><i class="fas fa-file-pdf fa-2x text-danger"></i></span>';
+        }
         $docInfo.removeClass('d-none').html(
-            '<div class="fw-semibold">' + $('<div>').text(file.name).html() + '</div>' +
-            '<div class="text-muted">' + formatSize(file.size) + ' · PDF valid</div>'
+            '<div class="d-flex align-items-center gap-2">' + visual +
+            '<div class="min-w-0"><div class="fw-semibold text-break">' + safeName + '</div>' +
+            '<div class="text-muted">' + formatSize(file.size) + '</div></div></div>'
         );
         $docClear.removeClass('d-none');
     });

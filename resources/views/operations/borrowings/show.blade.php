@@ -186,9 +186,17 @@ body.dark-mode .borrowing-decision .btn.is-selected.btn-outline-danger {
                         <th>Dokumen Pendukung</th>
                         <td>
                             @if($borrowing->hasSupportingDocument())
-                                <div class="fw-semibold">{{ $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf' }}</div>
-                                <div class="small text-muted mb-2">
-                                    {{ app(\App\Services\BorrowingSupportingDocumentService::class)->humanSize($borrowing->supporting_document_size) }}
+                                @php $docService = app(\App\Services\BorrowingSupportingDocumentService::class); @endphp
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    @if($docService->isImage($borrowing))
+                                        <img src="{{ route('borrowings.supporting-document.view', $borrowing) }}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)">
+                                    @else
+                                        <span class="d-inline-flex align-items-center justify-content-center" style="width:72px;height:72px;border-radius:6px;border:1px solid var(--bs-border-color,#dee2e6)"><i class="fas fa-file-pdf fa-2x text-danger"></i></span>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <div class="fw-semibold text-break">{{ $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf' }}</div>
+                                        <div class="small text-muted">{{ $docService->humanSize($borrowing->supporting_document_size) }}</div>
+                                    </div>
                                 </div>
                                 <div class="d-flex flex-wrap gap-2">
                                     <a href="{{ route('borrowings.supporting-document.view', $borrowing) }}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary" data-no-loader="1">
