@@ -391,7 +391,7 @@ body.dark-mode .borrowing-save-bar {
                                             <input type="text"
                                                    class="form-control form-control-sm js-reject-reason d-none"
                                                    maxlength="1000"
-                                                   placeholder="Alasan penolakan (opsional)"
+                                                   placeholder="Alasan penolakan"
                                                    aria-label="Alasan penolakan">
                                         </div>
                                     @endif
@@ -478,8 +478,9 @@ body.dark-mode .borrowing-save-bar {
 </div>
 
 @if($canApproveTx && $pendingLines->isNotEmpty())
+@push('modals')
 <div class="modal fade" id="saveApprovalModal" tabindex="-1" aria-labelledby="saveApprovalModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="saveApprovalModalLabel">Konfirmasi Approval</h5>
@@ -488,8 +489,8 @@ body.dark-mode .borrowing-save-bar {
             <div class="modal-body">
                 <p class="mb-2">Anda akan menyimpan keputusan untuk <strong id="saveApprovalTotal">0</strong> inventaris:</p>
                 <ul class="mb-3">
-                    <li><span class="text-success">✓ Disetujui:</span> <strong id="saveApprovalApprovedCount">0</strong></li>
-                    <li><span class="text-danger">✕ Ditolak:</span> <strong id="saveApprovalRejectedCount">0</strong></li>
+                    <li><span class="text-success">Disetujui:</span> <strong id="saveApprovalApprovedCount">0</strong></li>
+                    <li><span class="text-danger">Ditolak:</span> <strong id="saveApprovalRejectedCount">0</strong></li>
                 </ul>
                 <p class="mb-0">Apakah keputusan ini sudah benar?</p>
             </div>
@@ -502,8 +503,8 @@ body.dark-mode .borrowing-save-bar {
         </div>
     </div>
 </div>
-<div class="modal fade" id="rejectItemModal" tabindex="-1" aria-labelledby="rejectItemModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
+<div class="modal fade" id="rejectItemModal" tabindex="-1" aria-labelledby="rejectItemModalLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title" id="rejectItemModalLabel">Tolak Inventaris</h5>
@@ -513,8 +514,9 @@ body.dark-mode .borrowing-save-bar {
                 <p class="mb-1"><strong>Nomor inventaris:</strong> <span id="rejectItemNumber">—</span></p>
                 <p class="mb-3"><strong>Nama barang:</strong> <span id="rejectItemName">—</span></p>
                 <label class="form-label" for="rejectItemReason">Alasan Penolakan <span class="text-danger">*</span></label>
-                <textarea id="rejectItemReason" class="form-control" rows="3" maxlength="1000" required></textarea>
-                <div id="rejectItemReasonError" class="text-danger small mt-2 d-none">Alasan penolakan wajib diisi.</div>
+                <textarea id="rejectItemReason" class="form-control" rows="3" maxlength="1000" aria-required="true" placeholder="Masukkan alasan penolakan"></textarea>
+                <div id="rejectItemReasonError" class="invalid-feedback">Alasan penolakan wajib diisi.</div>
+                <div class="form-text">Isi alasan, lalu klik Tolak Inventaris. Keputusan baru masuk ke database setelah Simpan Approval.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
@@ -525,6 +527,7 @@ body.dark-mode .borrowing-save-bar {
         </div>
     </div>
 </div>
+@endpush
 @endif
 
 @if($canHandover)
@@ -718,7 +721,7 @@ body.dark-mode .borrowing-save-bar {
                     if (rejectReasonInput) {
                         rejectReasonInput.value = current && btn.classList.contains('is-selected') ? current.value : '';
                     }
-                    if (rejectReasonError) rejectReasonError.classList.add('d-none');
+                    if (rejectReasonInput) rejectReasonInput.classList.remove('is-invalid');
                     bootstrap.Modal.getOrCreateInstance(rejectModalEl).show();
                     return;
                 }
@@ -729,20 +732,42 @@ body.dark-mode .borrowing-save-bar {
 
     refreshSaveState();
 
+    function showRejectReasonError() {
+        if (rejectReasonInput) {
+            rejectReasonInput.classList.add('is-invalid');
+            rejectReasonInput.focus();
+        }
+        if (rejectReasonError) {
+            rejectReasonError.textContent = 'Alasan penolakan wajib diisi.';
+        }
+        if (confirmRejectBtn) confirmRejectBtn.disabled = false;
+    }
+
+    if (rejectReasonInput) {
+        rejectReasonInput.addEventListener('input', function () {
+            if (rejectReasonInput.value.trim() !== '') {
+                rejectReasonInput.classList.remove('is-invalid');
+            }
+        });
+    }
+
     if (confirmRejectBtn && rejectModalEl) {
         confirmRejectBtn.addEventListener('click', function () {
             if (!pendingReject) return;
             var reason = rejectReasonInput ? rejectReasonInput.value.trim() : '';
             if (reason === '') {
-                if (rejectReasonError) rejectReasonError.classList.remove('d-none');
-                if (rejectReasonInput) rejectReasonInput.focus();
+                showRejectReasonError();
                 return;
             }
+            confirmRejectBtn.disabled = true;
             var hidden = pendingReject.row.querySelector('.js-reject-reason');
             if (hidden) hidden.value = reason;
             applyDecision(pendingReject.row, pendingReject.btn);
             pendingReject = null;
             bootstrap.Modal.getOrCreateInstance(rejectModalEl).hide();
+        });
+        rejectModalEl.addEventListener('hidden.bs.modal', function () {
+            confirmRejectBtn.disabled = false;
         });
     }
 

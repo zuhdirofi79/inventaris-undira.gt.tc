@@ -312,10 +312,19 @@ class BorrowingBatchApprovalTest extends TestCase
         $this->assertStringContainsString('btn btn-danger btn-sm js-decide-btn', $html);
         $this->assertStringContainsString('id="openSaveApprovalModal"', $html);
         $this->assertStringContainsString('id="rejectItemModal"', $html);
+        $this->assertStringContainsString('id="confirmRejectItem"', $html);
+        $this->assertStringContainsString('type="button" class="btn btn-danger" id="confirmRejectItem"', $html);
+        $this->assertStringNotContainsString('id="rejectItemReason" class="form-control" rows="3" maxlength="1000" required', $html);
+        $this->assertStringContainsString('Alasan penolakan wajib diisi.', $html);
         $this->assertStringContainsString('Tolak Inventaris', $html);
         $this->assertStringContainsString('Ringkasan Keputusan', $html);
         $this->assertStringContainsString('Belum Diproses', $html);
         $this->assertStringContainsString('Dipilih: Setujui (Belum Disimpan)', $html);
+        $footerAt = strpos($html, 'main-footer');
+        $modalAt = strpos($html, 'id="rejectItemModal"');
+        $this->assertNotFalse($footerAt);
+        $this->assertNotFalse($modalAt);
+        $this->assertGreaterThan($footerAt, $modalAt);
     }
 
     public function test_one_approved_and_four_rejected_keeps_transaction_approved(): void
