@@ -161,6 +161,12 @@ body.dark-mode .borrowing-save-bar {
     @endif
 </x-page-header>
 
+@if($errors->has('item') || $errors->has('borrowed_at') || $errors->has('inventory_item_id') || $errors->has('status'))
+    <div class="alert alert-danger" role="alert">
+        {{ $errors->first('borrowed_at') ?: ($errors->first('item') ?: ($errors->first('inventory_item_id') ?: $errors->first('status'))) }}
+    </div>
+@endif
+
 <div class="row">
     <div class="col-lg-6">
         <div class="card card-undira mb-4">
@@ -530,20 +536,24 @@ body.dark-mode .borrowing-save-bar {
 @endpush
 @endif
 
+@endsection
+
 @if($canHandover)
-<div class="modal fade" id="handoverItemModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content js-once-submit" id="handoverItemForm">
+@push('modals')
+<div class="modal fade" id="handoverItemModal" tabindex="-1" aria-labelledby="handoverItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="" class="modal-content js-once-submit" id="handoverItemForm">
             @csrf
             <div class="modal-header">
-                <h5 class="modal-title">Tandai Dipinjam</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="handoverItemModalLabel">Tandai Dipinjam</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-1"><strong>Nomor Inventaris:</strong> <span id="handoverItemNumber">—</span></p>
-                <p class="mb-3"><strong>Nama:</strong> <span id="handoverItemName">—</span></p>
-                <label class="form-label" for="handoverBorrowedAt">Tanggal Peminjaman Aktual</label>
-                <input type="datetime-local" name="borrowed_at" id="handoverBorrowedAt" class="form-control" value="{{ $nowLocal }}">
+                <p class="mb-3"><strong>Nama Barang:</strong> <span id="handoverItemName">—</span></p>
+                <label class="form-label" for="handoverBorrowedAt">Tanggal &amp; Jam Peminjaman Aktual <span class="text-danger">*</span></label>
+                <input type="datetime-local" name="borrowed_at" id="handoverBorrowedAt" class="form-control" value="{{ $nowLocal }}" aria-describedby="handoverBorrowedAtError">
+                <div id="handoverBorrowedAtError" class="invalid-feedback">Tanggal dan jam peminjaman aktual wajib diisi.</div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Batal</button>
@@ -552,22 +562,24 @@ body.dark-mode .borrowing-save-bar {
         </form>
     </div>
 </div>
+@endpush
 @endif
 
 @if($canReturn)
-<div class="modal fade" id="returnItemModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="POST" class="modal-content js-once-submit" id="returnItemForm">
+@push('modals')
+<div class="modal fade" id="returnItemModal" tabindex="-1" aria-labelledby="returnItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <form method="POST" action="" class="modal-content js-once-submit" id="returnItemForm">
             @csrf
             <input type="hidden" name="item_ids[]" id="returnItemId" value="">
             <div class="modal-header">
-                <h5 class="modal-title">Tandai Dikembalikan</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <h5 class="modal-title" id="returnItemModalLabel">Tandai Dikembalikan</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Tutup"></button>
             </div>
             <div class="modal-body">
                 <p class="mb-1"><strong>Nomor Inventaris:</strong> <span id="returnItemNumber">—</span></p>
-                <p class="mb-3"><strong>Nama:</strong> <span id="returnItemName">—</span></p>
-                <label class="form-label" for="returnReturnedAt">Tanggal Pengembalian Aktual</label>
+                <p class="mb-3"><strong>Nama Barang:</strong> <span id="returnItemName">—</span></p>
+                <label class="form-label" for="returnReturnedAt">Tanggal &amp; Jam Pengembalian Aktual</label>
                 <input type="datetime-local" name="returned_at" id="returnReturnedAt" class="form-control" value="{{ $nowLocal }}">
             </div>
             <div class="modal-footer">
@@ -577,14 +589,29 @@ body.dark-mode .borrowing-save-bar {
         </form>
     </div>
 </div>
+@endpush
 @endif
-@endsection
 
 @push('scripts')
 <script>
 (function () {
     document.querySelectorAll('form.js-once-submit').forEach(function (form) {
-        form.addEventListener('submit', function () {
+        form.addEventListener('submit', function (event) {
+            if (form.id === 'handoverItemForm') {
+                var borrowedAt = document.getElementById('handoverBorrowedAt');
+                if (!form.getAttribute('action')) {
+                    event.preventDefault();
+                    return;
+                }
+                if (!borrowedAt || borrowedAt.value.trim() === '') {
+                    event.preventDefault();
+                    if (borrowedAt) {
+                        borrowedAt.classList.add('is-invalid');
+                        borrowedAt.focus();
+                    }
+                    return;
+                }
+            }
             var btn = form.querySelector('button[type="submit"]');
             if (!btn || btn.disabled) return;
             btn.disabled = true;
@@ -606,6 +633,13 @@ body.dark-mode .borrowing-save-bar {
         document.getElementById('handoverItemForm').action = button.getAttribute('data-handover-url') || '';
         document.getElementById('handoverItemNumber').textContent = button.getAttribute('data-item-number') || '—';
         document.getElementById('handoverItemName').textContent = button.getAttribute('data-item-name') || '—';
+        var borrowedAt = document.getElementById('handoverBorrowedAt');
+        if (!borrowedAt) return;
+        borrowedAt.classList.remove('is-invalid');
+        var now = new Date();
+        var pad = function (n) { return String(n).padStart(2, '0'); };
+        borrowedAt.value = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+            + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes());
     });
 
     bindModal('returnItemModal', function (button) {

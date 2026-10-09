@@ -51,12 +51,16 @@ class BorrowingReceiptService
     public function receiptPayload(Borrowing $borrowing): array
     {
         $borrowing->loadMissing([
-            'items.inventoryItem.category',
-            'items.inventoryItem.subCategory',
-            'items.inventoryItem.room.floor.building.campus',
-            'inventoryItem.category',
-            'inventoryItem.subCategory',
-            'inventoryItem.room.floor.building.campus',
+            'items.inventoryItem' => fn ($query) => $query->withTrashed()->with([
+                'category',
+                'subCategory',
+                'room.floor.building.campus',
+            ]),
+            'inventoryItem' => fn ($query) => $query->withTrashed()->with([
+                'category',
+                'subCategory',
+                'room.floor.building.campus',
+            ]),
             'approvedBy',
             'requestedBy',
         ]);

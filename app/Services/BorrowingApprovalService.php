@@ -420,14 +420,32 @@ class BorrowingApprovalService
 
             $at = $borrowedAt ?? now();
 
-            $line->update([
-                'status' => BorrowingItemStatus::Dipinjam,
-                'borrowed_at' => $at,
-            ]);
+            $claimed = BorrowingItem::query()
+                ->whereKey($line->id)
+                ->where('borrowing_id', $locked->id)
+                ->where('status', BorrowingItemStatus::Disetujui->value)
+                ->update(['status' => BorrowingItemStatus::Dipinjam->value]);
 
-            InventoryItem::query()
+            if ($claimed !== 1) {
+                throw ValidationException::withMessages([
+                    'item' => 'Inventaris ini sudah diserahkan atau statusnya sudah berubah.',
+                ]);
+            }
+
+            $handedOver = BorrowingItem::query()->whereKey($line->id)->firstOrFail();
+            $handedOver->borrowed_at = $at;
+            $handedOver->save();
+
+            $inventoryUpdated = InventoryItem::query()
                 ->whereKey($line->inventory_item_id)
-                ->update(['status' => InventoryStatus::Dipinjam]);
+                ->where('status', InventoryStatus::Aktif->value)
+                ->update(['status' => InventoryStatus::Dipinjam->value]);
+
+            if ($inventoryUpdated !== 1) {
+                throw ValidationException::withMessages([
+                    'inventory_item_id' => 'Inventaris tidak dapat diserahkan karena status operasionalnya bukan Aktif.',
+                ]);
+            }
 
             if ($locked->status === BorrowingStatus::Disetujui) {
                 $locked->update(['status' => BorrowingStatus::Dipinjam]);

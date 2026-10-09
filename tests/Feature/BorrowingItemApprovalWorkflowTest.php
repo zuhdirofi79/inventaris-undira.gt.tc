@@ -256,6 +256,147 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_handover_stores_actual_datetime_and_rejects_a_second_attempt(): void
+    {
+        $requester = $this->makeStaff(['email' => 'staff-hand@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-hand@undira.ac.id']);
+        [$borrowing, $line, $item] = $this->approvedLine($requester, $admin, 'Pulpen Serah');
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.show', $borrowing))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('Tandai Dipinjam', $html);
+        $this->assertStringContainsString('Serahkan Barang', $html);
+        $this->assertStringContainsString('datetime-local', $html);
+        $this->assertGreaterThan(strpos($html, 'main-footer'), strpos($html, 'id="handoverItemModal"'));
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $borrowing))
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => '',
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHasErrors('borrowed_at');
+        $this->assertSame(BorrowingItemStatus::Disetujui, $line->fresh()->status);
+        $this->assertNull($line->fresh()->borrowed_at);
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $borrowing))
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => 'bukan-tanggal',
+            ])
+            ->assertRedirect(route('borrowings.show', $borrowing))
+            ->assertSessionHasErrors('borrowed_at');
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => '2026-10-09T11:26',
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $fresh = $line->fresh();
+        $this->assertSame(BorrowingItemStatus::Dipinjam, $fresh->status);
+        $this->assertSame('2026-10-09 11:26', $fresh->borrowed_at?->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+        $this->assertSame(InventoryStatus::Dipinjam, $item->fresh()->status);
+        $this->assertSame(BorrowingStatus::Dipinjam, $borrowing->fresh()->status);
+
+        $after = $this->actingAs($admin)
+            ->get(route('borrowings.show', $borrowing))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringContainsString('09/10/2026 11:26', $after);
+        $this->assertStringNotContainsString('data-bs-target="#handoverItemModal"', $after);
+        $this->assertStringContainsString('Tandai Dikembalikan', $after);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => '2026-10-09T18:00',
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('item');
+        $this->assertSame('2026-10-09 11:26', $line->fresh()->borrowed_at?->timezone(config('app.timezone'))->format('Y-m-d H:i'));
+    }
+
+    public function test_handover_rejects_pending_foreign_unauthorized_and_non_active_inventory(): void
+    {
+        $requester = $this->makeStaff(['email' => 'staff-hand-guard@undira.ac.id']);
+        $admin = $this->makeAdmin(['email' => 'admin-hand-guard@undira.ac.id']);
+        [$borrowing, $line] = $this->approvedLine($requester, $admin, 'Pulpen Guard');
+        $line->update(['status' => BorrowingItemStatus::MenungguPersetujuan]);
+        $borrowing->update(['status' => BorrowingStatus::MenungguPersetujuan]);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.items.handover', [$borrowing, $line]), [
+                'borrowed_at' => '2026-10-09T11:26',
+            ])
+            ->assertForbidden();
+        $this->assertSame(BorrowingItemStatus::MenungguPersetujuan, $line->fresh()->status);
+
+        [$approvedBorrowing, $approvedLine, $approvedItem] = $this->approvedLine($requester, $admin, 'Pulpen Aktif');
+        [$otherBorrowing, $otherLine] = $this->approvedLine($requester, $admin, 'Pulpen Lain');
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $approvedBorrowing))
+            ->post(route('borrowings.items.handover', [$approvedBorrowing, $otherLine]), [
+                'borrowed_at' => '2026-10-09T11:26',
+            ])
+            ->assertRedirect(route('borrowings.show', $approvedBorrowing))
+            ->assertSessionHasErrors('item');
+        $this->assertSame(BorrowingItemStatus::Disetujui, $otherLine->fresh()->status);
+
+        $this->actingAs($requester)
+            ->post(route('borrowings.items.handover', [$approvedBorrowing, $approvedLine]), [
+                'borrowed_at' => '2026-10-09T11:26',
+            ])
+            ->assertForbidden();
+
+        $approvedItem->update(['status' => InventoryStatus::Maintenance]);
+        $this->actingAs($admin)
+            ->from(route('borrowings.show', $approvedBorrowing))
+            ->post(route('borrowings.items.handover', [$approvedBorrowing, $approvedLine]), [
+                'borrowed_at' => '2026-10-09T11:26',
+            ])
+            ->assertRedirect(route('borrowings.show', $approvedBorrowing))
+            ->assertSessionHasErrors('inventory_item_id');
+        $this->assertSame(BorrowingItemStatus::Disetujui, $approvedLine->fresh()->status);
+        $this->assertNull($approvedLine->fresh()->borrowed_at);
+        $this->assertSame(InventoryStatus::Maintenance, $approvedItem->fresh()->status);
+        $this->assertSame(BorrowingStatus::Disetujui, $approvedBorrowing->fresh()->status);
+    }
+
+    /**
+     * @return array{0: Borrowing, 1: BorrowingItem, 2: InventoryItem}
+     */
+    protected function approvedLine($requester, $admin, string $name): array
+    {
+        $item = $this->makeItem([
+            'inventory_number' => 'CBB-HAND-'.uniqid(),
+            'name' => $name,
+        ]);
+        $borrowing = Borrowing::query()->create([
+            'inventory_item_id' => $item->id,
+            'borrower_name' => 'Peminjam Serah',
+            'borrower_email' => 'serah@undira.ac.id',
+            'borrow_date' => '2026-10-09',
+            'expected_return_date' => '2026-10-10',
+            'status' => BorrowingStatus::Disetujui,
+            'approval_number' => 'APR-'.now()->format('Ymd').'-'.random_int(100000, 999999),
+            'requested_by' => $requester->id,
+            'approved_by' => $admin->id,
+            'approved_at' => now(),
+        ]);
+        $line = BorrowingItem::query()->create([
+            'borrowing_id' => $borrowing->id,
+            'inventory_item_id' => $item->id,
+            'qty' => 1,
+            'status' => BorrowingItemStatus::Disetujui,
+        ]);
+
+        return [$borrowing, $line, $item];
+    }
+
     protected function makeItem(array $overrides = []): InventoryItem
     {
         $suffix = uniqid();

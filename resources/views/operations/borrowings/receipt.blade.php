@@ -20,9 +20,23 @@
         table.info { width: 100%; border-collapse: collapse; margin-top: 8px; }
         table.info th, table.info td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
         table.info th { width: 35%; background: #f8fafc; color: #475569; }
-        table.items { width: 100%; border-collapse: collapse; margin-top: 16px; }
-        table.items th, table.items td { border: 1px solid #e2e8f0; padding: 6px 8px; text-align: left; font-size: 11px; }
-        table.items th { background: #f8fafc; color: #475569; }
+        table.items { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
+        table.items th, table.items td { border: 1px solid #cbd5e1; padding: 4px 5px; text-align: left; font-size: 9px; line-height: 1.35; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
+        table.items th { background: #f8fafc; color: #475569; font-weight: 700; }
+        table.items thead { display: table-header-group; }
+        table.items .c-no { width: 5%; }
+        table.items .c-number { width: 22%; }
+        table.items .c-name { width: 15%; }
+        table.items .c-cat { width: 12%; }
+        table.items .c-sub { width: 11%; }
+        table.items .c-loc { width: 22%; }
+        table.items .c-status { width: 13%; }
+        .summary { margin-top: 14px; font-size: 11px; }
+        .st-ok, .st-no, .st-wait, .st-unknown { font-weight: 700; }
+        .st-ok { color: #166534; }
+        .st-no { color: #991b1b; }
+        .st-wait { color: #92400e; }
+        .st-unknown { color: #334155; }
         .footer { margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
         .qr { text-align: center; }
         .qr img { width: 120px; height: 120px; }
@@ -69,28 +83,72 @@
     <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?: '—' }}</td></tr>
 </table>
 
-@if($items && $items->count())
+@php
+    use App\Enums\BorrowingItemStatus;
+    $receiptLines = $items && $items->count() ? $items : collect();
+    $approvalOf = function ($line): array {
+        return match ($line->status) {
+            BorrowingItemStatus::MenungguPersetujuan => ['Menunggu', 'st-wait'],
+            BorrowingItemStatus::Disetujui,
+            BorrowingItemStatus::Dipinjam,
+            BorrowingItemStatus::Dikembalikan => ['Disetujui', 'st-ok'],
+            BorrowingItemStatus::Ditolak => ['Ditolak', 'st-no'],
+            default => ['Tidak Tersedia', 'st-unknown'],
+        };
+    };
+    $approvalCounts = ['Disetujui' => 0, 'Ditolak' => 0, 'Menunggu' => 0, 'Tidak Tersedia' => 0];
+    foreach ($receiptLines as $line) {
+        $approvalCounts[$approvalOf($line)[0]]++;
+    }
+@endphp
+@if($receiptLines->isNotEmpty())
+<p class="summary">
+    <strong>Ringkasan Persetujuan.</strong>
+    Jumlah Item: {{ $receiptLines->count() }}.
+    Disetujui: {{ $approvalCounts['Disetujui'] }}.
+    Ditolak: {{ $approvalCounts['Ditolak'] }}.
+    @if($approvalCounts['Menunggu'] > 0)
+        Menunggu: {{ $approvalCounts['Menunggu'] }}.
+    @endif
+    @if($approvalCounts['Tidak Tersedia'] > 0)
+        Tidak Tersedia: {{ $approvalCounts['Tidak Tersedia'] }}.
+    @endif
+</p>
 <table class="items">
+    <colgroup>
+        <col class="c-no">
+        <col class="c-number">
+        <col class="c-name">
+        <col class="c-cat">
+        <col class="c-sub">
+        <col class="c-loc">
+        <col class="c-status">
+    </colgroup>
     <thead>
         <tr>
-            <th>No</th>
-            <th>Nomor Inventaris</th>
-            <th>Nama Barang</th>
-            <th>Kategori</th>
-            <th>Sub Kategori</th>
-            <th>Lokasi</th>
+            <th class="c-no">No</th>
+            <th class="c-number">Nomor Inventaris</th>
+            <th class="c-name">Nama Barang</th>
+            <th class="c-cat">Kategori</th>
+            <th class="c-sub">Sub Kategori</th>
+            <th class="c-loc">Lokasi</th>
+            <th class="c-status">Status Persetujuan</th>
         </tr>
     </thead>
     <tbody>
-        @foreach($items as $i => $line)
-            @php $inv = $line->inventoryItem; @endphp
+        @foreach($receiptLines as $i => $line)
+            @php
+                $inv = $line->inventoryItem;
+                [$approvalLabel, $approvalClass] = $approvalOf($line);
+            @endphp
             <tr>
-                <td>{{ $i + 1 }}</td>
-                <td>{{ $inv?->inventory_number ?? '—' }}</td>
-                <td>{{ $inv?->name ?? '—' }}</td>
-                <td>{{ $inv?->category?->name ?? '—' }}</td>
-                <td>{{ $inv?->subCategory?->name ?? '—' }}</td>
-                <td>{{ $inv?->full_location ?? $inv?->locationDisplayName() ?? '—' }}</td>
+                <td class="c-no">{{ $i + 1 }}</td>
+                <td class="c-number">{{ $inv?->inventory_number ?? '—' }}</td>
+                <td class="c-name">{{ $inv?->name ?? '—' }}</td>
+                <td class="c-cat">{{ $inv?->category?->name ?? '—' }}</td>
+                <td class="c-sub">{{ $inv?->subCategory?->name ?? '—' }}</td>
+                <td class="c-loc">{{ $inv?->full_location ?? $inv?->locationDisplayName() ?? '—' }}</td>
+                <td class="c-status {{ $approvalClass }}">{{ $approvalLabel }}</td>
             </tr>
         @endforeach
     </tbody>
@@ -102,6 +160,7 @@
     <tr><th>Kategori</th><td>{{ $item->category?->name ?? '—' }}</td></tr>
     <tr><th>Subkategori</th><td>{{ $item->subCategory?->name ?? '—' }}</td></tr>
     <tr><th>Lokasi</th><td>{{ $item->full_location ?? $item->locationDisplayName() ?? '—' }}</td></tr>
+    <tr><th>Status Persetujuan</th><td>Tidak Tersedia</td></tr>
 </table>
 @endif
 

@@ -138,9 +138,10 @@ class DashboardPhase5Test extends TestCase
             ->getContent();
 
         $this->assertStringContainsString('Lihat Inventaris', $html);
+        $this->assertStringContainsString('Pinjam Inventaris', $html);
+        $this->assertStringContainsString(route('borrowings.create'), $html);
         $this->assertStringNotContainsString('Tambah Inventaris', $html);
-        $this->assertStringNotContainsString('route(\'borrowings.create\')', $html);
-        $this->assertStringNotContainsString(route('borrowings.create'), $html);
+        $this->assertStringNotContainsString(route('inventory.create'), $html);
     }
 
     /**

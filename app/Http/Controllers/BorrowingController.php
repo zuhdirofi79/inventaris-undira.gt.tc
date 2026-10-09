@@ -16,6 +16,7 @@ use App\Http\Requests\UpdateBorrowingRequest;
 use App\Models\Borrowing;
 use App\Models\BorrowingItem;
 use App\Models\Campus;
+use App\Policies\BorrowingPolicy;
 use Carbon\Carbon;
 use App\Services\AuditLogService;
 use App\Services\BorrowingApprovalService;
@@ -70,9 +71,9 @@ class BorrowingController extends Controller
                         });
                 });
             })
-            // Viewer/peminjam: hanya riwayat miliknya (requested_by).
+            // Viewer: hanya transaksi yang requested_by-nya user ini. Bukan filter nama/email.
             ->when(
-                $user && $user->hasRole('viewer') && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']),
+                $user && app(BorrowingPolicy::class)->limitsToOwnRecords($user),
                 fn ($q) => $q->where('requested_by', $user->id)
             )
             ->latest()
@@ -91,6 +92,8 @@ class BorrowingController extends Controller
 
     public function create(Request $request): View
     {
+        $this->authorize('create', Borrowing::class);
+
         $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
         $selectedDetail = $selectedId > 0 ? $this->inventorySearch->detail($selectedId) : null;
 
@@ -139,6 +142,8 @@ class BorrowingController extends Controller
 
     public function show(Borrowing $borrowing): View
     {
+        $this->authorize('view', $borrowing);
+
         $borrowing->load([
             'items.inventoryItem.category',
             'items.inventoryItem.subCategory',
@@ -404,7 +409,7 @@ class BorrowingController extends Controller
         BorrowingItem $borrowingItem,
     ): RedirectResponse {
         $borrowedAt = $request->filled('borrowed_at')
-            ? Carbon::parse((string) $request->input('borrowed_at'))
+            ? Carbon::parse((string) $request->input('borrowed_at'), (string) config('app.timezone'))
             : null;
 
         $borrowing = $this->approval->handoverItem(
@@ -433,6 +438,7 @@ class BorrowingController extends Controller
 
     public function receipt(Borrowing $borrowing): View|RedirectResponse
     {
+        $this->authorize('view', $borrowing);
         abort_unless($borrowing->approval_number, 404);
 
         return view('operations.borrowings.receipt', [
@@ -444,6 +450,7 @@ class BorrowingController extends Controller
 
     public function receiptPdf(Borrowing $borrowing): Response
     {
+        $this->authorize('view', $borrowing);
         abort_unless($borrowing->approval_number, 404);
 
         $payload = $this->receipts->receiptPayload($borrowing);

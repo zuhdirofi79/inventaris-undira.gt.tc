@@ -16,7 +16,25 @@ class BorrowingPolicy
 
     public function view(User $user, Borrowing $borrowing): bool
     {
-        return $user->can('borrowing.view');
+        if (! $user->can('borrowing.view')) {
+            return false;
+        }
+
+        if (! $this->limitsToOwnRecords($user)) {
+            return true;
+        }
+
+        return (int) $borrowing->requested_by === (int) $user->id;
+    }
+
+    /**
+     * Viewer melihat dan mengunduh hanya transaksi yang ia ajukan.
+     * Staff, admin, dan super-admin tetap mengikuti permission masing-masing.
+     */
+    public function limitsToOwnRecords(User $user): bool
+    {
+        return $user->hasRole('viewer')
+            && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']);
     }
 
     public function create(User $user): bool
