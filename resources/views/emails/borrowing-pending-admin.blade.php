@@ -6,8 +6,8 @@ Halo **{{ $admin->name }}**,
 Ada pengajuan peminjaman inventaris baru yang menunggu persetujuan.
 
 **Peminjam:** {{ $borrowing->borrower_name }}  
-**Tanggal Pinjam:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '-' }}  
-**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}  
+**Tanggal Pinjam:** {{ $borrowing->plannedScheduleText('borrow_date') }}
+**Tanggal Kembali:** {{ $borrowing->plannedScheduleText('expected_return_date') }}
 **Diajukan Oleh:** {{ $borrowing->requestedBy?->name ?? '-' }}  
 **Jumlah Item:** {{ isset($items) ? $items->count() : ($item ? 1 : 0) }}
 

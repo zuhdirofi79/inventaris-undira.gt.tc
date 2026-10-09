@@ -65,7 +65,7 @@
                     <td>PIN-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
                     <td>{{ $item?->name }} ({{ $item?->inventory_number }})</td>
-                    <td>{{ $b->borrow_date?->format('d/m/Y') }}</td>
+                    <td>{{ $b->plannedScheduleDate('borrow_date') }}@if($b->plannedScheduleTime('borrow_date')) {{ $b->plannedScheduleTime('borrow_date') }}@endif</td>
                     <td>{{ $b->return_date?->format('d/m/Y') ?? '—' }}</td>
                     <td>{{ $b->status?->label() }}</td>
                     <td>{{ $b->approvedBy?->name ?? '—' }}</td>

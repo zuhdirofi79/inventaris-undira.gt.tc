@@ -55,13 +55,25 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Tgl Pinjam</label>
-                    <input type="date" name="borrow_date" class="form-control" value="{{ old('borrow_date', $borrowing->borrow_date?->format('Y-m-d')) }}">
+                <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label" for="borrow_date">Tanggal &amp; Jam Pinjam</label>
+                    <input type="datetime-local" step="60" id="borrow_date" name="borrow_date" class="form-control @error('borrow_date') is-invalid @enderror" value="{{ old('borrow_date', $borrowing->plannedInputValue('borrow_date')) }}">
+                    @error('borrow_date')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                    @unless($borrowing->hasPlannedTime('borrow_date'))
+                        <div class="form-text">Jadwal lama tersimpan tanpa jam. Pilih jam dan menit sebelum menyimpan.</div>
+                    @endunless
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Tgl Kembali (Rencana)</label>
-                    <input type="date" name="expected_return_date" class="form-control" value="{{ old('expected_return_date', $borrowing->expected_return_date?->format('Y-m-d')) }}">
+                <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label" for="expected_return_date">Tanggal &amp; Jam Kembali (Rencana)</label>
+                    <input type="datetime-local" step="60" id="expected_return_date" name="expected_return_date" class="form-control @error('expected_return_date') is-invalid @enderror" value="{{ old('expected_return_date', $borrowing->plannedInputValue('expected_return_date')) }}">
+                    @error('expected_return_date')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
+                    @unless($borrowing->hasPlannedTime('expected_return_date'))
+                        <div class="form-text">Jadwal lama tersimpan tanpa jam. Pilih jam dan menit sebelum menyimpan.</div>
+                    @endunless
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Tgl Kembali (Aktual)</label>

@@ -137,8 +137,8 @@
                         </td>
                         <td>{{ $count ?: ($borrowing->inventoryItem ? 1 : 0) }}</td>
                         <td>{{ $borrowing->borrower_name }}<br><small class="text-muted">{{ $borrowing->borrower_email }}</small></td>
-                        <td>{{ $borrowing->borrow_date?->format('d/m/Y') }}</td>
-                        <td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}</td>
+                        <td>{{ $borrowing->plannedScheduleDate('borrow_date') }}@if($borrowing->plannedScheduleTime('borrow_date'))<br><span class="small text-muted">{{ $borrowing->plannedScheduleTime('borrow_date') }}</span>@endif</td>
+                        <td>{{ $borrowing->plannedScheduleDate('expected_return_date') }}@if($borrowing->plannedScheduleTime('expected_return_date'))<br><span class="small text-muted">{{ $borrowing->plannedScheduleTime('expected_return_date') }}</span>@endif</td>
                         <td>
                             <span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span>
                         </td>

@@ -25,9 +25,9 @@ class UpdateBorrowingRequest extends FormRequest
             'borrower_name' => ['sometimes', 'required', 'string', 'max:255'],
             'borrower_email' => ['nullable', 'email', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', 'regex:/^(?:\+62|62|0)[\s.\-]*8[1-9](?:[\s.\-]*[0-9]){6,11}$/'],
-            'borrow_date' => ['sometimes', 'required', 'date'],
+            'borrow_date' => ['sometimes', 'required', 'date_format:Y-m-d\TH:i'],
             'return_date' => ['nullable', 'date'],
-            'expected_return_date' => ['sometimes', 'required', 'date'],
+            'expected_return_date' => ['sometimes', 'required', 'date_format:Y-m-d\TH:i', 'after:borrow_date'],
             'status' => ['sometimes', 'required', Rule::enum(BorrowingStatus::class)],
             'notes' => ['required', 'string'],
             'supporting_document' => [
@@ -56,6 +56,11 @@ class UpdateBorrowingRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'borrow_date.required' => 'Tanggal dan jam pinjam wajib diisi.',
+            'borrow_date.date_format' => 'Tanggal dan jam pinjam tidak valid.',
+            'expected_return_date.required' => 'Tanggal dan jam kembali wajib diisi.',
+            'expected_return_date.date_format' => 'Tanggal dan jam kembali tidak valid.',
+            'expected_return_date.after' => 'Tanggal dan jam pengembalian harus setelah tanggal dan jam peminjaman.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
             'notes.required' => 'Keperluan wajib diisi.',

@@ -192,8 +192,8 @@ body.dark-mode .borrowing-save-bar {
                             @endif
                         </td>
                     </tr>
-                    <tr><th>Tgl Pinjam (Rencana)</th><td>{{ $borrowing->borrow_date?->format('d/m/Y') }}</td></tr>
-                    <tr><th>Tgl Kembali (Rencana)</th><td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}</td></tr>
+                    <tr><th>Tgl Pinjam (Rencana)</th><td>{{ $borrowing->plannedScheduleText('borrow_date') }}</td></tr>
+                    <tr><th>Tgl Kembali (Rencana)</th><td>{{ $borrowing->plannedScheduleText('expected_return_date') }}</td></tr>
                     <tr><th>Tgl Kembali (Aktual Header)</th><td>{{ $borrowing->return_date?->format('d/m/Y') ?? '-' }}</td></tr>
                     <tr>
                         <th>Status Transaksi</th>

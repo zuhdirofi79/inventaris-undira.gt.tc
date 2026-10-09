@@ -54,13 +54,19 @@
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Tanggal Pinjam <span class="text-danger">*</span></label>
-                    <input type="date" name="borrow_date" class="form-control" value="{{ old('borrow_date', date('Y-m-d')) }}" required>
+                <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label" for="borrow_date">Tanggal &amp; Jam Pinjam <span class="text-danger">*</span></label>
+                    <input type="datetime-local" step="60" id="borrow_date" name="borrow_date" class="form-control @error('borrow_date') is-invalid @enderror" value="{{ old('borrow_date', now()->format('Y-m-d\TH:i')) }}" required>
+                    @error('borrow_date')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Tanggal Kembali <span class="text-danger">*</span></label>
-                    <input type="date" name="expected_return_date" class="form-control" value="{{ old('expected_return_date') }}" required>
+                <div class="col-12 col-md-6 mb-3">
+                    <label class="form-label" for="expected_return_date">Tanggal &amp; Jam Kembali <span class="text-danger">*</span></label>
+                    <input type="datetime-local" step="60" id="expected_return_date" name="expected_return_date" class="form-control @error('expected_return_date') is-invalid @enderror" value="{{ old('expected_return_date') }}" required>
+                    @error('expected_return_date')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="col-12 mb-0">
                     <label class="form-label">Keperluan <span class="text-danger">*</span></label>

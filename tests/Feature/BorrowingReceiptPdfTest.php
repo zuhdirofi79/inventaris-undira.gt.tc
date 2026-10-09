@@ -211,6 +211,73 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertDoesNotMatchRegularExpression('/<td class="c-status[^"]*">(?:Dipinjam|Dikembalikan)<\/td>/', $physicalHtml);
     }
 
+    public function test_signature_block_is_aligned_once_and_does_not_invent_an_officer(): void
+    {
+        Mail::fake();
+
+        $admin = $this->makeAdmin(['name' => 'Bukan Petugas PPPA', 'email' => 'admin-sign@undira.ac.id']);
+        [$short] = $this->makeReceiptBorrowing($admin, [
+            [BorrowingItemStatus::Disetujui, 'CBB-SIGN-1-'.uniqid(), 'Barang Satu', 'Kampus'],
+            [BorrowingItemStatus::Ditolak, 'CBB-SIGN-2-'.uniqid(), 'Barang Dua', 'Kampus'],
+            [BorrowingItemStatus::Disetujui, 'CBB-SIGN-3-'.uniqid(), 'Barang Tiga', 'Kampus'],
+        ]);
+        $short->update(['borrower_name' => 'Nama Lengkap Peminjam Dengan Gelar Akademik yang Panjang']);
+
+        $html = $this->actingAs($admin)->get(route('borrowings.receipt', $short))->assertOk()->getContent();
+        $this->assertStringContainsString('Peminjam,', $html);
+        $this->assertStringContainsString('Biro PPPA', $html);
+        $this->assertStringContainsString('Nama Lengkap Peminjam Dengan Gelar Akademik yang Panjang', $html);
+        $this->assertStringContainsString('(Nama Petugas Biro PPPA)', $html);
+        $this->assertStringContainsString('page-break-inside: avoid', $html);
+        $this->assertStringNotContainsString('position: absolute', $html);
+        $this->assertStringNotContainsString('position: fixed', $html);
+        $this->assertSame(1, substr_count($html, 'class="signatures"'));
+
+        $binary = $this->get(route('borrowing.approval.receipt.pdf', $short->approval_number))->assertOk()->getContent();
+        $this->assertStringStartsWith('%PDF', $binary);
+        $placed = $this->pdfTextRows($binary);
+        $borrower = $this->pdfRow($placed, 'Peminjam,');
+        $office = $this->pdfRow($placed, 'Biro PPPA');
+        $this->assertNotNull($borrower);
+        $this->assertNotNull($office);
+        $this->assertSame($borrower['page'], $office['page']);
+        $this->assertLessThan($office['x'], $borrower['x']);
+        $this->assertEqualsWithDelta($borrower['y'], $office['y'], 2.0);
+        $borrowerName = $this->pdfRow($placed, 'Nama Lengkap Peminjam', $borrower['x']);
+        $officerName = $this->pdfRow($placed, 'Nama Petugas Biro PPPA', $office['x']);
+        $this->assertNotNull($borrowerName);
+        $this->assertNotNull($officerName);
+        $this->assertEqualsWithDelta($borrower['x'], $borrowerName['x'], 8);
+        $this->assertEqualsWithDelta($office['x'], $officerName['x'], 8);
+        $this->assertLessThan($borrower['y'], $borrowerName['y']);
+        $this->assertEqualsWithDelta($borrowerName['y'], $officerName['y'], 3);
+        $this->assertLessThanOrEqual(2, $this->pdfPageCount($binary));
+
+        $rows = [];
+        for ($i = 1; $i <= 40; $i++) {
+            $rows[] = [
+                $i % 2 === 0 ? BorrowingItemStatus::Ditolak : BorrowingItemStatus::Disetujui,
+                'CBB-SIGN-PAGE-'.str_pad((string) $i, 2, '0', STR_PAD_LEFT).'-'.uniqid(),
+                'Barang '.$i,
+                'Kampus',
+            ];
+        }
+        [$long] = $this->makeReceiptBorrowing($admin, $rows);
+        $longPdf = $this->actingAs($admin)->get(route('borrowings.receipt.pdf', $long))->assertOk()->getContent();
+        $longRows = $this->pdfTextRows($longPdf);
+        $this->assertGreaterThan(1, $this->pdfPageCount($longPdf));
+        $this->assertCount(1, array_filter($longRows, fn (array $row) => $row['text'] === 'Peminjam,'));
+        $this->assertCount(1, array_filter($longRows, fn (array $row) => $row['text'] === 'BiroPPPA'));
+        $left = $this->pdfRow($longRows, 'Peminjam,');
+        $right = $this->pdfRow($longRows, 'Biro PPPA');
+        $this->assertSame($left['page'], $right['page']);
+        $this->assertSame($this->pdfPageCount($longPdf), $left['page']);
+
+        $short->refresh();
+        $this->assertSame(BorrowingStatus::Disetujui, $short->status);
+        Mail::assertNothingSent();
+    }
+
     public function test_guest_cannot_download_the_authenticated_receipt(): void
     {
         $admin = $this->makeAdmin(['email' => 'admin-receipt-auth@undira.ac.id']);
@@ -327,5 +394,57 @@ class BorrowingReceiptPdfTest extends TestCase
         preg_match_all('/\/Type\s*\/Page(?!s)/', $binary, $pages);
 
         return count($pages[0]);
+    }
+
+    /**
+     * @return list<array{page: int, x: float, y: float, text: string}>
+     */
+    protected function pdfTextRows(string $binary): array
+    {
+        preg_match_all('/stream\r?\n(.*?)\r?\nendstream/s', $binary, $streams);
+        $rows = [];
+        $page = 0;
+        foreach ($streams[1] as $raw) {
+            $data = @gzuncompress($raw);
+            if ($data === false || ! str_contains($data, ' Td ')) {
+                continue;
+            }
+            $page++;
+            $clean = preg_replace('/[^\x09\x0a\x0d\x20-\x7e]/', ' ', $data) ?? '';
+            preg_match_all('/BT\s+([0-9.]+)\s+([0-9.]+)\s+Td\s+\/F\d+\s+[0-9.]+\s+Tf\s+\[\((.*?)\)\]\s+TJ\s+ET/', $clean, $found, PREG_SET_ORDER);
+            foreach ($found as $hit) {
+                $rows[] = [
+                    'page' => $page,
+                    'x' => (float) $hit[1],
+                    'y' => (float) $hit[2],
+                    'text' => preg_replace('/\s+/', '', $hit[3]) ?? '',
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param  list<array{page: int, x: float, y: float, text: string}>  $rows
+     * @return array{page: int, x: float, y: float, text: string}|null
+     */
+    protected function pdfRow(array $rows, string $needle, ?float $nearX = null): ?array
+    {
+        $needle = preg_replace('/\s+/', '', $needle) ?? $needle;
+        $match = null;
+        foreach ($rows as $row) {
+            if (! str_contains($row['text'], $needle)) {
+                continue;
+            }
+            if ($nearX === null) {
+                return $row;
+            }
+            if ($match === null || abs($row['x'] - $nearX) < abs($match['x'] - $nearX)) {
+                $match = $row;
+            }
+        }
+
+        return $match;
     }
 }

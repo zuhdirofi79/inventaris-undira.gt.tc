@@ -178,8 +178,8 @@ class BorrowingCreateLookupTest extends TestCase
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Orang Lain',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDay()->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDay()->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
             ])
             ->assertRedirect(route('borrowings.create'))
@@ -202,8 +202,8 @@ class BorrowingCreateLookupTest extends TestCase
                 'borrower_name' => 'Ani',
                 'borrower_email' => 'ani@undira.ac.id',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDays(2)->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
             ])
             ->assertRedirect(route('borrowings.index'));

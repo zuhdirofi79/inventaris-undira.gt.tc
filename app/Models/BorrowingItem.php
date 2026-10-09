@@ -37,4 +37,21 @@ class BorrowingItem extends Model
     {
         return $this->belongsTo(InventoryItem::class);
     }
+
+    /**
+     * Keputusan approval yang tersimpan, bukan status fisik pinjam/kembali.
+     *
+     * @return array{0: string, 1: string}
+     */
+    public function approvalPresentation(): array
+    {
+        return match ($this->status) {
+            BorrowingItemStatus::MenungguPersetujuan => ['Menunggu', 'warning'],
+            BorrowingItemStatus::Disetujui,
+            BorrowingItemStatus::Dipinjam,
+            BorrowingItemStatus::Dikembalikan => ['Disetujui', 'success'],
+            BorrowingItemStatus::Ditolak => ['Ditolak', 'danger'],
+            default => ['Status Tidak Tersedia', 'secondary'],
+        };
+    }
 }

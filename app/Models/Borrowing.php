@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\PlannedDateTimeCast;
 use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use Illuminate\Database\Eloquent\Model;
@@ -40,15 +41,69 @@ class Borrowing extends Model
     protected function casts(): array
     {
         return [
-            'borrow_date' => 'date',
+            'borrow_date' => PlannedDateTimeCast::class,
             'return_date' => 'date',
-            'expected_return_date' => 'date',
+            'expected_return_date' => PlannedDateTimeCast::class,
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
             'notification_sent' => 'boolean',
             'supporting_document_size' => 'integer',
             'status' => BorrowingStatus::class,
         ];
+    }
+
+    public function hasPlannedTime(string $attribute): bool
+    {
+        $raw = $this->getRawOriginal($attribute);
+        if (! is_string($raw) || $raw === '') {
+            $raw = $this->getAttributes()[$attribute] ?? null;
+        }
+
+        return is_string($raw) && preg_match('/\d{2}:\d{2}/', $raw) === 1;
+    }
+
+    public function plannedInputValue(string $attribute): string
+    {
+        $value = $this->getAttribute($attribute);
+        if (! $value || ! $this->hasPlannedTime($attribute)) {
+            return '';
+        }
+
+        return $value->timezone((string) config('app.timezone'))->format('Y-m-d\TH:i');
+    }
+
+    public function plannedScheduleText(string $attribute): string
+    {
+        $value = $this->getAttribute($attribute);
+        if (! $value) {
+            return '—';
+        }
+
+        $value = $value->timezone((string) config('app.timezone'));
+        if (! $this->hasPlannedTime($attribute)) {
+            return $value->translatedFormat('d F Y');
+        }
+
+        return $value->translatedFormat('d F Y, H:i').' WIB';
+    }
+
+    public function plannedScheduleDate(string $attribute): string
+    {
+        $value = $this->getAttribute($attribute);
+
+        return $value
+            ? $value->timezone((string) config('app.timezone'))->format('d/m/Y')
+            : '—';
+    }
+
+    public function plannedScheduleTime(string $attribute): ?string
+    {
+        $value = $this->getAttribute($attribute);
+        if (! $value || ! $this->hasPlannedTime($attribute)) {
+            return null;
+        }
+
+        return $value->timezone((string) config('app.timezone'))->format('H:i');
     }
 
     public function hasSupportingDocument(): bool

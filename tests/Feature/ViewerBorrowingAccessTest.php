@@ -83,8 +83,8 @@ class ViewerBorrowingAccessTest extends TestCase
                 'borrower_name' => 'Nama Palsu',
                 'borrower_email' => 'bukan-owner@example.com',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => '2026-10-10',
-                'expected_return_date' => '2026-10-12',
+                'borrow_date' => '2026-10-10T09:30',
+                'expected_return_date' => '2026-10-12T16:00',
                 'notes' => 'Praktikum viewer',
                 'status' => BorrowingStatus::Disetujui->value,
                 'requested_by' => $admin->id,
@@ -166,8 +166,8 @@ class ViewerBorrowingAccessTest extends TestCase
         $this->actingAs($viewer)
             ->from(route('borrowings.create'))
             ->post(route('borrowings.store'), $this->payload($item, [
-                'borrow_date' => '2026-10-12',
-                'expected_return_date' => '2026-10-10',
+                'borrow_date' => '2026-10-12T16:00',
+                'expected_return_date' => '2026-10-12T09:00',
             ]))
             ->assertRedirect(route('borrowings.create'))
             ->assertSessionHasErrors('expected_return_date');
@@ -235,8 +235,8 @@ class ViewerBorrowingAccessTest extends TestCase
             'borrower_name' => 'Viewer Pemohon',
             'borrower_email' => 'viewer-pemohon@undira.ac.id',
             'borrower_phone' => '081234567890',
-            'borrow_date' => '2026-10-10',
-            'expected_return_date' => '2026-10-12',
+            'borrow_date' => '2026-10-10T09:00',
+            'expected_return_date' => '2026-10-12T16:00',
             'notes' => 'Keperluan kuliah',
         ], $overrides);
     }

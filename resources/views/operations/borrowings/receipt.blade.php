@@ -11,14 +11,19 @@
     <title>Receipt Approval {{ $borrowing->approval_number }}</title>
     <style>
         body { font-family: DejaVu Sans, Arial, sans-serif; color: #1e293b; font-size: 12px; margin: 24px; }
-        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #1F3C88; padding-bottom: 12px; }
-        .header img { height: 56px; margin-bottom: 8px; }
-        .header h1 { margin: 0; font-size: 18px; color: #1F3C88; }
-        .header p { margin: 4px 0 0; color: #64748b; }
+        table.header-bar { width: 100%; border-collapse: collapse; margin-bottom: 16px; border-bottom: 2px solid #1F3C88; }
+        table.header-bar td { border: 0; padding: 0 0 10px; vertical-align: middle; }
+        .header-side { width: 72px; }
+        .header-brand { text-align: center; }
+        .header-brand img { height: 56px; margin-bottom: 8px; }
+        .header-brand h1 { margin: 0; font-size: 18px; color: #1F3C88; }
+        .header-brand p { margin: 4px 0 0; color: #64748b; }
+        .header-qr { text-align: right; }
+        .header-qr img { width: 64px; height: 64px; }
         .meta { margin: 16px 0; }
         .meta strong { color: #1F3C88; font-size: 14px; }
         table.info { width: 100%; border-collapse: collapse; margin-top: 8px; }
-        table.info th, table.info td { border: 1px solid #e2e8f0; padding: 8px 10px; text-align: left; vertical-align: top; }
+        table.info th, table.info td { border: 1px solid #e2e8f0; padding: 6px 10px; text-align: left; vertical-align: top; }
         table.info th { width: 35%; background: #f8fafc; color: #475569; }
         table.items { width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: fixed; }
         table.items th, table.items td { border: 1px solid #cbd5e1; padding: 4px 5px; text-align: left; font-size: 9px; line-height: 1.35; vertical-align: top; word-wrap: break-word; overflow-wrap: break-word; }
@@ -37,10 +42,17 @@
         .st-no { color: #991b1b; }
         .st-wait { color: #92400e; }
         .st-unknown { color: #334155; }
-        .footer { margin-top: 24px; display: flex; justify-content: space-between; align-items: flex-end; }
-        .qr { text-align: center; }
-        .qr img { width: 120px; height: 120px; }
-        .qr small { display: block; margin-top: 6px; color: #64748b; word-break: break-all; }
+        .doc-note { margin-top: 16px; font-size: 12px; }
+        .doc-note p { margin: 0 0 4px; }
+        table.signatures { width: 100%; margin-top: 14pt; border-collapse: collapse; page-break-inside: avoid; }
+        table.signatures td { border: 0; padding: 0; vertical-align: top; }
+        table.signatures .sign-col { width: 48%; }
+        table.signatures .sign-gap { width: 4%; }
+        table.signatures .sign-head { height: 28pt; font-size: 10pt; font-weight: 700; line-height: 1.25; }
+        table.signatures .sign-space { height: 76pt; font-size: 10pt; line-height: 76pt; }
+        table.signatures .sign-rule { width: 160pt; border-collapse: collapse; }
+        table.signatures .sign-rule td { border-bottom: 1px solid #1e293b; font-size: 1pt; line-height: 1pt; }
+        table.signatures .sign-name { padding-top: 4pt; font-size: 9pt; line-height: 1.3; }
         .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #E8F5E9; color: #2E7D32; font-weight: 700; }
         .actions { margin-bottom: 16px; }
         .actions a, .actions button { margin-right: 8px; }
@@ -58,13 +70,23 @@
 </div>
 @endunless
 
-<div class="header">
-    @if(!empty($logoDataUri))
-        <img src="{{ $logoDataUri }}" alt="Logo UNDIRA">
-    @endif
-    <h1>Receipt Approval Peminjaman</h1>
-    <p>Universitas Dian Nusantara</p>
-</div>
+<table class="header-bar">
+    <tr>
+        <td class="header-side">&nbsp;</td>
+        <td class="header-brand">
+            @if(!empty($logoDataUri))
+                <img src="{{ $logoDataUri }}" alt="Logo UNDIRA">
+            @endif
+            <h1>Receipt Approval Peminjaman</h1>
+            <p>Universitas Dian Nusantara</p>
+        </td>
+        <td class="header-side header-qr">
+            @if(!empty($qrDataUri))
+                <img src="{{ $qrDataUri }}" alt="QR Approval">
+            @endif
+        </td>
+    </tr>
+</table>
 
 <div class="meta">
     <div><strong>Nomor Approval:</strong> {{ $borrowing->approval_number ?? '—' }}</div>
@@ -74,8 +96,8 @@
 <table class="info">
     <tr><th>Nama Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
     <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '—' }}</td></tr>
-    <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}</td></tr>
-    <tr><th>Tanggal Kembali</th><td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}</td></tr>
+    <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->plannedScheduleText('borrow_date') }}</td></tr>
+    <tr><th>Tanggal Kembali</th><td>{{ $borrowing->plannedScheduleText('expected_return_date') }}</td></tr>
     <tr><th>Jumlah Item</th><td>{{ $items?->count() ?: ($item ? 1 : 0) }}</td></tr>
     <tr><th>Disetujui Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '—' }}</td></tr>
     <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
@@ -164,18 +186,28 @@
 </table>
 @endif
 
-<div class="footer">
-    <div>
-        <p>Dokumen ini digenerate otomatis oleh sistem Inventaris UNDIRA.</p>
-        <p>{{ now()->format('d/m/Y H:i') }}</p>
-    </div>
-    <div class="qr">
-        @if(!empty($qrDataUri))
-            <img src="{{ $qrDataUri }}" alt="QR Approval">
-            <small>Scan untuk verifikasi</small>
-        @endif
-    </div>
+<div class="doc-note">
+    <p>Dokumen ini digenerate otomatis oleh sistem Inventaris UNDIRA.</p>
+    <p>{{ now()->format('d/m/Y H:i') }}</p>
 </div>
+
+<table class="signatures">
+    <tr>
+        <td class="sign-col">
+            <div class="sign-head">Peminjam,</div>
+            <div class="sign-space">&nbsp;</div>
+            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
+            <div class="sign-name">{{ $borrowing->borrower_name }}</div>
+        </td>
+        <td class="sign-gap">&nbsp;</td>
+        <td class="sign-col">
+            <div class="sign-head">Biro PPPA<br>Universitas Dian Nusantara</div>
+            <div class="sign-space">&nbsp;</div>
+            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
+            <div class="sign-name">(Nama Petugas Biro PPPA)</div>
+        </td>
+    </tr>
+</table>
 
 @if($autoPrint)
 <script>window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 300); });</script>

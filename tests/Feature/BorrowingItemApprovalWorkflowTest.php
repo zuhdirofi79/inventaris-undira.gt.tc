@@ -41,8 +41,8 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
                 'borrower_name' => 'Flow User',
                 'borrower_email' => 'flow@undira.ac.id',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDays(2)->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Tes workflow per item',
             ])
             ->assertRedirect(route('borrowings.index'));
@@ -172,8 +172,8 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
                 'borrower_name' => 'Flow User 2',
                 'borrower_email' => 'flow2@undira.ac.id',
                 'borrower_phone' => '081298765432',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDay()->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDay()->format('Y-m-d\TH:i'),
                 'notes' => 'Pinjam ulang item ditolak',
             ])
             ->assertRedirect(route('borrowings.index'));

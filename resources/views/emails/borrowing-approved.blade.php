@@ -39,8 +39,8 @@ Seluruh inventaris pada pengajuan Anda telah disetujui.
 
 **Nomor Peminjaman:** {{ $nomor }}  
 **Nama Peminjam:** {{ $borrowing->borrower_name }}  
-**Tanggal Peminjaman:** {{ $borrowing->borrow_date?->format('d/m/Y') ?? '—' }}  
-**Tanggal Kembali:** {{ $borrowing->expected_return_date?->format('d/m/Y') ?? '—' }}  
+**Tanggal Peminjaman:** {{ $borrowing->plannedScheduleText('borrow_date') }}  
+**Tanggal Kembali:** {{ $borrowing->plannedScheduleText('expected_return_date') }}  
 **Lokasi Kampus:** {{ $campusLabel }}  
 **Keperluan:** {{ filled($borrowing->notes) ? $borrowing->notes : '—' }}  
 **Status:** {{ $isPartial ? 'Disetujui sebagian' : 'Disetujui' }}  

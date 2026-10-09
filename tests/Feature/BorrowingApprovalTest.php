@@ -40,8 +40,8 @@ class BorrowingApprovalTest extends TestCase
                 'borrower_name' => 'Ani',
                 'borrower_email' => 'ani@undira.ac.id',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDays(2)->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
             ])
             ->assertRedirect(route('borrowings.index'))
@@ -488,8 +488,8 @@ class BorrowingApprovalTest extends TestCase
                 'borrower_name' => 'Multi User',
                 'borrower_email' => 'multi@undira.ac.id',
                 'borrower_phone' => '081234567890',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDays(2)->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kegiatan akademik',
             ])
             ->assertRedirect(route('borrowings.index'));

@@ -148,8 +148,8 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => 'Sari Wijaya',
                 'borrower_email' => 'sari@undira.ac.id',
                 'borrower_phone' => '',
-                'borrow_date' => now()->toDateString(),
-                'expected_return_date' => now()->addDays(2)->toDateString(),
+                'borrow_date' => now()->format('Y-m-d\TH:i'),
+                'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Praktikum',
             ])
             ->assertRedirect(route('borrowings.create'))
@@ -187,8 +187,8 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
                 'borrower_phone' => '+6281234567890',
-                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d'),
-                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d'),
+                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d\TH:i'),
+                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d\TH:i'),
                 'status' => $borrowing->status?->value,
                 'notes' => $borrowing->notes,
             ])
@@ -217,8 +217,8 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
                 'borrower_phone' => '',
-                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d'),
-                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d'),
+                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d\TH:i'),
+                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d\TH:i'),
                 'status' => $borrowing->status?->value,
                 'notes' => $borrowing->notes,
             ])
@@ -247,8 +247,8 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
                 'borrower_phone' => $borrowing->borrower_phone,
-                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d'),
-                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d'),
+                'borrow_date' => $borrowing->borrow_date?->format('Y-m-d\TH:i'),
+                'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d\TH:i'),
                 'status' => $borrowing->status?->value,
                 'notes' => '',
             ])
@@ -284,8 +284,8 @@ class BorrowingPhoneRequiredTest extends TestCase
             'borrower_name' => 'Sari Wijaya',
             'borrower_email' => 'sari@undira.ac.id',
             'borrower_phone' => '081234567890',
-            'borrow_date' => now()->toDateString(),
-            'expected_return_date' => now()->addDays(2)->toDateString(),
+            'borrow_date' => now()->format('Y-m-d\TH:i'),
+            'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
             'notes' => 'Praktikum',
         ], $overrides);
     }

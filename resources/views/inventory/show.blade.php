@@ -343,8 +343,8 @@
                             @forelse($inventory->borrowings as $borrowing)
                             <tr>
                                 <td>{{ $borrowing->borrower_name }}</td>
-                                <td>{{ $borrowing->borrow_date?->format('d/m/Y') ?? '-' }}</td>
-                                <td>{{ $borrowing->expected_return_date?->format('d/m/Y') ?? '-' }}</td>
+                                <td>{{ $borrowing->plannedScheduleDate('borrow_date') }}@if($borrowing->plannedScheduleTime('borrow_date')) {{ $borrowing->plannedScheduleTime('borrow_date') }}@endif</td>
+                                <td>{{ $borrowing->plannedScheduleDate('expected_return_date') }}@if($borrowing->plannedScheduleTime('expected_return_date')) {{ $borrowing->plannedScheduleTime('expected_return_date') }}@endif</td>
                                 <td><span class="badge bg-warning text-dark">{{ $borrowing->status?->label() }}</span></td>
                                 <td class="text-end">
                                     @can('borrowing.view')
