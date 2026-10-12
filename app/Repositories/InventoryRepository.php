@@ -116,6 +116,42 @@ class InventoryRepository
     }
 
     /**
+     * Categories inside the selected location. A room keeps the previous list.
+     * Campus, building, or floor can be used without a room.
+     *
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int}  $filters
+     * @return Collection<int, Category>
+     */
+    public function categoriesForFilters(array $filters): Collection
+    {
+        if (! empty($filters['room_id'])) {
+            return $this->categoriesForRoom((int) $filters['room_id'], $filters['status'] ?? null);
+        }
+
+        $scope = array_filter([
+            'campus_id' => $filters['campus_id'] ?? null,
+            'building_id' => $filters['building_id'] ?? null,
+            'floor_id' => $filters['floor_id'] ?? null,
+            'status' => $filters['status'] ?? null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        if (! isset($scope['campus_id']) && ! isset($scope['building_id']) && ! isset($scope['floor_id'])) {
+            return collect();
+        }
+
+        $ids = $this->baseQuery($scope)
+            ->whereNotNull('category_id')
+            ->distinct()
+            ->pluck('category_id');
+
+        return Category::query()
+            ->whereIn('id', $ids)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+    }
+
+    /**
      * @return Collection<int, SubCategory>
      */
     public function subCategoriesForRoomCategory(int $roomId, int $categoryId, ?string $status = null): Collection
@@ -138,26 +174,60 @@ class InventoryRepository
     }
 
     /**
-     * @param  array{status?:string|null,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int}  $filters
+     * @return Collection<int, SubCategory>
+     */
+    public function subCategoriesForFilters(array $filters): Collection
+    {
+        $categoryId = (int) ($filters['category_id'] ?? 0);
+        if ($categoryId < 1) {
+            return collect();
+        }
+
+        if (! empty($filters['room_id'])) {
+            return $this->subCategoriesForRoomCategory(
+                (int) $filters['room_id'],
+                $categoryId,
+                $filters['status'] ?? null
+            );
+        }
+
+        $scope = array_filter([
+            'campus_id' => $filters['campus_id'] ?? null,
+            'building_id' => $filters['building_id'] ?? null,
+            'floor_id' => $filters['floor_id'] ?? null,
+            'category_id' => $categoryId,
+            'status' => $filters['status'] ?? null,
+        ], fn ($value) => $value !== null && $value !== '');
+
+        if (! isset($scope['campus_id']) && ! isset($scope['building_id']) && ! isset($scope['floor_id'])) {
+            return collect();
+        }
+
+        $ids = $this->baseQuery($scope)
+            ->whereNotNull('sub_category_id')
+            ->distinct()
+            ->pluck('sub_category_id');
+
+        return SubCategory::query()
+            ->where('category_id', $categoryId)
+            ->whereIn('id', $ids)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'code', 'name']);
+    }
+
+    /**
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return Collection<int, InventoryItem>
      */
     public function listForLocation(array $filters, ?string $q = null, int $limit = 40): Collection
     {
-        $query = $this->baseQuery($filters)
-            ->with(['room:id,code,name', 'category:id,code,name', 'subCategory:id,code,name', 'pic:id,name'])
-            ->select([
-                'id', 'inventory_number', 'name', 'status', 'condition', 'room_id',
-                'category_id', 'sub_category_id', 'responsible_person', 'pic_id', 'barcode', 'serial_number',
-            ]);
+        $query = $this->selectRows($this->baseQuery($filters));
 
         if ($q !== null && $q !== '') {
-            $query->where(function (Builder $builder) use ($q) {
-                $builder->where('inventory_number', 'like', "%{$q}%")
-                    ->orWhere('name', 'like', "%{$q}%")
-                    ->orWhere('barcode', 'like', "%{$q}%")
-                    ->orWhere('serial_number', 'like', "%{$q}%")
-                    ->orWhereHas('pic', fn (Builder $pic) => $pic->where('name', 'like', "%{$q}%"));
-            });
+            $this->applyKeyword($query, $q);
+            $this->preferInventoryNumber($query, $q);
         }
 
         return $query->orderBy('inventory_number')->limit($limit)->get();
@@ -166,27 +236,63 @@ class InventoryRepository
     /**
      * Quick search — never loads all rows.
      *
-     * @param  array{status?:string|null}  $filters
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return Collection<int, InventoryItem>
      */
     public function search(string $q, array $filters = [], int $limit = 30): Collection
     {
-        return $this->baseQuery($filters)
-            ->with(['room:id,code,name', 'category:id,code,name', 'subCategory:id,code,name', 'pic:id,name'])
-            ->where(function (Builder $builder) use ($q) {
-                $builder->where('inventory_number', 'like', "%{$q}%")
-                    ->orWhere('name', 'like', "%{$q}%")
-                    ->orWhere('barcode', 'like', "%{$q}%")
-                    ->orWhere('serial_number', 'like', "%{$q}%")
-                    ->orWhereHas('pic', fn (Builder $pic) => $pic->where('name', 'like', "%{$q}%"));
-            })
+        $query = $this->selectRows($this->baseQuery($filters));
+        $this->applyKeyword($query, $q);
+        $this->preferInventoryNumber($query, $q);
+
+        return $query->orderBy('inventory_number')->limit($limit)->get();
+    }
+
+    /**
+     * @param  Builder<InventoryItem>  $query
+     * @return Builder<InventoryItem>
+     */
+    protected function selectRows(Builder $query): Builder
+    {
+        return $query
+            ->with([
+                'room:id,code,name,floor_id',
+                'room.floor:id,name,building_id',
+                'room.floor.building:id,name,campus_id',
+                'room.floor.building.campus:id,name',
+                'category:id,code,name',
+                'subCategory:id,code,name',
+                'pic:id,name',
+            ])
             ->select([
                 'id', 'inventory_number', 'name', 'status', 'condition', 'room_id',
                 'category_id', 'sub_category_id', 'responsible_person', 'pic_id', 'barcode', 'serial_number',
-            ])
-            ->orderBy('inventory_number')
-            ->limit($limit)
-            ->get();
+            ]);
+    }
+
+    /**
+     * @param  Builder<InventoryItem>  $query
+     */
+    protected function applyKeyword(Builder $query, string $q): void
+    {
+        $query->where(function (Builder $builder) use ($q) {
+            $builder->where('inventory_number', 'like', "%{$q}%")
+                ->orWhere('name', 'like', "%{$q}%")
+                ->orWhere('barcode', 'like', "%{$q}%")
+                ->orWhere('serial_number', 'like', "%{$q}%")
+                ->orWhereHas('pic', fn (Builder $pic) => $pic->where('name', 'like', "%{$q}%"));
+        });
+    }
+
+    /**
+     * @param  Builder<InventoryItem>  $query
+     */
+    protected function preferInventoryNumber(Builder $query, string $q): void
+    {
+        $query->orderByRaw(
+            'CASE WHEN inventory_number = ? THEN 0 WHEN inventory_number LIKE ? THEN 1 ELSE 2 END',
+            [$q, $q.'%']
+        );
     }
 
     public function findByCode(string $code): ?InventoryItem

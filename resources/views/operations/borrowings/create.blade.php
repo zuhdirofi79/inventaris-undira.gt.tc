@@ -54,19 +54,23 @@
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
-                <div class="col-12 col-md-6 mb-3">
-                    <label class="form-label" for="borrow_date">Tanggal &amp; Jam Pinjam <span class="text-danger">*</span></label>
-                    <input type="datetime-local" step="60" id="borrow_date" name="borrow_date" class="form-control @error('borrow_date') is-invalid @enderror" value="{{ old('borrow_date', now()->format('Y-m-d\TH:i')) }}" required>
-                    @error('borrow_date')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="col-12 col-md-6 mb-3">
-                    <label class="form-label" for="expected_return_date">Tanggal &amp; Jam Kembali <span class="text-danger">*</span></label>
-                    <input type="datetime-local" step="60" id="expected_return_date" name="expected_return_date" class="form-control @error('expected_return_date') is-invalid @enderror" value="{{ old('expected_return_date') }}" required>
-                    @error('expected_return_date')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                    @enderror
+                <div class="col-12">
+                    <div class="row">
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label" for="borrow_date">Tanggal &amp; Jam Pinjam <span class="text-danger">*</span></label>
+                            <input type="datetime-local" step="60" id="borrow_date" name="borrow_date" class="form-control @error('borrow_date') is-invalid @enderror" value="{{ old('borrow_date', now()->format('Y-m-d\TH:i')) }}" required>
+                            @error('borrow_date')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <label class="form-label" for="expected_return_date">Tanggal &amp; Jam Kembali <span class="text-danger">*</span></label>
+                            <input type="datetime-local" step="60" id="expected_return_date" name="expected_return_date" class="form-control @error('expected_return_date') is-invalid @enderror" value="{{ old('expected_return_date') }}" required>
+                            @error('expected_return_date')
+                                <div class="invalid-feedback d-block">{{ $message }}</div>
+                            @enderror
+                        </div>
+                    </div>
                 </div>
                 <div class="col-12 mb-0">
                     <label class="form-label">Keperluan <span class="text-danger">*</span></label>
@@ -142,7 +146,7 @@
             <div class="card-header">
                 <strong>Pilih barang</strong>
                 <div class="small text-muted fw-normal mt-1">
-                    Kampus → Gedung → Lantai → Ruangan → Kategori → Sub Kategori → Barang.
+                    Pilih kampus, lalu cari nomor, nama, barcode, atau serial. Gedung, lantai, ruangan, dan kategori mempersempit hasil.
                     Setelah dipilih, masukkan ke daftar — belum membuat transaksi.
                 </div>
             </div>
@@ -155,6 +159,7 @@
                     status-filter="aktif"
                     require-borrowable
                     show-qr-scan
+                    partial-scope
                     modes="both"
                     :required="false"
                     help-text="Ketik minimal 2 huruf/angka: nomor inventaris, nama, barcode, atau serial. Bisa juga scan QR."

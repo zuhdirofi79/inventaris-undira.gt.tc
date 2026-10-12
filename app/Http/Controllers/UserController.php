@@ -32,6 +32,10 @@ class UserController extends Controller
         $search = trim((string) $request->query('q', ''));
         $roleFilter = (string) $request->query('role', '');
         $statusFilter = (string) $request->query('status', '');
+        $sort = (string) $request->query('sort', '');
+        if (! in_array($sort, ['name_asc', 'name_desc', 'newest', 'oldest', 'inactive_90', 'never_login'], true)) {
+            $sort = '';
+        }
 
         $users = User::query()
             ->with('roles')
@@ -46,12 +50,24 @@ class UserController extends Controller
             })
             ->when($statusFilter === 'active', fn ($query) => $query->where('is_active', true))
             ->when($statusFilter === 'inactive', fn ($query) => $query->where('is_active', false))
-            ->orderBy('name')
-            ->get();
+            ->when($sort === 'inactive_90', fn ($query) => $query
+                ->whereNotNull('last_login_at')
+                ->where('last_login_at', '<', now()->subDays(90)))
+            ->when($sort === 'never_login', fn ($query) => $query->whereNull('last_login_at'));
+
+        match ($sort) {
+            'name_desc' => $users->orderByDesc('name')->orderByDesc('id'),
+            'newest' => $users->orderByDesc('created_at')->orderByDesc('id'),
+            'oldest' => $users->orderBy('created_at')->orderBy('id'),
+            'inactive_90' => $users->orderBy('last_login_at')->orderBy('id'),
+            default => $users->orderBy('name')->orderBy('id'),
+        };
+
+        $users = $users->get();
 
         $roles = Role::query()->orderBy('name')->get();
 
-        return view('admin.users.index', compact('users', 'roles', 'search', 'roleFilter', 'statusFilter'));
+        return view('admin.users.index', compact('users', 'roles', 'search', 'roleFilter', 'statusFilter', 'sort'));
     }
 
     public function store(StoreUserRequest $request): RedirectResponse

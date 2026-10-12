@@ -50,7 +50,7 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertStringContainsString('Status Persetujuan', $html);
         $this->assertStringContainsString('Disetujui: 2', $html);
         $this->assertStringContainsString('Ditolak: 3', $html);
-        $this->assertStringNotContainsString('Menunggu: ', $html);
+        $this->assertStringContainsString('Menunggu: 0', $html);
         $this->assertMatchesRegularExpression('/width:\s*22%/', $html);
         $this->assertMatchesRegularExpression('/width:\s*13%/', $html);
 
@@ -232,12 +232,29 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertStringNotContainsString('position: absolute', $html);
         $this->assertStringNotContainsString('position: fixed', $html);
         $this->assertSame(1, substr_count($html, 'class="signatures"'));
+        $this->assertSame(1, substr_count($html, 'ATURAN DAN TANGGUNG JAWAB PEMINJAM'));
+        $noteAt = strpos($html, 'Dokumen ini digenerate otomatis');
+        $termsAt = strpos($html, 'ATURAN DAN TANGGUNG JAWAB PEMINJAM');
+        $signAt = strpos($html, 'class="signatures"');
+        $this->assertTrue($noteAt !== false && $termsAt !== false && $signAt !== false);
+        $this->assertLessThan($termsAt, $noteAt);
+        $this->assertLessThan($signAt, $termsAt);
+        foreach ([
+            'fasilitas dari kampus untuk mahasiswa, karyawan, dosen, dan pimpinan',
+            'Perlengkapan dipinjamkan selama periode tertentu.',
+            'di luar ketentuan garansi menjadi tanggung jawab peminjam.',
+            'sudah tidak memegang jabatan atau mengundurkan diri',
+            'mengganti perlengkapan yang rusak dengan yang baru.',
+            'tanpa seizin atau pemberitahuan kepada Biro PPPA.',
+        ] as $term) {
+            $this->assertStringContainsString($term, $html);
+        }
 
         $binary = $this->get(route('borrowing.approval.receipt.pdf', $short->approval_number))->assertOk()->getContent();
         $this->assertStringStartsWith('%PDF', $binary);
         $placed = $this->pdfTextRows($binary);
         $borrower = $this->pdfRow($placed, 'Peminjam,');
-        $office = $this->pdfRow($placed, 'Biro PPPA');
+        $office = $this->pdfExact($placed, 'BiroPPPA');
         $this->assertNotNull($borrower);
         $this->assertNotNull($office);
         $this->assertSame($borrower['page'], $office['page']);
@@ -252,6 +269,26 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertLessThan($borrower['y'], $borrowerName['y']);
         $this->assertEqualsWithDelta($borrowerName['y'], $officerName['y'], 3);
         $this->assertLessThanOrEqual(2, $this->pdfPageCount($binary));
+        $terms = $this->pdfRow($placed, 'ATURANDANTANGGUNGJAWABPEMINJAM');
+        $this->assertNotNull($terms);
+        $this->assertSame($borrower['page'], $terms['page']);
+        $this->assertGreaterThan($borrower['y'], $terms['y']);
+        foreach ([
+            'fasilitasdarikampus',
+            'selamaperiodetertentu',
+            'ketentuangaransi',
+            'mengundurkandiri',
+            'menggantiperlengkapan',
+            'tanpaseizin',
+        ] as $fragment) {
+            $this->assertNotNull($this->pdfRow($placed, $fragment), $fragment);
+        }
+        $wrappedName = array_values(array_filter(
+            $placed,
+            fn (array $row) => $row['page'] === $borrower['page'] && str_contains($row['text'], 'yangPanjang')
+        ));
+        $this->assertNotEmpty($wrappedName);
+        $this->assertLessThan($office['x'], max(array_column($wrappedName, 'x')));
 
         $rows = [];
         for ($i = 1; $i <= 40; $i++) {
@@ -269,13 +306,126 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertCount(1, array_filter($longRows, fn (array $row) => $row['text'] === 'Peminjam,'));
         $this->assertCount(1, array_filter($longRows, fn (array $row) => $row['text'] === 'BiroPPPA'));
         $left = $this->pdfRow($longRows, 'Peminjam,');
-        $right = $this->pdfRow($longRows, 'Biro PPPA');
+        $right = $this->pdfExact($longRows, 'BiroPPPA');
+        $longTerms = $this->pdfRow($longRows, 'ATURANDANTANGGUNGJAWABPEMINJAM');
+        $this->assertNotNull($left);
+        $this->assertNotNull($right);
+        $this->assertNotNull($longTerms);
         $this->assertSame($left['page'], $right['page']);
+        $this->assertSame($left['page'], $longTerms['page']);
+        $this->assertGreaterThan($left['y'], $longTerms['y']);
         $this->assertSame($this->pdfPageCount($longPdf), $left['page']);
+        $this->assertCount(1, array_filter($longRows, fn (array $row) => $row['text'] === 'ATURANDANTANGGUNGJAWABPEMINJAM'));
 
         $short->refresh();
         $this->assertSame(BorrowingStatus::Disetujui, $short->status);
         Mail::assertNothingSent();
+    }
+
+    public function test_borrowed_and_returned_receipts_share_one_format(): void
+    {
+        Mail::fake();
+        $this->travelTo('2026-10-12 10:15:00');
+
+        $admin = $this->makeAdmin(['email' => 'admin-receipt-status@undira.ac.id']);
+        [$borrowing, $lines] = $this->makeReceiptBorrowing($admin, [
+            [BorrowingItemStatus::Disetujui, 'CBB-FMT-000001-'.uniqid(), 'Barang Satu', 'Gedung Rektorat Lantai 1 Ruang Administrasi Umum'],
+            [BorrowingItemStatus::Disetujui, 'CBB-FMT-000002-'.uniqid(), 'Barang Dua', 'Undira Cibubur'],
+            [BorrowingItemStatus::Disetujui, 'CBB-FMT-000003-'.uniqid(), 'Barang Tiga Nomor Panjang', 'Universitas Dian Nusantara Kampus Cibubur Gedung Rektorat Lantai 3 Ruang Administrasi Keuangan'],
+            [BorrowingItemStatus::Ditolak, 'CBB-FMT-000004-'.uniqid(), 'Barang Empat', 'Undira Cibubur'],
+            [BorrowingItemStatus::Ditolak, 'CBB-FMT-000005-'.uniqid(), 'Barang Lima', 'Undira Cibubur'],
+        ]);
+        $borrowing->update([
+            'status' => BorrowingStatus::Dipinjam,
+            'borrower_name' => 'Nama Lengkap Peminjam Dengan Gelar yang Cukup Panjang',
+        ]);
+        $approvedIds = $lines
+            ->filter(fn (BorrowingItem $line) => $line->status === BorrowingItemStatus::Disetujui)
+            ->pluck('id');
+        BorrowingItem::query()->whereIn('id', $approvedIds)->update([
+            'status' => BorrowingItemStatus::Dipinjam,
+            'borrowed_at' => '2026-10-12 09:00:00',
+        ]);
+
+        $dipinjam = $this->actingAs($admin)
+            ->get(route('borrowings.receipt', $borrowing))
+            ->assertOk()
+            ->getContent();
+        $this->assertReceiptShell($dipinjam, 3, 2, 0);
+        $this->assertStringContainsString('class="badge">Dipinjam<', $dipinjam);
+        $this->assertStringNotContainsString('Dikembalikan', $dipinjam);
+
+        $pdfDipinjam = $this->get(route('borrowing.approval.receipt.pdf', $borrowing->approval_number))
+            ->assertOk()
+            ->getContent();
+
+        $borrowing->update(['status' => BorrowingStatus::Dikembalikan, 'return_date' => '2026-10-12']);
+        BorrowingItem::query()->whereIn('id', $approvedIds)->update([
+            'status' => BorrowingItemStatus::Dikembalikan,
+            'returned_at' => '2026-10-12 16:00:00',
+        ]);
+
+        $returned = $this->actingAs($admin)
+            ->get(route('borrowings.receipt', $borrowing))
+            ->assertOk()
+            ->getContent();
+        $this->assertReceiptShell($returned, 3, 2, 0);
+        $this->assertStringContainsString('class="badge">Dikembalikan<', $returned);
+        $this->assertSame(
+            str_replace('class="badge">Dikembalikan<', 'class="badge">STATUS<', $returned),
+            str_replace('class="badge">Dipinjam<', 'class="badge">STATUS<', $dipinjam),
+        );
+
+        $pdfReturned = $this->get(route('borrowing.approval.receipt.pdf', $borrowing->approval_number))
+            ->assertOk()
+            ->getContent();
+        $this->assertStringStartsWith('%PDF', $pdfDipinjam);
+        $this->assertStringStartsWith('%PDF', $pdfReturned);
+        $this->assertMatchesRegularExpression('/\/Type\s*\/Page\s*\/MediaBox\s*\[\s*0(?:\.\d+)?\s+0(?:\.\d+)?\s+595(?:\.\d+)?\s+841(?:\.\d+)?\s*\]/', $pdfReturned);
+        $this->assertSame($this->pdfPageCount($pdfDipinjam), $this->pdfPageCount($pdfReturned));
+
+        $dipinjamText = $this->pdfPlain($pdfDipinjam);
+        $returnedText = $this->pdfPlain($pdfReturned);
+        $this->assertStringContainsString('Dipinjam', $dipinjamText);
+        $this->assertStringNotContainsString('Dikembalikan', $dipinjamText);
+        $this->assertStringContainsString('Dikembalikan', $returnedText);
+        foreach ([
+            'ATURANDANTANGGUNGJAWABPEMINJAM',
+            'fasilitasdarikampus',
+            'selamaperiodetertentu',
+            'ketentuangaransi',
+            'mengundurkandiri',
+            'menggantiperlengkapan',
+            'tanpaseizin',
+            'Peminjam,',
+            'BiroPPPA',
+            'NamaPetugasBiroPPPA',
+            'NamaLengkapPeminjam',
+            'Disetujui:3',
+            'Ditolak:2',
+            'Menunggu:0',
+        ] as $fragment) {
+            $this->assertStringContainsString($fragment, $dipinjamText, $fragment);
+            $this->assertStringContainsString($fragment, $returnedText, $fragment);
+        }
+
+        $left = $this->pdfRow($this->pdfTextRows($pdfReturned), 'Peminjam,');
+        $right = $this->pdfExact($this->pdfTextRows($pdfReturned), 'BiroPPPA');
+        $terms = $this->pdfRow($this->pdfTextRows($pdfReturned), 'ATURANDANTANGGUNGJAWABPEMINJAM');
+        $this->assertNotNull($left);
+        $this->assertNotNull($right);
+        $this->assertNotNull($terms);
+        $this->assertSame($left['page'], $right['page']);
+        $this->assertSame($left['page'], $terms['page']);
+        $this->assertLessThan($right['x'], $left['x']);
+        $this->assertGreaterThan($left['y'], $terms['y']);
+
+        $borrowing->refresh()->load('items');
+        $this->assertSame(BorrowingStatus::Dikembalikan, $borrowing->status);
+        $this->assertSame(3, $borrowing->items->where('status', BorrowingItemStatus::Dikembalikan)->count());
+        $this->assertSame(2, $borrowing->items->where('status', BorrowingItemStatus::Ditolak)->count());
+        Mail::assertNothingSent();
+        $this->travelBack();
     }
 
     public function test_guest_cannot_download_the_authenticated_receipt(): void
@@ -389,6 +539,41 @@ class BorrowingReceiptPdfTest extends TestCase
         ]);
     }
 
+    protected function assertReceiptShell(string $html, int $approved, int $rejected, int $pending): void
+    {
+        $this->assertStringContainsString('Receipt Approval Peminjaman', $html);
+        $this->assertStringContainsString('Universitas Dian Nusantara', $html);
+        $this->assertStringContainsString('Tanggal &amp; Jam Pinjam', $html);
+        $this->assertStringContainsString('Tanggal &amp; Jam Kembali', $html);
+        $this->assertStringContainsString('Ringkasan Persetujuan', $html);
+        $this->assertStringContainsString('Jumlah Item: '.($approved + $rejected + $pending), $html);
+        $this->assertStringContainsString('Disetujui: '.$approved, $html);
+        $this->assertStringContainsString('Ditolak: '.$rejected, $html);
+        $this->assertStringContainsString('Menunggu: '.$pending, $html);
+        $this->assertStringContainsString('Status Persetujuan', $html);
+        $this->assertStringContainsString('ATURAN DAN TANGGUNG JAWAB PEMINJAM', $html);
+        $this->assertStringContainsString('(Nama Petugas Biro PPPA)', $html);
+        $this->assertSame(1, substr_count($html, 'class="signatures"'));
+        $this->assertSame($approved, preg_match_all('/<td class="c-status st-ok">Disetujui<\/td>/', $html));
+        $this->assertSame($rejected, preg_match_all('/<td class="c-status st-no">Ditolak<\/td>/', $html));
+        $this->assertDoesNotMatchRegularExpression('/<td class="c-status[^"]*">(?:Dipinjam|Dikembalikan)<\/td>/', $html);
+        foreach ([
+            'fasilitas dari kampus untuk mahasiswa, karyawan, dosen, dan pimpinan',
+            'Perlengkapan dipinjamkan selama periode tertentu.',
+            'di luar ketentuan garansi menjadi tanggung jawab peminjam.',
+            'sudah tidak memegang jabatan atau mengundurkan diri',
+            'mengganti perlengkapan yang rusak dengan yang baru.',
+            'tanpa seizin atau pemberitahuan kepada Biro PPPA.',
+        ] as $term) {
+            $this->assertStringContainsString($term, $html);
+        }
+    }
+
+    protected function pdfPlain(string $binary): string
+    {
+        return implode('', array_column($this->pdfTextRows($binary), 'text'));
+    }
+
     protected function pdfPageCount(string $binary): int
     {
         preg_match_all('/\/Type\s*\/Page(?!s)/', $binary, $pages);
@@ -423,6 +608,21 @@ class BorrowingReceiptPdfTest extends TestCase
         }
 
         return $rows;
+    }
+
+    /**
+     * @param  list<array{page: int, x: float, y: float, text: string}>  $rows
+     * @return array{page: int, x: float, y: float, text: string}|null
+     */
+    protected function pdfExact(array $rows, string $text): ?array
+    {
+        foreach ($rows as $row) {
+            if ($row['text'] === $text) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     /**

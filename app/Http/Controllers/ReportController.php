@@ -174,10 +174,7 @@ class ReportController extends Controller
             $start = ($page->currentPage() - 1) * $page->perPage();
             $item = $b->inventoryItem;
             $itemCount = $b->relationLoaded('items') ? $b->items->count() : ($b->items_count ?? ($item ? 1 : 0));
-            $end = $b->return_date ?? $b->expected_return_date;
-            $duration = $b->borrow_date && $end
-                ? $b->borrow_date->diffInDays($end).' hari'
-                : '—';
+            $duration = $b->loanDurationLabel();
 
             $itemLabel = $item
                 ? $item->name.' ('.$item->inventory_number.')'
@@ -396,7 +393,8 @@ class ReportController extends Controller
         $rows = $this->reports->borrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
         $filters = app(InventoryReportService::class)->describeFilters($request);
-        $payload = compact('rows', 'meta', 'filters', 'type');
+        $summary = $this->reports->summarizeBorrowings($request, $rows);
+        $payload = compact('rows', 'meta', 'filters', 'type', 'summary');
 
         if ($format === 'preview') {
             return view('reports.preview-borrowing', $payload);

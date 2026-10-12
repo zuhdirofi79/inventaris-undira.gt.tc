@@ -14,6 +14,7 @@ use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
@@ -216,6 +217,179 @@ class BorrowingCreateLookupTest extends TestCase
         $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
     }
 
+    public function test_partial_location_search_scopes_available_items(): void
+    {
+        $admin = $this->makeAdmin();
+        $cibubur = $this->seedLocationTree();
+        $other = $this->seedSecondCampus();
+
+        $match = $this->makeItem($cibubur, [
+            'inventory_number' => 'KENKO-UNIT-000051',
+            'name' => 'Pulpen Kenko',
+            'barcode' => 'BC-KENKO-51',
+            'serial_number' => 'SN-KENKO-51',
+            'status' => InventoryStatus::Aktif,
+        ]);
+        $otherBuilding = $this->makeItem($cibubur, [
+            'inventory_number' => 'CBB-HB2-MEJA-1',
+            'name' => 'Meja Gedung Lain',
+            'room_id' => $cibubur['otherRoom']->id,
+            'status' => InventoryStatus::Aktif,
+        ]);
+        $borrowed = $this->makeItem($cibubur, [
+            'inventory_number' => 'CBB-DIPINJAM-1',
+            'name' => 'Pulpen Kenko Dipinjam',
+            'status' => InventoryStatus::Dipinjam,
+        ]);
+        $elsewhere = $this->makeItem($other, [
+            'inventory_number' => 'TJD-KENKO-1',
+            'name' => 'Pulpen Kenko Tanjung Duren',
+            'status' => InventoryStatus::Aktif,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('borrowings.create'))
+            ->assertOk()
+            ->assertSee('data-partial-scope="1"', false);
+
+        $campusOnly = $this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Pulpen Kenko',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+            ]))
+            ->assertOk()
+            ->json('results');
+
+        $campusIds = collect($campusOnly)->pluck('id')->all();
+        $this->assertContains($match->id, $campusIds);
+        $this->assertNotContains($elsewhere->id, $campusIds);
+        $this->assertNotContains($borrowed->id, $campusIds);
+        $this->assertStringContainsString($cibubur['campus']->name, $campusOnly[0]['location']);
+        $this->assertSame($match->inventory_number, $campusOnly[0]['inventory_number']);
+
+        $byBuilding = collect($this->actingAs($admin)
+            ->getJson(route('inventory.selector.items', [
+                'partial' => 1,
+                'q' => 'Meja',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+                'building_id' => $cibubur['otherBuilding']->id,
+            ]))
+            ->assertOk()
+            ->json('results'))->pluck('id')->all();
+        $this->assertSame([$otherBuilding->id], $byBuilding);
+
+        $byFloor = collect($this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Kenko',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+                'building_id' => $cibubur['building']->id,
+                'floor_id' => $cibubur['floor']->id,
+            ]))
+            ->assertOk()
+            ->json('results'))->pluck('id')->all();
+        $this->assertContains($match->id, $byFloor);
+        $this->assertNotContains($otherBuilding->id, $byFloor);
+
+        $byRoom = collect($this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Kenko',
+                'status' => 'aktif',
+                'room_id' => $cibubur['room']->id,
+            ]))
+            ->assertOk()
+            ->json('results'))->pluck('id')->all();
+        $this->assertSame([$match->id], $byRoom);
+
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.categories', [
+                'campus_id' => $cibubur['campus']->id,
+                'status' => 'aktif',
+            ]))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $cibubur['category']->id]);
+
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.sub-categories', [
+                'campus_id' => $cibubur['campus']->id,
+                'category_id' => $cibubur['category']->id,
+                'status' => 'aktif',
+            ]))
+            ->assertOk()
+            ->assertJsonFragment(['id' => $cibubur['sub']->id]);
+
+        $byCategory = collect($this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Pulpen',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+                'category_id' => $cibubur['category']->id,
+            ]))
+            ->assertOk()
+            ->json('results'))->pluck('id')->all();
+        $this->assertContains($match->id, $byCategory);
+        $this->assertNotContains($elsewhere->id, $byCategory);
+
+        $byNumber = $this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'KENKO-UNIT',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+            ]))
+            ->assertOk()
+            ->json('results');
+        $this->assertSame($match->id, $byNumber[0]['id']);
+
+        $byBarcode = collect($this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'BC-KENKO-51',
+                'status' => 'aktif',
+            ]))
+            ->assertOk()
+            ->json('results'))->pluck('id')->all();
+        $this->assertSame([$match->id], $byBarcode);
+
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.items', [
+                'campus_id' => $cibubur['campus']->id,
+                'status' => 'aktif',
+                'q' => 'Pulpen',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('results', []);
+
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Pulpen',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+                'building_id' => $other['building']->id,
+            ]))
+            ->assertOk()
+            ->assertJsonPath('results', []);
+
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.items', [
+                'partial' => 1,
+                'status' => 'aktif',
+            ]))
+            ->assertOk()
+            ->assertJsonPath('results', []);
+
+        DB::flushQueryLog();
+        DB::enableQueryLog();
+        $this->actingAs($admin)
+            ->getJson(route('inventory.selector.search', [
+                'q' => 'Pulpen Kenko',
+                'status' => 'aktif',
+                'campus_id' => $cibubur['campus']->id,
+            ]))
+            ->assertOk();
+        $this->assertLessThan(15, count(DB::getQueryLog()));
+    }
+
     public function test_api_v1_inventory_search_with_token(): void
     {
         $admin = $this->makeAdmin();
@@ -262,6 +436,43 @@ class BorrowingCreateLookupTest extends TestCase
         ]);
         $sub = SubCategory::query()->create([
             'category_id' => $category->id, 'code' => 'KRS', 'name' => 'Kursi', 'slug' => 'kursi-borrow', 'is_active' => true,
+        ]);
+
+        $otherBuilding = Building::query()->create([
+            'campus_id' => $campus->id, 'code' => 'HB2', 'name' => 'Gedung HB2', 'slug' => 'gedung-hb2-borrow', 'is_active' => true,
+        ]);
+        $otherFloor = Floor::query()->create([
+            'building_id' => $otherBuilding->id, 'code' => 'L1', 'name' => 'Lantai 1', 'floor_number' => 1, 'is_active' => true,
+        ]);
+        $otherRoom = Room::query()->create([
+            'floor_id' => $otherFloor->id, 'code' => 'B101', 'name' => 'Ruang B101', 'room_type' => 'Kelas', 'capacity' => 20, 'is_active' => true,
+        ]);
+
+        return compact('campus', 'building', 'floor', 'room', 'category', 'sub', 'otherBuilding', 'otherFloor', 'otherRoom');
+    }
+
+    /**
+     * @return array{campus:Campus,building:Building,floor:Floor,room:Room,category:Category,sub:SubCategory}
+     */
+    protected function seedSecondCampus(): array
+    {
+        $campus = Campus::query()->create([
+            'code' => 'TJD', 'name' => 'Kampus TJD', 'slug' => 'kampus-tjd-borrow', 'is_active' => true,
+        ]);
+        $building = Building::query()->create([
+            'campus_id' => $campus->id, 'code' => 'GA', 'name' => 'Gedung GA', 'slug' => 'gedung-ga-borrow', 'is_active' => true,
+        ]);
+        $floor = Floor::query()->create([
+            'building_id' => $building->id, 'code' => 'L1', 'name' => 'Lantai 1', 'floor_number' => 1, 'is_active' => true,
+        ]);
+        $room = Room::query()->create([
+            'floor_id' => $floor->id, 'code' => 'C101', 'name' => 'Ruang C101', 'room_type' => 'Kelas', 'capacity' => 30, 'is_active' => true,
+        ]);
+        $category = Category::query()->create([
+            'code' => 'ATK', 'name' => 'Alat Tulis', 'slug' => 'atk-borrow', 'is_active' => true,
+        ]);
+        $sub = SubCategory::query()->create([
+            'category_id' => $category->id, 'code' => 'PL', 'name' => 'Pulpen', 'slug' => 'pulpen-borrow', 'is_active' => true,
         ]);
 
         return compact('campus', 'building', 'floor', 'room', 'category', 'sub');

@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\BorrowingStatus;
 use App\Models\Borrowing;
+use App\Rules\IndonesianPhoneNumber;
 use App\Services\BorrowingItemResolver;
 use App\Support\Validation\ActiveExists;
 use Illuminate\Foundation\Http\FormRequest;
@@ -32,7 +33,7 @@ class StoreBorrowingRequest extends FormRequest
             'items.*.qty' => ['nullable', 'integer', 'min:1', 'max:500'],
             'borrower_name' => ['required', 'string', 'max:255'],
             'borrower_email' => ['nullable', 'email', 'max:255'],
-            'borrower_phone' => ['required', 'string', 'max:50', 'regex:/^(?:\+62|62|0)[\s.\-]*8[1-9](?:[\s.\-]*[0-9]){6,11}$/'],
+            'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
             'borrow_date' => ['required', 'date_format:Y-m-d\TH:i'],
             'expected_return_date' => ['required', 'date_format:Y-m-d\TH:i', 'after:borrow_date'],
             'notes' => ['required', 'string'],
@@ -91,7 +92,7 @@ class StoreBorrowingRequest extends FormRequest
             'items.*.inventory_item_id.required_with' => 'Barang inventaris wajib dipilih.',
             'borrower_name.required' => 'Nama peminjam wajib diisi.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
-            'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Gunakan format 08xxxxxxxxxx, 628xxxxxxxxxx, atau +628xxxxxxxxxx.',
+            'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Awali dengan 08, 62, atau +62, lalu isi minimal 4 digit. Spasi dan tanda hubung diperbolehkan.',
             'borrow_date.required' => 'Tanggal dan jam pinjam wajib diisi.',
             'borrow_date.date_format' => 'Tanggal dan jam pinjam tidak valid.',
             'expected_return_date.required' => 'Tanggal dan jam kembali wajib diisi.',

@@ -11,6 +11,7 @@
     'helpText' => null,
     'submitControl' => null,
     'resolveMaintenance' => false,
+    'partialScope' => false,
     'id' => null,
 ])
 
@@ -90,7 +91,9 @@ body.dark-mode .invsel-detail-grid .value {
     border-radius: .5rem;
     overflow: hidden;
 }
-.select2-results__option .invsel-opt-num { font-weight: 700; color: #1e3a5f; }
+.select2-results__option { white-space: normal; }
+.select2-results__option .invsel-opt-name { font-weight: 700; color: #0f172a; }
+.select2-results__option .invsel-opt-num { font-weight: 700; color: #1e3a5f; word-break: break-all; }
 .select2-results__option .invsel-opt-meta { font-size: .8rem; color: #64748b; }
 </style>
 @endpush
@@ -108,6 +111,7 @@ body.dark-mode .invsel-detail-grid .value {
     data-default-mode="{{ $defaultMode }}"
     data-submit-control="{{ $submitControl ?? '' }}"
     data-resolve-maintenance="{{ $resolveMaintenance ? '1' : '0' }}"
+    data-partial-scope="{{ $partialScope ? '1' : '0' }}"
     data-urls='@json($urls)'
     data-csrf="{{ csrf_token() }}"
 >
@@ -126,7 +130,13 @@ body.dark-mode .invsel-detail-grid .value {
 
     @if($showLocation)
     <div data-invsel-panel="location" class="{{ $defaultMode === 'location' ? '' : 'd-none' }}">
-        <p class="small text-muted mb-2">Pilih berurutan dari atas. Dropdown berikutnya aktif setelah pilihan sebelumnya diisi.</p>
+        <p class="small text-muted mb-2">
+            @if($partialScope)
+                Pilih kampus untuk langsung mencari. Gedung, lantai, ruangan, kategori, dan subkategori mempersempit hasil.
+            @else
+                Pilih berurutan dari atas. Dropdown berikutnya aktif setelah pilihan sebelumnya diisi.
+            @endif
+        </p>
         <div class="row g-2">
             <div class="col-md-6 col-lg-4">
                 <label class="form-label">1. Kampus</label>
@@ -154,14 +164,18 @@ body.dark-mode .invsel-detail-grid .value {
             </div>
             <div class="col-12">
                 <label class="form-label">7. {{ $label }} @if($required)<span class="text-danger">*</span>@endif</label>
-                <select class="form-select" data-invsel-location-item data-placeholder="Pilih inventaris setelah filter lengkap…"></select>
+                <select class="form-select" data-invsel-location-item data-placeholder="{{ $partialScope ? 'Ketik nomor, nama, barcode, atau serial…' : 'Pilih inventaris setelah filter lengkap…' }}"></select>
                 <div class="form-text">
                     @if($statusFilter === 'aktif')
                         Hanya menampilkan barang berstatus Aktif (siap dipinjam).
                     @elseif($statusFilter)
                         Hanya inventaris status {{ ucfirst($statusFilter) }}.
                     @endif
-                    Setelah Sub Kategori dipilih, daftar barang muncul. Ketik ≥2 karakter untuk menyaring.
+                    @if($partialScope)
+                        Cukup pilih kampus, lalu ketik kata kunci. Filter yang kosong tidak mematikan pencarian.
+                    @else
+                        Setelah Sub Kategori dipilih, daftar barang muncul. Ketik ≥2 karakter untuk menyaring.
+                    @endif
                 </div>
             </div>
         </div>

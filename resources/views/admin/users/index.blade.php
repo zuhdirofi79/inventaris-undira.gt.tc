@@ -27,11 +27,11 @@
 <div class="card card-undira mb-3">
     <div class="card-body">
         <form method="GET" action="{{ route('admin.users.index') }}" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label class="form-label small mb-1" for="filterQ">Cari User</label>
                 <input type="search" name="q" id="filterQ" value="{{ $search }}" class="form-control form-control-sm" placeholder="Nama atau email…">
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <label class="form-label small mb-1" for="filterRole">Filter Role</label>
                 <select name="role" id="filterRole" class="form-select form-select-sm">
                     <option value="">Semua Role</option>
@@ -40,7 +40,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-12 col-md-4 col-xl-2">
                 <label class="form-label small mb-1" for="filterStatus">Filter Status</label>
                 <select name="status" id="filterStatus" class="form-select form-select-sm">
                     <option value="">Semua</option>
@@ -48,7 +48,19 @@
                     <option value="inactive" @selected($statusFilter === 'inactive')>Nonaktif</option>
                 </select>
             </div>
-            <div class="col-md-3 d-flex gap-2">
+            <div class="col-12 col-md-4 col-xl-3">
+                <label class="form-label small mb-1" for="filterSort">Urutkan / Filter Pengguna</label>
+                <select name="sort" id="filterSort" class="form-select form-select-sm">
+                    <option value="" @selected($sort === '')>Default</option>
+                    <option value="name_asc" @selected($sort === 'name_asc')>Nama A–Z</option>
+                    <option value="name_desc" @selected($sort === 'name_desc')>Nama Z–A</option>
+                    <option value="newest" @selected($sort === 'newest')>Pengguna Terbaru</option>
+                    <option value="oldest" @selected($sort === 'oldest')>Pengguna Lama</option>
+                    <option value="inactive_90" @selected($sort === 'inactive_90')>Aktif Lebih dari 90 Hari</option>
+                    <option value="never_login" @selected($sort === 'never_login')>Belum Pernah Login</option>
+                </select>
+            </div>
+            <div class="col-12 col-md-4 col-xl-2 d-flex gap-2">
                 <button type="submit" class="btn btn-undira btn-sm"><i class="bi bi-funnel me-1"></i>Terapkan</button>
                 <a href="{{ route('admin.users.index') }}" class="btn btn-outline-secondary btn-sm">Reset</a>
             </div>
@@ -116,6 +128,9 @@
                             @if($user->last_login_at)
                                 <div class="small">{{ $user->last_login_at->timezone(config('app.timezone'))->format('d/m/Y') }}</div>
                                 <div class="small text-muted">{{ $user->last_login_at->timezone(config('app.timezone'))->format('H:i') }} WIB</div>
+                                @if($user->last_login_at->lt(now()->subDays(90)))
+                                    <div class="small text-warning">Tidak login lebih dari 90 hari</div>
+                                @endif
                                 <div class="small text-muted" title="{{ $user->last_login_user_agent }}">
                                     {{ $browser }} · {{ $device }}
                                     @if($user->last_login_ip)
@@ -343,7 +358,7 @@ $(function () {
     @include('partials.datatables-id-language')
     try {
         $('#usersTable').DataTable({
-            order: [[0, 'asc']],
+            order: [],
             pageLength: 25,
             lengthMenu: [10, 25, 50, 100],
             columnDefs: [
@@ -355,13 +370,13 @@ $(function () {
         console.error('DataTables users i18n init failed, retrying without language:', err);
         try {
             $('#usersTable').DataTable({
-                order: [[0, 'asc']],
-                pageLength: 25,
-                lengthMenu: [10, 25, 50, 100],
-                columnDefs: [
-                    { orderable: false, targets: [4, 7] }
-                ]
-            });
+            order: [],
+            pageLength: 25,
+            lengthMenu: [10, 25, 50, 100],
+            columnDefs: [
+                { orderable: false, targets: [4, 7] }
+            ]
+        });
         } catch (err2) {
             console.error('DataTables users init failed:', err2);
         }

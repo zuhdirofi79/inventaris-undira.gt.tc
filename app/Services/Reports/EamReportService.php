@@ -164,6 +164,8 @@ class EamReportService
 
     public function borrowingQuery(Request $request): Builder
     {
+        $inventoryRequest = $this->inventoryScopeForBorrowing($request);
+
         return Borrowing::query()
             ->with([
                 'inventoryItem:id,inventory_number,name,room_id,category_id,pic_id,status,condition,brand,serial_number',
@@ -176,9 +178,9 @@ class EamReportService
                 'approvedBy:id,name',
             ])
             ->withCount('items')
-            ->where(function (Builder $q) use ($request) {
-                $q->whereHas('inventoryItem', fn (Builder $i) => $this->filters->apply($request, $i))
-                    ->orWhereHas('items.inventoryItem', fn (Builder $i) => $this->filters->apply($request, $i));
+            ->where(function (Builder $q) use ($inventoryRequest) {
+                $q->whereHas('inventoryItem', fn (Builder $i) => $this->filters->apply($inventoryRequest, $i))
+                    ->orWhereHas('items.inventoryItem', fn (Builder $i) => $this->filters->apply($inventoryRequest, $i));
             })
             ->when($request->filled('tanggal_awal') || $request->filled('date_from') || $request->filled('purchase_date_from'), function (Builder $q) use ($request) {
                 $from = $request->input('tanggal_awal') ?? $request->input('date_from') ?? $request->input('purchase_date_from');
@@ -199,6 +201,65 @@ class EamReportService
                 });
             })
             ->latest('borrow_date');
+    }
+
+    /**
+     * Unique inventory on the borrowings already selected by the report filters.
+     * Location, category, status, and condition narrow those items.
+     * Borrowing date range is not reapplied as an inventory purchase date.
+     *
+     * @param  Collection<int, Borrowing>  $borrowings
+     * @return array<string, mixed>
+     */
+    public function summarizeBorrowings(Request $request, Collection $borrowings): array
+    {
+        $ids = $borrowings
+            ->flatMap(function (Borrowing $borrowing) {
+                return collect([$borrowing->inventory_item_id])
+                    ->merge($borrowing->items->pluck('inventory_item_id'));
+            })
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return $this->hierarchy->buildSummary(collect());
+        }
+
+        $scope = $this->inventoryScopeForBorrowing($request);
+
+        $items = $this->filters->apply($scope, InventoryItem::query()->withTrashed())
+            ->with([
+                'category:id,name',
+                'subCategory:id,category_id,name',
+                'room:id,floor_id,name',
+                'room.floor:id,building_id,name',
+                'room.floor.building:id,campus_id,name',
+            ])
+            ->whereIn('inventory_items.id', $ids->all())
+            ->get();
+
+        return $this->hierarchy->buildSummary($items);
+    }
+
+    /**
+     * Inventory filters for the borrowing report.
+     * Tanggal awal/akhir stays on borrow_date and is not treated as purchase date.
+     */
+    protected function inventoryScopeForBorrowing(Request $request): Request
+    {
+        return Request::create('/', 'GET', $request->only([
+            'campus_id',
+            'building_id',
+            'floor_id',
+            'room_id',
+            'category_id',
+            'sub_category_id',
+            'status',
+            'condition',
+            'pic_id',
+        ]));
     }
 
     public function maintenanceQuery(Request $request): Builder

@@ -25,18 +25,22 @@
         'embedLogo' => $isPdf,
         'filters' => $filters,
         'meta' => $meta,
-        'summary' => [
-            'total_items' => count($rows),
-            'campus_count' => 0,
-            'building_count' => 0,
-            'room_count' => 0,
-            'aktif' => 0,
-            'rusak' => 0,
-            'dipinjam' => count($rows),
-            'maintenance' => 0,
-        ],
+        'summary' => $summary ?? [],
     ])
-    <table class="rpt-table">
+    <table class="rpt-table rpt-borrow">
+        <colgroup>
+            <col style="width:4%">
+            <col style="width:13%">
+            <col style="width:9%">
+            <col style="width:8%">
+            <col style="width:16%">
+            <col style="width:9%">
+            <col style="width:8%">
+            <col style="width:8%">
+            <col style="width:8%">
+            <col style="width:9%">
+            <col style="width:8%">
+        </colgroup>
         <thead>
             <tr>
                 <th>No</th>
@@ -56,21 +60,24 @@
             @foreach($rows as $b)
                 @php
                     $item = $b->inventoryItem;
-                    $end = $b->return_date ?? $b->expected_return_date;
-                    $dur = ($b->borrow_date && $end) ? $b->borrow_date->diffInDays($end).' hari' : '—';
+                    $itemCount = $b->relationLoaded('items') ? $b->items->count() : ($b->items_count ?? ($item ? 1 : 0));
+                    $itemLabel = $item ? $item->name.' ('.$item->inventory_number.')' : '—';
+                    if ($itemCount > 1) {
+                        $itemLabel .= ' +'.($itemCount - 1).' item';
+                    }
                 @endphp
                 <tr>
                     <td>{{ $loop->iteration }}</td>
                     <td>{{ $b->approval_number ?? '—' }}</td>
                     <td>PIN-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
-                    <td>{{ $item?->name }} ({{ $item?->inventory_number }})</td>
+                    <td>{{ $itemLabel }}</td>
                     <td>{{ $b->plannedScheduleDate('borrow_date') }}@if($b->plannedScheduleTime('borrow_date')) {{ $b->plannedScheduleTime('borrow_date') }}@endif</td>
                     <td>{{ $b->return_date?->format('d/m/Y') ?? '—' }}</td>
                     <td>{{ $b->status?->label() }}</td>
                     <td>{{ $b->approvedBy?->name ?? '—' }}</td>
                     <td>{{ $b->approved_at?->format('d/m/Y H:i') ?? '—' }}</td>
-                    <td>{{ $dur }}</td>
+                    <td>{{ $b->loanDurationLabel() }}</td>
                 </tr>
             @endforeach
         </tbody>

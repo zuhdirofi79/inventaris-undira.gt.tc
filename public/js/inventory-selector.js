@@ -35,13 +35,17 @@
         }
         var num = item.inventory_number || '';
         var name = item.name || item.text || '';
-        var meta = [item.location, item.status_label].filter(Boolean).join(' · ');
-        var $wrap = $('<div>');
-        if (num) {
-            $wrap.append($('<div class="invsel-opt-num">').text(num));
-            $wrap.append($('<div class="invsel-opt-meta">').text(name + (meta ? ' — ' + meta : '')));
-        } else {
-            $wrap.text(item.text);
+        if (!num) {
+            return item.text;
+        }
+        var $wrap = $('<div class="invsel-opt">');
+        $wrap.append($('<div class="invsel-opt-name">').text(name));
+        $wrap.append($('<div class="invsel-opt-num">').text('Nomor: ' + num));
+        if (item.location) {
+            $wrap.append($('<div class="invsel-opt-meta">').text('Lokasi: ' + item.location));
+        }
+        if (item.status_label) {
+            $wrap.append($('<div class="invsel-opt-meta">').text('Status: ' + item.status_label));
         }
         return $wrap;
     }
@@ -184,6 +188,14 @@
             placeholder: $el.data('placeholder') || 'Pilih…',
             allowClear: true,
             minimumInputLength: ajaxCfg.minimumInputLength || 0,
+            language: {
+                searching: function () { return 'Mencari inventaris…'; },
+                noResults: function () { return 'Tidak ada inventaris yang cocok'; },
+                errorLoading: function () { return 'Pencarian gagal. Coba lagi.'; },
+                inputTooShort: function (args) {
+                    return 'Ketik minimal ' + args.minimum + ' karakter';
+                },
+            },
             ajax: {
                 url: ajaxCfg.url,
                 dataType: 'json',
@@ -223,6 +235,64 @@
         var $subCategory = $(root).find('[data-invsel-subcategory]');
         var $locItem = $(root).find('[data-invsel-location-item]');
         var $quickItem = $(root).find('[data-invsel-quick-item]');
+        var partial = root.getAttribute('data-partial-scope') === '1';
+        var categoryToken = 0;
+        var subToken = 0;
+
+        function scopeParams() {
+            return $.extend({
+                campus_id: $campus.val() || '',
+                building_id: $building.val() || '',
+                floor_id: $floor.val() || '',
+                room_id: $room.val() || '',
+                category_id: $category.val() || '',
+                sub_category_id: $subCategory.val() || '',
+            }, statusParams(root));
+        }
+
+        function hasScope() {
+            return !!($campus.val() || $building.val() || $floor.val() || $room.val() || $category.val() || $subCategory.val());
+        }
+
+        function clearLocationItem() {
+            if ($locItem.length) {
+                $locItem.val(null).trigger('change');
+            }
+            if (partial && $quickItem.length) {
+                $quickItem.val(null).trigger('change');
+            }
+        }
+
+        function loadScopedCategories() {
+            if (!partial) {
+                return;
+            }
+            var token = ++categoryToken;
+            var params = scopeParams();
+            if (!params.campus_id && !params.building_id && !params.floor_id && !params.room_id) {
+                resetDownstream([$category, $subCategory]);
+                return;
+            }
+            $.getJSON(urls.categories, params).done(function (res) {
+                if (token !== categoryToken) {
+                    return;
+                }
+                fillSelect($category, res.results, 'Semua kategori');
+            });
+        }
+
+        function loadScopedSubcategories() {
+            if (!partial || !$category.val()) {
+                return;
+            }
+            var token = ++subToken;
+            $.getJSON(urls.subCategories, scopeParams()).done(function (res) {
+                if (token !== subToken) {
+                    return;
+                }
+                fillSelect($subCategory, res.results, 'Semua sub kategori');
+            });
+        }
 
         function syncHiddenFromMode() {
             var id = '';
@@ -259,8 +329,9 @@
 
             $campus.on('change', function () {
                 resetDownstream([$building, $floor, $room, $category, $subCategory]);
-                if ($locItem.length) {
-                    $locItem.val(null).trigger('change');
+                clearLocationItem();
+                if (partial) {
+                    initLocationSelect();
                 }
                 var campusId = $campus.val();
                 if (!campusId) {
@@ -270,14 +341,21 @@
                     .done(function (res) {
                         fillSelect($building, res.results, 'Pilih gedung…');
                     });
+                if (partial) {
+                    loadScopedCategories();
+                }
             });
 
             $building.on('change', function () {
                 resetDownstream([$floor, $room, $category, $subCategory]);
-                if ($locItem.length) {
-                    $locItem.val(null).trigger('change');
-                }
+                clearLocationItem();
                 var buildingId = $building.val();
+                if (partial) {
+                    if ($campus.val() || buildingId) {
+                        loadScopedCategories();
+                    }
+                    initLocationSelect();
+                }
                 if (!buildingId) {
                     return;
                 }
@@ -289,10 +367,14 @@
 
             $floor.on('change', function () {
                 resetDownstream([$room, $category, $subCategory]);
-                if ($locItem.length) {
-                    $locItem.val(null).trigger('change');
-                }
+                clearLocationItem();
                 var floorId = $floor.val();
+                if (partial) {
+                    if ($campus.val() || $building.val() || floorId) {
+                        loadScopedCategories();
+                    }
+                    initLocationSelect();
+                }
                 if (!floorId) {
                     return;
                 }
@@ -304,10 +386,13 @@
 
             $room.on('change', function () {
                 resetDownstream([$category, $subCategory]);
-                if ($locItem.length) {
-                    $locItem.val(null).trigger('change');
-                }
+                clearLocationItem();
                 var roomId = $room.val();
+                if (partial) {
+                    loadScopedCategories();
+                    initLocationSelect();
+                    return;
+                }
                 if (!roomId) {
                     return;
                 }
@@ -319,8 +404,11 @@
 
             $category.on('change', function () {
                 resetDownstream([$subCategory]);
-                if ($locItem.length) {
-                    $locItem.val(null).trigger('change');
+                clearLocationItem();
+                if (partial) {
+                    loadScopedSubcategories();
+                    initLocationSelect();
+                    return;
                 }
                 var roomId = $room.val();
                 var categoryId = $category.val();
@@ -350,14 +438,21 @@
             }
             bindSelect2($locItem, {
                 url: urls.items,
-                minimumInputLength: 0,
+                minimumInputLength: partial ? (hasScope() ? 0 : 2) : 0,
                 data: function (params) {
-                    return $.extend({
+                    var payload = {
                         q: params.term || '',
                         room_id: $room.val(),
                         category_id: $category.val(),
                         sub_category_id: $subCategory.val(),
-                    }, statusParams(root));
+                    };
+                    if (partial) {
+                        payload.partial = 1;
+                        payload.campus_id = $campus.val();
+                        payload.building_id = $building.val();
+                        payload.floor_id = $floor.val();
+                    }
+                    return $.extend(payload, statusParams(root));
                 },
             });
             $locItem.off('change.invsel').on('change.invsel', function () {
@@ -376,7 +471,16 @@
                 url: urls.search,
                 minimumInputLength: 2,
                 data: function (params) {
-                    return $.extend({ q: params.term || '' }, statusParams(root));
+                    var payload = { q: params.term || '' };
+                    if (partial) {
+                        payload.campus_id = $campus.val();
+                        payload.building_id = $building.val();
+                        payload.floor_id = $floor.val();
+                        payload.room_id = $room.val();
+                        payload.category_id = $category.val();
+                        payload.sub_category_id = $subCategory.val();
+                    }
+                    return $.extend(payload, statusParams(root));
                 },
             });
             $quickItem.off('change.invsel').on('change.invsel', function () {

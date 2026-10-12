@@ -44,7 +44,13 @@
         .st-unknown { color: #334155; }
         .doc-note { margin-top: 16px; font-size: 12px; }
         .doc-note p { margin: 0 0 4px; }
-        table.signatures { width: 100%; margin-top: 14pt; border-collapse: collapse; page-break-inside: avoid; }
+        table.closing { width: 100%; margin-top: 10pt; border-collapse: collapse; page-break-inside: avoid; }
+        table.closing > tbody > tr > td { border: 0; padding: 0; }
+        .terms-title { margin: 0 0 6pt; padding-bottom: 2pt; border-bottom: 1px solid #1F3C88; color: #1F3C88; font-size: 10pt; font-weight: 700; }
+        table.terms-list { width: 100%; border-collapse: collapse; margin-top: 6pt; }
+        table.terms-list td { border: 0; padding: 0 0 5pt; vertical-align: top; font-size: 9pt; line-height: 1.35; }
+        table.terms-list .terms-no { width: 16pt; font-weight: 700; }
+        table.signatures { width: 100%; margin-top: 8pt; border-collapse: collapse; page-break-inside: avoid; }
         table.signatures td { border: 0; padding: 0; vertical-align: top; }
         table.signatures .sign-col { width: 48%; }
         table.signatures .sign-gap { width: 4%; }
@@ -52,7 +58,7 @@
         table.signatures .sign-space { height: 76pt; font-size: 10pt; line-height: 76pt; }
         table.signatures .sign-rule { width: 160pt; border-collapse: collapse; }
         table.signatures .sign-rule td { border-bottom: 1px solid #1e293b; font-size: 1pt; line-height: 1pt; }
-        table.signatures .sign-name { padding-top: 4pt; font-size: 9pt; line-height: 1.3; }
+        table.signatures .sign-name { padding-top: 4pt; font-size: 9pt; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; }
         .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #E8F5E9; color: #2E7D32; font-weight: 700; }
         .actions { margin-bottom: 16px; }
         .actions a, .actions button { margin-right: 8px; }
@@ -96,8 +102,8 @@
 <table class="info">
     <tr><th>Nama Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
     <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '—' }}</td></tr>
-    <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->plannedScheduleText('borrow_date') }}</td></tr>
-    <tr><th>Tanggal Kembali</th><td>{{ $borrowing->plannedScheduleText('expected_return_date') }}</td></tr>
+    <tr><th>Tanggal &amp; Jam Pinjam</th><td>{{ $borrowing->plannedScheduleText('borrow_date') }}</td></tr>
+    <tr><th>Tanggal &amp; Jam Kembali</th><td>{{ $borrowing->plannedScheduleText('expected_return_date') }}</td></tr>
     <tr><th>Jumlah Item</th><td>{{ $items?->count() ?: ($item ? 1 : 0) }}</td></tr>
     <tr><th>Disetujui Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '—' }}</td></tr>
     <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '—' }}</td></tr>
@@ -125,15 +131,13 @@
 @endphp
 @if($receiptLines->isNotEmpty())
 <p class="summary">
-    <strong>Ringkasan Persetujuan.</strong>
-    Jumlah Item: {{ $receiptLines->count() }}.
-    Disetujui: {{ $approvalCounts['Disetujui'] }}.
-    Ditolak: {{ $approvalCounts['Ditolak'] }}.
-    @if($approvalCounts['Menunggu'] > 0)
-        Menunggu: {{ $approvalCounts['Menunggu'] }}.
-    @endif
+    <strong>Ringkasan Persetujuan</strong><br>
+    Jumlah Item: {{ $receiptLines->count() }}<br>
+    Disetujui: {{ $approvalCounts['Disetujui'] }}<br>
+    Ditolak: {{ $approvalCounts['Ditolak'] }}<br>
+    Menunggu: {{ $approvalCounts['Menunggu'] }}
     @if($approvalCounts['Tidak Tersedia'] > 0)
-        Tidak Tersedia: {{ $approvalCounts['Tidak Tersedia'] }}.
+        <br>Tidak Tersedia: {{ $approvalCounts['Tidak Tersedia'] }}
     @endif
 </p>
 <table class="items">
@@ -191,20 +195,54 @@
     <p>{{ now()->format('d/m/Y H:i') }}</p>
 </div>
 
-<table class="signatures">
+<table class="closing">
     <tr>
-        <td class="sign-col">
-            <div class="sign-head">Peminjam,</div>
-            <div class="sign-space">&nbsp;</div>
-            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
-            <div class="sign-name">{{ $borrowing->borrower_name }}</div>
-        </td>
-        <td class="sign-gap">&nbsp;</td>
-        <td class="sign-col">
-            <div class="sign-head">Biro PPPA<br>Universitas Dian Nusantara</div>
-            <div class="sign-space">&nbsp;</div>
-            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
-            <div class="sign-name">(Nama Petugas Biro PPPA)</div>
+        <td>
+            <div class="terms-title">ATURAN DAN TANGGUNG JAWAB PEMINJAM</div>
+            <table class="terms-list">
+                <tr>
+                    <td class="terms-no">1.</td>
+                    <td>Perlengkapan di atas merupakan fasilitas dari kampus untuk mahasiswa, karyawan, dosen, dan pimpinan di lingkungan Universitas Dian Nusantara.</td>
+                </tr>
+                <tr>
+                    <td class="terms-no">2.</td>
+                    <td>Perlengkapan dipinjamkan selama periode tertentu.</td>
+                </tr>
+                <tr>
+                    <td class="terms-no">3.</td>
+                    <td>Kerusakan perlengkapan yang dipinjam di luar ketentuan garansi menjadi tanggung jawab peminjam.</td>
+                </tr>
+                <tr>
+                    <td class="terms-no">4.</td>
+                    <td>Apabila yang bersangkutan (berlaku untuk karyawan, dosen, dan pimpinan) sudah tidak memegang jabatan atau mengundurkan diri, maka perlengkapan harus diserahkan kembali kepada pihak Universitas melalui Biro PPPA.</td>
+                </tr>
+                <tr>
+                    <td class="terms-no">5.</td>
+                    <td>Apabila terjadi kerusakan saat pengembalian pada perlengkapan yang dipinjamkan, maka peminjam wajib bertanggung jawab untuk mengganti perlengkapan yang rusak dengan yang baru.</td>
+                </tr>
+                <tr>
+                    <td class="terms-no">6.</td>
+                    <td>Perlengkapan yang telah disiapkan tidak diperbolehkan dipindah dan dipinjamkan kembali kepada pihak mana pun tanpa seizin atau pemberitahuan kepada Biro PPPA. Apabila hal itu dilakukan, maka segala risiko kerusakan dan kehilangan menjadi tanggung jawab peminjam.</td>
+                </tr>
+            </table>
+
+            <table class="signatures">
+                <tr>
+                    <td class="sign-col">
+                        <div class="sign-head">Peminjam,</div>
+                        <div class="sign-space">&nbsp;</div>
+                        <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
+                        <div class="sign-name">{{ $borrowing->borrower_name }}</div>
+                    </td>
+                    <td class="sign-gap">&nbsp;</td>
+                    <td class="sign-col">
+                        <div class="sign-head">Biro PPPA<br>Universitas Dian Nusantara</div>
+                        <div class="sign-space">&nbsp;</div>
+                        <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
+                        <div class="sign-name">(Nama Petugas Biro PPPA)</div>
+                    </td>
+                </tr>
+            </table>
         </td>
     </tr>
 </table>

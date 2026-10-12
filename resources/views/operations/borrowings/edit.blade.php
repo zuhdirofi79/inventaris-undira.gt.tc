@@ -55,6 +55,8 @@
                         @endforeach
                     </select>
                 </div>
+                <div class="col-12">
+                    <div class="row">
                 <div class="col-12 col-md-6 mb-3">
                     <label class="form-label" for="borrow_date">Tanggal &amp; Jam Pinjam</label>
                     <input type="datetime-local" step="60" id="borrow_date" name="borrow_date" class="form-control @error('borrow_date') is-invalid @enderror" value="{{ old('borrow_date', $borrowing->plannedInputValue('borrow_date')) }}">
@@ -74,6 +76,8 @@
                     @unless($borrowing->hasPlannedTime('expected_return_date'))
                         <div class="form-text">Jadwal lama tersimpan tanpa jam. Pilih jam dan menit sebelum menyimpan.</div>
                     @endunless
+                </div>
+                    </div>
                 </div>
                 <div class="col-md-4 mb-3">
                     <label class="form-label">Tgl Kembali (Aktual)</label>

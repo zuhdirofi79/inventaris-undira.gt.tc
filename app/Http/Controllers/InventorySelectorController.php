@@ -45,32 +45,24 @@ class InventorySelectorController extends Controller
     public function categories(InventorySelectorSearchRequest $request): JsonResponse
     {
         return response()->json([
-            'results' => $this->searchService->categoryOptions(
-                $request->integer('room_id'),
-                $request->statusFilter()
-            ),
+            'results' => $this->searchService->categoryOptionsFor($request->filters()),
         ]);
     }
 
     public function subCategories(InventorySelectorSearchRequest $request): JsonResponse
     {
         return response()->json([
-            'results' => $this->searchService->subCategoryOptions(
-                $request->integer('room_id'),
-                $request->integer('category_id'),
-                $request->statusFilter()
-            ),
+            'results' => $this->searchService->subCategoryOptionsFor($request->filters()),
         ]);
     }
 
     public function items(InventorySelectorSearchRequest $request): JsonResponse
     {
-        $filters = $request->filters();
-
         return response()->json([
             'results' => $this->searchService->locationItems(
-                $filters,
-                trim((string) $request->input('q', ''))
+                $request->filters(),
+                trim((string) $request->input('q', '')),
+                $request->boolean('partial')
             ),
         ]);
     }
@@ -80,7 +72,7 @@ class InventorySelectorController extends Controller
         return response()->json([
             'results' => $this->searchService->search(
                 trim((string) $request->input('q', '')),
-                array_filter(['status' => $request->statusFilter()], fn ($v) => $v !== null)
+                $request->filters()
             ),
         ]);
     }

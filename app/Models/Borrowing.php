@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\PlannedDateTimeCast;
 use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -182,6 +183,85 @@ class Borrowing extends Model
         $count = $this->items()->count();
 
         return $count > 0 ? $count : ($this->inventory_item_id ? 1 : 0);
+    }
+
+    /**
+     * Lama pinjam aktual.
+     * Awal: borrowed_at paling awal pada item yang diserahkan.
+     * Akhir: returned_at paling akhir. Jika pengembalian hanya tercatat sebagai tanggal, selisihnya hari kalender.
+     * Peminjaman yang belum selesai ditampilkan sebagai durasi berjalan.
+     */
+    public function loanDurationLabel(?CarbonInterface $asOf = null): string
+    {
+        $items = $this->relationLoaded('items') ? $this->items : $this->items()->get();
+        $start = $items
+            ->map(fn (BorrowingItem $item) => $item->borrowed_at)
+            ->filter()
+            ->sortBy(fn (CarbonInterface $moment) => $moment->getTimestamp())
+            ->first();
+
+        $closed = $this->status === BorrowingStatus::Dikembalikan
+            || ($items->isNotEmpty() && $this->allItemsReturned());
+
+        if (! $closed) {
+            if (! $start) {
+                return '—';
+            }
+
+            $asOf ??= now();
+            if ($asOf->lessThan($start)) {
+                return '—';
+            }
+
+            return 'Berjalan: '.$this->formatElapsed($start, $asOf);
+        }
+
+        $end = $items
+            ->map(fn (BorrowingItem $item) => $item->returned_at)
+            ->filter()
+            ->sortBy(fn (CarbonInterface $moment) => $moment->getTimestamp())
+            ->last();
+
+        if ($start && $end) {
+            return $this->formatElapsed($start, $end);
+        }
+
+        if ($start && $this->return_date) {
+            $zone = (string) config('app.timezone');
+            $startDay = $start->copy()->timezone($zone)->startOfDay();
+            $returnDay = $this->return_date->copy()->timezone($zone)->startOfDay();
+            if ($returnDay->lt($startDay)) {
+                return '—';
+            }
+            if ($returnDay->equalTo($startDay)) {
+                return 'Kurang dari 1 hari';
+            }
+
+            return $startDay->diff($returnDay)->days.' hari';
+        }
+
+        return '—';
+    }
+
+    protected function formatElapsed(CarbonInterface $start, CarbonInterface $end): string
+    {
+        $interval = $start->diff($end);
+        if ($interval->invert === 1) {
+            return '—';
+        }
+
+        $days = (int) $interval->days;
+        $hours = (int) $interval->h;
+        $minutes = (int) $interval->i;
+
+        if ($days > 0) {
+            return $hours > 0 ? $days.' hari '.$hours.' jam' : $days.' hari';
+        }
+        if ($hours > 0) {
+            return $minutes > 0 ? $hours.' jam '.$minutes.' menit' : $hours.' jam';
+        }
+
+        return $minutes.' menit';
     }
 
     public function allItemsReturned(): bool

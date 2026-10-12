@@ -32,6 +32,12 @@ class BorrowingPhoneRequiredTest extends TestCase
 
         $this->assertStringContainsString('Telepon / No. HP', $html);
         $this->assertMatchesRegularExpression('/name="borrower_phone"[^>]*required/', $html);
+        $this->assertMatchesRegularExpression(
+            '/name="borrower_phone"[\s\S]*?<div class="col-12">\s*<div class="row">\s*<div class="col-12 col-md-6 mb-3">[\s\S]*?name="borrow_date"[\s\S]*?name="expected_return_date"/',
+            $html
+        );
+        $this->assertMatchesRegularExpression('/type="datetime-local"[^>]*step="60"[^>]*id="borrow_date"/', $html);
+        $this->assertMatchesRegularExpression('/type="datetime-local"[^>]*step="60"[^>]*id="expected_return_date"/', $html);
         $this->assertStringContainsString('Keperluan', $html);
         $this->assertMatchesRegularExpression('/name="notes"[^>]*required/', $html);
         $this->assertStringNotContainsString('Keperluan / Catatan', $html);
@@ -167,6 +173,32 @@ class BorrowingPhoneRequiredTest extends TestCase
         $this->assertSame(InventoryStatus::Aktif, $itemB->fresh()->status);
     }
 
+    public function test_edit_form_shows_existing_phone_and_aligned_schedule_fields(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), $this->validPayload($item, [
+                'borrower_phone' => '081234567890',
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $borrowing = Borrowing::query()->first();
+        $this->assertNotNull($borrowing);
+
+        $html = $this->actingAs($admin)
+            ->get(route('borrowings.edit', $borrowing))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('081234567890', $html);
+        $this->assertMatchesRegularExpression(
+            '/<div class="row">\s*<div class="col-12 col-md-6 mb-3">[\s\S]*?name="borrow_date"[\s\S]*?name="expected_return_date"/',
+            $html
+        );
+    }
+
     public function test_update_succeeds_with_valid_phone(): void
     {
         $admin = $this->makeAdmin();
@@ -270,6 +302,40 @@ class BorrowingPhoneRequiredTest extends TestCase
             'plus_62' => ['+6281234567890'],
             'dashed' => ['0812-3456-7890'],
             'spaced' => ['0812 3456 7890'],
+            'plus_spaced_dashed' => ['+62 812-3456-7890'],
+            'minimum_after_08' => ['081234'],
+            'minimum_after_62' => ['621234'],
+            'minimum_after_plus_62' => ['+621234'],
+        ];
+    }
+
+    #[DataProvider('invalidPhoneProvider')]
+    public function test_store_rejects_phone_without_prefix_or_enough_digits(string $phone): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->validPayload($item, [
+                'borrower_phone' => $phone,
+            ]))
+            ->assertRedirect(route('borrowings.create'))
+            ->assertSessionHasErrors('borrower_phone');
+
+        $this->assertDatabaseCount('borrowings', 0);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function invalidPhoneProvider(): array
+    {
+        return [
+            'too_short_08' => ['0812'],
+            'too_short_plus_62' => ['+6212'],
+            'too_short_62' => ['6212'],
+            'wrong_prefix' => ['071234567890'],
         ];
     }
 

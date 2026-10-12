@@ -79,8 +79,9 @@ class RoleRbacPhase3Test extends TestCase
         $viewer = $this->makeViewer();
 
         $this->assertTrue($viewer->can('inventory.view'));
-        $this->assertTrue($viewer->can('report.view'));
+        $this->assertFalse($viewer->can('report.view'));
         $this->assertFalse($viewer->can('report.export'));
+        $this->assertFalse($viewer->can('maintenance.view'));
         $this->assertFalse($viewer->can('inventory.create'));
         $this->assertFalse($viewer->can('mutation.create'));
 
@@ -90,6 +91,10 @@ class RoleRbacPhase3Test extends TestCase
 
         $this->actingAs($viewer)
             ->get(route('mutations.create'))
+            ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->get(route('reports.index'))
             ->assertForbidden();
 
         $this->actingAs($viewer)

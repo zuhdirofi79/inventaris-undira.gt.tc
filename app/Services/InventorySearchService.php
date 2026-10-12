@@ -146,20 +146,29 @@ class InventorySearchService
     /**
      * Location-mode Select2 results.
      *
-     * @param  array{status?:string|null,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
+     * Without $partial, room + category + subcategory stay required so other
+     * forms keep the full cascade. With $partial, every selected location or
+     * category narrows the query and an empty keyword is allowed inside that scope.
+     *
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return list<array<string, mixed>>
      */
-    public function locationItems(array $filters, string $q = '', int $limit = 40): array
+    public function locationItems(array $filters, string $q = '', bool $partial = false, int $limit = 40): array
     {
+        $q = trim($q);
         $roomId = (int) ($filters['room_id'] ?? 0);
         $categoryId = (int) ($filters['category_id'] ?? 0);
         $subCategoryId = (int) ($filters['sub_category_id'] ?? 0);
 
-        if ($roomId < 1 || $categoryId < 1 || $subCategoryId < 1) {
+        if (! $partial && ($roomId < 1 || $categoryId < 1 || $subCategoryId < 1)) {
             return [];
         }
 
         if ($q !== '' && mb_strlen($q) < 2) {
+            return [];
+        }
+
+        if ($partial && $q === '' && ! $this->hasSearchScope($filters)) {
             return [];
         }
 
@@ -169,9 +178,53 @@ class InventorySearchService
     }
 
     /**
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
+     * @return list<array{id:int,text:string}>
+     */
+    public function categoryOptionsFor(array $filters): array
+    {
+        return $this->repository->categoriesForFilters($filters)
+            ->map(fn (Category $c) => [
+                'id' => $c->id,
+                'text' => $c->code.' — '.$c->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
+     * @return list<array{id:int,text:string}>
+     */
+    public function subCategoryOptionsFor(array $filters): array
+    {
+        return $this->repository->subCategoriesForFilters($filters)
+            ->map(fn (SubCategory $s) => [
+                'id' => $s->id,
+                'text' => $s->code.' — '.$s->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     */
+    protected function hasSearchScope(array $filters): bool
+    {
+        foreach (['campus_id', 'building_id', 'floor_id', 'room_id', 'category_id', 'sub_category_id'] as $key) {
+            if (! empty($filters[$key])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Quick search — minimum 2 characters.
      *
-     * @param  array{status?:string|null}  $filters
+     * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return list<array<string, mixed>>
      */
     public function search(string $q, array $filters = [], int $limit = 30): array
@@ -228,7 +281,7 @@ class InventorySearchService
     protected function mapSelect2Rows(Collection $items): array
     {
         return $items->map(function (InventoryItem $item) {
-            $roomLabel = $item->room?->code ?: ($item->room?->name ?: '—');
+            $location = $this->locationLabel($item);
             $status = $item->status instanceof InventoryStatus
                 ? $item->status
                 : InventoryStatus::tryFrom((string) $item->status);
@@ -236,16 +289,28 @@ class InventorySearchService
 
             return [
                 'id' => $item->id,
-                'text' => $item->inventory_number.' — '.$item->name.' — '.$roomLabel.' — '.$statusLabel,
+                'text' => $item->inventory_number.' — '.$item->name.' — '.$location.' — '.$statusLabel,
                 'inventory_number' => $item->inventory_number,
                 'name' => $item->name,
-                'location' => $roomLabel,
+                'location' => $location,
                 'status' => $status?->value ?? (string) $item->status,
                 'status_label' => $statusLabel,
                 'barcode' => $item->barcode,
                 'serial_number' => $item->serial_number,
             ];
         })->values()->all();
+    }
+
+    protected function locationLabel(InventoryItem $item): string
+    {
+        $parts = array_values(array_filter([
+            $item->room?->floor?->building?->campus?->name,
+            $item->room?->floor?->building?->name,
+            $item->room?->floor?->name,
+            $item->room?->name ?: $item->room?->code,
+        ], fn ($part) => is_string($part) && $part !== ''));
+
+        return $parts !== [] ? implode(' / ', $parts) : '—';
     }
 
     /**
