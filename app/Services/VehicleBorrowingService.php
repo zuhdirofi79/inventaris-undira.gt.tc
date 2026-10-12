@@ -1,0 +1,282 @@
+<?php
+
+namespace App\Services;
+
+use App\Enums\FacilityRequestStatus;
+use App\Enums\VehicleServiceType;
+use App\Mail\VehicleBorrowingDecisionMail;
+use App\Models\Campus;
+use App\Models\OperationalDriver;
+use App\Models\OperationalRoute;
+use App\Models\OperationalVehicle;
+use App\Models\User;
+use App\Models\VehicleBorrowing;
+use App\Support\ScheduleOverlap;
+use Carbon\Carbon;
+use Carbon\CarbonInterface;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+use RuntimeException;
+use Throwable;
+
+class VehicleBorrowingService
+{
+    public const DISK = 'local';
+
+    public function __construct(
+        private readonly DecisionMailer $mailer,
+    ) {}
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function submit(User $user, array $data, ?UploadedFile $file = null): VehicleBorrowing
+    {
+        $campus = Campus::query()->find((int) $data['campus_id']);
+        if (! $campus || ! $campus->is_active) {
+            throw ValidationException::withMessages([
+                'campus_id' => 'Lokasi kampus tidak tersedia.',
+            ]);
+        }
+
+        $route = OperationalRoute::query()->whereKey((int) $data['route_id'])->where('is_active', true)->first();
+        if (! $route) {
+            throw ValidationException::withMessages([
+                'route_id' => 'Rute tidak tersedia.',
+            ]);
+        }
+
+        $start = Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['starts_at']);
+        $end = Carbon::createFromFormat('Y-m-d\TH:i', (string) $data['ends_at']);
+        $storedPath = null;
+
+        try {
+            return DB::transaction(function () use ($user, $data, $file, $campus, $route, $start, $end, &$storedPath) {
+                $row = VehicleBorrowing::query()->create([
+                    'campus_id' => $campus->id,
+                    'route_id' => $route->id,
+                    'borrower_name' => $data['borrower_name'],
+                    'borrower_email' => $data['borrower_email'],
+                    'borrower_phone' => $data['borrower_phone'],
+                    'unit' => $data['unit'] ?? null,
+                    'purpose' => trim(strip_tags((string) $data['purpose'])),
+                    'passenger_count' => (int) $data['passenger_count'],
+                    'passengers' => $this->passengers($data['passengers'] ?? []),
+                    'service_type' => $data['service_type'],
+                    'origin' => $route->name,
+                    'destination' => trim(strip_tags((string) ($data['destination'] ?? ''))),
+                    'starts_at' => $start,
+                    'ends_at' => $end,
+                    'status' => FacilityRequestStatus::MenungguPersetujuan,
+                    'requested_by' => $user->id,
+                ]);
+
+                if ($file instanceof UploadedFile) {
+                    $meta = $this->storeFile($row, $file);
+                    $storedPath = $meta['supporting_document_path'];
+                    $row->update($meta);
+                }
+
+                return $row->fresh();
+            });
+        } catch (Throwable $e) {
+            if (is_string($storedPath) && $storedPath !== '') {
+                Storage::disk(self::DISK)->delete($storedPath);
+            }
+
+            if ($file instanceof UploadedFile && ! $e instanceof ValidationException) {
+                throw ValidationException::withMessages([
+                    'supporting_document' => 'Dokumen tidak dapat disimpan saat ini. Silakan coba kembali.',
+                ]);
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    public function decide(User $admin, VehicleBorrowing $borrowing, array $data): VehicleBorrowing
+    {
+        $saved = DB::transaction(function () use ($admin, $borrowing, $data) {
+            $fresh = VehicleBorrowing::query()->whereKey($borrowing->id)->lockForUpdate()->first();
+            if (! $fresh || $fresh->status !== FacilityRequestStatus::MenungguPersetujuan) {
+                throw ValidationException::withMessages([
+                    'decision' => 'Pengajuan sudah diproses.',
+                ]);
+            }
+
+            if ($data['decision'] === 'reject') {
+                $fresh->forceFill([
+                    'status' => FacilityRequestStatus::Ditolak,
+                    'approved_by' => $admin->id,
+                    'rejected_at' => now(),
+                    'rejection_reason' => trim((string) $data['rejection_reason']),
+                    'approval_number' => $this->nextNumber(),
+                    'assigned_vehicle_id' => null,
+                    'assigned_driver_id' => null,
+                    'assigned_service' => null,
+                ])->save();
+
+                return $fresh->fresh(['campus', 'route', 'approvedBy']);
+            }
+
+            $assignment = (string) ($data['assignment'] ?? '');
+            $vehicleId = null;
+            $driverId = null;
+            $service = $fresh->service_type;
+
+            if ($assignment === 'gocar') {
+                $service = VehicleServiceType::GoCar;
+            } else {
+                $vehicleId = (int) ($data['vehicle_id'] ?? 0);
+                $driverId = (int) ($data['driver_id'] ?? 0);
+                $vehicle = OperationalVehicle::query()->find($vehicleId);
+                $driver = OperationalDriver::query()->find($driverId);
+
+                if (! $vehicle || ! $vehicle->is_active) {
+                    throw ValidationException::withMessages([
+                        'vehicle_id' => 'Kendaraan tidak tersedia.',
+                    ]);
+                }
+
+                if (! $driver || ! $driver->is_active) {
+                    throw ValidationException::withMessages([
+                        'driver_id' => 'Pengemudi tidak tersedia.',
+                    ]);
+                }
+
+                if ($this->vehicleOverlaps($vehicle->id, $fresh->starts_at, $fresh->ends_at, $fresh->id)) {
+                    throw ValidationException::withMessages([
+                        'vehicle_id' => 'Kendaraan sudah ditugaskan pada jadwal tersebut.',
+                    ]);
+                }
+
+                $passengers = (int) ($fresh->passenger_count ?? 0);
+                if ($passengers > 0 && $vehicle->passenger_capacity !== null && $passengers > (int) $vehicle->passenger_capacity) {
+                    throw ValidationException::withMessages([
+                        'vehicle_id' => 'Jumlah penumpang melebihi kapasitas kendaraan yang dipilih.',
+                    ]);
+                }
+
+                if ($this->driverOverlaps($driver->id, $fresh->starts_at, $fresh->ends_at, $fresh->id)) {
+                    throw ValidationException::withMessages([
+                        'driver_id' => 'Pengemudi sudah ditugaskan pada jadwal tersebut.',
+                    ]);
+                }
+            }
+
+            $fresh->forceFill([
+                'status' => FacilityRequestStatus::Disetujui,
+                'approved_by' => $admin->id,
+                'approved_at' => now(),
+                'rejected_at' => null,
+                'rejection_reason' => null,
+                'approval_number' => $this->nextNumber(),
+                'assigned_vehicle_id' => $vehicleId,
+                'assigned_driver_id' => $driverId,
+                'assigned_service' => $service,
+            ])->save();
+
+            return $fresh->fresh(['campus', 'route', 'vehicle', 'driver', 'approvedBy']);
+        });
+
+        $this->mailer->send(
+            $saved->borrower_email,
+            new VehicleBorrowingDecisionMail($saved),
+            'Email peminjaman kendaraan gagal dikirim.',
+            $saved->id,
+        );
+
+        return $saved;
+    }
+
+    public function vehicleOverlaps(int $vehicleId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): bool
+    {
+        $query = VehicleBorrowing::query()
+            ->where('assigned_vehicle_id', $vehicleId)
+            ->where('status', FacilityRequestStatus::Disetujui->value);
+
+        if ($ignoreId) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        return ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)->exists();
+    }
+
+    public function driverOverlaps(int $driverId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): bool
+    {
+        $query = VehicleBorrowing::query()
+            ->where('assigned_driver_id', $driverId)
+            ->where('status', FacilityRequestStatus::Disetujui->value);
+
+        if ($ignoreId) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        return ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)->exists();
+    }
+
+    /**
+     * @return array{supporting_document_path: string, supporting_document_original_name: string, supporting_document_size: int}
+     */
+    private function storeFile(VehicleBorrowing $borrowing, UploadedFile $file): array
+    {
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $path = $file->storeAs('vehicle-borrowings/'.$borrowing->id, $filename, self::DISK);
+
+        if ($path === false || $path === '') {
+            throw new RuntimeException('Gagal menyimpan dokumen pendukung.');
+        }
+
+        $original = trim(str_replace(['\\', '/'], '', $file->getClientOriginalName()));
+        if ($original === '') {
+            $original = $filename;
+        }
+
+        return [
+            'supporting_document_path' => $path,
+            'supporting_document_original_name' => mb_substr($original, 0, 255),
+            'supporting_document_size' => (int) $file->getSize(),
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $rows
+     * @return list<array{name: string, unit: string, title: string}>
+     */
+    private function passengers(array $rows): array
+    {
+        $clean = [];
+        foreach ($rows as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $name = trim(strip_tags((string) ($row['name'] ?? '')));
+            if ($name === '') {
+                continue;
+            }
+            $clean[] = [
+                'name' => mb_substr($name, 0, 255),
+                'unit' => mb_substr(trim(strip_tags((string) ($row['unit'] ?? ''))), 0, 255),
+                'title' => mb_substr(trim(strip_tags((string) ($row['title'] ?? ''))), 0, 255),
+            ];
+        }
+
+        return $clean;
+    }
+
+    private function nextNumber(): string
+    {
+        do {
+            $number = 'KND-'.now()->format('Ymd-His').'-'.random_int(100, 999);
+        } while (VehicleBorrowing::query()->where('approval_number', $number)->exists());
+
+        return $number;
+    }
+}

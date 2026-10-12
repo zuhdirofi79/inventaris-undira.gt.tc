@@ -30,6 +30,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -93,6 +95,7 @@ class BorrowingController extends Controller
     public function create(Request $request): View
     {
         $this->authorize('create', Borrowing::class);
+        view()->share('inlineValidationFields', ['supporting_document']);
 
         $selectedId = $request->integer('inventory_item_id') ?: (int) old('inventory_item_id');
         $selectedDetail = $selectedId > 0 ? $this->inventorySearch->detail($selectedId) : null;
@@ -167,6 +170,7 @@ class BorrowingController extends Controller
     public function edit(Borrowing $borrowing): View
     {
         $borrowing->load(['items.inventoryItem']);
+        view()->share('inlineValidationFields', ['supporting_document']);
 
         return view('operations.borrowings.edit', compact('borrowing'));
     }
@@ -182,6 +186,7 @@ class BorrowingController extends Controller
         $removeDocument = $request->boolean('remove_supporting_document') && ! $uploadedFile;
         $newDocPath = null;
         $oldDocPath = $borrowing->supporting_document_path;
+        $storingDocument = false;
 
         try {
             DB::transaction(function () use ($borrowing, $validated, $wantsFullReturn, &$wasReturned) {
@@ -202,18 +207,36 @@ class BorrowingController extends Controller
             $borrowing->refresh();
 
             if ($uploadedFile) {
+                $storingDocument = true;
                 $meta = $this->supportingDocuments->store($borrowing, $uploadedFile);
                 $newDocPath = $meta['supporting_document_path'];
                 $borrowing->update($meta);
+                $storingDocument = false;
                 if (is_string($oldDocPath) && $oldDocPath !== '' && $oldDocPath !== $newDocPath) {
-                    $this->supportingDocuments->deletePath($oldDocPath);
+                    try {
+                        $this->supportingDocuments->deletePath($oldDocPath);
+                    } catch (\Throwable $cleanup) {
+                        Log::warning('Dokumen pendukung lama tidak terhapus.', [
+                            'exception' => $cleanup::class,
+                        ]);
+                    }
                 }
             } elseif ($removeDocument && $borrowing->hasSupportingDocument()) {
                 $this->supportingDocuments->clear($borrowing);
             }
         } catch (\Throwable $e) {
-            if ($newDocPath) {
+            if ($storingDocument && is_string($newDocPath) && $newDocPath !== '' && $borrowing->fresh()?->supporting_document_path !== $newDocPath) {
                 $this->supportingDocuments->deletePath($newDocPath);
+            }
+
+            if ($storingDocument) {
+                Log::warning('Dokumen pendukung peminjaman gagal disimpan.', [
+                    'exception' => $e::class,
+                ]);
+
+                throw ValidationException::withMessages([
+                    'supporting_document' => 'Dokumen tidak dapat disimpan saat ini. Silakan coba kembali.',
+                ]);
             }
 
             throw $e;

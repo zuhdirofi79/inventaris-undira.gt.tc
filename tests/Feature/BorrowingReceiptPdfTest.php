@@ -227,7 +227,8 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertStringContainsString('Peminjam,', $html);
         $this->assertStringContainsString('Biro PPPA', $html);
         $this->assertStringContainsString('Nama Lengkap Peminjam Dengan Gelar Akademik yang Panjang', $html);
-        $this->assertStringContainsString('(Nama Petugas Biro PPPA)', $html);
+        $this->assertStringContainsString('(Biro PPPA)', $html);
+        $this->assertStringNotContainsString('(Nama Petugas Biro PPPA)', $html);
         $this->assertStringContainsString('page-break-inside: avoid', $html);
         $this->assertStringNotContainsString('position: absolute', $html);
         $this->assertStringNotContainsString('position: fixed', $html);
@@ -261,7 +262,7 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertLessThan($office['x'], $borrower['x']);
         $this->assertEqualsWithDelta($borrower['y'], $office['y'], 2.0);
         $borrowerName = $this->pdfRow($placed, 'Nama Lengkap Peminjam', $borrower['x']);
-        $officerName = $this->pdfRow($placed, 'Nama Petugas Biro PPPA', $office['x']);
+        $officerName = $this->pdfRow($placed, '\\(Biro PPPA\\)', $office['x']);
         $this->assertNotNull($borrowerName);
         $this->assertNotNull($officerName);
         $this->assertEqualsWithDelta($borrower['x'], $borrowerName['x'], 8);
@@ -399,7 +400,7 @@ class BorrowingReceiptPdfTest extends TestCase
             'tanpaseizin',
             'Peminjam,',
             'BiroPPPA',
-            'NamaPetugasBiroPPPA',
+            '\\(BiroPPPA\\)',
             'NamaLengkapPeminjam',
             'Disetujui:3',
             'Ditolak:2',
@@ -552,7 +553,8 @@ class BorrowingReceiptPdfTest extends TestCase
         $this->assertStringContainsString('Menunggu: '.$pending, $html);
         $this->assertStringContainsString('Status Persetujuan', $html);
         $this->assertStringContainsString('ATURAN DAN TANGGUNG JAWAB PEMINJAM', $html);
-        $this->assertStringContainsString('(Nama Petugas Biro PPPA)', $html);
+        $this->assertStringContainsString('(Biro PPPA)', $html);
+        $this->assertStringNotContainsString('Nama Petugas Biro PPPA', $html);
         $this->assertSame(1, substr_count($html, 'class="signatures"'));
         $this->assertSame($approved, preg_match_all('/<td class="c-status st-ok">Disetujui<\/td>/', $html));
         $this->assertSame($rejected, preg_match_all('/<td class="c-status st-no">Ditolak<\/td>/', $html));

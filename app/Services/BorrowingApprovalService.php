@@ -46,9 +46,10 @@ class BorrowingApprovalService
         ])->all();
 
         $storedPath = null;
+        $storingDocument = false;
 
         try {
-            $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester) {
+            $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester, $supportingDocument, &$storedPath, &$storingDocument) {
                 $borrowing = Borrowing::query()->create([
                     ...$header,
                     // Keep first item on header for backward-compatible code paths.
@@ -71,17 +72,29 @@ class BorrowingApprovalService
                     $borrowing->items()->create($row);
                 }
 
+                if ($supportingDocument) {
+                    $storingDocument = true;
+                    $meta = $this->supportingDocuments->store($borrowing, $supportingDocument);
+                    $storedPath = $meta['supporting_document_path'];
+                    $borrowing->update($meta);
+                    $storingDocument = false;
+                }
+
                 return $borrowing;
             });
-
-            if ($supportingDocument) {
-                $meta = $this->supportingDocuments->store($borrowing, $supportingDocument);
-                $storedPath = $meta['supporting_document_path'];
-                $borrowing->update($meta);
-            }
         } catch (\Throwable $e) {
-            if ($storedPath) {
+            if (is_string($storedPath) && $storedPath !== '') {
                 $this->supportingDocuments->deletePath($storedPath);
+            }
+
+            if ($storingDocument) {
+                Log::warning('Dokumen pendukung peminjaman gagal disimpan.', [
+                    'exception' => $e::class,
+                ]);
+
+                throw ValidationException::withMessages([
+                    'supporting_document' => 'Dokumen tidak dapat disimpan saat ini. Silakan coba kembali.',
+                ]);
             }
 
             throw $e;

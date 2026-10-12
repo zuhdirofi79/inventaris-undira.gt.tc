@@ -1,0 +1,36 @@
+@php
+    $approved = $borrowing->status?->value !== 'ditolak';
+@endphp
+<p>Yth. {{ $borrowing->borrower_name }},</p>
+<p>Pengajuan peminjaman kendaraan operasional Anda {{ $approved ? 'disetujui' : 'ditolak' }}.</p>
+<ul>
+    <li>Nomor: {{ $borrowing->approval_number ?: '—' }}</li>
+    <li>Status: {{ $borrowing->displayLabel() }}</li>
+    <li>Kampus: {{ $borrowing->campus?->name ?: '—' }}</li>
+    <li>Rute: {{ $borrowing->origin ?: ($borrowing->route?->name ?: '—') }}</li>
+    <li>Tujuan: {{ $borrowing->destination ?: '—' }}</li>
+    <li>Keperluan: {{ $borrowing->purpose }}</li>
+    <li>Jenis pengantaran: {{ $borrowing->service_type?->label() ?: '—' }}</li>
+    <li>Jumlah penumpang: {{ $borrowing->passenger_count ?: '—' }}</li>
+    <li>Jadwal: {{ $borrowing->scheduleText() }}</li>
+    @if($borrowing->passengerRows() !== [])
+        <li>Daftar penumpang:
+            <ul>
+                @foreach($borrowing->passengerRows() as $passenger)
+                    <li>{{ $passenger['name'] }}@if($passenger['unit'] !== '') — {{ $passenger['unit'] }}@endif @if($passenger['title'] !== '') — {{ $passenger['title'] }}@endif</li>
+                @endforeach
+            </ul>
+        </li>
+    @endif
+    @if($approved)
+        <li>Penugasan:
+            @if($borrowing->assigned_service === \App\Enums\VehicleServiceType::GoCar)
+                GoCar
+            @else
+                {{ $borrowing->vehicle?->label() ?: '—' }}@if($borrowing->driver), pengemudi {{ $borrowing->driver->name }}@endif
+            @endif
+        </li>
+    @else
+        <li>Alasan penolakan: {{ $borrowing->rejection_reason }}</li>
+    @endif
+</ul>

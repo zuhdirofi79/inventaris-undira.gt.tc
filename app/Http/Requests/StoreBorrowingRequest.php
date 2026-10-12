@@ -4,9 +4,12 @@ namespace App\Http\Requests;
 
 use App\Enums\BorrowingStatus;
 use App\Models\Borrowing;
+use App\Http\Requests\Concerns\ValidatesSupportingDocument;
 use App\Rules\IndonesianPhoneNumber;
 use App\Services\BorrowingItemResolver;
+use App\Services\RoomOccupancy;
 use App\Support\Validation\ActiveExists;
+use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -14,6 +17,8 @@ use Illuminate\Validation\Validator;
 
 class StoreBorrowingRequest extends FormRequest
 {
+    use ValidatesSupportingDocument;
+
     public function authorize(): bool
     {
         return $this->user()?->can('create', Borrowing::class) ?? false;
@@ -38,18 +43,15 @@ class StoreBorrowingRequest extends FormRequest
             'expected_return_date' => ['required', 'date_format:Y-m-d\TH:i', 'after:borrow_date'],
             'notes' => ['required', 'string'],
             'status' => ['nullable', Rule::enum(BorrowingStatus::class)],
-            'supporting_document' => [
-                'nullable',
-                'file',
-                'mimes:pdf,jpg,jpeg',
-                'max:5120',
-            ],
+            'supporting_document' => $this->supportingDocumentRules(),
         ];
     }
 
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator): void {
+            $this->guardSupportingDocument($validator);
+
             $hasItems = $this->filled('items')
                 || $this->filled('inventory_item_ids')
                 || $this->filled('inventory_item_id');
@@ -60,20 +62,17 @@ class StoreBorrowingRequest extends FormRequest
                 return;
             }
 
-            $file = $this->file('supporting_document');
-            if ($file && ! $validator->errors()->has('supporting_document')) {
-                $ext = strtolower((string) $file->getClientOriginalExtension());
-                if (! in_array($ext, ['pdf', 'jpg', 'jpeg'], true)) {
-                    $validator->errors()->add('supporting_document', 'Format file harus PDF, JPG, atau JPEG.');
-                }
-            }
-
             if ($validator->errors()->isNotEmpty()) {
                 return;
             }
 
             try {
-                app(BorrowingItemResolver::class)->normalizeRequestItems($this->all());
+                $ids = app(BorrowingItemResolver::class)->normalizeRequestItems($this->all());
+                $start = Carbon::createFromFormat('Y-m-d\TH:i', (string) $this->input('borrow_date'));
+                $end = Carbon::createFromFormat('Y-m-d\TH:i', (string) $this->input('expected_return_date'));
+                if ($start instanceof Carbon && $end instanceof Carbon) {
+                    app(RoomOccupancy::class)->assertInventoriesAvailable($ids, $start, $end);
+                }
             } catch (ValidationException $e) {
                 foreach ($e->errors() as $key => $messages) {
                     foreach ($messages as $message) {
@@ -99,9 +98,7 @@ class StoreBorrowingRequest extends FormRequest
             'expected_return_date.date_format' => 'Tanggal dan jam kembali tidak valid.',
             'expected_return_date.after' => 'Tanggal dan jam pengembalian harus setelah tanggal dan jam peminjaman.',
             'notes.required' => 'Keperluan wajib diisi.',
-            'supporting_document.mimes' => 'Format file harus PDF, JPG, atau JPEG.',
-            'supporting_document.max' => 'Ukuran file maksimal 5 MB.',
-            'supporting_document.file' => 'Dokumen pendukung tidak valid.',
+            ...$this->supportingDocumentMessages(),
         ];
     }
 }

@@ -1,7 +1,6 @@
 {{-- Role-aware enterprise sidebar — UX/structure only (routes & permissions unchanged). --}}
 @php
     use App\Support\SidebarMenu;
-    use App\Enums\BorrowingStatus;
 
     $user = auth()->user();
     $isAdmin = SidebarMenu::isAdminPersona($user);
@@ -117,32 +116,9 @@
 
         {{-- ========== OPERASIONAL ========== --}}
         @if($isViewer)
-            @canany(['borrowing.view', 'borrowing.create'])
+            @canany(['borrowing.view', 'borrowing.create', 'room-borrowing.view', 'room-borrowing.create', 'vehicle-borrowing.view', 'vehicle-borrowing.create'])
             <li class="nav-header undira-nav-section">Operasional</li>
-            <li class="nav-item {{ request()->routeIs('borrowings.*') ? 'menu-open' : '' }}">
-                <a href="#" class="nav-link">
-                    <i class="nav-icon fas fa-handshake"></i>
-                    <p>Peminjaman <i class="fas fa-angle-left right"></i></p>
-                </a>
-                <ul class="nav nav-treeview">
-                    @can('borrowing.create')
-                    <li class="nav-item">
-                        <a href="{{ route('borrowings.create') }}" class="nav-link {{ request()->routeIs('borrowings.create') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-plus-circle"></i>
-                            <p>Pinjam Inventaris</p>
-                        </a>
-                    </li>
-                    @endcan
-                    @can('borrowing.view')
-                    <li class="nav-item">
-                        <a href="{{ route('borrowings.index') }}" class="nav-link {{ request()->routeIs('borrowings.index','borrowings.show') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-history"></i>
-                            <p>Riwayat Peminjaman Saya</p>
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </li>
+            @include('partials.sidebar-borrowing')
             @endcanany
 
             <li class="nav-header undira-nav-section">Akun</li>
@@ -239,47 +215,8 @@
             <li class="nav-header undira-nav-section">Operasional</li>
 
             {{-- Peminjaman --}}
-            @canany(['borrowing.view', 'borrowing.create', 'borrowing.approve'])
-            <li class="nav-item {{ request()->routeIs('borrowings.*','borrowing-approvals.*') ? 'menu-open' : '' }}">
-                <a href="#" class="nav-link">
-                    <i class="nav-icon fas fa-handshake"></i>
-                    <p>Peminjaman <i class="fas fa-angle-left right"></i></p>
-                </a>
-                <ul class="nav nav-treeview">
-                    @can('borrowing.create')
-                    <li class="nav-item">
-                        <a href="{{ route('borrowings.create') }}" class="nav-link {{ request()->routeIs('borrowings.create') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-plus-circle"></i>
-                            <p>Pinjam Inventaris</p>
-                        </a>
-                    </li>
-                    @endcan
-                    @can('borrowing.approve')
-                    <li class="nav-item">
-                        <a href="{{ route('borrowings.index', ['status' => BorrowingStatus::MenungguPersetujuan->value]) }}"
-                           class="nav-link {{ request()->routeIs('borrowings.*') && request('status') === BorrowingStatus::MenungguPersetujuan->value ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-user-check"></i>
-                            <p>Approval</p>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="{{ route('borrowing-approvals.index') }}" class="nav-link {{ request()->routeIs('borrowing-approvals.*') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-clipboard-check"></i>
-                            <p>Riwayat Approval</p>
-                        </a>
-                    </li>
-                    @endcan
-                    @can('borrowing.view')
-                    <li class="nav-item">
-                        <a href="{{ route('borrowings.index') }}"
-                           class="nav-link {{ request()->routeIs('borrowings.index','borrowings.show','borrowings.edit') && ! request()->filled('status') ? 'active' : '' }}">
-                            <i class="nav-icon fas fa-history"></i>
-                            <p>Riwayat Peminjaman</p>
-                        </a>
-                    </li>
-                    @endcan
-                </ul>
-            </li>
+            @canany(['borrowing.view', 'borrowing.create', 'borrowing.approve', 'room-borrowing.view', 'room-borrowing.create', 'room-borrowing.approve', 'vehicle-borrowing.view', 'vehicle-borrowing.create', 'vehicle-borrowing.approve', 'vehicle-fleet.manage'])
+            @include('partials.sidebar-borrowing')
             @endcanany
 
             {{-- Maintenance --}}

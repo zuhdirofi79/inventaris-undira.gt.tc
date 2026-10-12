@@ -239,7 +239,7 @@
                         <div class="sign-head">Biro PPPA<br>Universitas Dian Nusantara</div>
                         <div class="sign-space">&nbsp;</div>
                         <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
-                        <div class="sign-name">(Nama Petugas Biro PPPA)</div>
+                        <div class="sign-name">(Biro PPPA)</div>
                     </td>
                 </tr>
             </table>

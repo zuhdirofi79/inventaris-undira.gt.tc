@@ -45,8 +45,8 @@ class BorrowingSupportingDocumentTest extends TestCase
         $this->assertStringContainsString('Dokumen Pendukung', $html);
         $this->assertStringContainsString('name="supporting_document"', $html);
         $this->assertStringContainsString('Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB.', $html);
-        $this->assertStringContainsString('Format file harus PDF, JPG, atau JPEG.', $html);
-        $this->assertStringContainsString('Ukuran file maksimal 5 MB.', $html);
+        $this->assertStringContainsString('Format dokumen harus PDF, JPG, atau JPEG.', $html);
+        $this->assertStringContainsString('Ukuran dokumen maksimal 5 MB.', $html);
         $this->assertStringContainsString('accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"', $html);
         $this->assertStringContainsString('enctype="multipart/form-data"', $html);
         $this->assertDoesNotMatchRegularExpression('/name="supporting_document"[^>]*required/', $html);
@@ -100,7 +100,9 @@ class BorrowingSupportingDocumentTest extends TestCase
                 'supporting_document' => $pdf,
             ]))
             ->assertRedirect(route('borrowings.create'))
-            ->assertSessionHasErrors('supporting_document');
+            ->assertSessionHasErrors([
+                'supporting_document' => 'Ukuran dokumen maksimal 5 MB.',
+            ]);
 
         $this->assertSame(0, Borrowing::query()->count());
     }
@@ -438,6 +440,191 @@ class BorrowingSupportingDocumentTest extends TestCase
         $this->assertTrue($borrowing->hasSupportingDocument());
     }
 
+    public function test_real_pdf_around_3mb_is_stored_and_can_be_opened(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $name = 'TOC Undira - Penambahan Gardener Kranggan (1).pdf';
+        $pdf = $this->realUpload($name, 3 * 1024 * 1024, "%PDF-1.4\n", 'application/pdf');
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => $pdf,
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $borrowing = Borrowing::query()->latest('id')->first();
+        $this->assertNotNull($borrowing);
+        $this->assertSame($name, $borrowing->supporting_document_original_name);
+        $this->assertGreaterThan(3 * 1024 * 1024, (int) $borrowing->supporting_document_size);
+        $this->assertLessThan(5 * 1024 * 1024, (int) $borrowing->supporting_document_size);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertExists($borrowing->supporting_document_path);
+        $this->assertStringStartsWith('borrowings/'.$borrowing->id.'/', $borrowing->supporting_document_path);
+        $this->assertStringEndsWith('.pdf', $borrowing->supporting_document_path);
+        $this->assertStringNotContainsString('..', $borrowing->supporting_document_path);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+
+        $this->actingAs($admin)
+            ->get(route('borrowings.supporting-document.view', $borrowing))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+    }
+
+    public function test_real_pdf_at_5mb_is_accepted(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $pdf = $this->realUpload('batas.pdf', (5120 * 1024) - 16, "%PDF-1.4\n", 'application/pdf');
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => $pdf,
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $borrowing = Borrowing::query()->latest('id')->first();
+        $this->assertTrue($borrowing->hasSupportingDocument());
+        $this->assertLessThanOrEqual(5120 * 1024, (int) $borrowing->supporting_document_size);
+    }
+
+    public function test_real_pdf_over_5mb_is_rejected_with_size_message_once(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $pdf = $this->realUpload('terlalu-besar.pdf', (5121 * 1024), "%PDF-1.4\n", 'application/pdf');
+
+        $html = $this->followingRedirects()
+            ->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => $pdf,
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertSame(1, substr_count($html, '<div class="invalid-feedback d-block">Ukuran dokumen maksimal 5 MB.</div>'));
+        $this->assertSame(0, substr_count($html, '<li>Ukuran dokumen maksimal 5 MB.</li>'));
+        $this->assertStringNotContainsString('gagal diunggah', $html);
+        $this->assertStringNotContainsString('supporting document', strtolower($html));
+        $this->assertStringNotContainsString('Terjadi kesalahan', $html);
+    }
+
+    public function test_php_ini_rejection_uses_size_message_and_does_not_save(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $path = tempnam(sys_get_temp_dir(), 'pdf');
+        file_put_contents($path, "%PDF-1.4\n");
+        $pdf = new UploadedFile($path, 'ditolak-php.pdf', 'application/pdf', UPLOAD_ERR_INI_SIZE, true);
+
+        try {
+            $html = $this->followingRedirects()
+                ->actingAs($admin)
+                ->from(route('borrowings.create'))
+                ->post(route('borrowings.store'), $this->payload($item, [
+                    'supporting_document' => $pdf,
+                ]))
+                ->assertOk()
+                ->getContent();
+        } finally {
+            if (is_file($path)) {
+                unlink($path);
+            }
+        }
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+        $this->assertSame(1, substr_count($html, '<div class="invalid-feedback d-block">Ukuran dokumen maksimal 5 MB.</div>'));
+        $this->assertSame(0, substr_count($html, '<li>Ukuran dokumen maksimal 5 MB.</li>'));
+        $this->assertStringNotContainsString('gagal diunggah', $html);
+    }
+
+    public function test_real_jpeg_is_accepted_and_other_formats_are_rejected(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+        $jpeg = UploadedFile::fake()->image('bukti kegiatan.jpeg')->size(400);
+
+        $this->actingAs($admin)
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => $jpeg,
+            ]))
+            ->assertRedirect(route('borrowings.index'));
+
+        $this->assertSame('bukti kegiatan.jpeg', Borrowing::query()->latest('id')->first()->supporting_document_original_name);
+
+        $item = $this->makeItem();
+        $html = $this->followingRedirects()
+            ->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => UploadedFile::fake()->create('catatan.txt', 20, 'text/plain'),
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(1, Borrowing::query()->count());
+        $this->assertSame(1, substr_count($html, '<div class="invalid-feedback d-block">Format dokumen harus PDF, JPG, atau JPEG.</div>'));
+        $this->assertStringNotContainsString('Terjadi kesalahan', $html);
+    }
+
+    public function test_invalid_form_keeps_old_input_and_does_not_save_partial_borrowing(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $html = $this->followingRedirects()
+            ->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'borrower_name' => 'Wawan',
+                'notes' => '',
+                'supporting_document' => UploadedFile::fake()->create('lampiran.pdf', 200, 'application/pdf'),
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertStringContainsString('Keperluan wajib diisi.', $html);
+        $this->assertStringContainsString('value="Wawan"', $html);
+        $this->assertStringContainsString('Terjadi kesalahan', $html);
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+    }
+
+    public function test_storage_failure_does_not_leave_a_borrowing(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $this->partialMock(BorrowingSupportingDocumentService::class, function ($mock): void {
+            $mock->shouldReceive('store')->once()->andThrow(new \RuntimeException('disk'));
+        });
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'supporting_document' => UploadedFile::fake()->create('lampiran.pdf', 300, 'application/pdf'),
+            ]))
+            ->assertRedirect(route('borrowings.create'))
+            ->assertSessionHasErrors([
+                'supporting_document' => 'Dokumen tidak dapat disimpan saat ini. Silakan coba kembali.',
+            ]);
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertSame(InventoryStatus::Aktif, $item->fresh()->status);
+        $this->assertSame([], Storage::disk(BorrowingSupportingDocumentService::DISK)->allFiles());
+    }
+
+    public function test_php_limits_allow_a_5mb_upload(): void
+    {
+        $upload = ini_parse_quantity((string) ini_get('upload_max_filesize'));
+        $post = ini_parse_quantity((string) ini_get('post_max_size'));
+
+        $this->assertGreaterThanOrEqual(8 * 1024 * 1024, $upload);
+        $this->assertGreaterThanOrEqual(12 * 1024 * 1024, $post);
+    }
+
     /**
      * @param  array<string, mixed>  $overrides
      * @return array<string, mixed>
@@ -520,5 +707,25 @@ class BorrowingSupportingDocumentTest extends TestCase
             'unit' => 'unit',
             'responsible_person' => 'PIC',
         ], $overrides));
+    }
+
+    protected function realUpload(string $name, int $bytes, string $header, string $mime): UploadedFile
+    {
+        $path = tempnam(sys_get_temp_dir(), 'doc');
+        $handle = fopen($path, 'wb');
+        fwrite($handle, $header);
+        $written = ftell($handle);
+        $pad = str_repeat('a', 8192);
+        while ($written < $bytes) {
+            $chunk = substr($pad, 0, min(8192, $bytes - $written));
+            fwrite($handle, $chunk);
+            $written += strlen($chunk);
+        }
+        if (str_ends_with($name, '.pdf')) {
+            fwrite($handle, "\n%%EOF\n");
+        }
+        fclose($handle);
+
+        return new UploadedFile($path, $name, $mime, UPLOAD_ERR_OK, true);
     }
 }

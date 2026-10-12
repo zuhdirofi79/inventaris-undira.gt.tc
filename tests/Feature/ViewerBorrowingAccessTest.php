@@ -36,13 +36,18 @@ class ViewerBorrowingAccessTest extends TestCase
             ->getContent();
 
         $pinjam = strpos($html, 'Pinjam Inventaris');
-        $riwayat = strpos($html, 'Riwayat Peminjaman Saya');
+        $riwayat = strpos($html, 'Riwayat Peminjaman');
 
         $this->assertNotFalse($pinjam);
         $this->assertNotFalse($riwayat);
         $this->assertLessThan($riwayat, $pinjam);
         $this->assertStringContainsString(route('borrowings.create'), $html);
+        $this->assertStringContainsString(route('borrowing-records.index'), $html);
+        $this->assertStringContainsString('Pinjam Ruangan', $html);
+        $this->assertStringContainsString('Pinjam Kendaraan', $html);
         $this->assertStringNotContainsString(route('borrowing-approvals.index'), $html);
+        $this->assertStringNotContainsString(route('room-borrowings.approvals'), $html);
+        $this->assertStringNotContainsString(route('vehicle-borrowings.approvals'), $html);
         $this->assertStringNotContainsString('Riwayat Approval', $html);
     }
 
@@ -55,6 +60,9 @@ class ViewerBorrowingAccessTest extends TestCase
             ->assertOk()
             ->assertSee('name="borrower_name"', false)
             ->assertSee('name="notes"', false);
+
+        $this->actingAs($viewer)->get(route('room-borrowings.create'))->assertOk()->assertSee('Pinjam Ruangan');
+        $this->actingAs($viewer)->get(route('vehicle-borrowings.create'))->assertOk()->assertSee('Pinjam Kendaraan');
 
         $this->actingAs($viewer)
             ->get(route('inventory.selector.search', ['q' => 'a']))

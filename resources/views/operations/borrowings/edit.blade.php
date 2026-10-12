@@ -17,16 +17,6 @@
     :list-back="true"
 />
 
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul class="mb-0">
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 <form action="{{ route('borrowings.update', $borrowing) }}" method="POST" id="borrowEditForm" enctype="multipart/form-data">
     @csrf @method('PUT')
     <div class="card card-undira">
@@ -180,7 +170,7 @@
         var type = (file.type || '').toLowerCase();
         var ext = name.indexOf('.') === -1 ? '' : name.split('.').pop();
         if (ext === 'pdf') {
-            return (!type || type === 'application/pdf') ? 'pdf' : null;
+            return (!type || type === 'application/pdf' || type === 'application/x-pdf' || type === 'application/octet-stream') ? 'pdf' : null;
         }
         if (ext === 'jpg' || ext === 'jpeg') {
             return (!type || type === 'image/jpeg' || type === 'image/jpg' || type === 'image/pjpeg') ? 'image' : null;
@@ -191,12 +181,12 @@
     function validateDocumentFile(file) {
         if (!file) return true;
         if (!documentKind(file)) {
-            $docError.removeClass('d-none').text('Format file harus PDF, JPG, atau JPEG.');
+            $docError.removeClass('d-none').text('Format dokumen harus PDF, JPG, atau JPEG.');
             $docInput.addClass('is-invalid');
             return false;
         }
         if (file.size > maxBytes) {
-            $docError.removeClass('d-none').text('Ukuran file maksimal 5 MB.');
+            $docError.removeClass('d-none').text('Ukuran dokumen maksimal 5 MB.');
             $docInput.addClass('is-invalid');
             return false;
         }

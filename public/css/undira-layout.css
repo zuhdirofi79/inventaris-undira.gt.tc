@@ -475,6 +475,10 @@ body.layout-fixed.sidebar-mini.sidebar-collapse:not(.sidebar-open) .wrapper .mai
   outline-offset: 1px;
 }
 
+.nav-treeview .nav-treeview > .nav-item > .nav-link {
+  margin-left: 1.35rem !important;
+}
+
 /* —— Section headers (enterprise grouping) —— */
 .undira-sidebar-nav .nav-header.undira-nav-section {
   opacity: 0.95;

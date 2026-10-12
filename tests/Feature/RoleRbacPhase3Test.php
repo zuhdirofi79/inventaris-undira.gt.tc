@@ -145,7 +145,14 @@ class RoleRbacPhase3Test extends TestCase
 
         $this->assertTrue($viewer->can('viewAny', InventoryItem::class));
         $this->assertFalse($viewer->can('create', InventoryItem::class));
-        $this->assertFalse($viewer->can('create', Borrowing::class));
+        $this->assertTrue($viewer->can('create', Borrowing::class));
+        $this->assertTrue($viewer->can('room-borrowing.create'));
+        $this->assertTrue($viewer->can('vehicle-borrowing.create'));
+        $this->assertFalse($viewer->can('borrowing.approve'));
+        $this->assertFalse($viewer->can('borrowing.update'));
+        $this->assertFalse($viewer->can('room-borrowing.approve'));
+        $this->assertFalse($viewer->can('vehicle-borrowing.approve'));
+        $this->assertFalse($viewer->can('vehicle-fleet.manage'));
     }
 
     public function test_role_labels_are_human_readable(): void

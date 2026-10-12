@@ -9,6 +9,7 @@ use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\BorrowingApprovalHistoryController;
 use App\Http\Controllers\BorrowingApprovalPublicController;
 use App\Http\Controllers\BorrowingController;
+use App\Http\Controllers\BorrowingRecordController;
 use App\Http\Controllers\BuildingController;
 use App\Http\Controllers\BuildingManagementController;
 use App\Http\Controllers\CampusController;
@@ -39,6 +40,7 @@ use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrgUnitController;
 use App\Http\Controllers\ProcurementTypeController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RoomBorrowingController;
 use App\Http\Controllers\RoomController;
 use App\Http\Controllers\RoomManagementController;
 use App\Http\Controllers\ScannerController;
@@ -50,6 +52,8 @@ use App\Http\Controllers\SupportingMasterController;
 use App\Http\Controllers\TeknisiDashboardController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VehicleBorrowingController;
+use App\Http\Controllers\VehicleFleetController;
 use App\Http\Controllers\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -364,6 +368,50 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     });
     Route::middleware('permission:borrowing.delete')->group(function () {
         Route::delete('/borrowings/{borrowing}', [BorrowingController::class, 'destroy'])->name('borrowings.destroy');
+    });
+
+    Route::get('/borrowing-records', [BorrowingRecordController::class, 'index'])->name('borrowing-records.index');
+
+    Route::middleware('permission:room-borrowing.create')->group(function () {
+        Route::get('/room-borrowings/create', [RoomBorrowingController::class, 'create'])->name('room-borrowings.create');
+        Route::get('/room-borrowings/templates/{kind}', [RoomBorrowingController::class, 'downloadTemplate'])
+            ->whereIn('kind', ['approval', 'layout', 'participants'])
+            ->name('room-borrowings.templates');
+        Route::post('/room-borrowings', [RoomBorrowingController::class, 'store'])->name('room-borrowings.store');
+    });
+    Route::middleware('permission:room-borrowing.approve')->group(function () {
+        Route::get('/room-borrowings/approvals', [RoomBorrowingController::class, 'approvals'])->name('room-borrowings.approvals');
+        Route::get('/room-borrowings/approval-history', [RoomBorrowingController::class, 'history'])->name('room-borrowings.history');
+        Route::post('/room-borrowings/{roomBorrowing}/decide', [RoomBorrowingController::class, 'decide'])->name('room-borrowings.decide');
+    });
+    Route::middleware('permission:room-borrowing.view')->group(function () {
+        Route::get('/room-borrowings/{roomBorrowing}/documents/{kind}', [RoomBorrowingController::class, 'downloadDocument'])
+            ->whereIn('kind', ['approval', 'layout', 'participants'])
+            ->name('room-borrowings.documents');
+        Route::get('/room-borrowings/{roomBorrowing}', [RoomBorrowingController::class, 'show'])->name('room-borrowings.show');
+    });
+
+    Route::middleware('permission:vehicle-fleet.manage')->prefix('vehicle-fleet')->name('vehicle-fleet.')->group(function () {
+        Route::get('/', [VehicleFleetController::class, 'index'])->name('index');
+        Route::post('/vehicles', [VehicleFleetController::class, 'storeVehicle'])->name('vehicles.store');
+        Route::put('/vehicles/{vehicle}', [VehicleFleetController::class, 'updateVehicle'])->name('vehicles.update');
+        Route::post('/drivers', [VehicleFleetController::class, 'storeDriver'])->name('drivers.store');
+        Route::put('/drivers/{driver}', [VehicleFleetController::class, 'updateDriver'])->name('drivers.update');
+        Route::post('/routes', [VehicleFleetController::class, 'storeRoute'])->name('routes.store');
+        Route::put('/routes/{route}', [VehicleFleetController::class, 'updateRoute'])->name('routes.update');
+    });
+    Route::middleware('permission:vehicle-borrowing.create')->group(function () {
+        Route::get('/vehicle-borrowings/create', [VehicleBorrowingController::class, 'create'])->name('vehicle-borrowings.create');
+        Route::post('/vehicle-borrowings', [VehicleBorrowingController::class, 'store'])->name('vehicle-borrowings.store');
+    });
+    Route::middleware('permission:vehicle-borrowing.approve')->group(function () {
+        Route::get('/vehicle-borrowings/approvals', [VehicleBorrowingController::class, 'approvals'])->name('vehicle-borrowings.approvals');
+        Route::get('/vehicle-borrowings/approval-history', [VehicleBorrowingController::class, 'history'])->name('vehicle-borrowings.history');
+        Route::post('/vehicle-borrowings/{vehicleBorrowing}/decide', [VehicleBorrowingController::class, 'decide'])->name('vehicle-borrowings.decide');
+    });
+    Route::middleware('permission:vehicle-borrowing.view')->group(function () {
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}/document', [VehicleBorrowingController::class, 'downloadDocument'])->name('vehicle-borrowings.document');
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}', [VehicleBorrowingController::class, 'show'])->name('vehicle-borrowings.show');
     });
 
     Route::middleware('permission:maintenance.create')->group(function () {
