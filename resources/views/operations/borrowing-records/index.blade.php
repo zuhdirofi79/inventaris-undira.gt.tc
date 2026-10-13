@@ -72,7 +72,13 @@
                     @forelse($records as $record)
                         <tr>
                             <td>{{ $record['kind_label'] }}</td>
-                            <td>{{ $record['number'] }}</td>
+                            <td>
+                                @if(!empty($record['number_url']))
+                                    <a href="{{ $record['number_url'] }}">{{ $record['number'] }}</a>
+                                @else
+                                    {{ $record['number'] }}
+                                @endif
+                            </td>
                             <td>{{ $record['subject'] }}</td>
                             <td>{{ $record['campus'] }}</td>
                             <td>{{ $record['borrower'] }}</td>

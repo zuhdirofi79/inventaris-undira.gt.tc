@@ -53,7 +53,18 @@ class AuthenticatedLayoutShellTest extends TestCase
     {
         $css = file_get_contents(public_path('css/undira-layout.css'));
 
-        $this->assertStringContainsString('--sidebar-expanded-width: 248px', $css);
+        $this->assertStringContainsString('--sidebar-expanded-width: 300px', $css);
+        $this->assertMatchesRegularExpression(
+            '/\.main-sidebar \.nav-sidebar \.nav-link > p \{[^}]*white-space:\s*normal !important/s',
+            $css
+        );
+        $this->assertDoesNotMatchRegularExpression(
+            '/\.nav-sidebar \.nav-link p \{[^}]*text-overflow:\s*ellipsis/s',
+            $css
+        );
+        $this->assertStringContainsString('width: auto !important', $css);
+        $this->assertStringContainsString('scrollbar-gutter: stable', $css);
+        $this->assertStringContainsString('sidebar-collapse.sidebar-open .main-sidebar', $css);
         $this->assertStringContainsString('--sidebar-collapsed-width: 76px', $css);
         $this->assertStringContainsString('--topbar-height: 64px', $css);
         $this->assertStringContainsString('--content-padding-x', $css);

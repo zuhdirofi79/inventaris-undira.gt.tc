@@ -141,7 +141,8 @@
             <li class="nav-item {{ request()->routeIs('maintenances.*','maintenance-schedules.*','teknisi-dashboard.*') ? 'menu-open' : '' }}">
                 <a href="#" class="nav-link">
                     <i class="nav-icon fas fa-tools"></i>
-                    <p>Maintenance <i class="fas fa-angle-left right"></i></p>
+                    <p>Maintenance</p>
+                    <i class="fas fa-angle-left right" aria-hidden="true"></i>
                 </a>
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
@@ -224,7 +225,8 @@
             <li class="nav-item {{ request()->routeIs('maintenances.*','maintenance-schedules.*','maintenance-dashboard.*','maintenance-approvals.*','inventory.damaged.*') ? 'menu-open' : '' }}">
                 <a href="#" class="nav-link">
                     <i class="nav-icon fas fa-tools"></i>
-                    <p>Maintenance <i class="fas fa-angle-left right"></i></p>
+                    <p>Maintenance</p>
+                    <i class="fas fa-angle-left right" aria-hidden="true"></i>
                 </a>
                 <ul class="nav nav-treeview">
                     <li class="nav-item">
@@ -279,7 +281,8 @@
             <li class="nav-item {{ request()->routeIs('mutations.*','stock-opnames.*','deletion-approvals.*') ? 'menu-open' : '' }}">
                 <a href="#" class="nav-link">
                     <i class="nav-icon fas fa-dolly"></i>
-                    <p>Operasional Aset <i class="fas fa-angle-left right"></i></p>
+                    <p>Operasional Aset</p>
+                    <i class="fas fa-angle-left right" aria-hidden="true"></i>
                 </a>
                 <ul class="nav nav-treeview">
                     @can('mutation.view')

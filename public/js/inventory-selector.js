@@ -44,10 +44,29 @@
         if (item.location) {
             $wrap.append($('<div class="invsel-opt-meta">').text('Lokasi: ' + item.location));
         }
-        if (item.status_label) {
+        if (item.availability_state === 'pending') {
+            $wrap.append($('<div class="invsel-opt-badge">').text(item.availability_label || 'Menunggu Persetujuan'));
+            if (item.availability_reason) {
+                $wrap.append($('<div class="invsel-opt-reason">').text(item.availability_reason));
+            }
+        } else if (item.status_label) {
             $wrap.append($('<div class="invsel-opt-meta">').text('Status: ' + item.status_label));
         }
         return $wrap;
+    }
+
+    function scheduleParams(root) {
+        var startSel = root.getAttribute('data-schedule-start') || '';
+        var endSel = root.getAttribute('data-schedule-end') || '';
+        if (!startSel && !endSel) {
+            return {};
+        }
+        var startEl = startSel ? document.querySelector(startSel) : null;
+        var endEl = endSel ? document.querySelector(endSel) : null;
+        return {
+            borrow_date: startEl ? (startEl.value || '') : '',
+            expected_return_date: endEl ? (endEl.value || '') : ''
+        };
     }
 
     function setPreview(root, detail) {
@@ -79,26 +98,36 @@
         badge.classList.toggle('is-visible', blocked);
         if (blocked) {
             if (titleEl) {
-                var statusLabel = detail.status_label || 'Tidak dapat dipinjam';
-                titleEl.textContent = detail.status === 'dipinjam'
-                    ? 'Sedang Dipinjam'
-                    : ('Tidak dapat dipinjam (' + statusLabel + ')');
+                if (detail.availability_state === 'pending') {
+                    titleEl.textContent = detail.availability_label || 'Menunggu Persetujuan';
+                } else {
+                    var statusLabel = detail.status_label || 'Tidak dapat dipinjam';
+                    titleEl.textContent = detail.status === 'dipinjam'
+                        ? 'Sedang Dipinjam'
+                        : ('Tidak dapat dipinjam (' + statusLabel + ')');
+                }
             }
             if (detailEl) {
-                var ab = detail.active_borrowing || {};
-                var parts = [];
-                if (ab.borrower_name) {
-                    parts.push('Peminjam: ' + ab.borrower_name);
+                if (detail.availability_reason) {
+                    detailEl.textContent = detail.availability_reason;
+                } else if (detail.availability_state === 'pending') {
+                    detailEl.textContent = 'Inventaris sedang diajukan oleh pengguna lain.';
+                } else {
+                    var ab = detail.active_borrowing || {};
+                    var parts = [];
+                    if (ab.borrower_name) {
+                        parts.push('Peminjam: ' + ab.borrower_name);
+                    }
+                    if (ab.borrow_date) {
+                        parts.push('Sejak: ' + ab.borrow_date);
+                    }
+                    if (ab.expected_return_date) {
+                        parts.push('Rencana kembali: ' + ab.expected_return_date);
+                    }
+                    detailEl.textContent = parts.length
+                        ? parts.join(' · ')
+                        : ('Status saat ini: ' + (detail.status_label || 'tidak valid') + '.');
                 }
-                if (ab.borrow_date) {
-                    parts.push('Sejak: ' + ab.borrow_date);
-                }
-                if (ab.expected_return_date) {
-                    parts.push('Rencana kembali: ' + ab.expected_return_date);
-                }
-                detailEl.textContent = parts.length
-                    ? parts.join(' · ')
-                    : ('Status saat ini: ' + (detail.status_label || 'tidak valid') + '.');
             }
         }
         return { blocked: blocked };
@@ -168,6 +197,11 @@
         var url = useMaint
             ? ((urls.maintenanceContext || urls.show) + '/' + id + '/maintenance-context')
             : (urls.show + '/' + id);
+        var schedule = scheduleParams(root);
+        var scheduleQuery = $.param(schedule);
+        if (!useMaint && scheduleQuery) {
+            url += '?' + scheduleQuery;
+        }
 
         $.getJSON(url)
             .done(function (detail) {
@@ -452,7 +486,7 @@
                         payload.building_id = $building.val();
                         payload.floor_id = $floor.val();
                     }
-                    return $.extend(payload, statusParams(root));
+                    return $.extend(payload, statusParams(root), scheduleParams(root));
                 },
             });
             $locItem.off('change.invsel').on('change.invsel', function () {
@@ -480,7 +514,7 @@
                         payload.category_id = $category.val();
                         payload.sub_category_id = $subCategory.val();
                     }
-                    return $.extend(payload, statusParams(root));
+                    return $.extend(payload, statusParams(root), scheduleParams(root));
                 },
             });
             $quickItem.off('change.invsel').on('change.invsel', function () {
@@ -504,11 +538,11 @@
             $.ajax({
                 url: urls.resolveCode,
                 method: 'POST',
-                data: {
+                data: $.extend({
                     code: code,
                     _token: csrf,
                     maintenance: root.getAttribute('data-resolve-maintenance') === '1' ? 1 : 0,
-                },
+                }, scheduleParams(root)),
                 dataType: 'json',
             }).done(function (res) {
                 if (!res.found || !res.item) {
@@ -584,6 +618,26 @@
                 resolveCode(code);
             });
         }
+
+        var startSel = root.getAttribute('data-schedule-start') || '';
+        var endSel = root.getAttribute('data-schedule-end') || '';
+        [startSel, endSel].forEach(function (selector) {
+            if (!selector) {
+                return;
+            }
+            var field = document.querySelector(selector);
+            if (!field) {
+                return;
+            }
+            field.addEventListener('change', function () {
+                var currentId = root.querySelector('[data-invsel-hidden]')?.value
+                    || ($quickItem.length ? $quickItem.val() : '')
+                    || ($locItem.length ? $locItem.val() : '');
+                if (currentId) {
+                    loadDetail(root, currentId, 'schedule');
+                }
+            });
+        });
 
         // Prefill detail when hidden already has a value; otherwise lock submit if required.
         var initialId = root.querySelector('[data-invsel-hidden]')?.value;

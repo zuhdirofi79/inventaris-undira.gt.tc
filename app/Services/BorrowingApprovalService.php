@@ -48,8 +48,18 @@ class BorrowingApprovalService
         $storedPath = null;
         $storingDocument = false;
 
+        $window = app(InventoryAvailability::class)->completeWindow(
+            $data['borrow_date'] ?? null,
+            $data['expected_return_date'] ?? null,
+        );
+
         try {
-            $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester, $supportingDocument, &$storedPath, &$storingDocument) {
+            $borrowing = DB::transaction(function () use ($header, $inventoryIds, $requester, $supportingDocument, &$storedPath, &$storingDocument, $window) {
+                if ($window !== null) {
+                    InventoryItem::query()->whereIn('id', $inventoryIds)->lockForUpdate()->get();
+                    app(InventoryAvailability::class)->assertSelectable($inventoryIds, $window['start'], $window['end']);
+                }
+
                 $borrowing = Borrowing::query()->create([
                     ...$header,
                     // Keep first item on header for backward-compatible code paths.
@@ -675,8 +685,26 @@ class BorrowingApprovalService
                     'inventory_item_id' => "Tidak dapat diproses karena {$item->inventory_number} sedang Dipinjam.",
                 ]);
             }
+        }
 
-            if (Borrowing::inventoryIsBlocked((int) $id, $exceptBorrowingId)) {
+        $borrowing = Borrowing::query()->find($exceptBorrowingId);
+        $start = $borrowing?->borrow_date;
+        $end = $borrowing?->expected_return_date;
+        if ($start instanceof CarbonInterface && $end instanceof CarbonInterface && $end->greaterThan($start)) {
+            app(InventoryAvailability::class)->assertSelectable(
+                $inventoryIds,
+                $start,
+                $end,
+                $exceptBorrowingId,
+                'inventory_item_id',
+            );
+
+            return;
+        }
+
+        foreach ($inventoryIds as $id) {
+            $item = $items->get($id);
+            if ($item && Borrowing::inventoryIsBlocked((int) $id, $exceptBorrowingId)) {
                 throw ValidationException::withMessages([
                     'inventory_item_id' => "Tidak dapat diproses karena {$item->inventory_number} sedang dalam transaksi peminjaman lain.",
                 ]);

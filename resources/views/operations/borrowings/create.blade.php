@@ -30,12 +30,18 @@
         <div class="card-body">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Nama Peminjam <span class="text-danger">*</span></label>
-                    <input type="text" name="borrower_name" class="form-control" value="{{ old('borrower_name') }}" required autocomplete="name">
+                    <label class="form-label" for="borrower_name">Nama Peminjam <span class="text-danger">*</span></label>
+                    <input id="borrower_name" type="text" name="borrower_name" class="form-control @error('borrower_name') is-invalid @enderror" value="{{ old('borrower_name') }}" required autocomplete="name">
+                    @error('borrower_name')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label class="form-label">Email</label>
-                    <input type="email" name="borrower_email" class="form-control" value="{{ old('borrower_email') }}" autocomplete="email">
+                    <label class="form-label" for="borrower_email">Email <span class="text-danger">*</span></label>
+                    <input id="borrower_email" type="email" name="borrower_email" class="form-control @error('borrower_email') is-invalid @enderror" value="{{ old('borrower_email') }}" required autocomplete="email">
+                    @error('borrower_email')
+                        <div class="invalid-feedback d-block">{{ $message }}</div>
+                    @enderror
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Telepon / No. HP <span class="text-danger">*</span></label>
@@ -70,15 +76,16 @@
                     @enderror
                 </div>
                 <div class="col-12 mt-3 mb-0">
-                    <label class="form-label" for="supporting_document">Dokumen Pendukung</label>
+                    <label class="form-label" for="supporting_document">Dokumen Pendukung <span class="text-danger">*</span></label>
                     <input
                         type="file"
                         name="supporting_document"
                         id="supporting_document"
                         class="form-control @error('supporting_document') is-invalid @enderror"
                         accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"
+                        required
                     >
-                    <div class="form-text">Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB.</div>
+                    <div class="form-text">Wajib diisi. Format PDF, JPG, atau JPEG, maksimal 5 MB.</div>
                     <div id="supportingDocumentInfo" class="small mt-2 d-none"></div>
                     <div id="supportingDocumentClientError" class="invalid-feedback d-block d-none"></div>
                     @error('supporting_document')
@@ -119,6 +126,12 @@
                             <td colspan="7" class="text-center text-muted py-4">Belum ada barang. Klik <strong>Tambah Barang</strong> untuk memilih inventaris.</td>
                         </tr>
                     </tbody>
+                    @error('items')
+                        <div class="invalid-feedback d-block px-3 py-2" id="borrowCartError">{{ $message }}</div>
+                    @enderror
+                    @error('inventory_item_id')
+                        <div class="invalid-feedback d-block px-3 py-2">{{ $message }}</div>
+                    @enderror
                 </table>
             </div>
         </div>
@@ -152,6 +165,8 @@
                     partial-scope
                     modes="both"
                     :required="false"
+                    schedule-start="#borrow_date"
+                    schedule-end="#expected_return_date"
                     help-text="Ketik minimal 2 huruf/angka: nomor inventaris, nama, barcode, atau serial. Bisa juga scan QR."
                     label="Barang yang dipinjam"
                 />
@@ -248,9 +263,10 @@
         $qty.attr('max', Math.max(1, avail)).val(1);
         $qtyHint.text(ready ? ('Tersedia: ' + avail + ' unit') : 'Tersedia: —');
         if (!ready && detail) {
-            alertMsg(detail.active_borrowing
-                ? 'Barang sedang dipinjam atau menunggu persetujuan.'
-                : ('Tidak dapat dipinjam (status: ' + (detail.status_label || detail.status) + ').'));
+            alertMsg(detail.availability_reason
+                || (detail.active_borrowing
+                    ? 'Barang sedang dipinjam atau menunggu persetujuan.'
+                    : ('Tidak dapat dipinjam (status: ' + (detail.status_label || detail.status) + ').')));
         } else {
             alertMsg('');
         }
@@ -265,9 +281,19 @@
             return;
         }
 
+        var borrowDate = $('#borrow_date').val() || '';
+        var returnDate = $('#expected_return_date').val() || '';
+        if (!borrowDate || !returnDate) {
+            alertMsg('Isi tanggal dan jam pinjam serta tanggal dan jam kembali sebelum menambahkan inventaris.');
+            return;
+        }
+
         $addBtn.prop('disabled', true);
         var exclude = ids().join(',');
-        var url = siblingsUrl + '/' + selected.id + '/borrow-siblings?qty=' + qty + '&exclude=' + encodeURIComponent(exclude);
+        var url = siblingsUrl + '/' + selected.id + '/borrow-siblings?qty=' + qty
+            + '&exclude=' + encodeURIComponent(exclude)
+            + '&borrow_date=' + encodeURIComponent(borrowDate)
+            + '&expected_return_date=' + encodeURIComponent(returnDate);
 
         fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
             .then(function (res) { return res.json().then(function (data) { return { ok: res.ok, data: data }; }); })
@@ -289,13 +315,7 @@
                 }
             })
             .catch(function () {
-                // Fallback: add seed only
-                if (qty === 1 && pushItem(selected)) {
-                    render();
-                    alertMsg('');
-                } else {
-                    alertMsg('Gagal mengambil unit tersedia. Coba tambahkan satu per satu.');
-                }
+                alertMsg('Gagal memeriksa ketersediaan inventaris. Coba lagi.');
             })
             .finally(function () {
                 $addBtn.prop('disabled', !selected);
@@ -310,12 +330,16 @@
 
     if (oldIds.length) {
         oldIds.forEach(function (id) {
-            fetch(siblingsUrl + '/' + id, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+            var borrowDate = $('#borrow_date').val() || '';
+            var returnDate = $('#expected_return_date').val() || '';
+            var url = siblingsUrl + '/' + id
+                + '?borrow_date=' + encodeURIComponent(borrowDate)
+                + '&expected_return_date=' + encodeURIComponent(returnDate);
+            fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(function (r) { return r.json(); })
                 .then(function (d) {
                     var detail = d.item || d;
-                    if (detail && detail.id) {
-                        detail.borrowable = true;
+                    if (detail && detail.id && detail.borrowable) {
                         pushItem(detail);
                         render();
                     }
@@ -399,6 +423,7 @@
             this.value = '';
             return;
         }
+        this.setCustomValidity('');
         revokePreview();
         var kind = documentKind(file);
         var safeName = $('<div>').text(file.name).html();
@@ -421,9 +446,35 @@
         clearDocumentSelection();
     });
 
+    var $email = $('#borrower_email');
+    $email.on('invalid', function () {
+        if (this.validity.valueMissing) {
+            this.setCustomValidity('Email peminjam wajib diisi.');
+        } else if (this.validity.typeMismatch) {
+            this.setCustomValidity('Format email tidak valid.');
+        }
+    });
+    $email.on('input', function () {
+        this.setCustomValidity('');
+    });
+
+    $docInput.on('invalid', function () {
+        if (this.validity.valueMissing) {
+            this.setCustomValidity('Dokumen pendukung wajib diunggah.');
+        }
+    });
+
     $('#borrowForm').on('submit', function (e) {
         var file = $docInput[0].files && $docInput[0].files[0] ? $docInput[0].files[0] : null;
-        if (file && !validateDocumentFile(file)) {
+        if (!file) {
+            e.preventDefault();
+            $docInput[0].setCustomValidity('Dokumen pendukung wajib diunggah.');
+            $docError.removeClass('d-none').text('Dokumen pendukung wajib diunggah.');
+            $docInput.addClass('is-invalid');
+            return false;
+        }
+        $docInput[0].setCustomValidity('');
+        if (!validateDocumentFile(file)) {
             e.preventDefault();
             return false;
         }

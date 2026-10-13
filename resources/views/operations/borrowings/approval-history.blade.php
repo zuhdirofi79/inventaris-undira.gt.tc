@@ -83,13 +83,11 @@
                     <td><span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span></td>
                     <td>{{ $borrowing->approvedBy?->name ?? '—' }}</td>
                     <td>
-                        <a href="{{ route('borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-primary" title="Detail"><i class="fas fa-eye"></i></a>
-                        @if($borrowing->hasSupportingDocument())
-                            <a href="{{ route('borrowings.supporting-document.view', $borrowing) }}" class="btn btn-sm btn-outline-secondary" title="Dokumen Pendukung" target="_blank" rel="noopener" data-no-loader="1"><i class="fas fa-paperclip"></i></a>
-                        @endif
-                        @if($borrowing->approval_number)
-                            <a href="{{ route('borrowings.receipt.pdf', $borrowing) }}" class="btn btn-sm btn-outline-danger" title="Receipt PDF"><i class="fas fa-file-pdf"></i></a>
-                        @endif
+                        @include('partials.approval-history-actions', [
+                            'detailUrl' => route('borrowings.show', $borrowing),
+                            'documentUrl' => $borrowing->hasSupportingDocument() ? route('borrowings.supporting-document.view', $borrowing) : null,
+                            'receiptPdfUrl' => $borrowing->approval_number ? route('borrowings.receipt.pdf', $borrowing) : null,
+                        ])
                     </td>
                 </tr>
                 @empty

@@ -3,10 +3,11 @@
 namespace App\Services;
 
 use App\Models\Borrowing;
+use App\Support\PrivateDocumentResponse;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class BorrowingSupportingDocumentService
 {
@@ -75,28 +76,24 @@ class BorrowingSupportingDocumentService
     public function exists(Borrowing $borrowing): bool
     {
         $path = $borrowing->supporting_document_path;
+        if (! is_string($path) || $path === '') {
+            return false;
+        }
 
-        return is_string($path)
-            && $path !== ''
-            && Storage::disk(self::DISK)->exists($path);
+        $safe = PrivateDocumentResponse::safePath($path, 'borrowings/'.$borrowing->id);
+
+        return $safe !== null && Storage::disk(self::DISK)->exists($safe[0]);
     }
 
-    public function stream(Borrowing $borrowing, bool $download = false): StreamedResponse
+    public function stream(Borrowing $borrowing, bool $download = false): Response
     {
-        abort_unless($this->exists($borrowing), 404);
-
-        $path = (string) $borrowing->supporting_document_path;
-        $name = $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.'.$this->extensionFromPath($path);
-        $disposition = $download ? 'attachment' : 'inline';
-
-        return Storage::disk(self::DISK)->response(
-            $path,
-            $name,
-            [
-                'Content-Type' => $this->contentType($borrowing),
-                'X-Content-Type-Options' => 'nosniff',
-                'Content-Disposition' => $disposition.'; filename="'.$this->headerFilename($name).'"',
-            ]
+        return PrivateDocumentResponse::stream(
+            self::DISK,
+            (string) $borrowing->supporting_document_path,
+            'borrowings/'.$borrowing->id,
+            $borrowing->supporting_document_original_name ?: 'dokumen-pendukung.pdf',
+            $download,
+            'borrowing:'.$borrowing->id,
         );
     }
 
@@ -166,10 +163,5 @@ class BorrowingSupportingDocumentService
         $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
         return in_array($ext, ['pdf', 'jpg', 'jpeg'], true) ? $ext : 'pdf';
-    }
-
-    protected function headerFilename(string $name): string
-    {
-        return str_replace(['"', "\r", "\n"], '', $name);
     }
 }

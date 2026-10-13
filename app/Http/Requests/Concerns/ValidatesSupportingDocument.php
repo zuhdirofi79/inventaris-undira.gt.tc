@@ -13,9 +13,9 @@ trait ValidatesSupportingDocument
     /**
      * @return list<string>
      */
-    protected function supportingDocumentRules(): array
+    protected function supportingDocumentRules(bool $required = false): array
     {
-        return ['nullable', 'file', 'mimes:pdf,jpg,jpeg', 'max:'.self::SUPPORTING_DOCUMENT_MAX_KILOBYTES];
+        return [$required ? 'required' : 'nullable', 'file', 'mimes:pdf,jpg,jpeg', 'max:'.self::SUPPORTING_DOCUMENT_MAX_KILOBYTES];
     }
 
     /**
@@ -24,6 +24,7 @@ trait ValidatesSupportingDocument
     protected function supportingDocumentMessages(): array
     {
         return [
+            'supporting_document.required' => 'Dokumen pendukung wajib diunggah.',
             'supporting_document.mimes' => 'Format dokumen harus PDF, JPG, atau JPEG.',
             'supporting_document.max' => 'Ukuran dokumen maksimal 5 MB.',
             'supporting_document.file' => 'Dokumen pendukung tidak valid.',
@@ -67,7 +68,45 @@ trait ValidatesSupportingDocument
         $extension = strtolower((string) $file->getClientOriginalExtension());
         if (! in_array($extension, ['pdf', 'jpg', 'jpeg'], true)) {
             $validator->errors()->add('supporting_document', 'Format dokumen harus PDF, JPG, atau JPEG.');
+
+            return;
         }
+
+        if (! $this->supportingDocumentContentIsAllowed($file)) {
+            $validator->errors()->add('supporting_document', 'Format dokumen harus PDF, JPG, atau JPEG.');
+        }
+    }
+
+    /**
+     * Reject renamed files whose bytes are not a real PDF or JPEG.
+     * Reads the temp file directly so the client MIME type cannot bypass the check.
+     */
+    protected function supportingDocumentContentIsAllowed(UploadedFile $file): bool
+    {
+        $path = $file->getPathname();
+        if (! is_string($path) || ! is_file($path)) {
+            return false;
+        }
+
+        $head = file_get_contents($path, false, null, 0, 8);
+        if (! is_string($head) || $head === '') {
+            return false;
+        }
+
+        $mime = strtolower((string) (new \finfo(FILEINFO_MIME_TYPE))->file($path));
+        $extension = strtolower((string) $file->getClientOriginalExtension());
+
+        if ($extension === 'pdf') {
+            return str_starts_with($head, '%PDF-')
+                && in_array($mime, ['application/pdf', 'application/x-pdf'], true);
+        }
+
+        if (in_array($extension, ['jpg', 'jpeg'], true)) {
+            return str_starts_with($head, "\xFF\xD8\xFF")
+                && in_array($mime, ['image/jpeg', 'image/jpg', 'image/pjpeg'], true);
+        }
+
+        return false;
     }
 
     protected function supportingDocumentUploadMessage(UploadedFile $file): string

@@ -10,13 +10,17 @@ use App\Models\Campus;
 use App\Models\RoomBorrowing;
 use App\Models\User;
 use App\Policies\BorrowingPolicy;
+use App\Services\FacilityReceiptService;
 use App\Services\RoomBorrowingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CampusQuery;
+use App\Support\PrivateDocumentResponse;
 use App\Support\RoomBorrowingTemplates;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class RoomBorrowingController extends Controller
@@ -24,6 +28,7 @@ class RoomBorrowingController extends Controller
     public function __construct(
         private readonly RoomBorrowingService $service,
         private readonly RoomBorrowingTemplates $templates,
+        private readonly FacilityReceiptService $receipts,
     ) {}
 
     public function create(): View
@@ -107,13 +112,58 @@ class RoomBorrowingController extends Controller
             ->with('success', $message);
     }
 
-    public function downloadDocument(Request $request, RoomBorrowing $roomBorrowing, string $kind): StreamedResponse
+    public function approval(Request $request, RoomBorrowing $roomBorrowing): View
+    {
+        $this->authorizeDocument($request, $roomBorrowing);
+
+        return view('operations.facility.approval-detail', $this->receipts->room($roomBorrowing));
+    }
+
+    public function receipt(Request $request, RoomBorrowing $roomBorrowing): View
+    {
+        $this->authorizeDocument($request, $roomBorrowing);
+
+        return view('operations.facility.receipt', [
+            ...$this->receipts->room($roomBorrowing),
+            'isPdf' => false,
+        ]);
+    }
+
+    public function receiptPdf(Request $request, RoomBorrowing $roomBorrowing): Response
+    {
+        $this->authorizeDocument($request, $roomBorrowing);
+        $payload = $this->receipts->room($roomBorrowing);
+        $payload['isPdf'] = true;
+
+        return Pdf::loadView('operations.facility.receipt', $payload)
+            ->setPaper('a4', 'portrait')
+            ->download('receipt_'.$roomBorrowing->approval_number.'.pdf');
+    }
+
+    public function viewDocument(Request $request, RoomBorrowing $roomBorrowing, string $kind): Response
+    {
+        return $this->documentResponse($request, $roomBorrowing, $kind, false);
+    }
+
+    public function downloadDocument(Request $request, RoomBorrowing $roomBorrowing, string $kind): Response
+    {
+        return $this->documentResponse($request, $roomBorrowing, $kind, true);
+    }
+
+    private function documentResponse(Request $request, RoomBorrowing $roomBorrowing, string $kind, bool $download): Response
     {
         $this->authorizeVisible($request->user(), $roomBorrowing);
         $meta = $roomBorrowing->documentMeta($kind);
-        abort_unless($meta && Storage::disk(RoomBorrowingService::DISK)->exists($meta['path']), 404);
+        abort_unless($meta, 404, 'Dokumen pendukung tidak ditemukan.');
 
-        return Storage::disk(RoomBorrowingService::DISK)->download($meta['path'], $meta['name']);
+        return PrivateDocumentResponse::stream(
+            RoomBorrowingService::DISK,
+            $meta['path'],
+            'room-borrowings/'.$roomBorrowing->id,
+            $meta['name'],
+            $download,
+            'room-borrowing:'.$roomBorrowing->id.':'.$kind,
+        );
     }
 
     public function downloadTemplate(string $kind): StreamedResponse
@@ -170,6 +220,12 @@ class RoomBorrowingController extends Controller
             'search' => $search,
             'status' => $status,
         ]);
+    }
+
+    private function authorizeDocument(Request $request, RoomBorrowing $borrowing): void
+    {
+        $this->authorizeVisible($request->user(), $borrowing);
+        abort_unless(filled($borrowing->approval_number), 404);
     }
 
     private function authorizeVisible(?User $user, RoomBorrowing $borrowing): void

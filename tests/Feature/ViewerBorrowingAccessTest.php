@@ -97,6 +97,7 @@ class ViewerBorrowingAccessTest extends TestCase
                 'status' => BorrowingStatus::Disetujui->value,
                 'requested_by' => $admin->id,
                 'approved_by' => $admin->id,
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'))
             ->assertSessionHas('success', 'Peminjaman berhasil diajukan dan menunggu persetujuan.');
@@ -138,7 +139,7 @@ class ViewerBorrowingAccessTest extends TestCase
 
         $this->actingAs($owner)
             ->post(route('borrowings.store'), $this->payload($item, [
-                'supporting_document' => UploadedFile::fake()->create('surat.pdf', 20, 'application/pdf'),
+                'supporting_document' => UploadedFile::fake()->image('surat.jpg'),
             ]))
             ->assertRedirect(route('borrowings.index'));
 
@@ -246,6 +247,7 @@ class ViewerBorrowingAccessTest extends TestCase
             'borrow_date' => '2026-10-10T09:00',
             'expected_return_date' => '2026-10-12T16:00',
             'notes' => 'Keperluan kuliah',
+            'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
         ], $overrides);
     }
 

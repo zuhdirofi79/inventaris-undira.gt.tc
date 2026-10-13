@@ -17,6 +17,7 @@ use App\Models\MaintenanceSchedule;
 use App\Models\Room;
 use App\Models\SubCategory;
 use App\Repositories\InventoryRepository;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
 class InventorySearchService
@@ -153,7 +154,7 @@ class InventorySearchService
      * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return list<array<string, mixed>>
      */
-    public function locationItems(array $filters, string $q = '', bool $partial = false, int $limit = 40): array
+    public function locationItems(array $filters, string $q = '', bool $partial = false, int $limit = 40, ?array $window = null): array
     {
         $q = trim($q);
         $roomId = (int) ($filters['room_id'] ?? 0);
@@ -172,8 +173,11 @@ class InventorySearchService
             return [];
         }
 
-        return $this->mapSelect2Rows(
-            $this->repository->listForLocation($filters, $q !== '' ? $q : null, $limit)
+        return $this->presentBorrowingRows(
+            $this->mapSelect2Rows(
+                $this->repository->listForLocation($filters, $q !== '' ? $q : null, $limit)
+            ),
+            $window,
         );
     }
 
@@ -227,22 +231,25 @@ class InventorySearchService
      * @param  array{status?:string|null,campus_id?:int,building_id?:int,floor_id?:int,room_id?:int,category_id?:int,sub_category_id?:int}  $filters
      * @return list<array<string, mixed>>
      */
-    public function search(string $q, array $filters = [], int $limit = 30): array
+    public function search(string $q, array $filters = [], int $limit = 30, ?array $window = null): array
     {
         $q = $this->normalizeCode($q);
         if (mb_strlen($q) < 2) {
             return [];
         }
 
-        return $this->mapSelect2Rows(
-            $this->repository->search($q, $filters, $limit)
+        return $this->presentBorrowingRows(
+            $this->mapSelect2Rows(
+                $this->repository->search($q, $filters, $limit)
+            ),
+            $window,
         );
     }
 
     /**
      * @return array<string, mixed>|null
      */
-    public function detail(?int $id): ?array
+    public function detail(?int $id, ?array $window = null): ?array
     {
         if (! $id) {
             return null;
@@ -250,13 +257,13 @@ class InventorySearchService
 
         $item = $this->repository->findDetail($id);
 
-        return $item ? $this->detailPayload($item) : null;
+        return $item ? $this->detailPayload($item, $window) : null;
     }
 
     /**
      * @return array{found:bool,item?:array<string,mixed>,message?:string}
      */
-    public function resolveCode(string $code): array
+    public function resolveCode(string $code, ?array $window = null): array
     {
         $code = $this->normalizeCode($code);
         if ($code === '') {
@@ -270,7 +277,7 @@ class InventorySearchService
 
         return [
             'found' => true,
-            'item' => $this->detailPayload($item),
+            'item' => $this->detailPayload($item, $window),
         ];
     }
 
@@ -301,6 +308,61 @@ class InventorySearchService
         })->values()->all();
     }
 
+    /**
+     * Borrowing searches pass a window so approved conflicts are omitted and
+     * pending conflicts stay visible but not selectable.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @param  array{start: ?CarbonInterface, end: ?CarbonInterface}|null  $window
+     * @return list<array<string, mixed>>
+     */
+    protected function presentBorrowingRows(array $rows, ?array $window): array
+    {
+        if ($window === null || $rows === []) {
+            return $rows;
+        }
+
+        $ids = array_map(fn (array $row) => (int) $row['id'], $rows);
+        $states = app(InventoryAvailability::class)->classify(
+            $ids,
+            $window['start'] ?? null,
+            $window['end'] ?? null,
+        );
+
+        $out = [];
+        foreach ($rows as $row) {
+            if (($row['status'] ?? '') !== InventoryStatus::Aktif->value) {
+                continue;
+            }
+
+            $state = $states[(int) $row['id']] ?? null;
+            if (($state['state'] ?? 'available') === 'blocked') {
+                continue;
+            }
+
+            if (($state['state'] ?? null) === 'pending') {
+                $row['disabled'] = true;
+                $row['selectable'] = false;
+                $row['availability_state'] = 'pending';
+                $row['availability_label'] = 'Menunggu Persetujuan';
+                $row['availability_reason'] = $state['reason'] ?? 'Sedang diajukan oleh pengguna lain.';
+                $row['status_label'] = 'Menunggu Persetujuan';
+            } else {
+                $row['disabled'] = false;
+                $row['selectable'] = true;
+                $row['availability_state'] = 'available';
+                $row['availability_label'] = null;
+                $row['availability_reason'] = null;
+                $row['status_label'] = 'Tersedia';
+            }
+
+            $row['text'] = $row['inventory_number'].' — '.$row['name'].' — '.($row['location'] ?? '—').' — '.$row['status_label'];
+            $out[] = $row;
+        }
+
+        return $out;
+    }
+
     protected function locationLabel(InventoryItem $item): string
     {
         $parts = array_values(array_filter([
@@ -316,7 +378,7 @@ class InventorySearchService
     /**
      * @return array<string, mixed>
      */
-    public function detailPayload(InventoryItem $item): array
+    public function detailPayload(InventoryItem $item, ?array $window = null): array
     {
         $status = $item->status instanceof InventoryStatus
             ? $item->status
@@ -351,9 +413,29 @@ class InventorySearchService
         $building = $item->room?->floor?->building;
         $floor = $item->room?->floor;
 
-        $borrowable = ($status?->isBorrowable() ?? false) && $openBorrowing === null;
+        $availability = null;
+        $scheduled = is_array($window)
+            && ($window['start'] ?? null) instanceof CarbonInterface
+            && ($window['end'] ?? null) instanceof CarbonInterface
+            && $window['end']->greaterThan($window['start']);
+        if ($scheduled) {
+            $availability = app(InventoryAvailability::class)->classify(
+                [(int) $item->id],
+                $window['start'],
+                $window['end'],
+            )[(int) $item->id] ?? null;
+            $borrowable = ($status?->isBorrowable() ?? false) && ($availability['state'] ?? 'blocked') === 'available';
+            $activeBorrowing = null;
+        } else {
+            $borrowable = ($status?->isBorrowable() ?? false) && $openBorrowing === null;
+        }
         $availableQty = $borrowable
-            ? app(BorrowingItemResolver::class)->availableCount($item)
+            ? app(BorrowingItemResolver::class)->availableCount(
+                $item,
+                [],
+                $scheduled ? $window['start'] : null,
+                $scheduled ? $window['end'] : null,
+            )
             : 0;
 
         return [
@@ -382,6 +464,9 @@ class InventorySearchService
             'qr_url' => $item->qr_url,
             'borrowable' => $borrowable,
             'available_qty' => $availableQty,
+            'availability_state' => $availability['state'] ?? ($borrowable ? 'available' : 'blocked'),
+            'availability_label' => ($availability['state'] ?? null) === 'pending' ? 'Menunggu Persetujuan' : null,
+            'availability_reason' => $availability['reason'] ?? null,
             'active_borrowing' => $activeBorrowing,
             'campus_id' => $campus?->id,
             'building_id' => $building?->id,

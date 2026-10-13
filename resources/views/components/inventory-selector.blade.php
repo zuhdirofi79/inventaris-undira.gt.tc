@@ -12,6 +12,8 @@
     'submitControl' => null,
     'resolveMaintenance' => false,
     'partialScope' => false,
+    'scheduleStart' => null,
+    'scheduleEnd' => null,
     'id' => null,
 ])
 
@@ -95,6 +97,20 @@ body.dark-mode .invsel-detail-grid .value {
 .select2-results__option .invsel-opt-name { font-weight: 700; color: #0f172a; }
 .select2-results__option .invsel-opt-num { font-weight: 700; color: #1e3a5f; word-break: break-all; }
 .select2-results__option .invsel-opt-meta { font-size: .8rem; color: #64748b; }
+.select2-results__option .invsel-opt-badge {
+    display: inline-block;
+    margin-top: .2rem;
+    padding: .05rem .45rem;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #d97706;
+}
+.select2-results__option .invsel-opt-reason { font-size: .8rem; color: #92400e; }
+.select2-container--bootstrap-5 .select2-results__option--disabled { cursor: not-allowed; }
+.select2-container--bootstrap-5 .select2-results__option--disabled .invsel-opt { opacity: 1; }
 </style>
 @endpush
 @endonce
@@ -112,6 +128,8 @@ body.dark-mode .invsel-detail-grid .value {
     data-submit-control="{{ $submitControl ?? '' }}"
     data-resolve-maintenance="{{ $resolveMaintenance ? '1' : '0' }}"
     data-partial-scope="{{ $partialScope ? '1' : '0' }}"
+    data-schedule-start="{{ $scheduleStart ?? '' }}"
+    data-schedule-end="{{ $scheduleEnd ?? '' }}"
     data-urls='@json($urls)'
     data-csrf="{{ csrf_token() }}"
 >

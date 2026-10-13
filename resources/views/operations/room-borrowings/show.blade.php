@@ -18,7 +18,13 @@
     <div class="card-body">
         <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
             <span class="badge bg-{{ $borrowing->displayColor() }}">{{ $borrowing->displayLabel() }}</span>
-            <span class="text-muted">Diajukan {{ optional($borrowing->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</span>
+            <span class="d-inline-flex flex-wrap gap-2 align-items-center">
+                @if($borrowing->approval_number)
+                    <a href="{{ route('room-borrowings.receipt', $borrowing) }}" class="btn btn-outline-primary btn-sm">Lihat Receipt</a>
+                    <a href="{{ route('room-borrowings.receipt.pdf', $borrowing) }}" class="btn btn-primary btn-sm" data-no-loader="1">Download PDF</a>
+                @endif
+                <span class="text-muted">Diajukan {{ optional($borrowing->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</span>
+            </span>
         </div>
         <dl class="row mb-0">
             <dt class="col-sm-3">Peminjam</dt>
@@ -51,33 +57,26 @@
                     —
                 @endif
             </dd>
-            <dt class="col-sm-3">Dokumen persetujuan pimpinan</dt>
-            <dd class="col-sm-9">
-                @php $approval = $borrowing->documentMeta('approval'); @endphp
-                @if($approval)
-                    <a href="{{ route('room-borrowings.documents', [$borrowing, 'approval']) }}">{{ $approval['name'] }}</a>
-                @else
-                    —
-                @endif
-            </dd>
-            <dt class="col-sm-3">Layout acara</dt>
-            <dd class="col-sm-9">
-                @php $layout = $borrowing->documentMeta('layout'); @endphp
-                @if($layout)
-                    <a href="{{ route('room-borrowings.documents', [$borrowing, 'layout']) }}">{{ $layout['name'] }}</a>
-                @else
-                    —
-                @endif
-            </dd>
-            <dt class="col-sm-3">Daftar peserta</dt>
-            <dd class="col-sm-9">
-                @php $participants = $borrowing->documentMeta('participants'); @endphp
-                @if($participants)
-                    <a href="{{ route('room-borrowings.documents', [$borrowing, 'participants']) }}">{{ $participants['name'] }}</a>
-                @else
-                    —
-                @endif
-            </dd>
+            @foreach ([
+                'approval' => 'Dokumen persetujuan pimpinan',
+                'layout' => 'Layout acara',
+                'participants' => 'Daftar peserta',
+            ] as $kind => $label)
+                @php $meta = $borrowing->documentMeta($kind); @endphp
+                <dt class="col-sm-3">{{ $label }}</dt>
+                <dd class="col-sm-9">
+                    @include('partials.supporting-document', [
+                        'document' => \App\Support\PrivateDocumentResponse::present(
+                            $meta['path'] ?? null,
+                            $meta['name'] ?? null,
+                            $meta['size'] ?? null,
+                            'room-borrowings/'.$borrowing->id,
+                        ),
+                        'viewUrl' => route('room-borrowings.documents.preview', [$borrowing, $kind]),
+                        'downloadUrl' => route('room-borrowings.documents', [$borrowing, $kind]),
+                    ])
+                </dd>
+            @endforeach
             <dt class="col-sm-3">Fasilitas di ruangan</dt>
             <dd class="col-sm-9">
                 @forelse($borrowing->room?->inventoryItems ?? [] as $item)

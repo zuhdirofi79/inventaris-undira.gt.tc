@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\InventorySelectorSearchRequest;
 use App\Models\InventoryItem;
 use App\Services\BorrowingItemResolver;
+use App\Services\InventoryAvailability;
 use App\Services\InventorySearchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -62,7 +63,9 @@ class InventorySelectorController extends Controller
             'results' => $this->searchService->locationItems(
                 $request->filters(),
                 trim((string) $request->input('q', '')),
-                $request->boolean('partial')
+                $request->boolean('partial'),
+                40,
+                $this->borrowingWindow($request),
             ),
         ]);
     }
@@ -72,14 +75,16 @@ class InventorySelectorController extends Controller
         return response()->json([
             'results' => $this->searchService->search(
                 trim((string) $request->input('q', '')),
-                $request->filters()
+                $request->filters(),
+                30,
+                $this->borrowingWindow($request),
             ),
         ]);
     }
 
-    public function show(InventoryItem $item): JsonResponse
+    public function show(Request $request, InventoryItem $item): JsonResponse
     {
-        $detail = $this->searchService->detail($item->id);
+        $detail = $this->searchService->detail($item->id, $this->borrowingWindow($request));
 
         return response()->json($detail ?? ['message' => 'Not found'], $detail ? 200 : 404);
     }
@@ -92,12 +97,22 @@ class InventorySelectorController extends Controller
             array_filter(explode(',', (string) $request->input('exclude', '')))
         )));
 
+        $window = app(InventoryAvailability::class)->completeWindow(
+            $request->input('borrow_date'),
+            $request->input('expected_return_date'),
+        );
+        if ($window === null) {
+            return response()->json([
+                'message' => 'Isi tanggal dan jam pinjam serta tanggal dan jam kembali sebelum menambahkan inventaris.',
+            ], 422);
+        }
+
         try {
             $resolver = app(BorrowingItemResolver::class);
-            $ids = $resolver->resolveIds((int) $item->id, $qty, $exclude);
+            $ids = $resolver->resolveIds((int) $item->id, $qty, $exclude, $window['start'], $window['end']);
             $items = [];
             foreach ($ids as $id) {
-                $detail = $this->searchService->detail($id);
+                $detail = $this->searchService->detail($id, $window);
                 if ($detail) {
                     $items[] = $detail;
                 }
@@ -133,7 +148,7 @@ class InventorySelectorController extends Controller
         $forMaintenance = $request->boolean('maintenance');
         $result = $forMaintenance
             ? $this->searchService->resolveCodeForMaintenance($data['code'])
-            : $this->searchService->resolveCode($data['code']);
+            : $this->searchService->resolveCode($data['code'], $this->borrowingWindow($request));
 
         if (! ($result['found'] ?? false)) {
             $status = ($result['message'] ?? '') === 'Kode kosong.' ? 422 : 404;
@@ -142,5 +157,22 @@ class InventorySelectorController extends Controller
         }
 
         return response()->json($result);
+    }
+
+    /**
+     * Present only when the borrowing form sends its schedule fields.
+     *
+     * @return array{start: ?\Carbon\CarbonInterface, end: ?\Carbon\CarbonInterface}|null
+     */
+    private function borrowingWindow(Request $request): ?array
+    {
+        if (! $request->exists('borrow_date') && ! $request->exists('expected_return_date')) {
+            return null;
+        }
+
+        return app(InventoryAvailability::class)->window(
+            $request->input('borrow_date'),
+            $request->input('expected_return_date'),
+        );
     }
 }

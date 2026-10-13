@@ -44,34 +44,122 @@ class BorrowingSupportingDocumentTest extends TestCase
 
         $this->assertStringContainsString('Dokumen Pendukung', $html);
         $this->assertStringContainsString('name="supporting_document"', $html);
-        $this->assertStringContainsString('Opsional. Format PDF, JPG, atau JPEG, maksimal 5 MB.', $html);
-        $this->assertStringContainsString('Format dokumen harus PDF, JPG, atau JPEG.', $html);
-        $this->assertStringContainsString('Ukuran dokumen maksimal 5 MB.', $html);
+        $this->assertStringContainsString('Wajib diisi. Format PDF, JPG, atau JPEG, maksimal 5 MB.', $html);
+        $this->assertStringContainsString('Email peminjam wajib diisi.', $html);
+        $this->assertStringContainsString('Format email tidak valid.', $html);
+        $this->assertStringContainsString('Dokumen pendukung wajib diunggah.', $html);
         $this->assertStringContainsString('accept=".pdf,.jpg,.jpeg,application/pdf,image/jpeg"', $html);
         $this->assertStringContainsString('enctype="multipart/form-data"', $html);
-        $this->assertDoesNotMatchRegularExpression('/name="supporting_document"[^>]*required/', $html);
+        $this->assertMatchesRegularExpression('/name="supporting_document"[^>]*required/', $html);
+        $this->assertMatchesRegularExpression('/name="borrower_email"[^>]*required/', $html);
     }
 
-    public function test_store_without_document_still_succeeds(): void
+    public function test_store_without_document_is_rejected(): void
     {
         $admin = $this->makeAdmin();
         $item = $this->makeItem();
 
         $this->actingAs($admin)
+            ->from(route('borrowings.create'))
             ->post(route('borrowings.store'), $this->payload($item))
-            ->assertRedirect(route('borrowings.index'));
+            ->assertRedirect(route('borrowings.create'))
+            ->assertSessionHasErrors([
+                'supporting_document' => 'Dokumen pendukung wajib diunggah.',
+            ]);
 
-        $borrowing = Borrowing::query()->latest('id')->first();
-        $this->assertNotNull($borrowing);
-        $this->assertFalse($borrowing->hasSupportingDocument());
-        $this->assertNull($borrowing->supporting_document_path);
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertSame([], Storage::disk(BorrowingSupportingDocumentService::DISK)->allFiles());
+    }
+
+    public function test_empty_form_reports_every_required_field(): void
+    {
+        $admin = $this->makeAdmin();
+
+        $this->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), [
+                'borrower_name' => '',
+                'borrower_email' => '   ',
+                'borrower_phone' => '',
+                'borrow_date' => '',
+                'expected_return_date' => '',
+                'notes' => '',
+            ])
+            ->assertRedirect(route('borrowings.create'))
+            ->assertSessionHasErrors([
+                'borrower_name' => 'Nama peminjam wajib diisi.',
+                'borrower_email' => 'Email peminjam wajib diisi.',
+                'borrower_phone' => 'Nomor Telepon / No. HP wajib diisi.',
+                'borrow_date' => 'Tanggal dan jam pinjam wajib diisi.',
+                'expected_return_date' => 'Tanggal dan jam kembali wajib diisi.',
+                'notes' => 'Keperluan wajib diisi.',
+                'supporting_document' => 'Dokumen pendukung wajib diunggah.',
+                'items' => 'Tambahkan minimal satu inventaris sebelum menyimpan peminjaman.',
+            ]);
+
+        $this->assertSame(0, Borrowing::query()->count());
+    }
+
+    public function test_invalid_email_is_rejected_and_old_input_is_kept(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $html = $this->followingRedirects()
+            ->actingAs($admin)
+            ->from(route('borrowings.create'))
+            ->post(route('borrowings.store'), $this->payload($item, [
+                'borrower_name' => 'Wawan',
+                'borrower_email' => 'bukan-email',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
+            ]))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertStringContainsString('Format email tidak valid.', $html);
+        $this->assertStringContainsString('value="Wawan"', $html);
+        $this->assertStringContainsString('value="bukan-email"', $html);
+    }
+
+    public function test_spoofed_pdf_and_png_renamed_as_jpg_are_rejected(): void
+    {
+        $admin = $this->makeAdmin();
+        $item = $this->makeItem();
+
+        $phpPath = tempnam(sys_get_temp_dir(), 'php');
+        file_put_contents($phpPath, "<?php echo 'no';");
+        $spoofedPdf = new UploadedFile($phpPath, 'lampiran.pdf', 'application/pdf', UPLOAD_ERR_OK, true);
+        $png = UploadedFile::fake()->image('asli.png');
+        $spoofedJpg = new UploadedFile($png->getPathname(), 'palsu.jpg', 'image/jpeg', UPLOAD_ERR_OK, true);
+
+        try {
+            foreach ([$spoofedPdf, $spoofedJpg] as $file) {
+                $this->actingAs($admin)
+                    ->from(route('borrowings.create'))
+                    ->post(route('borrowings.store'), $this->payload($item, [
+                        'supporting_document' => $file,
+                    ]))
+                    ->assertRedirect(route('borrowings.create'))
+                    ->assertSessionHasErrors([
+                        'supporting_document' => 'Format dokumen harus PDF, JPG, atau JPEG.',
+                    ]);
+            }
+        } finally {
+            if (is_file($phpPath)) {
+                unlink($phpPath);
+            }
+        }
+
+        $this->assertSame(0, Borrowing::query()->count());
+        $this->assertSame([], Storage::disk(BorrowingSupportingDocumentService::DISK)->allFiles());
     }
 
     public function test_store_accepts_valid_pdf_under_5mb(): void
     {
         $admin = $this->makeAdmin();
         $item = $this->makeItem();
-        $pdf = UploadedFile::fake()->create('laporan_kegiatan.pdf', 1800, 'application/pdf');
+        $pdf = $this->realUpload('laporan_kegiatan.pdf', 1800 * 1024, "%PDF-1.4\n", 'application/pdf');
 
         $this->actingAs($admin)
             ->post(route('borrowings.store'), $this->payload($item, [
@@ -236,7 +324,7 @@ class BorrowingSupportingDocumentTest extends TestCase
         $borrowing = $this->makeBorrowingWithDocument($admin);
         $oldPath = $borrowing->supporting_document_path;
 
-        $newPdf = UploadedFile::fake()->create('pengganti.pdf', 500, 'application/pdf');
+        $newPdf = $this->realUpload('pengganti.pdf', 20 * 1024, "%PDF-1.4\n", 'application/pdf');
 
         $this->actingAs($admin)
             ->put(route('borrowings.update', $borrowing), [
@@ -258,13 +346,14 @@ class BorrowingSupportingDocumentTest extends TestCase
         Storage::disk(BorrowingSupportingDocumentService::DISK)->assertMissing($oldPath);
     }
 
-    public function test_remove_document_checkbox_clears_file(): void
+    public function test_remove_document_without_replacement_is_rejected(): void
     {
         $admin = $this->makeAdmin();
         $borrowing = $this->makeBorrowingWithDocument($admin);
         $oldPath = $borrowing->supporting_document_path;
 
         $this->actingAs($admin)
+            ->from(route('borrowings.edit', $borrowing))
             ->put(route('borrowings.update', $borrowing), [
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
@@ -275,11 +364,14 @@ class BorrowingSupportingDocumentTest extends TestCase
                 'notes' => $borrowing->notes,
                 'remove_supporting_document' => '1',
             ])
-            ->assertRedirect(route('borrowings.show', $borrowing));
+            ->assertRedirect(route('borrowings.edit', $borrowing))
+            ->assertSessionHasErrors([
+                'supporting_document' => 'Dokumen pendukung wajib diunggah.',
+            ]);
 
         $borrowing->refresh();
-        $this->assertFalse($borrowing->hasSupportingDocument());
-        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertMissing($oldPath);
+        $this->assertSame($oldPath, $borrowing->supporting_document_path);
+        Storage::disk(BorrowingSupportingDocumentService::DISK)->assertExists($oldPath);
     }
 
     public function test_guest_cannot_access_document(): void
@@ -420,7 +512,7 @@ class BorrowingSupportingDocumentTest extends TestCase
 
         $this->actingAs($requester)
             ->post(route('borrowings.store'), $this->payload($item, [
-                'supporting_document' => UploadedFile::fake()->create('bukti.pdf', 200, 'application/pdf'),
+                'supporting_document' => $this->realUpload('bukti.pdf', 8 * 1024, "%PDF-1.4\n", 'application/pdf'),
             ]))
             ->assertRedirect(route('borrowings.index'));
 
@@ -604,7 +696,7 @@ class BorrowingSupportingDocumentTest extends TestCase
         $this->actingAs($admin)
             ->from(route('borrowings.create'))
             ->post(route('borrowings.store'), $this->payload($item, [
-                'supporting_document' => UploadedFile::fake()->create('lampiran.pdf', 300, 'application/pdf'),
+                'supporting_document' => $this->realUpload('lampiran.pdf', 8 * 1024, "%PDF-1.4\n", 'application/pdf'),
             ]))
             ->assertRedirect(route('borrowings.create'))
             ->assertSessionHasErrors([

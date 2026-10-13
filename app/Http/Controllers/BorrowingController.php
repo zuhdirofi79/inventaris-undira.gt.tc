@@ -33,7 +33,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class BorrowingController extends Controller
 {
@@ -260,18 +260,16 @@ class BorrowingController extends Controller
         return redirect()->route('borrowings.show', $borrowing)->with('success', 'Peminjaman berhasil diperbarui.');
     }
 
-    public function downloadSupportingDocument(Borrowing $borrowing): StreamedResponse
+    public function downloadSupportingDocument(Borrowing $borrowing): HttpResponse
     {
         $this->authorize('view', $borrowing);
-        abort_unless($this->supportingDocuments->exists($borrowing), 404);
 
         return $this->supportingDocuments->stream($borrowing, download: true);
     }
 
-    public function viewSupportingDocument(Borrowing $borrowing): StreamedResponse
+    public function viewSupportingDocument(Borrowing $borrowing): HttpResponse
     {
         $this->authorize('view', $borrowing);
-        abort_unless($this->supportingDocuments->exists($borrowing), 404);
 
         return $this->supportingDocuments->stream($borrowing, download: false);
     }

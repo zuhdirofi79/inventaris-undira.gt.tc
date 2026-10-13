@@ -13,6 +13,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Tests\CreatesAuthenticatedUsers;
@@ -211,6 +212,7 @@ class PlannedBorrowingDateTimeTest extends TestCase
             'borrow_date' => '2026-10-12T09:30',
             'expected_return_date' => '2026-10-13T16:00',
             'notes' => 'Praktikum',
+            'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
         ], $overrides);
     }
 

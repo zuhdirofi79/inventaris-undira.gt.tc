@@ -385,6 +385,12 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::post('/room-borrowings/{roomBorrowing}/decide', [RoomBorrowingController::class, 'decide'])->name('room-borrowings.decide');
     });
     Route::middleware('permission:room-borrowing.view')->group(function () {
+        Route::get('/room-borrowings/{roomBorrowing}/approval', [RoomBorrowingController::class, 'approval'])->name('room-borrowings.approval');
+        Route::get('/room-borrowings/{roomBorrowing}/receipt', [RoomBorrowingController::class, 'receipt'])->name('room-borrowings.receipt');
+        Route::get('/room-borrowings/{roomBorrowing}/receipt/pdf', [RoomBorrowingController::class, 'receiptPdf'])->name('room-borrowings.receipt.pdf');
+        Route::get('/room-borrowings/{roomBorrowing}/documents/{kind}/preview', [RoomBorrowingController::class, 'viewDocument'])
+            ->whereIn('kind', ['approval', 'layout', 'participants'])
+            ->name('room-borrowings.documents.preview');
         Route::get('/room-borrowings/{roomBorrowing}/documents/{kind}', [RoomBorrowingController::class, 'downloadDocument'])
             ->whereIn('kind', ['approval', 'layout', 'participants'])
             ->name('room-borrowings.documents');
@@ -410,6 +416,10 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::post('/vehicle-borrowings/{vehicleBorrowing}/decide', [VehicleBorrowingController::class, 'decide'])->name('vehicle-borrowings.decide');
     });
     Route::middleware('permission:vehicle-borrowing.view')->group(function () {
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}/approval', [VehicleBorrowingController::class, 'approval'])->name('vehicle-borrowings.approval');
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}/receipt', [VehicleBorrowingController::class, 'receipt'])->name('vehicle-borrowings.receipt');
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}/receipt/pdf', [VehicleBorrowingController::class, 'receiptPdf'])->name('vehicle-borrowings.receipt.pdf');
+        Route::get('/vehicle-borrowings/{vehicleBorrowing}/document/preview', [VehicleBorrowingController::class, 'viewDocument'])->name('vehicle-borrowings.document.preview');
         Route::get('/vehicle-borrowings/{vehicleBorrowing}/document', [VehicleBorrowingController::class, 'downloadDocument'])->name('vehicle-borrowings.document');
         Route::get('/vehicle-borrowings/{vehicleBorrowing}', [VehicleBorrowingController::class, 'show'])->name('vehicle-borrowings.show');
     });

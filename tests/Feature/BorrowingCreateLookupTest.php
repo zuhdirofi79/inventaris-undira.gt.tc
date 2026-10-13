@@ -13,6 +13,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -178,10 +179,12 @@ class BorrowingCreateLookupTest extends TestCase
             ->post(route('borrowings.store'), [
                 'inventory_item_id' => $item->id,
                 'borrower_name' => 'Orang Lain',
+                'borrower_email' => 'lain@undira.ac.id',
                 'borrower_phone' => '081234567890',
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDay()->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.create'))
             ->assertSessionHasErrors('inventory_item_id');
@@ -206,6 +209,7 @@ class BorrowingCreateLookupTest extends TestCase
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'));
 

@@ -44,13 +44,19 @@
                         <th>Jadwal</th>
                         <th>Status</th>
                         <th>Diproses</th>
-                        <th></th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($borrowings as $borrowing)
                         <tr>
-                            <td>{{ $borrowing->approval_number ?: '—' }}</td>
+                            <td>
+                                @if($borrowing->approval_number)
+                                    <a href="{{ route('room-borrowings.approval', $borrowing) }}">{{ $borrowing->approval_number }}</a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>
                                 {{ $borrowing->borrower_name }}
                                 @if($borrowing->activity_type)
@@ -72,7 +78,20 @@
                                 <div class="small text-muted">{{ $decidedAt ? $decidedAt->timezone(config('app.timezone'))->format('d/m/Y H:i') : '—' }}</div>
                             </td>
                             <td class="text-end">
-                                <a href="{{ route('room-borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-secondary">Detail</a>
+                                @php
+                                    $documentUrl = null;
+                                    foreach (['approval', 'layout', 'participants'] as $documentKind) {
+                                        if ($borrowing->documentMeta($documentKind)) {
+                                            $documentUrl = route('room-borrowings.documents.preview', [$borrowing, $documentKind]);
+                                            break;
+                                        }
+                                    }
+                                @endphp
+                                @include('partials.approval-history-actions', [
+                                    'detailUrl' => route('room-borrowings.show', $borrowing),
+                                    'documentUrl' => $documentUrl,
+                                    'receiptPdfUrl' => $borrowing->approval_number ? route('room-borrowings.receipt.pdf', $borrowing) : null,
+                                ])
                             </td>
                         </tr>
                     @empty

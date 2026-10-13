@@ -44,13 +44,19 @@
                         <th>Jadwal</th>
                         <th>Status</th>
                         <th>Diproses</th>
-                        <th></th>
+                        <th>Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($borrowings as $borrowing)
                         <tr>
-                            <td>{{ $borrowing->approval_number ?: '—' }}</td>
+                            <td>
+                                @if($borrowing->approval_number)
+                                    <a href="{{ route('vehicle-borrowings.approval', $borrowing) }}">{{ $borrowing->approval_number }}</a>
+                                @else
+                                    <span class="text-muted">—</span>
+                                @endif
+                            </td>
                             <td>{{ $borrowing->borrower_name }}</td>
                             <td>
                                 {{ $borrowing->service_type?->label() ?: '—' }}
@@ -74,7 +80,11 @@
                                 <div class="small text-muted">{{ $decidedAt ? $decidedAt->timezone(config('app.timezone'))->format('d/m/Y H:i') : '—' }}</div>
                             </td>
                             <td class="text-end">
-                                <a href="{{ route('vehicle-borrowings.show', $borrowing) }}" class="btn btn-sm btn-outline-secondary">Detail</a>
+                                @include('partials.approval-history-actions', [
+                                    'detailUrl' => route('vehicle-borrowings.show', $borrowing),
+                                    'documentUrl' => $borrowing->supporting_document_path ? route('vehicle-borrowings.document.preview', $borrowing) : null,
+                                    'receiptPdfUrl' => $borrowing->approval_number ? route('vehicle-borrowings.receipt.pdf', $borrowing) : null,
+                                ])
                             </td>
                         </tr>
                     @empty

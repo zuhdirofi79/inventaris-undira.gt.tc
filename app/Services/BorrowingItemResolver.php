@@ -6,6 +6,7 @@ use App\Enums\BorrowingItemStatus;
 use App\Enums\InventoryStatus;
 use App\Models\Borrowing;
 use App\Models\InventoryItem;
+use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
 
@@ -18,7 +19,7 @@ class BorrowingItemResolver
      * @param  list<int>  $excludeIds  IDs already in the current cart / transaction
      * @return list<int>
      */
-    public function resolveIds(int $seedInventoryItemId, int $qty = 1, array $excludeIds = []): array
+    public function resolveIds(int $seedInventoryItemId, int $qty = 1, array $excludeIds = [], ?CarbonInterface $start = null, ?CarbonInterface $end = null): array
     {
         $qty = max(1, $qty);
         $seed = InventoryItem::query()->find($seedInventoryItemId);
@@ -29,7 +30,7 @@ class BorrowingItemResolver
             ]);
         }
 
-        $this->assertBorrowable($seed, 'items');
+        $this->assertBorrowable($seed, 'items', $start, $end);
 
         if ($qty === 1) {
             if (in_array($seed->id, $excludeIds, true)) {
@@ -41,7 +42,7 @@ class BorrowingItemResolver
             return [$seed->id];
         }
 
-        $candidates = $this->availableSiblings($seed, $excludeIds);
+        $candidates = $this->availableSiblings($seed, $excludeIds, $start, $end);
 
         // Ensure seed is first if still available.
         $ordered = $candidates
@@ -61,7 +62,7 @@ class BorrowingItemResolver
      * @param  list<int>  $excludeIds
      * @return Collection<int, InventoryItem>
      */
-    public function availableSiblings(InventoryItem $seed, array $excludeIds = []): Collection
+    public function availableSiblings(InventoryItem $seed, array $excludeIds = [], ?CarbonInterface $start = null, ?CarbonInterface $end = null): Collection
     {
         $query = InventoryItem::query()
             ->where('status', InventoryStatus::Aktif)
@@ -80,6 +81,24 @@ class BorrowingItemResolver
             ->orderBy('id')
             ->get(['id', 'inventory_number', 'name', 'status', 'sub_category_id', 'room_id', 'category_id']);
 
+        $scheduled = $start instanceof CarbonInterface && $end instanceof CarbonInterface && $end->greaterThan($start);
+        if ($scheduled) {
+            $states = app(InventoryAvailability::class)->classify(
+                $items->pluck('id')->map(fn ($id) => (int) $id)->all(),
+                $start,
+                $end,
+            );
+
+            return $items->filter(function (InventoryItem $item) use ($states) {
+                $status = $item->status instanceof InventoryStatus
+                    ? $item->status
+                    : InventoryStatus::tryFrom((string) $item->status);
+
+                return ($status?->isBorrowable() ?? false)
+                    && ($states[(int) $item->id]['state'] ?? 'blocked') === 'available';
+            })->values();
+        }
+
         return $items->filter(function (InventoryItem $item) {
             try {
                 $this->assertBorrowable($item);
@@ -91,12 +110,12 @@ class BorrowingItemResolver
         })->values();
     }
 
-    public function availableCount(InventoryItem $seed, array $excludeIds = []): int
+    public function availableCount(InventoryItem $seed, array $excludeIds = [], ?CarbonInterface $start = null, ?CarbonInterface $end = null): int
     {
-        return $this->availableSiblings($seed, $excludeIds)->count();
+        return $this->availableSiblings($seed, $excludeIds, $start, $end)->count();
     }
 
-    public function assertBorrowable(InventoryItem $item, string $errorKey = 'items'): void
+    public function assertBorrowable(InventoryItem $item, string $errorKey = 'items', ?CarbonInterface $start = null, ?CarbonInterface $end = null): void
     {
         $status = $item->status instanceof InventoryStatus
             ? $item->status
@@ -110,6 +129,13 @@ class BorrowingItemResolver
                     $status?->label() ?? 'tidak valid'
                 ),
             ]);
+        }
+
+        $scheduled = $start instanceof CarbonInterface && $end instanceof CarbonInterface && $end->greaterThan($start);
+        if ($scheduled) {
+            app(InventoryAvailability::class)->assertSelectable([(int) $item->id], $start, $end, null, 'items');
+
+            return;
         }
 
         if (Borrowing::inventoryIsBlocked((int) $item->id)) {
@@ -131,6 +157,12 @@ class BorrowingItemResolver
      */
     public function normalizeRequestItems(array $input): array
     {
+        $window = app(InventoryAvailability::class)->completeWindow(
+            $input['borrow_date'] ?? null,
+            $input['expected_return_date'] ?? null,
+        );
+        $start = $window['start'] ?? null;
+        $end = $window['end'] ?? null;
         $exclude = [];
         $resolved = [];
 
@@ -142,7 +174,9 @@ class BorrowingItemResolver
                 }
                 $this->assertBorrowable(
                     InventoryItem::query()->findOrFail($id),
-                    "inventory_item_ids.{$index}"
+                    "inventory_item_ids.{$index}",
+                    $start,
+                    $end,
                 );
                 $resolved[] = $id;
             }
@@ -163,7 +197,7 @@ class BorrowingItemResolver
                     ]);
                 }
 
-                $ids = $this->resolveIds($seedId, $qty, array_merge($exclude, $resolved));
+                $ids = $this->resolveIds($seedId, $qty, array_merge($exclude, $resolved), $start, $end);
                 foreach ($ids as $id) {
                     $resolved[] = $id;
                 }
@@ -176,7 +210,9 @@ class BorrowingItemResolver
         if ($legacyId > 0) {
             $this->assertBorrowable(
                 InventoryItem::query()->findOrFail($legacyId),
-                'inventory_item_id'
+                'inventory_item_id',
+                $start,
+                $end,
             );
 
             return [$legacyId];

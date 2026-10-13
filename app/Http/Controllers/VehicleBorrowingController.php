@@ -12,18 +12,21 @@ use App\Models\OperationalVehicle;
 use App\Models\User;
 use App\Models\VehicleBorrowing;
 use App\Policies\BorrowingPolicy;
+use App\Services\FacilityReceiptService;
 use App\Services\VehicleBorrowingService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CampusQuery;
+use App\Support\PrivateDocumentResponse;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\HttpFoundation\Response;
 
 class VehicleBorrowingController extends Controller
 {
     public function __construct(
         private readonly VehicleBorrowingService $service,
+        private readonly FacilityReceiptService $receipts,
     ) {}
 
     public function create(): View
@@ -81,15 +84,57 @@ class VehicleBorrowingController extends Controller
             ->with('success', $message);
     }
 
-    public function downloadDocument(Request $request, VehicleBorrowing $vehicleBorrowing): StreamedResponse
+    public function approval(Request $request, VehicleBorrowing $vehicleBorrowing): View
+    {
+        $this->authorizeDocument($request, $vehicleBorrowing);
+
+        return view('operations.facility.approval-detail', $this->receipts->vehicle($vehicleBorrowing));
+    }
+
+    public function receipt(Request $request, VehicleBorrowing $vehicleBorrowing): View
+    {
+        $this->authorizeDocument($request, $vehicleBorrowing);
+
+        return view('operations.facility.receipt', [
+            ...$this->receipts->vehicle($vehicleBorrowing),
+            'isPdf' => false,
+        ]);
+    }
+
+    public function receiptPdf(Request $request, VehicleBorrowing $vehicleBorrowing): Response
+    {
+        $this->authorizeDocument($request, $vehicleBorrowing);
+        $payload = $this->receipts->vehicle($vehicleBorrowing);
+        $payload['isPdf'] = true;
+
+        return Pdf::loadView('operations.facility.receipt', $payload)
+            ->setPaper('a4', 'portrait')
+            ->download('receipt_'.$vehicleBorrowing->approval_number.'.pdf');
+    }
+
+    public function viewDocument(Request $request, VehicleBorrowing $vehicleBorrowing): Response
+    {
+        return $this->documentResponse($request, $vehicleBorrowing, false);
+    }
+
+    public function downloadDocument(Request $request, VehicleBorrowing $vehicleBorrowing): Response
+    {
+        return $this->documentResponse($request, $vehicleBorrowing, true);
+    }
+
+    private function documentResponse(Request $request, VehicleBorrowing $vehicleBorrowing, bool $download): Response
     {
         $this->authorizeVisible($request->user(), $vehicleBorrowing);
         $path = $vehicleBorrowing->supporting_document_path;
-        abort_unless(is_string($path) && $path !== '' && Storage::disk(VehicleBorrowingService::DISK)->exists($path), 404);
+        abort_unless(is_string($path) && $path !== '', 404, 'Dokumen pendukung tidak ditemukan.');
 
-        return Storage::disk(VehicleBorrowingService::DISK)->download(
+        return PrivateDocumentResponse::stream(
+            VehicleBorrowingService::DISK,
             $path,
+            'vehicle-borrowings/'.$vehicleBorrowing->id,
             $vehicleBorrowing->supporting_document_original_name ?: basename($path),
+            $download,
+            'vehicle-borrowing:'.$vehicleBorrowing->id,
         );
     }
 
@@ -141,6 +186,12 @@ class VehicleBorrowingController extends Controller
             'search' => $search,
             'status' => $status,
         ]);
+    }
+
+    private function authorizeDocument(Request $request, VehicleBorrowing $borrowing): void
+    {
+        $this->authorizeVisible($request->user(), $borrowing);
+        abort_unless(filled($borrowing->approval_number), 404);
     }
 
     private function authorizeVisible(?User $user, VehicleBorrowing $borrowing): void

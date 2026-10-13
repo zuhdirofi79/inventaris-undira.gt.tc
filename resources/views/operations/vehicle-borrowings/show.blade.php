@@ -17,7 +17,13 @@
     <div class="card-body">
         <div class="d-flex justify-content-between flex-wrap gap-2 mb-3">
             <span class="badge bg-{{ $borrowing->displayColor() }}">{{ $borrowing->displayLabel() }}</span>
-            <span class="text-muted">Diajukan {{ optional($borrowing->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</span>
+            <span class="d-inline-flex flex-wrap gap-2 align-items-center">
+                @if($borrowing->approval_number)
+                    <a href="{{ route('vehicle-borrowings.receipt', $borrowing) }}" class="btn btn-outline-primary btn-sm">Lihat Receipt</a>
+                    <a href="{{ route('vehicle-borrowings.receipt.pdf', $borrowing) }}" class="btn btn-primary btn-sm" data-no-loader="1">Download PDF</a>
+                @endif
+                <span class="text-muted">Diajukan {{ optional($borrowing->created_at)->timezone(config('app.timezone'))->format('d/m/Y H:i') }}</span>
+            </span>
         </div>
         <dl class="row mb-0">
             <dt class="col-sm-3">Peminjam</dt>
@@ -63,13 +69,18 @@
                     Belum ditetapkan
                 @endif
             </dd>
-            <dt class="col-sm-3">Dokumen</dt>
+            <dt class="col-sm-3">Dokumen Pendukung</dt>
             <dd class="col-sm-9">
-                @if($borrowing->supporting_document_path)
-                    <a href="{{ route('vehicle-borrowings.document', $borrowing) }}">{{ $borrowing->supporting_document_original_name ?: 'Unduh dokumen' }}</a>
-                @else
-                    —
-                @endif
+                @include('partials.supporting-document', [
+                    'document' => \App\Support\PrivateDocumentResponse::present(
+                        $borrowing->supporting_document_path,
+                        $borrowing->supporting_document_original_name,
+                        $borrowing->supporting_document_size,
+                        'vehicle-borrowings/'.$borrowing->id,
+                    ),
+                    'viewUrl' => route('vehicle-borrowings.document.preview', $borrowing),
+                    'downloadUrl' => route('vehicle-borrowings.document', $borrowing),
+                ])
             </dd>
             <dt class="col-sm-3">Admin</dt>
             <dd class="col-sm-9">{{ $borrowing->approvedBy?->name ?: '—' }}</dd>

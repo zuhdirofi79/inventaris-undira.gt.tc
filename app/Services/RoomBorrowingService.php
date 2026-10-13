@@ -23,6 +23,7 @@ class RoomBorrowingService
     public function __construct(
         private readonly RoomOccupancy $occupancy,
         private readonly DecisionMailer $mailer,
+        private readonly InventoryAvailability $inventoryAvailability,
     ) {}
 
     /**
@@ -62,6 +63,8 @@ class RoomBorrowingService
                 'starts_at' => 'Ruangan sudah disetujui pada jadwal tersebut.',
             ]);
         }
+
+        $this->inventoryAvailability->assertRoomFreeOfCommittedInventory($room->id, $start, $end, 'starts_at');
 
         $usesBudget = (bool) ($data['uses_budget'] ?? false);
         $stored = [];
@@ -151,6 +154,8 @@ class RoomBorrowingService
                     'decision' => 'Ruangan sudah disetujui pada jadwal tersebut.',
                 ]);
             }
+
+            $this->inventoryAvailability->assertRoomFreeOfCommittedInventory($fresh->room_id, $fresh->starts_at, $fresh->ends_at, 'decision');
 
             $fresh->forceFill([
                 'status' => FacilityRequestStatus::Disetujui,

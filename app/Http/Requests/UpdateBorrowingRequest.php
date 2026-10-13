@@ -6,7 +6,8 @@ use App\Enums\BorrowingStatus;
 use App\Http\Requests\Concerns\ValidatesSupportingDocument;
 use App\Models\Borrowing;
 use App\Rules\IndonesianPhoneNumber;
-use App\Services\RoomOccupancy;
+use App\Services\BorrowingSupportingDocumentService;
+use App\Services\InventoryAvailability;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -26,11 +27,21 @@ class UpdateBorrowingRequest extends FormRequest
             && ($this->user()?->can('update', $borrowing) ?? false);
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('borrower_email')) {
+            $email = trim((string) $this->input('borrower_email'));
+            $this->merge([
+                'borrower_email' => $email === '' ? null : $email,
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         return [
             'borrower_name' => ['sometimes', 'required', 'string', 'max:255'],
-            'borrower_email' => ['nullable', 'email', 'max:255'],
+            'borrower_email' => ['required', 'email:rfc', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
             'borrow_date' => ['sometimes', 'required', 'date_format:Y-m-d\TH:i'],
             'return_date' => ['nullable', 'date'],
@@ -46,6 +57,7 @@ class UpdateBorrowingRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $this->guardSupportingDocument($validator);
+            $this->requireStoredOrReplacementDocument($validator);
 
             if ($validator->errors()->isNotEmpty() || ! $this->filled('borrow_date') || ! $this->filled('expected_return_date')) {
                 return;
@@ -68,7 +80,7 @@ class UpdateBorrowingRequest extends FormRequest
             }
 
             try {
-                app(RoomOccupancy::class)->assertInventoriesAvailable($ids, $start, $end);
+                app(InventoryAvailability::class)->assertSelectable($ids, $start, $end, (int) $borrowing->id);
             } catch (ValidationException $e) {
                 foreach ($e->errors() as $key => $messages) {
                     foreach ($messages as $message) {
@@ -90,7 +102,27 @@ class UpdateBorrowingRequest extends FormRequest
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Awali dengan 08, 62, atau +62, lalu isi minimal 4 digit. Spasi dan tanda hubung diperbolehkan.',
             'notes.required' => 'Keperluan wajib diisi.',
+            'borrower_name.required' => 'Nama peminjam wajib diisi.',
+            'borrower_email.required' => 'Email peminjam wajib diisi.',
+            'borrower_email.email' => 'Format email tidak valid.',
             ...$this->supportingDocumentMessages(),
         ];
+    }
+
+    protected function requireStoredOrReplacementDocument(Validator $validator): void
+    {
+        if ($validator->errors()->has('supporting_document') || $this->hasFile('supporting_document')) {
+            return;
+        }
+
+        $borrowing = $this->route('borrowing');
+        $removing = $this->boolean('remove_supporting_document');
+        $kept = $borrowing instanceof Borrowing
+            && ! $removing
+            && app(BorrowingSupportingDocumentService::class)->exists($borrowing);
+
+        if (! $kept) {
+            $validator->errors()->add('supporting_document', 'Dokumen pendukung wajib diunggah.');
+        }
     }
 }

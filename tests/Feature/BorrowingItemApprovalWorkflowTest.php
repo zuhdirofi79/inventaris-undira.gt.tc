@@ -16,6 +16,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
@@ -44,6 +45,7 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Tes workflow per item',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'));
 
@@ -175,6 +177,7 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDay()->format('Y-m-d\TH:i'),
                 'notes' => 'Pinjam ulang item ditolak',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'));
 

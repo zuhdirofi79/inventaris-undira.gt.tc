@@ -7,9 +7,7 @@ use App\Models\Borrowing;
 use App\Http\Requests\Concerns\ValidatesSupportingDocument;
 use App\Rules\IndonesianPhoneNumber;
 use App\Services\BorrowingItemResolver;
-use App\Services\RoomOccupancy;
 use App\Support\Validation\ActiveExists;
-use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +20,16 @@ class StoreBorrowingRequest extends FormRequest
     public function authorize(): bool
     {
         return $this->user()?->can('create', Borrowing::class) ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->exists('borrower_email')) {
+            $email = trim((string) $this->input('borrower_email'));
+            $this->merge([
+                'borrower_email' => $email === '' ? null : $email,
+            ]);
+        }
     }
 
     public function rules(): array
@@ -37,13 +45,13 @@ class StoreBorrowingRequest extends FormRequest
             'items.*.inventory_item_id' => ['required_with:items', 'integer', ActiveExists::rule('inventory_items')],
             'items.*.qty' => ['nullable', 'integer', 'min:1', 'max:500'],
             'borrower_name' => ['required', 'string', 'max:255'],
-            'borrower_email' => ['nullable', 'email', 'max:255'],
+            'borrower_email' => ['required', 'email:rfc', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
             'borrow_date' => ['required', 'date_format:Y-m-d\TH:i'],
             'expected_return_date' => ['required', 'date_format:Y-m-d\TH:i', 'after:borrow_date'],
             'notes' => ['required', 'string'],
             'status' => ['nullable', Rule::enum(BorrowingStatus::class)],
-            'supporting_document' => $this->supportingDocumentRules(),
+            'supporting_document' => $this->supportingDocumentRules(true),
         ];
     }
 
@@ -57,7 +65,7 @@ class StoreBorrowingRequest extends FormRequest
                 || $this->filled('inventory_item_id');
 
             if (! $hasItems) {
-                $validator->errors()->add('items', 'Minimal satu barang inventaris harus ditambahkan.');
+                $validator->errors()->add('items', 'Tambahkan minimal satu inventaris sebelum menyimpan peminjaman.');
 
                 return;
             }
@@ -67,12 +75,7 @@ class StoreBorrowingRequest extends FormRequest
             }
 
             try {
-                $ids = app(BorrowingItemResolver::class)->normalizeRequestItems($this->all());
-                $start = Carbon::createFromFormat('Y-m-d\TH:i', (string) $this->input('borrow_date'));
-                $end = Carbon::createFromFormat('Y-m-d\TH:i', (string) $this->input('expected_return_date'));
-                if ($start instanceof Carbon && $end instanceof Carbon) {
-                    app(RoomOccupancy::class)->assertInventoriesAvailable($ids, $start, $end);
-                }
+                app(BorrowingItemResolver::class)->normalizeRequestItems($this->all());
             } catch (ValidationException $e) {
                 foreach ($e->errors() as $key => $messages) {
                     foreach ($messages as $message) {
@@ -87,7 +90,9 @@ class StoreBorrowingRequest extends FormRequest
     {
         return [
             'inventory_item_id.required' => 'Barang inventaris wajib dipilih.',
-            'items.required' => 'Minimal satu barang inventaris harus ditambahkan.',
+            'items.required' => 'Tambahkan minimal satu inventaris sebelum menyimpan peminjaman.',
+            'borrower_email.required' => 'Email peminjam wajib diisi.',
+            'borrower_email.email' => 'Format email tidak valid.',
             'items.*.inventory_item_id.required_with' => 'Barang inventaris wajib dipilih.',
             'borrower_name.required' => 'Nama peminjam wajib diisi.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',

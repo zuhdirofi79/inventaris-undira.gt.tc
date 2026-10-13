@@ -13,6 +13,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Http\UploadedFile;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\CreatesAuthenticatedUsers;
 use Tests\TestCase;
@@ -353,6 +354,7 @@ class BorrowingPhoneRequiredTest extends TestCase
             'borrow_date' => now()->format('Y-m-d\TH:i'),
             'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
             'notes' => 'Praktikum',
+            'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
         ], $overrides);
     }
 

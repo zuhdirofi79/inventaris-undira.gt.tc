@@ -117,14 +117,14 @@ class RoomBorrowing extends Model
     }
 
     /**
-     * @return array{path: string, name: string}|null
+     * @return array{path: string, name: string, size: int|null}|null
      */
     public function documentMeta(string $kind): ?array
     {
         $columns = [
-            'approval' => ['approval_document_path', 'approval_document_original_name'],
-            'layout' => ['layout_document_path', 'layout_document_original_name'],
-            'participants' => ['participant_document_path', 'participant_document_original_name'],
+            'approval' => ['approval_document_path', 'approval_document_original_name', 'approval_document_size'],
+            'layout' => ['layout_document_path', 'layout_document_original_name', 'layout_document_size'],
+            'participants' => ['participant_document_path', 'participant_document_original_name', 'participant_document_size'],
         ][$kind] ?? null;
 
         if ($columns === null) {
@@ -137,10 +137,12 @@ class RoomBorrowing extends Model
         }
 
         $name = $this->{$columns[1]};
+        $size = $this->{$columns[2]};
 
         return [
             'path' => $path,
             'name' => is_string($name) && $name !== '' ? $name : basename($path),
+            'size' => is_numeric($size) ? (int) $size : null,
         ];
     }
 

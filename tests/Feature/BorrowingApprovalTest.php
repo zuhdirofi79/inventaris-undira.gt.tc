@@ -18,6 +18,7 @@ use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
 use App\Models\SubCategory;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Tests\CreatesAuthenticatedUsers;
@@ -43,6 +44,7 @@ class BorrowingApprovalTest extends TestCase
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kuliah',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'))
             ->assertSessionHas('success', 'Peminjaman berhasil diajukan dan menunggu persetujuan.');
@@ -491,6 +493,7 @@ class BorrowingApprovalTest extends TestCase
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Kegiatan akademik',
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
             ])
             ->assertRedirect(route('borrowings.index'));
 

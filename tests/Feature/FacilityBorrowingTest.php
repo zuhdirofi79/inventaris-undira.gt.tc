@@ -508,7 +508,7 @@ class FacilityBorrowingTest extends TestCase
 
         $this->actingAs($viewer)
             ->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
-                'supporting_document' => UploadedFile::fake()->create('bukti.pdf', 120, 'application/pdf'),
+                'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
                 'borrower_name' => 'Dengan Dokumen',
                 'destination' => 'Grogol, Jakarta Barat',
                 'purpose' => 'Kunjungan dinas',
@@ -1203,6 +1203,7 @@ class FacilityBorrowingTest extends TestCase
             'borrow_date' => '2026-11-02T09:30',
             'expected_return_date' => '2026-11-02T10:30',
             'notes' => 'Pinjam proyektor',
+            'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
         ], $overrides);
     }
 

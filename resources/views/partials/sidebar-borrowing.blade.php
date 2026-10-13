@@ -17,14 +17,16 @@
 <li class="nav-item {{ $borrowingOpen ? 'menu-open' : '' }}">
     <a href="#" class="nav-link">
         <i class="nav-icon fas fa-handshake"></i>
-        <p>Peminjaman <i class="fas fa-angle-left right"></i></p>
+        <p>Peminjaman</p>
+        <i class="fas fa-angle-left right" aria-hidden="true"></i>
     </a>
     <ul class="nav nav-treeview">
         @canany(['borrowing.view', 'borrowing.create', 'borrowing.approve'])
         <li class="nav-item {{ $inventoryOpen ? 'menu-open' : '' }}">
             <a href="#" class="nav-link">
                 <i class="nav-icon fas fa-box"></i>
-                <p>Peminjaman Inventaris <i class="fas fa-angle-left right"></i></p>
+                <p>Peminjaman Inventaris</p>
+                <i class="fas fa-angle-left right" aria-hidden="true"></i>
             </a>
             <ul class="nav nav-treeview">
                 @can('borrowing.create')
@@ -58,7 +60,8 @@
         <li class="nav-item {{ $roomOpen ? 'menu-open' : '' }}">
             <a href="#" class="nav-link">
                 <i class="nav-icon fas fa-door-open"></i>
-                <p>Peminjaman Ruangan <i class="fas fa-angle-left right"></i></p>
+                <p>Peminjaman Ruangan</p>
+                <i class="fas fa-angle-left right" aria-hidden="true"></i>
             </a>
             <ul class="nav nav-treeview">
                 @can('room-borrowing.create')
@@ -91,7 +94,8 @@
         <li class="nav-item {{ $vehicleOpen ? 'menu-open' : '' }}">
             <a href="#" class="nav-link">
                 <i class="nav-icon fas fa-car"></i>
-                <p>Peminjaman Kendaraan Operasional <i class="fas fa-angle-left right"></i></p>
+                <p>Peminjaman Kendaraan Operasional</p>
+                <i class="fas fa-angle-left right" aria-hidden="true"></i>
             </a>
             <ul class="nav nav-treeview">
                 @can('vehicle-borrowing.create')
