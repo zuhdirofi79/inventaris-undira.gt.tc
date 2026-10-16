@@ -9,6 +9,9 @@
     <li>Status: {{ $borrowing->displayLabel() }}</li>
     <li>Jenis kegiatan: {{ $borrowing->activity_type?->label() ?: '—' }}</li>
     <li>Tujuan: {{ $borrowing->purpose }}</li>
+    <li>Peserta Internal: {{ $borrowing->participant_internal ? $borrowing->participantInternalCount() : 0 }} orang</li>
+    <li>Peserta External: {{ $borrowing->participant_external ? $borrowing->participantExternalCount() : 0 }} orang</li>
+    <li>Total Peserta: {{ $borrowing->totalParticipantCount() }} orang</li>
     <li>Ruangan: {{ $room?->full_location ?: '—' }}</li>
     <li>Kampus: {{ $borrowing->campus?->name ?: '—' }}</li>
     <li>Jadwal mulai: {{ $borrowing->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</li>

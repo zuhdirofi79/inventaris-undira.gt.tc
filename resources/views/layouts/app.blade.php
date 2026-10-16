@@ -270,6 +270,7 @@ window.UNDIRA_LOADING = {
 {{-- DataTables / Select2 / Chart.js are page-scoped via @stack('scripts') + partials --}}
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script src="{{ asset('js/undira-loading.js') }}"></script>
+<script src="{{ asset('js/form-ajax-submit.js') }}"></script>
 <script>
 $.ajaxSetup({
     headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') }
@@ -841,6 +842,30 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
 })();
 </script>
 <script src="{{ asset('js/page-header-shortcuts.js') }}" defer></script>
+@auth
+<script>
+(function () {
+    var url = @json(route('presence.heartbeat'));
+    var token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    if (!url || !token) return;
+
+    function ping() {
+        if (document.visibilityState === 'hidden') return;
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': token,
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin'
+        }).catch(function () { /* non-blocking */ });
+    }
+
+    setInterval(ping, 120000);
+})();
+</script>
+@endauth
 @stack('scripts')
 </body>
 </html>

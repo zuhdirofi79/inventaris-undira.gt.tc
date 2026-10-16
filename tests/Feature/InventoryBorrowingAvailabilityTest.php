@@ -160,6 +160,7 @@ class InventoryBorrowingAvailabilityTest extends TestCase
                 'activity_type' => 'rapat',
                 'purpose' => 'Rapat koordinasi persiapan kegiatan universitas',
                 'participant_internal' => '1',
+                'participant_internal_count' => 15,
                 'starts_at' => '2026-10-12T11:00',
                 'ends_at' => '2026-10-12T16:00',
                 'approval_document' => UploadedFile::fake()->create('persetujuan.pdf', 80, 'application/pdf'),

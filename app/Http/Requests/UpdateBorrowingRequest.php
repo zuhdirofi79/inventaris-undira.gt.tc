@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Enums\BorrowingStatus;
+use App\Http\Requests\Concerns\BindsAuthenticatedBorrowerEmail;
 use App\Http\Requests\Concerns\ValidatesSupportingDocument;
 use App\Models\Borrowing;
 use App\Rules\IndonesianPhoneNumber;
@@ -16,6 +17,7 @@ use Illuminate\Validation\Validator;
 
 class UpdateBorrowingRequest extends FormRequest
 {
+    use BindsAuthenticatedBorrowerEmail;
     use ValidatesSupportingDocument;
 
     public function authorize(): bool
@@ -29,11 +31,15 @@ class UpdateBorrowingRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->exists('borrower_email')) {
-            $email = trim((string) $this->input('borrower_email'));
-            $this->merge([
-                'borrower_email' => $email === '' ? null : $email,
-            ]);
+        /** @var Borrowing|null $borrowing */
+        $borrowing = $this->route('borrowing');
+
+        if ($borrowing instanceof Borrowing) {
+            // Non-admin editors keep historical identity; admin/super-admin may update it.
+            $this->bindBorrowerIdentityForUpdate(
+                (string) $borrowing->borrower_name,
+                $borrowing->borrower_email,
+            );
         }
     }
 

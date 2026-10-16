@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\AuditAction;
+use App\Models\Borrowing;
+use App\Models\BorrowingItem;
 use App\Models\Building;
 use App\Models\Campus;
 use App\Models\Category;
@@ -13,10 +15,15 @@ use App\Models\InventoryPhoto;
 use App\Models\OrgUnit;
 use App\Models\ProcurementType;
 use App\Models\Room;
+use App\Models\RoomBorrowing;
 use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\VehicleBorrowing;
 use App\Models\Vendor;
+use App\Services\BorrowingApprovalService;
+use App\Services\RoomBorrowingService;
+use App\Services\VehicleBorrowingService;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -44,6 +51,9 @@ class TrashCascadeService
                 $model instanceof Vendor => $this->performSoftDelete($model, $actor),
                 $model instanceof OrgUnit => $this->performSoftDelete($model, $actor),
                 $model instanceof ProcurementType => $this->performSoftDelete($model, $actor),
+                $model instanceof Borrowing => $this->softDeleteBorrowing($model, $actor),
+                $model instanceof RoomBorrowing,
+                $model instanceof VehicleBorrowing => $this->performSoftDelete($model, $actor),
                 default => throw new InvalidArgumentException('Tipe data tidak didukung Trash.'),
             };
         });
@@ -67,6 +77,9 @@ class TrashCascadeService
                 $model instanceof Vendor,
                 $model instanceof OrgUnit,
                 $model instanceof ProcurementType => $this->performRestore($model, $actor),
+                $model instanceof Borrowing,
+                $model instanceof RoomBorrowing,
+                $model instanceof VehicleBorrowing => $this->performRestore($model, $actor),
                 default => throw new InvalidArgumentException('Tipe data tidak didukung Trash.'),
             };
         });
@@ -90,11 +103,64 @@ class TrashCascadeService
                 $model instanceof Vendor => $this->forceDeleteVendor($model, $actor),
                 $model instanceof OrgUnit => $this->forceDeleteOrgUnit($model, $actor),
                 $model instanceof ProcurementType => $this->forceDeleteProcurementType($model, $actor),
+                $model instanceof Borrowing => $this->forceDeleteBorrowing($model, $actor),
+                $model instanceof RoomBorrowing => $this->forceDeleteRoomBorrowing($model, $actor),
+                $model instanceof VehicleBorrowing => $this->forceDeleteVehicleBorrowing($model, $actor),
                 default => throw new InvalidArgumentException('Tipe data tidak didukung Trash.'),
             };
         });
 
         DashboardTreeService::flushCache();
+    }
+
+    protected function softDeleteBorrowing(Borrowing $borrowing, User $actor): void
+    {
+        app(BorrowingApprovalService::class)->restoreInventoryOnDelete($borrowing);
+        $this->performSoftDelete($borrowing, $actor);
+    }
+
+    protected function forceDeleteBorrowing(Borrowing $borrowing, User $actor): void
+    {
+        $this->deletePrivateFile(
+            is_string($borrowing->supporting_document_path) ? $borrowing->supporting_document_path : null,
+            'local'
+        );
+        BorrowingItem::query()->where('borrowing_id', $borrowing->id)->delete();
+        $this->performForceDelete($borrowing, $actor);
+    }
+
+    protected function forceDeleteRoomBorrowing(RoomBorrowing $borrowing, User $actor): void
+    {
+        $disk = RoomBorrowingService::DISK;
+        foreach ([
+            $borrowing->approval_document_path,
+            $borrowing->layout_document_path,
+            $borrowing->participant_document_path,
+        ] as $path) {
+            $this->deletePrivateFile(is_string($path) ? $path : null, $disk);
+        }
+
+        $this->performForceDelete($borrowing, $actor);
+    }
+
+    protected function forceDeleteVehicleBorrowing(VehicleBorrowing $borrowing, User $actor): void
+    {
+        $this->deletePrivateFile(
+            is_string($borrowing->supporting_document_path) ? $borrowing->supporting_document_path : null,
+            VehicleBorrowingService::DISK
+        );
+        $this->performForceDelete($borrowing, $actor);
+    }
+
+    protected function deletePrivateFile(?string $path, string $disk): void
+    {
+        if (! filled($path)) {
+            return;
+        }
+
+        if (Storage::disk($disk)->exists($path)) {
+            Storage::disk($disk)->delete($path);
+        }
     }
 
     protected function softDeleteCampus(Campus $campus, User $actor): void

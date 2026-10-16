@@ -23,8 +23,10 @@ use App\Services\BorrowingApprovalService;
 use App\Services\BorrowingReceiptService;
 use App\Services\BorrowingSupportingDocumentService;
 use App\Services\InventorySearchService;
+use App\Http\Controllers\Concerns\RespondsToAjaxForm;
 use App\Support\InventarisCache;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -37,6 +39,8 @@ use Symfony\Component\HttpFoundation\Response as HttpResponse;
 
 class BorrowingController extends Controller
 {
+    use RespondsToAjaxForm;
+
     public function __construct(
         protected AuditLogService $audit,
         protected InventorySearchService $inventorySearch,
@@ -109,7 +113,7 @@ class BorrowingController extends Controller
         ]);
     }
 
-    public function store(StoreBorrowingRequest $request): RedirectResponse
+    public function store(StoreBorrowingRequest $request): RedirectResponse|JsonResponse
     {
         $data = $request->safe()->except(['status', 'supporting_document']);
 
@@ -139,8 +143,11 @@ class BorrowingController extends Controller
             "{$request->user()->name} membuat peminjaman ({$borrowing->items->count()} item).",
         );
 
-        return redirect()->route('borrowings.index')
-            ->with('success', 'Peminjaman berhasil diajukan dan menunggu persetujuan.');
+        return $this->formSuccess(
+            $request,
+            route('borrowings.index'),
+            'Peminjaman berhasil diajukan dan menunggu persetujuan.',
+        );
     }
 
     public function show(Borrowing $borrowing): View
@@ -175,7 +182,7 @@ class BorrowingController extends Controller
         return view('operations.borrowings.edit', compact('borrowing'));
     }
 
-    public function update(UpdateBorrowingRequest $request, Borrowing $borrowing): RedirectResponse
+    public function update(UpdateBorrowingRequest $request, Borrowing $borrowing): RedirectResponse|JsonResponse
     {
         $old = $borrowing->only(['status', 'return_date', 'expected_return_date', 'borrower_name']);
         $wasReturned = false;
@@ -257,7 +264,11 @@ class BorrowingController extends Controller
                 : null,
         );
 
-        return redirect()->route('borrowings.show', $borrowing)->with('success', 'Peminjaman berhasil diperbarui.');
+        return $this->formSuccess(
+            $request,
+            route('borrowings.show', $borrowing),
+            'Peminjaman berhasil diperbarui.',
+        );
     }
 
     public function downloadSupportingDocument(Borrowing $borrowing): HttpResponse

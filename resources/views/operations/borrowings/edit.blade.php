@@ -17,21 +17,48 @@
     :list-back="true"
 />
 
-<form action="{{ route('borrowings.update', $borrowing) }}" method="POST" id="borrowEditForm" enctype="multipart/form-data">
+<form action="{{ route('borrowings.update', $borrowing) }}" method="POST" id="borrowEditForm" data-ajax-submit data-no-loading enctype="multipart/form-data">
     @csrf @method('PUT')
     <div class="card card-undira">
         <div class="card-body">
             <div class="row">
+                @php
+                    $canProxyBorrower = auth()->user()?->hasAnyRole(['super-admin', 'admin']) ?? false;
+                @endphp
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="borrower_name">Nama Peminjam <span class="text-danger">*</span></label>
-                    <input id="borrower_name" type="text" name="borrower_name" class="form-control @error('borrower_name') is-invalid @enderror" value="{{ old('borrower_name', $borrowing->borrower_name) }}" required>
+                    <input
+                        id="borrower_name"
+                        type="text"
+                        name="borrower_name"
+                        class="form-control @error('borrower_name') is-invalid @enderror"
+                        value="{{ old('borrower_name', $borrowing->borrower_name) }}"
+                        required
+                        @unless($canProxyBorrower) readonly @endunless
+                    >
                     @error('borrower_name')
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
                 <div class="col-md-6 mb-3">
                     <label class="form-label" for="borrower_email">Email <span class="text-danger">*</span></label>
-                    <input id="borrower_email" type="email" name="borrower_email" class="form-control @error('borrower_email') is-invalid @enderror" value="{{ old('borrower_email', $borrowing->borrower_email) }}" required autocomplete="email">
+                    <input
+                        id="borrower_email"
+                        type="email"
+                        name="borrower_email"
+                        class="form-control @error('borrower_email') is-invalid @enderror"
+                        value="{{ old('borrower_email', $borrowing->borrower_email) }}"
+                        required
+                        autocomplete="email"
+                        @unless($canProxyBorrower) readonly @endunless
+                    >
+                    <div class="form-text">
+                        @if($canProxyBorrower)
+                            Admin/Super Admin dapat memperbarui identitas peminjam.
+                        @else
+                            Identitas peminjam mengikuti data pengajuan dan tidak diganti oleh akun yang mengedit.
+                        @endif
+                    </div>
                     @error('borrower_email')
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror

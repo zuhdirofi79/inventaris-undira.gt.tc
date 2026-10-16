@@ -23,6 +23,7 @@ use Spatie\Permission\Traits\HasRoles;
     'is_active',
     'email_verified_at',
     'last_login_at',
+    'last_seen_at',
     'last_login_ip',
     'last_login_user_agent',
     'last_login_device',
@@ -47,6 +48,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'must_change_password' => 'boolean',
             'last_login_at' => 'datetime',
+            'last_seen_at' => 'datetime',
             'password_changed_at' => 'datetime',
         ];
     }

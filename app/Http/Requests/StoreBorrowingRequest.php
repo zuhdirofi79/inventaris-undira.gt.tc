@@ -4,6 +4,7 @@ namespace App\Http\Requests;
 
 use App\Enums\BorrowingStatus;
 use App\Models\Borrowing;
+use App\Http\Requests\Concerns\BindsAuthenticatedBorrowerEmail;
 use App\Http\Requests\Concerns\ValidatesSupportingDocument;
 use App\Rules\IndonesianPhoneNumber;
 use App\Services\BorrowingItemResolver;
@@ -15,6 +16,7 @@ use Illuminate\Validation\Validator;
 
 class StoreBorrowingRequest extends FormRequest
 {
+    use BindsAuthenticatedBorrowerEmail;
     use ValidatesSupportingDocument;
 
     public function authorize(): bool
@@ -24,12 +26,7 @@ class StoreBorrowingRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->exists('borrower_email')) {
-            $email = trim((string) $this->input('borrower_email'));
-            $this->merge([
-                'borrower_email' => $email === '' ? null : $email,
-            ]);
-        }
+        $this->bindBorrowerIdentityForCreate();
     }
 
     public function rules(): array
@@ -91,10 +88,16 @@ class StoreBorrowingRequest extends FormRequest
         return [
             'inventory_item_id.required' => 'Barang inventaris wajib dipilih.',
             'items.required' => 'Tambahkan minimal satu inventaris sebelum menyimpan peminjaman.',
-            'borrower_email.required' => 'Email peminjam wajib diisi.',
-            'borrower_email.email' => 'Format email tidak valid.',
+            'borrower_name.required' => $this->canProxyBorrowerIdentity()
+                ? 'Nama peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki nama. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.required' => $this->canProxyBorrowerIdentity()
+                ? 'Email peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki email yang valid. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.email' => $this->canProxyBorrowerIdentity()
+                ? 'Format email tidak valid.'
+                : 'Email akun Anda tidak valid. Perbarui profil sebelum mengajukan peminjaman.',
             'items.*.inventory_item_id.required_with' => 'Barang inventaris wajib dipilih.',
-            'borrower_name.required' => 'Nama peminjam wajib diisi.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Awali dengan 08, 62, atau +62, lalu isi minimal 4 digit. Spasi dan tanda hubung diperbolehkan.',
             'borrow_date.required' => 'Tanggal dan jam pinjam wajib diisi.',

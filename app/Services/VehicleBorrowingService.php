@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AuditAction;
 use App\Enums\FacilityRequestStatus;
 use App\Enums\VehicleServiceType;
 use App\Mail\VehicleBorrowingDecisionMail;
@@ -28,6 +29,8 @@ class VehicleBorrowingService
 
     public function __construct(
         private readonly DecisionMailer $mailer,
+        private readonly AuditLogService $audit,
+        private readonly NotificationService $notifications,
     ) {}
 
     /**
@@ -54,7 +57,7 @@ class VehicleBorrowingService
         $storedPath = null;
 
         try {
-            return DB::transaction(function () use ($user, $data, $file, $campus, $route, $start, $end, &$storedPath) {
+            $saved = DB::transaction(function () use ($user, $data, $file, $campus, $route, $start, $end, &$storedPath) {
                 $row = VehicleBorrowing::query()->create([
                     'campus_id' => $campus->id,
                     'route_id' => $route->id,
@@ -68,6 +71,7 @@ class VehicleBorrowingService
                     'service_type' => $data['service_type'],
                     'origin' => $route->name,
                     'destination' => trim(strip_tags((string) ($data['destination'] ?? ''))),
+                    'destination_maps_url' => $this->normalizeMapsUrl($data['destination_maps_url'] ?? null),
                     'starts_at' => $start,
                     'ends_at' => $end,
                     'status' => FacilityRequestStatus::MenungguPersetujuan,
@@ -80,7 +84,7 @@ class VehicleBorrowingService
                     $row->update($meta);
                 }
 
-                return $row->fresh();
+                return $row->fresh(['campus', 'route']);
             });
         } catch (Throwable $e) {
             if (is_string($storedPath) && $storedPath !== '') {
@@ -95,6 +99,10 @@ class VehicleBorrowingService
 
             throw $e;
         }
+
+        $this->notifications->notifyVehicleBorrowingSubmitted($saved);
+
+        return $saved;
     }
 
     /**
@@ -130,6 +138,10 @@ class VehicleBorrowingService
             $driverId = null;
             $service = $fresh->service_type;
 
+            $overrideNotes = [];
+            $vehicleConflicts = [];
+            $driverConflicts = [];
+
             if ($assignment === 'gocar') {
                 $service = VehicleServiceType::GoCar;
             } else {
@@ -137,6 +149,7 @@ class VehicleBorrowingService
                 $driverId = (int) ($data['driver_id'] ?? 0);
                 $vehicle = OperationalVehicle::query()->find($vehicleId);
                 $driver = OperationalDriver::query()->find($driverId);
+                $acknowledged = filter_var($data['acknowledge_conflict'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
                 if (! $vehicle || ! $vehicle->is_active) {
                     throw ValidationException::withMessages([
@@ -150,23 +163,38 @@ class VehicleBorrowingService
                     ]);
                 }
 
-                if ($this->vehicleOverlaps($vehicle->id, $fresh->starts_at, $fresh->ends_at, $fresh->id)) {
-                    throw ValidationException::withMessages([
-                        'vehicle_id' => 'Kendaraan sudah ditugaskan pada jadwal tersebut.',
-                    ]);
-                }
-
+                $vehicleConflicts = $this->vehicleConflictSummaries($vehicle->id, $fresh->starts_at, $fresh->ends_at, $fresh->id);
+                $driverConflicts = $this->driverConflictSummaries($driver->id, $fresh->starts_at, $fresh->ends_at, $fresh->id);
                 $passengers = (int) ($fresh->passenger_count ?? 0);
-                if ($passengers > 0 && $vehicle->passenger_capacity !== null && $passengers > (int) $vehicle->passenger_capacity) {
-                    throw ValidationException::withMessages([
-                        'vehicle_id' => 'Jumlah penumpang melebihi kapasitas kendaraan yang dipilih.',
-                    ]);
+                $capacityExceeded = $passengers > 0
+                    && $vehicle->passenger_capacity !== null
+                    && $passengers > (int) $vehicle->passenger_capacity;
+
+                $errors = [];
+                if ($vehicleConflicts !== []) {
+                    $errors['vehicle_id'] = 'Kendaraan sudah ditugaskan pada jadwal yang tumpang tindih: '
+                        .implode('; ', $vehicleConflicts)
+                        .'. Centang konfirmasi untuk melanjutkan penugasan bersama.';
+                    $overrideNotes[] = 'vehicle_overlap';
+                }
+                if ($capacityExceeded) {
+                    $errors['vehicle_id'] = ($errors['vehicle_id'] ?? '')
+                        .(isset($errors['vehicle_id']) ? ' ' : '')
+                        .'Jumlah penumpang pengajuan ini ('.$passengers.') melebihi kapasitas kendaraan ('
+                        .(int) $vehicle->passenger_capacity
+                        .'). Centang konfirmasi jika Admin tetap menetapkan kendaraan ini.';
+                    $overrideNotes[] = 'capacity';
+                }
+                if ($driverConflicts !== []) {
+                    $errors['driver_id'] = 'Pengemudi sudah ditugaskan pada jadwal yang tumpang tindih: '
+                        .implode('; ', $driverConflicts)
+                        .'. Centang konfirmasi untuk melanjutkan penugasan bersama.';
+                    $overrideNotes[] = 'driver_overlap';
                 }
 
-                if ($this->driverOverlaps($driver->id, $fresh->starts_at, $fresh->ends_at, $fresh->id)) {
-                    throw ValidationException::withMessages([
-                        'driver_id' => 'Pengemudi sudah ditugaskan pada jadwal tersebut.',
-                    ]);
+                if ($errors !== [] && ! $acknowledged) {
+                    $errors['acknowledge_conflict'] = 'Centang konfirmasi untuk melanjutkan penugasan meskipun ada peringatan konflik atau kapasitas.';
+                    throw ValidationException::withMessages($errors);
                 }
             }
 
@@ -182,6 +210,24 @@ class VehicleBorrowingService
                 'assigned_service' => $service,
             ])->save();
 
+            if ($overrideNotes !== []) {
+                $this->audit->log(
+                    $admin,
+                    AuditAction::Update,
+                    $fresh,
+                    null,
+                    [
+                        'event' => 'vehicle_assignment_override',
+                        'vehicle_id' => $vehicleId,
+                        'driver_id' => $driverId,
+                        'overrides' => $overrideNotes,
+                        'vehicle_conflicts' => $vehicleConflicts,
+                        'driver_conflicts' => $driverConflicts,
+                    ],
+                    'Admin mengonfirmasi penugasan kendaraan/pengemudi meskipun ada peringatan konflik atau kapasitas.',
+                );
+            }
+
             return $fresh->fresh(['campus', 'route', 'vehicle', 'driver', 'approvedBy']);
         });
 
@@ -192,33 +238,119 @@ class VehicleBorrowingService
             $saved->id,
         );
 
+        $this->notifications->notifyVehicleBorrowingDecided($saved);
+
         return $saved;
     }
 
     public function vehicleOverlaps(int $vehicleId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): bool
     {
-        $query = VehicleBorrowing::query()
-            ->where('assigned_vehicle_id', $vehicleId)
-            ->where('status', FacilityRequestStatus::Disetujui->value);
-
-        if ($ignoreId) {
-            $query->whereKeyNot($ignoreId);
-        }
-
-        return ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)->exists();
+        return $this->vehicleConflictSummaries($vehicleId, $start, $end, $ignoreId) !== [];
     }
 
     public function driverOverlaps(int $driverId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): bool
     {
+        return $this->driverConflictSummaries($driverId, $start, $end, $ignoreId) !== [];
+    }
+
+    /**
+     * Operational conflict labels only (approval number, destination, schedule) — no borrower PII.
+     *
+     * @return list<string>
+     */
+    public function vehicleConflictSummaries(int $vehicleId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): array
+    {
+        return $this->conflictSummaries(
+            VehicleBorrowing::query()->where('assigned_vehicle_id', $vehicleId),
+            $start,
+            $end,
+            $ignoreId,
+        );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function driverConflictSummaries(int $driverId, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): array
+    {
+        return $this->conflictSummaries(
+            VehicleBorrowing::query()->where('assigned_driver_id', $driverId),
+            $start,
+            $end,
+            $ignoreId,
+        );
+    }
+
+    /**
+     * Map of vehicle_id / driver_id => conflict labels for the approval form UI.
+     *
+     * @return array{vehicles: array<int, list<string>>, drivers: array<int, list<string>>}
+     */
+    public function conflictMapForSchedule(CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): array
+    {
         $query = VehicleBorrowing::query()
-            ->where('assigned_driver_id', $driverId)
-            ->where('status', FacilityRequestStatus::Disetujui->value);
+            ->where('status', FacilityRequestStatus::Disetujui->value)
+            ->where(function ($q) {
+                $q->whereNotNull('assigned_vehicle_id')->orWhereNotNull('assigned_driver_id');
+            });
 
         if ($ignoreId) {
             $query->whereKeyNot($ignoreId);
         }
 
-        return ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)->exists();
+        $rows = ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)
+            ->get(['id', 'approval_number', 'destination', 'starts_at', 'ends_at', 'assigned_vehicle_id', 'assigned_driver_id']);
+
+        $vehicles = [];
+        $drivers = [];
+        foreach ($rows as $row) {
+            $label = $this->conflictLabel($row);
+            if ($row->assigned_vehicle_id) {
+                $vehicles[(int) $row->assigned_vehicle_id][] = $label;
+            }
+            if ($row->assigned_driver_id) {
+                $drivers[(int) $row->assigned_driver_id][] = $label;
+            }
+        }
+
+        return ['vehicles' => $vehicles, 'drivers' => $drivers];
+    }
+
+    /**
+     * @param  \Illuminate\Database\Eloquent\Builder<\App\Models\VehicleBorrowing>  $query
+     * @return list<string>
+     */
+    private function conflictSummaries($query, CarbonInterface $start, CarbonInterface $end, ?int $ignoreId = null): array
+    {
+        $query->where('status', FacilityRequestStatus::Disetujui->value);
+
+        if ($ignoreId) {
+            $query->whereKeyNot($ignoreId);
+        }
+
+        return ScheduleOverlap::apply($query, 'starts_at', 'ends_at', $start, $end)
+            ->orderBy('starts_at')
+            ->get(['id', 'approval_number', 'destination', 'starts_at', 'ends_at'])
+            ->map(fn (VehicleBorrowing $row) => $this->conflictLabel($row))
+            ->values()
+            ->all();
+    }
+
+    private function conflictLabel(VehicleBorrowing $row): string
+    {
+        $number = $row->approval_number ?: ('PKD-'.str_pad((string) $row->id, 6, '0', STR_PAD_LEFT));
+        $destination = trim((string) $row->destination) !== '' ? trim((string) $row->destination) : 'tanpa tujuan';
+        $start = $row->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—';
+        $end = $row->ends_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—';
+
+        return $number.' · '.$destination.' · '.$start.'–'.$end;
+    }
+
+    private function normalizeMapsUrl(mixed $value): ?string
+    {
+        $url = trim(strip_tags((string) ($value ?? '')));
+
+        return $url !== '' ? mb_substr($url, 0, 2048) : null;
     }
 
     /**

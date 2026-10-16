@@ -3,20 +3,27 @@
 namespace App\Services\Reports;
 
 use App\Enums\BorrowingStatus;
-use App\Support\InventoryConditionCatalog;
+use App\Enums\FacilityRequestStatus;
 use App\Enums\InventoryReportType;
 use App\Enums\InventoryStatus;
+use App\Enums\VehicleServiceType;
 use App\Models\Borrowing;
 use App\Models\Campus;
 use App\Models\Category;
 use App\Models\InventoryItem;
 use App\Models\InventoryMutation;
 use App\Models\Maintenance;
+use App\Models\OperationalDriver;
+use App\Models\OperationalVehicle;
 use App\Models\ProcurementType;
+use App\Models\RoomBorrowing;
 use App\Models\SubCategory;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\VehicleBorrowing;
 use App\Models\Vendor;
+use App\Support\CampusQuery;
+use App\Support\InventoryConditionCatalog;
 use App\Services\InventoryFilterService;
 use App\Services\InventoryReportService;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -25,6 +32,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Enterprise Asset Management report builder.
@@ -56,7 +64,30 @@ class EamReportService
             'statuses' => InventoryStatus::cases(),
             'conditions' => InventoryConditionCatalog::filterOptions(),
             'subCategories' => SubCategory::query()->where('is_active', true)->orderBy('name')->get(['id', 'category_id', 'name', 'code']),
+            'facilityStatuses' => FacilityRequestStatus::cases(),
+            'vehicleServiceTypes' => VehicleServiceType::cases(),
+            'vehicles' => OperationalVehicle::query()->where('is_active', true)->orderBy('name')->get(['id', 'name', 'plate_number']),
+            'drivers' => OperationalDriver::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ];
+    }
+
+    /**
+     * Reject inverted date ranges with a clear validation message.
+     */
+    public function assertDateRange(Request $request): void
+    {
+        $from = $request->input('tanggal_awal') ?? $request->input('date_from') ?? $request->input('purchase_date_from');
+        $to = $request->input('tanggal_akhir') ?? $request->input('date_to') ?? $request->input('purchase_date_to');
+
+        if (! filled($from) || ! filled($to)) {
+            return;
+        }
+
+        if ((string) $from > (string) $to) {
+            throw ValidationException::withMessages([
+                'tanggal_awal' => 'Tanggal awal tidak boleh lebih besar dari tanggal akhir.',
+            ]);
+        }
     }
 
     public function inventoryQuery(Request $request, InventoryReportType $type): Builder
@@ -201,6 +232,136 @@ class EamReportService
                 });
             })
             ->latest('borrow_date');
+    }
+
+    /**
+     * Room borrowing report. Date filter uses starts_at within the selected range.
+     */
+    public function roomBorrowingQuery(Request $request): Builder
+    {
+        $campusId = CampusQuery::id($request->input('campus_id'));
+
+        return RoomBorrowing::query()
+            ->with([
+                'room:id,floor_id,code,name',
+                'room.floor:id,building_id,code,name',
+                'room.floor.building:id,campus_id,code,name',
+                'campus:id,code,name',
+                'approvedBy:id,name',
+            ])
+            ->when($campusId === 0, fn (Builder $q) => $q->whereRaw('0 = 1'))
+            ->when(is_int($campusId) && $campusId > 0, fn (Builder $q) => $q->where('campus_id', $campusId))
+            ->when($request->filled('building_id'), function (Builder $q) use ($request) {
+                $q->whereHas('room.floor', fn (Builder $f) => $f->where('building_id', (int) $request->input('building_id')));
+            })
+            ->when($request->filled('floor_id'), function (Builder $q) use ($request) {
+                $q->whereHas('room', fn (Builder $r) => $r->where('floor_id', (int) $request->input('floor_id')));
+            })
+            ->when($request->filled('room_id'), fn (Builder $q) => $q->where('room_id', (int) $request->input('room_id')))
+            ->when($request->filled('status'), fn (Builder $q) => $q->where('status', (string) $request->input('status')))
+            ->when($request->filled('approval_status'), fn (Builder $q) => $q->where('status', (string) $request->input('approval_status')))
+            ->when($request->filled('borrower_name'), function (Builder $q) use ($request) {
+                $q->where('borrower_name', 'like', '%'.trim((string) $request->input('borrower_name')).'%');
+            })
+            ->when($request->filled('approval_number'), function (Builder $q) use ($request) {
+                $term = trim((string) $request->input('approval_number'));
+                $q->where(function (Builder $inner) use ($term) {
+                    $inner->where('approval_number', 'like', "%{$term}%");
+                    if (ctype_digit($term)) {
+                        $inner->orWhere('id', (int) $term);
+                    }
+                });
+            })
+            ->when($request->filled('purpose') || $request->filled('keyword') || $request->filled('search'), function (Builder $q) use ($request) {
+                $purpose = trim((string) ($request->input('purpose') ?? ''));
+                $term = trim((string) ($request->input('keyword') ?? $request->input('search') ?? ''));
+                $q->where(function (Builder $inner) use ($purpose, $term) {
+                    if ($purpose !== '') {
+                        $inner->where('purpose', 'like', "%{$purpose}%");
+                    }
+                    if ($term !== '') {
+                        $inner->orWhere('borrower_name', 'like', "%{$term}%")
+                            ->orWhere('approval_number', 'like', "%{$term}%")
+                            ->orWhere('purpose', 'like', "%{$term}%")
+                            ->orWhereHas('room', fn (Builder $r) => $r->where('name', 'like', "%{$term}%")->orWhere('code', 'like', "%{$term}%"));
+                    }
+                });
+            })
+            ->when($request->filled('tanggal_awal') || $request->filled('date_from') || $request->filled('purchase_date_from'), function (Builder $q) use ($request) {
+                $from = $request->input('tanggal_awal') ?? $request->input('date_from') ?? $request->input('purchase_date_from');
+                $q->whereDate('starts_at', '>=', $from);
+            })
+            ->when($request->filled('tanggal_akhir') || $request->filled('date_to') || $request->filled('purchase_date_to'), function (Builder $q) use ($request) {
+                $to = $request->input('tanggal_akhir') ?? $request->input('date_to') ?? $request->input('purchase_date_to');
+                $q->whereDate('starts_at', '<=', $to);
+            })
+            ->latest('starts_at');
+    }
+
+    /**
+     * Vehicle borrowing report. Date filter uses starts_at within the selected range.
+     */
+    public function vehicleBorrowingQuery(Request $request): Builder
+    {
+        $campusId = CampusQuery::id($request->input('campus_id'));
+
+        return VehicleBorrowing::query()
+            ->with([
+                'campus:id,code,name',
+                'route:id,name',
+                'vehicle:id,name,plate_number',
+                'driver:id,name',
+                'approvedBy:id,name',
+            ])
+            ->when($campusId === 0, fn (Builder $q) => $q->whereRaw('0 = 1'))
+            ->when(is_int($campusId) && $campusId > 0, fn (Builder $q) => $q->where('campus_id', $campusId))
+            ->when($request->filled('status'), fn (Builder $q) => $q->where('status', (string) $request->input('status')))
+            ->when($request->filled('approval_status'), fn (Builder $q) => $q->where('status', (string) $request->input('approval_status')))
+            ->when($request->filled('service_type'), fn (Builder $q) => $q->where('service_type', (string) $request->input('service_type')))
+            ->when($request->filled('assigned_vehicle_id'), fn (Builder $q) => $q->where('assigned_vehicle_id', (int) $request->input('assigned_vehicle_id')))
+            ->when($request->filled('assigned_driver_id'), fn (Builder $q) => $q->where('assigned_driver_id', (int) $request->input('assigned_driver_id')))
+            ->when($request->filled('borrower_name'), function (Builder $q) use ($request) {
+                $q->where('borrower_name', 'like', '%'.trim((string) $request->input('borrower_name')).'%');
+            })
+            ->when($request->filled('borrower_phone'), function (Builder $q) use ($request) {
+                $q->where('borrower_phone', 'like', '%'.trim((string) $request->input('borrower_phone')).'%');
+            })
+            ->when($request->filled('approval_number'), function (Builder $q) use ($request) {
+                $term = trim((string) $request->input('approval_number'));
+                $q->where(function (Builder $inner) use ($term) {
+                    $inner->where('approval_number', 'like', "%{$term}%");
+                    if (ctype_digit($term)) {
+                        $inner->orWhere('id', (int) $term);
+                    }
+                });
+            })
+            ->when($request->filled('destination') || $request->filled('keyword') || $request->filled('search'), function (Builder $q) use ($request) {
+                $destination = trim((string) ($request->input('destination') ?? ''));
+                $term = trim((string) ($request->input('keyword') ?? $request->input('search') ?? ''));
+                $q->where(function (Builder $inner) use ($destination, $term) {
+                    if ($destination !== '') {
+                        $inner->where('destination', 'like', "%{$destination}%")
+                            ->orWhere('origin', 'like', "%{$destination}%")
+                            ->orWhereHas('route', fn (Builder $r) => $r->where('name', 'like', "%{$destination}%"));
+                    }
+                    if ($term !== '') {
+                        $inner->orWhere('borrower_name', 'like', "%{$term}%")
+                            ->orWhere('approval_number', 'like', "%{$term}%")
+                            ->orWhere('destination', 'like', "%{$term}%")
+                            ->orWhere('origin', 'like', "%{$term}%")
+                            ->orWhere('purpose', 'like', "%{$term}%");
+                    }
+                });
+            })
+            ->when($request->filled('tanggal_awal') || $request->filled('date_from') || $request->filled('purchase_date_from'), function (Builder $q) use ($request) {
+                $from = $request->input('tanggal_awal') ?? $request->input('date_from') ?? $request->input('purchase_date_from');
+                $q->whereDate('starts_at', '>=', $from);
+            })
+            ->when($request->filled('tanggal_akhir') || $request->filled('date_to') || $request->filled('purchase_date_to'), function (Builder $q) use ($request) {
+                $to = $request->input('tanggal_akhir') ?? $request->input('date_to') ?? $request->input('purchase_date_to');
+                $q->whereDate('starts_at', '<=', $to);
+            })
+            ->latest('starts_at');
     }
 
     /**
@@ -441,13 +602,21 @@ class EamReportService
     {
         $now = now();
 
+        $reportTitle = match ($type->family()) {
+            'room-borrowing' => 'Laporan Peminjaman Ruangan',
+            'vehicle-borrowing' => 'Laporan Peminjaman Kendaraan',
+            'borrowing' => 'Laporan Peminjaman Inventaris',
+            'maintenance' => 'Laporan Maintenance',
+            default => 'Laporan Inventaris',
+        };
+
         return [
             'printed_at' => $now->translatedFormat('d F Y H:i'),
             'printed_date' => $now->translatedFormat('d F Y'),
             'printed_time' => $now->format('H:i'),
             'user_name' => $request->user()?->name ?? 'Sistem',
             'title' => $type->label(),
-            'report_title' => 'Laporan Inventaris',
+            'report_title' => $reportTitle,
             'organization' => 'Universitas Dian Nusantara',
             'system' => 'Sistem Inventaris',
             'orientation' => $orientation === 'landscape' ? 'landscape' : 'portrait',

@@ -9,9 +9,13 @@ use App\Models\Campus;
 use App\Models\RoomBorrowing;
 use App\Models\VehicleBorrowing;
 use App\Policies\BorrowingPolicy;
+use App\Services\TrashCascadeService;
 use App\Support\CampusQuery;
+use App\Support\DateRangeQuery;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator as Paginator;
 use Illuminate\Support\Collection;
@@ -19,6 +23,10 @@ use Illuminate\View\View;
 
 class BorrowingRecordController extends Controller
 {
+    public function __construct(
+        protected TrashCascadeService $trash,
+    ) {}
+
     public function index(Request $request): View
     {
         $user = $request->user();
@@ -31,20 +39,33 @@ class BorrowingRecordController extends Controller
         $campusId = CampusQuery::id($request->input('campus_id'));
         $status = trim((string) $request->input('status', ''));
         $search = str_replace(['%', '_'], '', trim((string) $request->input('q', '')));
-        $ownOnly = app(BorrowingPolicy::class)->limitsToOwnRecords($user);
+        $dates = DateRangeQuery::validated($request);
+        $dateFrom = $dates['date_from'];
+        $dateTo = $dates['date_to'];
+        $policy = app(BorrowingPolicy::class);
+        $ownOnly = $policy->limitsToOwnRecords($user);
+        $approvedOnly = $policy->viewsApprovedHistoryOnly($user);
+
+        // Driver/OB: read-only view of Admin-approved history across requesters.
+        if ($approvedOnly) {
+            $ownOnly = false;
+            if ($status !== '' && ! in_array($status, $this->approvedHistoryStatuses(), true)) {
+                $status = '__none__';
+            }
+        }
 
         $rows = collect();
 
         if (($kind === null || $kind === 'inventaris') && $user->can('borrowing.view') && $status !== 'selesai') {
-            $rows = $rows->concat($this->inventoryRows($user->id, $ownOnly, $campusId, $status, $search));
+            $rows = $rows->concat($this->inventoryRows($user->id, $ownOnly, $campusId, $status, $search, $approvedOnly, $dateFrom, $dateTo));
         }
 
         if (($kind === null || $kind === 'ruangan') && $user->can('room-borrowing.view')) {
-            $rows = $rows->concat($this->roomRows($user->id, $ownOnly, $campusId, $status, $search));
+            $rows = $rows->concat($this->roomRows($user->id, $ownOnly, $campusId, $status, $search, $approvedOnly, $dateFrom, $dateTo));
         }
 
         if (($kind === null || $kind === 'kendaraan') && $user->can('vehicle-borrowing.view')) {
-            $rows = $rows->concat($this->vehicleRows($user->id, $ownOnly, $campusId, $status, $search));
+            $rows = $rows->concat($this->vehicleRows($user->id, $ownOnly, $campusId, $status, $search, $approvedOnly, $dateFrom, $dateTo));
         }
 
         $sorted = $rows->sortBy([
@@ -58,8 +79,10 @@ class BorrowingRecordController extends Controller
             'campuses' => Campus::query()->orderBy('name')->get(['id', 'code', 'name']),
             'kind' => $kind ?? '',
             'campusId' => is_int($campusId) ? $campusId : '',
-            'status' => $status,
+            'status' => $status === '__none__' ? trim((string) $request->input('status', '')) : $status,
             'search' => $search,
+            'dateFrom' => $dateFrom ?? '',
+            'dateTo' => $dateTo ?? '',
             'statusOptions' => $this->statusOptions($kind),
         ]);
     }
@@ -67,10 +90,36 @@ class BorrowingRecordController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function inventoryRows(int $userId, bool $ownOnly, ?int $campusId, string $status, string $search): Collection
+    /**
+     * @return list<string>
+     */
+    private function approvedHistoryStatuses(): array
     {
+        return [
+            FacilityRequestStatus::Disetujui->value,
+            BorrowingStatus::Disetujui->value,
+            BorrowingStatus::Dipinjam->value,
+            BorrowingStatus::Dikembalikan->value,
+            BorrowingStatus::Terlambat->value,
+            'selesai',
+        ];
+    }
+
+    private function inventoryRows(
+        int $userId,
+        bool $ownOnly,
+        ?int $campusId,
+        string $status,
+        string $search,
+        bool $approvedOnly = false,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): Collection {
         $allowed = array_map(fn (BorrowingStatus $case) => $case->value, BorrowingStatus::cases());
-        if ($status !== '' && ! in_array($status, $allowed, true)) {
+        if ($status !== '' && $status !== '__none__' && ! in_array($status, $allowed, true)) {
+            return collect();
+        }
+        if ($status === '__none__') {
             return collect();
         }
 
@@ -93,7 +142,22 @@ class BorrowingRecordController extends Controller
                         });
                 });
             })
-            ->when($status !== '', fn ($q) => $q->where('status', $status))
+            ->when($approvedOnly && $status === '', function ($q) {
+                $q->where(function ($inner) {
+                    $inner->whereIn('status', [
+                        BorrowingStatus::Disetujui->value,
+                        BorrowingStatus::Dipinjam->value,
+                        BorrowingStatus::Dikembalikan->value,
+                        BorrowingStatus::Terlambat->value,
+                    ])->orWhereHas('items', fn ($items) => $items->whereIn('status', [
+                        \App\Enums\BorrowingItemStatus::Disetujui->value,
+                        \App\Enums\BorrowingItemStatus::Dipinjam->value,
+                        \App\Enums\BorrowingItemStatus::Dikembalikan->value,
+                    ]));
+                });
+            })
+            ->when($status !== '' && ! $approvedOnly, fn ($q) => $q->where('status', $status))
+            ->when($approvedOnly && $status !== '', fn ($q) => $q->where('status', $status))
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(function ($inner) use ($like) {
@@ -103,6 +167,7 @@ class BorrowingRecordController extends Controller
                         ->orWhereHas('inventoryItem', fn ($item) => $item->where('name', 'like', $like)->orWhere('inventory_number', 'like', $like));
                 });
             })
+            ->tap(fn ($q) => DateRangeQuery::applyStartDates($q, 'borrow_date', $dateFrom, $dateTo))
             ->latest()
             ->get()
             ->map(function (Borrowing $borrowing) {
@@ -128,16 +193,54 @@ class BorrowingRecordController extends Controller
                     'admin' => $borrowing->approvedBy?->name,
                     'reason' => $borrowing->rejection_reason,
                     'url' => route('borrowings.show', $borrowing),
+                    'trash_kind' => 'inventaris',
+                    'trash_id' => $borrowing->id,
                 ];
             });
     }
 
     /**
+     * Soft-delete a borrowing history row into Trash (Super Admin / trash.view only).
+     */
+    public function destroy(Request $request, string $kind, int $id): RedirectResponse
+    {
+        abort_unless($request->user()?->can('trash.view'), 403);
+
+        $model = $this->resolveActiveRecord($kind, $id);
+        $this->trash->softDelete($model, $request->user());
+
+        return redirect()
+            ->route('borrowing-records.index', $request->only(['kind', 'campus_id', 'status', 'q', 'date_from', 'date_to']))
+            ->with('success', 'Riwayat peminjaman dipindahkan ke Trash.');
+    }
+
+    private function resolveActiveRecord(string $kind, int $id): Model
+    {
+        return match ($kind) {
+            'inventaris' => Borrowing::query()->findOrFail($id),
+            'ruangan' => RoomBorrowing::query()->findOrFail($id),
+            'kendaraan' => VehicleBorrowing::query()->findOrFail($id),
+            default => abort(404),
+        };
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function roomRows(int $userId, bool $ownOnly, ?int $campusId, string $status, string $search): Collection
-    {
-        if ($this->statusSkipsFacility($status) || ($status !== '' && ! $this->recognizedStatus($status))) {
+    private function roomRows(
+        int $userId,
+        bool $ownOnly,
+        ?int $campusId,
+        string $status,
+        string $search,
+        bool $approvedOnly = false,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): Collection {
+        if ($status === '__none__') {
+            return collect();
+        }
+        if (! $approvedOnly && ($this->statusSkipsFacility($status) || ($status !== '' && ! $this->recognizedStatus($status)))) {
             return collect();
         }
 
@@ -146,7 +249,14 @@ class BorrowingRecordController extends Controller
             ->when($ownOnly, fn ($q) => $q->where('requested_by', $userId))
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
-            ->tap(fn ($q) => $this->applyFacilityStatus($q, $status))
+            ->when($approvedOnly && $status === '', fn ($q) => $q->where('status', FacilityRequestStatus::Disetujui->value))
+            ->when($approvedOnly && $status === 'selesai', function ($q) {
+                $q->where('status', FacilityRequestStatus::Disetujui->value)->where('ends_at', '<', now());
+            })
+            ->when($approvedOnly && $status === FacilityRequestStatus::Disetujui->value, function ($q) {
+                $q->where('status', FacilityRequestStatus::Disetujui->value);
+            })
+            ->when(! $approvedOnly, fn ($q) => $this->applyFacilityStatus($q, $status))
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(function ($inner) use ($like) {
@@ -157,6 +267,7 @@ class BorrowingRecordController extends Controller
                         ->orWhereHas('room', fn ($room) => $room->where('name', 'like', $like)->orWhere('code', 'like', $like));
                 });
             })
+            ->tap(fn ($q) => DateRangeQuery::applyStartDates($q, 'starts_at', $dateFrom, $dateTo))
             ->latest()
             ->get()
             ->map(function (RoomBorrowing $borrowing) {
@@ -185,6 +296,8 @@ class BorrowingRecordController extends Controller
                     'admin' => $borrowing->approvedBy?->name,
                     'reason' => $borrowing->rejection_reason,
                     'url' => route('room-borrowings.show', $borrowing),
+                    'trash_kind' => 'ruangan',
+                    'trash_id' => $borrowing->id,
                 ];
             });
     }
@@ -192,9 +305,20 @@ class BorrowingRecordController extends Controller
     /**
      * @return Collection<int, array<string, mixed>>
      */
-    private function vehicleRows(int $userId, bool $ownOnly, ?int $campusId, string $status, string $search): Collection
-    {
-        if ($this->statusSkipsFacility($status) || ($status !== '' && ! $this->recognizedStatus($status))) {
+    private function vehicleRows(
+        int $userId,
+        bool $ownOnly,
+        ?int $campusId,
+        string $status,
+        string $search,
+        bool $approvedOnly = false,
+        ?string $dateFrom = null,
+        ?string $dateTo = null,
+    ): Collection {
+        if ($status === '__none__') {
+            return collect();
+        }
+        if (! $approvedOnly && ($this->statusSkipsFacility($status) || ($status !== '' && ! $this->recognizedStatus($status)))) {
             return collect();
         }
 
@@ -203,7 +327,14 @@ class BorrowingRecordController extends Controller
             ->when($ownOnly, fn ($q) => $q->where('requested_by', $userId))
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
-            ->tap(fn ($q) => $this->applyFacilityStatus($q, $status))
+            ->when($approvedOnly && $status === '', fn ($q) => $q->where('status', FacilityRequestStatus::Disetujui->value))
+            ->when($approvedOnly && $status === 'selesai', function ($q) {
+                $q->where('status', FacilityRequestStatus::Disetujui->value)->where('ends_at', '<', now());
+            })
+            ->when($approvedOnly && $status === FacilityRequestStatus::Disetujui->value, function ($q) {
+                $q->where('status', FacilityRequestStatus::Disetujui->value);
+            })
+            ->when(! $approvedOnly, fn ($q) => $this->applyFacilityStatus($q, $status))
             ->when($search !== '', function ($q) use ($search) {
                 $like = '%'.$search.'%';
                 $q->where(function ($inner) use ($like) {
@@ -216,6 +347,7 @@ class BorrowingRecordController extends Controller
                         ->orWhereHas('vehicle', fn ($vehicle) => $vehicle->where('name', 'like', $like)->orWhere('plate_number', 'like', $like));
                 });
             })
+            ->tap(fn ($q) => DateRangeQuery::applyStartDates($q, 'starts_at', $dateFrom, $dateTo))
             ->latest()
             ->get()
             ->map(function (VehicleBorrowing $borrowing) {
@@ -240,6 +372,8 @@ class BorrowingRecordController extends Controller
                     'admin' => $borrowing->approvedBy?->name,
                     'reason' => $borrowing->rejection_reason,
                     'url' => route('vehicle-borrowings.show', $borrowing),
+                    'trash_kind' => 'kendaraan',
+                    'trash_id' => $borrowing->id,
                 ];
             });
     }

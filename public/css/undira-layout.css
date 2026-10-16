@@ -789,6 +789,16 @@ body.sidebar-open .undira-sidebar-backdrop {
     transform: translateX(0);
   }
 
+  /*
+   * Overlay open keeps body.sidebar-collapse (JS). The global collapse width
+   * (76px) is more specific than the rule above and would clip nav labels.
+   * Force full drawer width whenever the overlay is open.
+   */
+  body.sidebar-mini.sidebar-collapse.sidebar-open .main-sidebar,
+  body.sidebar-mini.sidebar-collapse.sidebar-open .main-sidebar::before {
+    width: var(--sidebar-expanded-width) !important;
+  }
+
   /* While open as overlay, always show expanded chrome */
   body.sidebar-mini.sidebar-open .undira-sidebar-logo-wrap {
     display: flex;
@@ -913,6 +923,13 @@ body.sidebar-open .undira-sidebar-backdrop {
   body.sidebar-mini.sidebar-open .main-sidebar,
   body.sidebar-mini.sidebar-open .main-sidebar::before {
     transform: translateX(0);
+  }
+
+  /* Same specificity fix as tablet: collapse+open must be full drawer width */
+  body.sidebar-mini.sidebar-collapse.sidebar-open .main-sidebar,
+  body.sidebar-mini.sidebar-collapse.sidebar-open .main-sidebar::before {
+    width: min(var(--sidebar-expanded-width), 86vw) !important;
+    max-width: var(--sidebar-expanded-width);
   }
 
   /* Drawer open: show full brand + user text even if collapse class remains */

@@ -14,6 +14,8 @@ enum InventoryReportType: string
     case BySubCategory = 'per-subkategori';
     case ByPic = 'per-pic';
     case Borrowed = 'dipinjam';
+    case RoomBorrowed = 'peminjaman-ruangan';
+    case VehicleBorrowed = 'peminjaman-kendaraan';
     case Maintenance = 'maintenance';
     case Damaged = 'rusak';
     case Inactive = 'non-aktif';
@@ -34,6 +36,8 @@ enum InventoryReportType: string
             self::BySubCategory => 'Inventaris per Subkategori',
             self::ByPic => 'Inventaris per PIC',
             self::Borrowed => 'Inventaris Dipinjam',
+            self::RoomBorrowed => 'Laporan Peminjaman Ruangan',
+            self::VehicleBorrowed => 'Laporan Peminjaman Kendaraan',
             self::Maintenance => 'Inventaris Maintenance',
             self::Damaged => 'Inventaris Rusak',
             self::Inactive => 'Inventaris Non Aktif',
@@ -56,6 +60,8 @@ enum InventoryReportType: string
             self::BySubCategory => 'fas fa-tag',
             self::ByPic => 'fas fa-user-tie',
             self::Borrowed => 'fas fa-hand-holding',
+            self::RoomBorrowed => 'fas fa-door-closed',
+            self::VehicleBorrowed => 'fas fa-car',
             self::Maintenance => 'fas fa-tools',
             self::Damaged => 'fas fa-exclamation-triangle',
             self::Inactive => 'fas fa-ban',
@@ -78,6 +84,8 @@ enum InventoryReportType: string
             self::BySubCategory => 'Pengelompokan inventaris berdasarkan subkategori.',
             self::ByPic => 'Pengelompokan inventaris berdasarkan penanggung jawab (PIC).',
             self::Borrowed => 'Riwayat dan status peminjaman inventaris.',
+            self::RoomBorrowed => 'Riwayat penggunaan dan persetujuan peminjaman ruangan.',
+            self::VehicleBorrowed => 'Riwayat pengajuan, persetujuan, dan penggunaan kendaraan operasional.',
             self::Maintenance => 'Work order maintenance / perbaikan inventaris.',
             self::Damaged => 'Inventaris rusak beserta status perbaikan.',
             self::Inactive => 'Aset nonaktif: hilang, dilelang, dimusnahkan, rusak permanen.',
@@ -88,6 +96,8 @@ enum InventoryReportType: string
     }
 
     /**
+     * Types shown on the inventaris report dashboard (excludes facility borrowing reports).
+     *
      * @return list<self>
      */
     public static function menuTypes(): array
@@ -95,7 +105,21 @@ enum InventoryReportType: string
         return array_values(array_filter(
             self::cases(),
             fn (self $t) => $t !== self::Dashboard
+                && $t !== self::RoomBorrowed
+                && $t !== self::VehicleBorrowed
         ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function facilityBorrowingSlugs(): array
+    {
+        return [
+            self::Borrowed->value,
+            self::RoomBorrowed->value,
+            self::VehicleBorrowed->value,
+        ];
     }
 
     public function isHierarchy(): bool
@@ -115,6 +139,8 @@ enum InventoryReportType: string
     {
         return in_array($this, [
             self::Borrowed,
+            self::RoomBorrowed,
+            self::VehicleBorrowed,
             self::Maintenance,
             self::Mutated,
         ], true);
@@ -124,6 +150,8 @@ enum InventoryReportType: string
     {
         return match ($this) {
             self::Borrowed => 'borrowing',
+            self::RoomBorrowed => 'room-borrowing',
+            self::VehicleBorrowed => 'vehicle-borrowing',
             self::Maintenance => 'maintenance',
             self::Mutated => 'mutation',
             self::Dashboard, self::Recap => 'dashboard',

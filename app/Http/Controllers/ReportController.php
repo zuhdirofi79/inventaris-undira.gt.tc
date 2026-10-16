@@ -57,8 +57,12 @@ class ReportController extends Controller
         $reportType = InventoryReportType::tryFrom($type);
         abort_unless($reportType && $reportType !== InventoryReportType::Dashboard, 404);
 
+        $this->reports->assertDateRange($request);
+
         return match ($reportType->family()) {
             'borrowing' => $this->borrowingData($request),
+            'room-borrowing' => $this->roomBorrowingData($request),
+            'vehicle-borrowing' => $this->vehicleBorrowingData($request),
             'maintenance' => $this->maintenanceData($request),
             'mutation' => $this->mutationData($request),
             'dashboard' => response()->json(['data' => []]),
@@ -74,7 +78,11 @@ class ReportController extends Controller
         $request->validate([
             'format' => ['required', 'in:preview,print,excel,csv,pdf,pdf-portrait,pdf-landscape'],
             'orientation' => ['nullable', 'in:portrait,landscape'],
+            'tanggal_awal' => ['nullable', 'date'],
+            'tanggal_akhir' => ['nullable', 'date'],
         ]);
+
+        $this->reports->assertDateRange($request);
 
         $format = (string) $request->input('format');
         if (in_array($format, ['excel', 'csv', 'pdf', 'pdf-portrait', 'pdf-landscape'], true)) {
@@ -87,6 +95,8 @@ class ReportController extends Controller
 
         return match ($reportType->family()) {
             'borrowing' => $this->exportBorrowing($request, $reportType, $format, $orientation),
+            'room-borrowing' => $this->exportRoomBorrowing($request, $reportType, $format, $orientation),
+            'vehicle-borrowing' => $this->exportVehicleBorrowing($request, $reportType, $format, $orientation),
             'maintenance' => $this->exportMaintenance($request, $reportType, $format, $orientation),
             'mutation' => $this->exportMutation($request, $reportType, $format, $orientation),
             default => $this->exportInventory($request, $reportType, $format, $orientation),
@@ -196,6 +206,90 @@ class ReportController extends Controller
                 'approved_by' => $b->approvedBy?->name ?? '—',
                 'approved_at' => $b->approved_at?->format('d/m/Y H:i') ?? '—',
                 'duration' => $duration,
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+            'summary' => ['grand_total' => $page->total()],
+        ]);
+    }
+
+    protected function roomBorrowingData(Request $request): JsonResponse
+    {
+        $page = $this->reports->roomBorrowingQuery($request)
+            ->paginate(max(10, min(100, (int) $request->input('per_page', 50))))
+            ->withQueryString();
+
+        $data = collect($page->items())->map(function ($b, $i) use ($page) {
+            $start = ($page->currentPage() - 1) * $page->perPage();
+            $room = $b->room;
+            $locationParts = array_filter([
+                $b->campus?->name,
+                $room?->floor?->building?->name,
+                $room?->floor?->name,
+                $room ? trim(($room->code ? $room->code.' · ' : '').$room->name) : null,
+            ]);
+
+            return [
+                'no' => $start + $i + 1,
+                'approval_number' => $b->approval_number ?? '—',
+                'request_number' => 'PRU-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
+                'borrower' => $b->borrower_name,
+                'campus' => $b->campus?->name ?? '—',
+                'room' => $room ? trim(($room->code ? $room->code.' · ' : '').$room->name) : '—',
+                'location' => $locationParts !== [] ? implode(' / ', $locationParts) : '—',
+                'starts_at' => $b->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—',
+                'ends_at' => $b->ends_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—',
+                'participant_internal' => $b->participant_internal ? $b->participantInternalCount() : 0,
+                'participant_external' => $b->participant_external ? $b->participantExternalCount() : 0,
+                'participant_total' => $b->totalParticipantCount(),
+                'status' => $b->displayLabel(),
+                'approved_by' => $b->approvedBy?->name ?? '—',
+            ];
+        });
+
+        return response()->json([
+            'data' => $data,
+            'meta' => [
+                'current_page' => $page->currentPage(),
+                'last_page' => $page->lastPage(),
+                'per_page' => $page->perPage(),
+                'total' => $page->total(),
+            ],
+            'summary' => ['grand_total' => $page->total()],
+        ]);
+    }
+
+    protected function vehicleBorrowingData(Request $request): JsonResponse
+    {
+        $page = $this->reports->vehicleBorrowingQuery($request)
+            ->paginate(max(10, min(100, (int) $request->input('per_page', 50))))
+            ->withQueryString();
+
+        $data = collect($page->items())->map(function ($b, $i) use ($page) {
+            $start = ($page->currentPage() - 1) * $page->perPage();
+
+            return [
+                'no' => $start + $i + 1,
+                'approval_number' => $b->approval_number ?? '—',
+                'request_number' => 'PKD-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
+                'borrower' => $b->borrower_name,
+                'campus' => $b->campus?->name ?? '—',
+                'service_type' => $b->service_type?->label() ?? '—',
+                'destination' => $b->tripText(),
+                'vehicle' => $b->vehicle?->label() ?? '—',
+                'driver' => $b->driver?->name ?? '—',
+                'starts_at' => $b->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—',
+                'ends_at' => $b->ends_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—',
+                'status' => $b->displayLabel(),
+                'approved_by' => $b->approvedBy?->name ?? '—',
             ];
         });
 
@@ -434,6 +528,102 @@ class ReportController extends Controller
         return $format === 'csv'
             ? Excel::download($export, 'laporan_peminjaman.csv', \Maatwebsite\Excel\Excel::CSV)
             : Excel::download($export, 'laporan_peminjaman.xlsx');
+    }
+
+    protected function exportRoomBorrowing(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response
+    {
+        $rows = $this->reports->roomBorrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
+        $meta = $this->reports->meta($request, $type, $orientation);
+        $filters = app(InventoryReportService::class)->describeFilters($request);
+        $payload = compact('rows', 'meta', 'filters', 'type');
+
+        if ($format === 'preview') {
+            return view('reports.preview-room-borrowing', $payload);
+        }
+        if ($format === 'print') {
+            return view('reports.print-room-borrowing', $payload);
+        }
+        if (str_starts_with($format, 'pdf')) {
+            return Pdf::loadView('exports.room-borrowing-pdf', $payload)->setPaper('a4', $orientation)
+                ->download('laporan_peminjaman_ruangan_'.now()->format('Ymd_His').'.pdf');
+        }
+
+        $excelRows = $rows->map(function ($b, $i) {
+            $room = $b->room;
+
+            return [
+                $i + 1,
+                $b->approval_number ?? '—',
+                'PRU-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
+                $b->borrower_name,
+                $b->campus?->name ?? '—',
+                $room ? trim(($room->code ? $room->code.' · ' : '').$room->name) : '—',
+                $b->starts_at?->format('Y-m-d H:i') ?? '—',
+                $b->ends_at?->format('Y-m-d H:i') ?? '—',
+                $b->participant_internal ? $b->participantInternalCount() : 0,
+                $b->participant_external ? $b->participantExternalCount() : 0,
+                $b->totalParticipantCount(),
+                $b->displayLabel(),
+                $b->approvedBy?->name ?? '—',
+            ];
+        })->all();
+
+        $export = new EamFlatReportExport(
+            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Kampus', 'Ruangan', 'Mulai', 'Selesai', 'Peserta Internal', 'Peserta External', 'Total Peserta', 'Status', 'Approved By'],
+            $excelRows,
+            'Peminjaman Ruangan'
+        );
+
+        return $format === 'csv'
+            ? Excel::download($export, 'laporan_peminjaman_ruangan.csv', \Maatwebsite\Excel\Excel::CSV)
+            : Excel::download($export, 'laporan_peminjaman_ruangan.xlsx');
+    }
+
+    protected function exportVehicleBorrowing(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response
+    {
+        $rows = $this->reports->vehicleBorrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
+        $meta = $this->reports->meta($request, $type, $orientation);
+        $filters = app(InventoryReportService::class)->describeFilters($request);
+        $payload = compact('rows', 'meta', 'filters', 'type');
+
+        if ($format === 'preview') {
+            return view('reports.preview-vehicle-borrowing', $payload);
+        }
+        if ($format === 'print') {
+            return view('reports.print-vehicle-borrowing', $payload);
+        }
+        if (str_starts_with($format, 'pdf')) {
+            return Pdf::loadView('exports.vehicle-borrowing-pdf', $payload)->setPaper('a4', $orientation)
+                ->download('laporan_peminjaman_kendaraan_'.now()->format('Ymd_His').'.pdf');
+        }
+
+        $excelRows = $rows->map(function ($b, $i) {
+            return [
+                $i + 1,
+                $b->approval_number ?? '—',
+                'PKD-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
+                $b->borrower_name,
+                $b->campus?->name ?? '—',
+                $b->service_type?->label() ?? '—',
+                $b->tripText(),
+                $b->vehicle?->label() ?? '—',
+                $b->driver?->name ?? '—',
+                $b->starts_at?->format('Y-m-d H:i') ?? '—',
+                $b->ends_at?->format('Y-m-d H:i') ?? '—',
+                $b->displayLabel(),
+                $b->approvedBy?->name ?? '—',
+            ];
+        })->all();
+
+        $export = new EamFlatReportExport(
+            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Kampus', 'Jenis Layanan', 'Tujuan', 'Kendaraan', 'Driver', 'Mulai', 'Selesai', 'Status', 'Approved By'],
+            $excelRows,
+            'Peminjaman Kendaraan'
+        );
+
+        return $format === 'csv'
+            ? Excel::download($export, 'laporan_peminjaman_kendaraan.csv', \Maatwebsite\Excel\Excel::CSV)
+            : Excel::download($export, 'laporan_peminjaman_kendaraan.xlsx');
     }
 
     protected function exportMaintenance(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response

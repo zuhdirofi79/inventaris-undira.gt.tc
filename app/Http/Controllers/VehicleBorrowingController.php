@@ -12,11 +12,14 @@ use App\Models\OperationalVehicle;
 use App\Models\User;
 use App\Models\VehicleBorrowing;
 use App\Policies\BorrowingPolicy;
+use App\Http\Controllers\Concerns\RespondsToAjaxForm;
 use App\Services\FacilityReceiptService;
 use App\Services\VehicleBorrowingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CampusQuery;
+use App\Support\DateRangeQuery;
 use App\Support\PrivateDocumentResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -24,6 +27,8 @@ use Symfony\Component\HttpFoundation\Response;
 
 class VehicleBorrowingController extends Controller
 {
+    use RespondsToAjaxForm;
+
     public function __construct(
         private readonly VehicleBorrowingService $service,
         private readonly FacilityReceiptService $receipts,
@@ -31,13 +36,30 @@ class VehicleBorrowingController extends Controller
 
     public function create(): View
     {
+        view()->share('inlineValidationFields', [
+            'borrower_name',
+            'borrower_email',
+            'borrower_phone',
+            'route_id',
+            'destination',
+            'purpose',
+            'service_type',
+            'passenger_count',
+            'passengers',
+            'passengers.*.name',
+            'campus_id',
+            'starts_at',
+            'ends_at',
+            'supporting_document',
+        ]);
+
         return view('operations.vehicle-borrowings.create', [
             'campuses' => Campus::query()->where('is_active', true)->orderBy('name')->get(['id', 'code', 'name']),
             'routes' => OperationalRoute::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
         ]);
     }
 
-    public function store(StoreVehicleBorrowingRequest $request): RedirectResponse
+    public function store(StoreVehicleBorrowingRequest $request): RedirectResponse|JsonResponse
     {
         $borrowing = $this->service->submit(
             $request->user(),
@@ -45,9 +67,11 @@ class VehicleBorrowingController extends Controller
             $request->file('supporting_document'),
         );
 
-        return redirect()
-            ->route('vehicle-borrowings.show', $borrowing)
-            ->with('success', 'Peminjaman kendaraan berhasil diajukan dan menunggu persetujuan.');
+        return $this->formSuccess(
+            $request,
+            route('vehicle-borrowings.show', $borrowing),
+            'Peminjaman kendaraan berhasil diajukan dan menunggu persetujuan.',
+        );
     }
 
     public function approvals(Request $request): View
@@ -65,10 +89,24 @@ class VehicleBorrowingController extends Controller
         $this->authorizeVisible($request->user(), $vehicleBorrowing);
         $vehicleBorrowing->load(['campus', 'route', 'vehicle', 'driver', 'approvedBy', 'requestedBy']);
 
+        $conflicts = ['vehicles' => [], 'drivers' => []];
+        if (
+            $vehicleBorrowing->status === FacilityRequestStatus::MenungguPersetujuan
+            && $vehicleBorrowing->starts_at
+            && $vehicleBorrowing->ends_at
+        ) {
+            $conflicts = $this->service->conflictMapForSchedule(
+                $vehicleBorrowing->starts_at,
+                $vehicleBorrowing->ends_at,
+                $vehicleBorrowing->id,
+            );
+        }
+
         return view('operations.vehicle-borrowings.show', [
             'borrowing' => $vehicleBorrowing,
             'vehicles' => OperationalVehicle::query()->where('is_active', true)->orderBy('name')->get(),
             'drivers' => OperationalDriver::query()->where('is_active', true)->orderBy('name')->get(),
+            'assignmentConflicts' => $conflicts,
         ]);
     }
 
@@ -143,6 +181,9 @@ class VehicleBorrowingController extends Controller
         $campusId = CampusQuery::id($request->input('campus_id'));
         $search = str_replace(['%', '_'], '', trim((string) $request->input('q', '')));
         $status = trim((string) $request->input('status', ''));
+        $dates = $mode === 'history'
+            ? DateRangeQuery::validated($request)
+            : ['date_from' => null, 'date_to' => null];
 
         $borrowings = VehicleBorrowing::query()
             ->with(['campus:id,code,name', 'route:id,name', 'vehicle:id,name,plate_number', 'driver:id,name', 'approvedBy:id,name'])
@@ -160,7 +201,7 @@ class VehicleBorrowingController extends Controller
                         ->orWhereHas('vehicle', fn ($vehicle) => $vehicle->where('name', 'like', $like)->orWhere('plate_number', 'like', $like));
                 });
             })
-            ->tap(function ($q) use ($mode, $status) {
+            ->tap(function ($q) use ($mode, $status, $dates) {
                 if ($mode === 'approvals') {
                     $q->where('status', FacilityRequestStatus::MenungguPersetujuan->value);
 
@@ -173,6 +214,8 @@ class VehicleBorrowingController extends Controller
                 } elseif (in_array($status, [FacilityRequestStatus::Disetujui->value, FacilityRequestStatus::Ditolak->value], true)) {
                     $q->where('status', $status);
                 }
+
+                DateRangeQuery::applyDecisionDates($q, $dates['date_from'], $dates['date_to']);
             })
             ->latest()
             ->paginate(15)
@@ -185,6 +228,8 @@ class VehicleBorrowingController extends Controller
             'campusId' => is_int($campusId) ? $campusId : '',
             'search' => $search,
             'status' => $status,
+            'dateFrom' => $dates['date_from'] ?? '',
+            'dateTo' => $dates['date_to'] ?? '',
         ]);
     }
 

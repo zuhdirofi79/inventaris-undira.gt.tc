@@ -15,6 +15,8 @@ final class RoleLabels
             'teknisi' => 'Teknisi',
             'staff' => 'Staff',
             'viewer' => 'Viewer',
+            'driver' => 'Driver',
+            'ob' => 'OB',
         ];
     }
 
@@ -31,6 +33,8 @@ final class RoleLabels
             'teknisi' => 'bg-info text-dark',
             'viewer' => 'bg-secondary',
             'staff' => 'bg-undira-blue',
+            'driver' => 'bg-success',
+            'ob' => 'bg-warning text-dark',
             default => 'bg-undira-blue',
         };
     }

@@ -24,6 +24,7 @@ class RoomBorrowingService
         private readonly RoomOccupancy $occupancy,
         private readonly DecisionMailer $mailer,
         private readonly InventoryAvailability $inventoryAvailability,
+        private readonly NotificationService $notifications,
     ) {}
 
     /**
@@ -70,12 +71,12 @@ class RoomBorrowingService
         $stored = [];
 
         try {
-            return DB::transaction(function () use ($user, $data, $room, $start, $end, $usesBudget, $approvalDocument, $layoutDocument, $participantDocument, &$stored) {
+            $saved = DB::transaction(function () use ($user, $data, $room, $start, $end, $usesBudget, $approvalDocument, $layoutDocument, $participantDocument, &$stored) {
                 $row = RoomBorrowing::query()->create([
                     'room_id' => $room->id,
                     'campus_id' => $room->floor?->building?->campus_id,
                     'borrower_name' => $data['borrower_name'],
-                    'borrower_email' => $data['borrower_email'] ?? null,
+                    'borrower_email' => $data['borrower_email'],
                     'borrower_phone' => $data['borrower_phone'],
                     'activity_type' => $data['activity_type'],
                     'purpose' => trim(strip_tags((string) $data['purpose'])),
@@ -84,6 +85,12 @@ class RoomBorrowingService
                     'budget_type' => $usesBudget ? trim(strip_tags((string) ($data['budget_type'] ?? ''))) : null,
                     'participant_internal' => (bool) ($data['participant_internal'] ?? false),
                     'participant_external' => (bool) ($data['participant_external'] ?? false),
+                    'participant_internal_count' => (bool) ($data['participant_internal'] ?? false)
+                        ? max(0, (int) ($data['participant_internal_count'] ?? 0))
+                        : 0,
+                    'participant_external_count' => (bool) ($data['participant_external'] ?? false)
+                        ? max(0, (int) ($data['participant_external_count'] ?? 0))
+                        : 0,
                     'starts_at' => $start,
                     'ends_at' => $end,
                     'status' => FacilityRequestStatus::MenungguPersetujuan,
@@ -107,7 +114,7 @@ class RoomBorrowingService
 
                 $row->update($updates);
 
-                return $row->fresh();
+                return $row->fresh(['room.floor.building.campus', 'campus']);
             });
         } catch (Throwable $exception) {
             foreach ($stored as $path) {
@@ -122,6 +129,10 @@ class RoomBorrowingService
 
             throw $exception;
         }
+
+        $this->notifications->notifyRoomBorrowingSubmitted($saved);
+
+        return $saved;
     }
 
     /**
@@ -174,6 +185,8 @@ class RoomBorrowingService
             'Email peminjaman ruangan gagal dikirim.',
             $saved->id,
         );
+
+        $this->notifications->notifyRoomBorrowingDecided($saved);
 
         return $saved;
     }

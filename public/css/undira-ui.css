@@ -817,6 +817,58 @@ body.hold-transition {
   overflow-y: visible;
 }
 
+/*
+ * DataTables length menu — "Tampilkan [n] entri"
+ * Default BS5 DataTables renders the select inline without gap, so the label
+ * text sticks to the dropdown. Flex + gap keeps spacing balanced without
+ * touching unrelated form selects.
+ */
+div.dataTables_wrapper div.dataTables_length > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+  font-weight: 500;
+  color: var(--ui-muted, #64748b);
+  line-height: 1.4;
+}
+
+div.dataTables_wrapper div.dataTables_length select {
+  display: inline-block;
+  width: auto;
+  min-width: 4.75rem;
+  margin: 0;
+  vertical-align: middle;
+  padding-top: 0.3rem;
+  padding-bottom: 0.3rem;
+  padding-left: 0.55rem;
+  padding-right: 1.85rem;
+}
+
+div.dataTables_wrapper div.dataTables_filter > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+  font-weight: 500;
+  color: var(--ui-muted, #64748b);
+}
+
+@media (max-width: 767.98px) {
+  div.dataTables_wrapper div.dataTables_length,
+  div.dataTables_wrapper div.dataTables_filter {
+    float: none !important;
+    text-align: left !important;
+    width: 100%;
+  }
+
+  div.dataTables_wrapper div.dataTables_filter input {
+    max-width: 100%;
+  }
+}
+
 .list-group-item {
   border-color: var(--ui-border) !important;
   padding: 1rem 1.2rem !important;

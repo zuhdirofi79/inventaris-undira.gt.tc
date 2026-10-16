@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Casts\PlannedDateTimeCast;
 use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
+use App\Models\Concerns\TracksTrashMeta;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,6 +16,7 @@ use Illuminate\Support\Collection;
 class Borrowing extends Model
 {
     use SoftDeletes;
+    use TracksTrashMeta;
 
     protected $fillable = [
         'inventory_item_id',

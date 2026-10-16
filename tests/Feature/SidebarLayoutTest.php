@@ -29,6 +29,9 @@ class SidebarLayoutTest extends TestCase
             'Riwayat Peminjaman',
             'Laporan Inventaris',
             'Laporan Peminjaman',
+            'Laporan Peminjaman Inventaris',
+            'Laporan Peminjaman Ruangan',
+            'Laporan Peminjaman Kendaraan',
             'Laporan Maintenance',
         ] as $label) {
             $this->assertStringContainsString('<p>'.$label.'</p>', $html);
@@ -105,6 +108,14 @@ class SidebarLayoutTest extends TestCase
         $reports = $this->actingAs($admin)->get(route('reports.index'))->assertOk()->getContent();
         $this->assertStringContainsString('active', $this->linkClass($reports, route('reports.index')));
         $this->assertStringNotContainsString('active', $this->linkClass($reports, route('reports.show', 'dipinjam')));
+        $this->assertStringNotContainsString('active', $this->linkClass($reports, route('reports.show', 'peminjaman-ruangan')));
+        $this->assertStringNotContainsString('active', $this->linkClass($reports, route('reports.show', 'peminjaman-kendaraan')));
+
+        $roomReport = $this->actingAs($admin)->get(route('reports.show', 'peminjaman-ruangan'))->assertOk()->getContent();
+        $this->assertStringContainsString('menu-open', $roomReport);
+        $this->assertStringContainsString('active', $this->linkClass($roomReport, route('reports.show', 'peminjaman-ruangan')));
+        $this->assertStringNotContainsString('active', $this->linkClass($roomReport, route('reports.show', 'dipinjam')));
+        $this->assertStringNotContainsString('active', $this->linkClass($roomReport, route('reports.show', 'peminjaman-kendaraan')));
     }
 
     private function linkClass(string $html, string $url): string

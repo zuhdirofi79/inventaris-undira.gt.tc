@@ -71,8 +71,9 @@
         <i class="fas fa-user-plus me-2"></i>Daftar
     </button>
 
-    <p class="text-center mt-4 mb-0 text-muted small">
-        Sudah punya akun? <a href="{{ route('login') }}" class="text-undira-blue">Masuk</a>
+    <p class="text-center mt-4 mb-0 text-muted small auth-signup">
+        Sudah punya akun?
+        <a href="{{ route('login') }}" class="auth-link auth-link--blue">Masuk menggunakan akun Anda</a>
     </p>
 </form>
 @endsection

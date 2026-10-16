@@ -4,12 +4,17 @@ namespace App\Models;
 
 use App\Enums\FacilityRequestStatus;
 use App\Enums\RoomActivityType;
+use App\Models\Concerns\TracksTrashMeta;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RoomBorrowing extends Model
 {
+    use SoftDeletes;
+    use TracksTrashMeta;
+
     protected $fillable = [
         'room_id',
         'campus_id',
@@ -22,7 +27,9 @@ class RoomBorrowing extends Model
         'uses_budget',
         'budget_type',
         'participant_internal',
+        'participant_internal_count',
         'participant_external',
+        'participant_external_count',
         'approval_document_path',
         'approval_document_original_name',
         'approval_document_size',
@@ -55,6 +62,8 @@ class RoomBorrowing extends Model
             'uses_budget' => 'boolean',
             'participant_internal' => 'boolean',
             'participant_external' => 'boolean',
+            'participant_internal_count' => 'integer',
+            'participant_external_count' => 'integer',
         ];
     }
 
@@ -103,17 +112,39 @@ class RoomBorrowing extends Model
         return $this->ends_at !== null && $this->ends_at->lt($moment);
     }
 
+    public function participantInternalCount(): int
+    {
+        return max(0, (int) ($this->participant_internal_count ?? 0));
+    }
+
+    public function participantExternalCount(): int
+    {
+        return max(0, (int) ($this->participant_external_count ?? 0));
+    }
+
+    public function totalParticipantCount(): int
+    {
+        $internal = $this->participant_internal ? $this->participantInternalCount() : 0;
+        $external = $this->participant_external ? $this->participantExternalCount() : 0;
+
+        return $internal + $external;
+    }
+
     public function participantText(): string
     {
         $kinds = [];
         if ($this->participant_internal) {
-            $kinds[] = 'Internal';
+            $kinds[] = 'Internal '.$this->participantInternalCount();
         }
         if ($this->participant_external) {
-            $kinds[] = 'External';
+            $kinds[] = 'External '.$this->participantExternalCount();
         }
 
-        return $kinds === [] ? '—' : implode(' dan ', $kinds);
+        if ($kinds === []) {
+            return '—';
+        }
+
+        return implode(', ', $kinds).' (Total '.$this->totalParticipantCount().')';
     }
 
     /**

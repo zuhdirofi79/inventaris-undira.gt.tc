@@ -20,6 +20,15 @@ class BorrowingPolicy
             return false;
         }
 
+        if ($this->viewsApprovedHistoryOnly($user)) {
+            // Own submissions (any status) or Admin-approved history only.
+            if ((int) $borrowing->requested_by === (int) $user->id) {
+                return true;
+            }
+
+            return $this->isApprovedInventoryRecord($borrowing);
+        }
+
         if (! $this->limitsToOwnRecords($user)) {
             return true;
         }
@@ -34,7 +43,36 @@ class BorrowingPolicy
     public function limitsToOwnRecords(User $user): bool
     {
         return $user->hasRole('viewer')
+            && ! $user->hasAnyRole(['super-admin', 'admin', 'staff', 'driver', 'ob']);
+    }
+
+    /**
+     * Driver / OB may browse all Admin-approved borrowing history (read-only).
+     */
+    public function viewsApprovedHistoryOnly(User $user): bool
+    {
+        return $user->hasAnyRole(['driver', 'ob'])
             && ! $user->hasAnyRole(['super-admin', 'admin', 'staff']);
+    }
+
+    public function isApprovedInventoryRecord(Borrowing $borrowing): bool
+    {
+        if (in_array($borrowing->status, [
+            BorrowingStatus::Disetujui,
+            BorrowingStatus::Dipinjam,
+            BorrowingStatus::Dikembalikan,
+            BorrowingStatus::Terlambat,
+        ], true)) {
+            return true;
+        }
+
+        return $borrowing->items()
+            ->whereIn('status', [
+                BorrowingItemStatus::Disetujui,
+                BorrowingItemStatus::Dipinjam,
+                BorrowingItemStatus::Dikembalikan,
+            ])
+            ->exists();
     }
 
     public function create(User $user): bool

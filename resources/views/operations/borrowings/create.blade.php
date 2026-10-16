@@ -17,7 +17,7 @@
     :list-back="true"
 />
 
-<form action="{{ route('borrowings.store') }}" method="POST" id="borrowForm" data-no-loading enctype="multipart/form-data">
+<form action="{{ route('borrowings.store') }}" method="POST" id="borrowForm" data-ajax-submit data-no-loading enctype="multipart/form-data">
     @csrf
     <input type="hidden" name="status" value="menunggu_persetujuan">
     <div id="borrowCartInputs"></div>
@@ -29,20 +29,7 @@
         </div>
         <div class="card-body">
             <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label" for="borrower_name">Nama Peminjam <span class="text-danger">*</span></label>
-                    <input id="borrower_name" type="text" name="borrower_name" class="form-control @error('borrower_name') is-invalid @enderror" value="{{ old('borrower_name') }}" required autocomplete="name">
-                    @error('borrower_name')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                    @enderror
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label" for="borrower_email">Email <span class="text-danger">*</span></label>
-                    <input id="borrower_email" type="email" name="borrower_email" class="form-control @error('borrower_email') is-invalid @enderror" value="{{ old('borrower_email') }}" required autocomplete="email">
-                    @error('borrower_email')
-                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                    @enderror
-                </div>
+                @include('partials.borrower-identity-fields', ['feedbackClass' => 'invalid-feedback d-block'])
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Telepon / No. HP <span class="text-danger">*</span></label>
                     <input type="text" name="borrower_phone" class="form-control @error('borrower_phone') is-invalid @enderror" value="{{ old('borrower_phone') }}" autocomplete="tel" required>
@@ -126,13 +113,15 @@
                             <td colspan="7" class="text-center text-muted py-4">Belum ada barang. Klik <strong>Tambah Barang</strong> untuk memilih inventaris.</td>
                         </tr>
                     </tbody>
-                    @error('items')
-                        <div class="invalid-feedback d-block px-3 py-2" id="borrowCartError">{{ $message }}</div>
-                    @enderror
-                    @error('inventory_item_id')
-                        <div class="invalid-feedback d-block px-3 py-2">{{ $message }}</div>
-                    @enderror
                 </table>
+            </div>
+            <div class="px-3 py-2" data-error-bag="items" id="borrowCartError">
+                @error('items')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                @enderror
+                @error('inventory_item_id')
+                    <div class="invalid-feedback d-block">{{ $message }}</div>
+                @enderror
             </div>
         </div>
         <div class="card-footer d-flex flex-wrap gap-2 align-items-center">

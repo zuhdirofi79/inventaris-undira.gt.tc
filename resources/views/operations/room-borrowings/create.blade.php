@@ -15,21 +15,15 @@
 
 <div class="card card-undira">
     <div class="card-body">
-        <form method="POST" action="{{ route('room-borrowings.store') }}" id="room-borrow-form" enctype="multipart/form-data">
+        <form method="POST" action="{{ route('room-borrowings.store') }}" id="room-borrow-form" data-ajax-submit data-no-loading enctype="multipart/form-data">
             @csrf
 
             <h2 class="h6 text-body-secondary border-bottom pb-2 mb-3">Informasi Kegiatan</h2>
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label" for="borrower_name">Nama Peminjam</label>
-                    <input id="borrower_name" name="borrower_name" value="{{ old('borrower_name') }}" class="form-control @error('borrower_name') is-invalid @enderror" required>
-                    @error('borrower_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="borrower_email">Email</label>
-                    <input id="borrower_email" type="email" name="borrower_email" value="{{ old('borrower_email') }}" class="form-control @error('borrower_email') is-invalid @enderror">
-                    @error('borrower_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
+                @include('partials.borrower-identity-fields', [
+                    'nameCol' => 'col-md-4',
+                    'emailCol' => 'col-md-4',
+                ])
                 <div class="col-md-4">
                     <label class="form-label" for="activity_type">Jenis Kegiatan</label>
                     <select id="activity_type" name="activity_type" class="form-select @error('activity_type') is-invalid @enderror" required>
@@ -112,15 +106,54 @@
                 </div>
                 <div class="col-12">
                     <label class="form-label d-block">Peserta</label>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="participant_internal" name="participant_internal" value="1" @checked(old('participant_internal'))>
-                            <label class="form-check-label" for="participant_internal">Internal</label>
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-6">
+                            <div class="border rounded-3 p-3 h-100 bg-body-tertiary bg-opacity-25">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="participant_internal" name="participant_internal" value="1" @checked(old('participant_internal'))>
+                                    <label class="form-check-label fw-semibold" for="participant_internal">Internal</label>
+                                </div>
+                                <label class="form-label" for="participant_internal_count">Jumlah Peserta Internal</label>
+                                <input
+                                    type="number"
+                                    inputmode="numeric"
+                                    min="1"
+                                    step="1"
+                                    id="participant_internal_count"
+                                    name="participant_internal_count"
+                                    value="{{ old('participant_internal_count') }}"
+                                    class="form-control @error('participant_internal_count') is-invalid @enderror"
+                                    placeholder="Contoh: 25"
+                                    @disabled(! old('participant_internal'))
+                                >
+                                @error('participant_internal_count')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
                         </div>
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="participant_external" name="participant_external" value="1" @checked(old('participant_external'))>
-                            <label class="form-check-label" for="participant_external">External</label>
+                        <div class="col-md-6">
+                            <div class="border rounded-3 p-3 h-100 bg-body-tertiary bg-opacity-25">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" id="participant_external" name="participant_external" value="1" @checked(old('participant_external'))>
+                                    <label class="form-check-label fw-semibold" for="participant_external">External</label>
+                                </div>
+                                <label class="form-label" for="participant_external_count">Jumlah Peserta External</label>
+                                <input
+                                    type="number"
+                                    inputmode="numeric"
+                                    min="1"
+                                    step="1"
+                                    id="participant_external_count"
+                                    name="participant_external_count"
+                                    value="{{ old('participant_external_count') }}"
+                                    class="form-control @error('participant_external_count') is-invalid @enderror"
+                                    placeholder="Contoh: 10"
+                                    @disabled(! old('participant_external'))
+                                >
+                                @error('participant_external_count')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            </div>
                         </div>
+                    </div>
+                    <div class="form-text mt-2" id="participant-total-summary">
+                        Jumlah Total Peserta: <strong id="participant-total-value">0</strong> orang
                     </div>
                     @error('participants')<div class="text-danger small mt-1">{{ $message }}</div>@enderror
                 </div>
@@ -238,6 +271,49 @@
     budget.addEventListener('change', syncBudget);
     syncBudget();
 
+    const participantInternal = document.getElementById('participant_internal');
+    const participantExternal = document.getElementById('participant_external');
+    const participantInternalCount = document.getElementById('participant_internal_count');
+    const participantExternalCount = document.getElementById('participant_external_count');
+    const participantTotalValue = document.getElementById('participant-total-value');
+
+    function parseCount(input, enabled) {
+        if (!enabled || !input || input.value === '') {
+            return 0;
+        }
+        const value = Number.parseInt(input.value, 10);
+        return Number.isFinite(value) && value > 0 ? value : 0;
+    }
+
+    function syncParticipantCategory(checkbox, input) {
+        const on = checkbox.checked;
+        input.disabled = !on;
+        input.required = on;
+        if (!on) {
+            input.value = '';
+        }
+    }
+
+    function syncParticipantTotal() {
+        const total = parseCount(participantInternalCount, participantInternal.checked)
+            + parseCount(participantExternalCount, participantExternal.checked);
+        if (participantTotalValue) {
+            participantTotalValue.textContent = String(total);
+        }
+    }
+
+    function syncParticipants() {
+        syncParticipantCategory(participantInternal, participantInternalCount);
+        syncParticipantCategory(participantExternal, participantExternalCount);
+        syncParticipantTotal();
+    }
+
+    participantInternal.addEventListener('change', syncParticipants);
+    participantExternal.addEventListener('change', syncParticipants);
+    participantInternalCount.addEventListener('input', syncParticipantTotal);
+    participantExternalCount.addEventListener('input', syncParticipantTotal);
+    syncParticipants();
+
     ['approval_document', 'layout_document', 'participant_document'].forEach(function (id) {
         const input = document.getElementById(id);
         const hint = document.getElementById(id.replaceAll('_', '-') + '-name');
@@ -248,17 +324,19 @@
         });
     });
 
-    form.addEventListener('submit', function (event) {
+    function syncScheduleValidity() {
         const start = document.getElementById('starts_at');
         const end = document.getElementById('ends_at');
+        if (!start || !end) return;
         if (start.value && end.value && end.value <= start.value) {
             end.setCustomValidity('Jadwal selesai harus setelah jadwal mulai.');
-            end.reportValidity();
-            event.preventDefault();
-            return;
+        } else {
+            end.setCustomValidity('');
         }
-        end.setCustomValidity('');
-    });
+    }
+    document.getElementById('starts_at')?.addEventListener('change', syncScheduleValidity);
+    document.getElementById('ends_at')?.addEventListener('change', syncScheduleValidity);
+    syncScheduleValidity();
 
     load(urls.campuses, {}).then(async function (rows) {
         fill(campus, rows, 'Masukkan Kampus');

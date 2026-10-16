@@ -9,6 +9,9 @@
     <li>Kampus: {{ $borrowing->campus?->name ?: '—' }}</li>
     <li>Rute: {{ $borrowing->origin ?: ($borrowing->route?->name ?: '—') }}</li>
     <li>Tujuan: {{ $borrowing->destination ?: '—' }}</li>
+    @if($borrowing->destinationMapsUrl())
+        <li>Link Google Maps Tujuan: <a href="{{ $borrowing->destinationMapsUrl() }}" target="_blank" rel="noopener noreferrer">{{ $borrowing->destinationMapsUrl() }}</a></li>
+    @endif
     <li>Keperluan: {{ $borrowing->purpose }}</li>
     <li>Jenis pengantaran: {{ $borrowing->service_type?->label() ?: '—' }}</li>
     <li>Jumlah penumpang: {{ $borrowing->passenger_count ?: '—' }}</li>

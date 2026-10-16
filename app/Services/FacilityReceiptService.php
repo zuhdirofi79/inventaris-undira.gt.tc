@@ -38,6 +38,9 @@ class FacilityReceiptService
             ['Ruangan', $room?->name ?: '—'],
             ['Jenis Kegiatan', $borrowing->activity_type?->label() ?: '—'],
             ['Keperluan', $borrowing->purpose ?: '—'],
+            ['Peserta Internal', ($borrowing->participant_internal ? $borrowing->participantInternalCount() : 0).' orang'],
+            ['Peserta External', ($borrowing->participant_external ? $borrowing->participantExternalCount() : 0).' orang'],
+            ['Total Peserta', $borrowing->totalParticipantCount().' orang'],
             ['Tanggal & Jam Mulai', $start],
             ['Tanggal & Jam Selesai', $end],
             ['Disetujui Oleh', $borrowing->approvedBy?->name ?: '—'],
@@ -98,6 +101,9 @@ class FacilityReceiptService
             ['Kampus', $borrowing->campus?->name ?: '—'],
             ['Asal', $borrowing->origin ?: ($borrowing->route?->name ?: '—')],
             ['Tujuan', $borrowing->destination ?: '—'],
+            ...($borrowing->destinationMapsUrl()
+                ? [['Link Google Maps Tujuan', $borrowing->destinationMapsUrl()]]
+                : []),
             ['Keperluan', $borrowing->purpose ?: '—'],
             ['Jenis Layanan', $borrowing->service_type?->label() ?: '—'],
             ['Tanggal & Jam Mulai', $start],

@@ -484,7 +484,8 @@ class BorrowingApprovalTest extends TestCase
             'responsible_person' => 'PIC',
         ]);
 
-        $this->actingAs($admin)
+        $requester = $this->makeAdmin(['email' => 'multi@undira.ac.id']);
+        $this->actingAs($requester)
             ->post(route('borrowings.store'), [
                 'inventory_item_ids' => [$itemA->id, $itemB->id],
                 'borrower_name' => 'Multi User',
@@ -500,6 +501,7 @@ class BorrowingApprovalTest extends TestCase
         $borrowing = Borrowing::query()->latest('id')->first();
         $this->assertNotNull($borrowing);
         $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->status);
+        $this->assertSame('multi@undira.ac.id', $borrowing->borrower_email);
         $this->assertCount(2, $borrowing->items);
         $this->assertSame($itemA->id, $borrowing->inventory_item_id);
         $this->assertSame(InventoryStatus::Aktif, $itemA->fresh()->status);
@@ -519,6 +521,7 @@ class BorrowingApprovalTest extends TestCase
             $html = $mail->render();
 
             return $mail->hasTo('multi@undira.ac.id')
+                && ! $mail->hasTo('admin-multi@undira.ac.id')
                 && str_contains($html, $itemA->inventory_number)
                 && str_contains($html, 'Laptop A')
                 && str_contains($html, $itemB->inventory_number)

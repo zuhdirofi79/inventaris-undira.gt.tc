@@ -21,19 +21,13 @@
 
 <div class="card card-undira">
     <div class="card-body">
-        <form method="POST" action="{{ route('vehicle-borrowings.store') }}" enctype="multipart/form-data" id="vehicle-borrow-form">
+        <form method="POST" action="{{ route('vehicle-borrowings.store') }}" enctype="multipart/form-data" id="vehicle-borrow-form" data-ajax-submit data-no-loading>
             @csrf
             <div class="row g-3">
-                <div class="col-md-6">
-                    <label class="form-label" for="borrower_name">Nama Peminjam</label>
-                    <input id="borrower_name" name="borrower_name" value="{{ old('borrower_name') }}" class="form-control @error('borrower_name') is-invalid @enderror" required>
-                    @error('borrower_name')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="borrower_email">Email</label>
-                    <input id="borrower_email" type="email" name="borrower_email" value="{{ old('borrower_email') }}" class="form-control @error('borrower_email') is-invalid @enderror" required>
-                    @error('borrower_email')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
+                @include('partials.borrower-identity-fields', [
+                    'nameCol' => 'col-md-6',
+                    'emailCol' => 'col-md-6',
+                ])
                 <div class="col-lg-4">
                     <label class="form-label" for="route_id">Rute</label>
                     <select id="route_id" name="route_id" class="form-select @error('route_id') is-invalid @enderror" required>
@@ -56,6 +50,21 @@
                     <label class="form-label" for="purpose">Keperluan</label>
                     <textarea id="purpose" name="purpose" rows="2" class="form-control @error('purpose') is-invalid @enderror" placeholder="Masukkan keperluan peminjaman kendaraan" required>{{ old('purpose') }}</textarea>
                     @error('purpose')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="destination_maps_url">Link Google Maps Tujuan (Opsional)</label>
+                    <input
+                        id="destination_maps_url"
+                        type="url"
+                        name="destination_maps_url"
+                        value="{{ old('destination_maps_url') }}"
+                        class="form-control @error('destination_maps_url') is-invalid @enderror"
+                        placeholder="Tempelkan link Google Maps lokasi tujuan"
+                        inputmode="url"
+                        autocomplete="off"
+                    >
+                    <div class="form-text">Opsional. Tempelkan tautan Google Maps agar Admin dapat melihat lokasi tujuan perjalanan dengan lebih akurat.</div>
+                    @error('destination_maps_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="service_type">Jenis Pengantaran</label>
@@ -107,8 +116,10 @@
                 <div class="col-12">
                     <label class="form-label">Daftar Penumpang</label>
                     <p class="text-muted small mb-2">Nama penumpang, divisi atau unit, dan jabatan. Jumlah nama harus sama dengan jumlah penumpang.</p>
-                    @error('passengers')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
-                    @error('passengers.*.name')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                    <div data-error-bag="passengers">
+                        @error('passengers')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                        @error('passengers.*.name')<div class="text-danger small mb-2">{{ $message }}</div>@enderror
+                    </div>
                     <div id="passenger-list" class="d-flex flex-column gap-2">
                         @foreach($oldPassengers as $index => $passenger)
                             <div class="row g-2 passenger-row">

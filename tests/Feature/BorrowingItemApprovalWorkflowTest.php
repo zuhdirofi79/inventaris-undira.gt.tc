@@ -29,7 +29,7 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
     {
         Mail::fake();
 
-        $requester = $this->makeStaff(['email' => 'staff-flow@undira.ac.id']);
+        $requester = $this->makeStaff(['email' => 'flow@undira.ac.id']);
         $admin = $this->makeAdmin(['email' => 'admin-flow@undira.ac.id']);
         $items = collect(range(1, 5))->map(fn ($i) => $this->makeItem([
             'inventory_number' => 'INV-FLOW-'.$i.'-'.uniqid(),
@@ -51,6 +51,7 @@ class BorrowingItemApprovalWorkflowTest extends TestCase
 
         $borrowing = Borrowing::query()->latest('id')->first();
         $this->assertNotNull($borrowing);
+        $this->assertSame('flow@undira.ac.id', $borrowing->borrower_email);
         $this->assertSame(BorrowingStatus::MenungguPersetujuan, $borrowing->status);
         $this->assertCount(5, $borrowing->items);
         $this->assertTrue($borrowing->items->every(

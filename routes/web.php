@@ -38,6 +38,7 @@ use App\Http\Controllers\MaintenanceScheduleController;
 use App\Http\Controllers\MutationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\OrgUnitController;
+use App\Http\Controllers\PresenceController;
 use App\Http\Controllers\ProcurementTypeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoomBorrowingController;
@@ -115,6 +116,9 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         ->name('password.force.update');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::post('/presence/heartbeat', [PresenceController::class, 'heartbeat'])
+        ->middleware('throttle:30,1')
+        ->name('presence.heartbeat');
     Route::get('/dashboard/tree', [DashboardController::class, 'tree'])->name('dashboard.tree');
     Route::get('/dashboard/tree/campuses/{campus}/buildings', [DashboardController::class, 'treeBuildings'])->name('dashboard.tree.buildings');
     Route::get('/dashboard/tree/buildings/{building}/floors', [DashboardController::class, 'treeFloors'])->name('dashboard.tree.floors');
@@ -371,6 +375,12 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     });
 
     Route::get('/borrowing-records', [BorrowingRecordController::class, 'index'])->name('borrowing-records.index');
+    Route::middleware('permission:trash.view')->group(function () {
+        Route::post('/borrowing-records/{kind}/{id}/trash', [BorrowingRecordController::class, 'destroy'])
+            ->whereIn('kind', ['inventaris', 'ruangan', 'kendaraan'])
+            ->whereNumber('id')
+            ->name('borrowing-records.trash');
+    });
 
     Route::middleware('permission:room-borrowing.create')->group(function () {
         Route::get('/room-borrowings/create', [RoomBorrowingController::class, 'create'])->name('room-borrowings.create');
@@ -524,11 +534,11 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:report.view')->group(function () {
         Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/reports/{type}', [ReportController::class, 'show'])->name('reports.show')
-            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus|rekapitulasi');
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|peminjaman-ruangan|peminjaman-kendaraan|maintenance|rusak|non-aktif|dimutasi|dihapus|rekapitulasi');
         Route::get('/reports/{type}/data', [ReportController::class, 'data'])->name('reports.data')
-            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus');
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|peminjaman-ruangan|peminjaman-kendaraan|maintenance|rusak|non-aktif|dimutasi|dihapus');
         Route::post('/reports/{type}/export', [ReportController::class, 'export'])->name('reports.export')
-            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|maintenance|rusak|non-aktif|dimutasi|dihapus');
+            ->where('type', 'lengkap|per-kampus|per-gedung|per-lantai|per-ruangan|per-kategori|per-subkategori|per-pic|dipinjam|peminjaman-ruangan|peminjaman-kendaraan|maintenance|rusak|non-aktif|dimutasi|dihapus');
         Route::post('/reports/generate', [ReportController::class, 'generate'])->name('reports.generate');
     });
 

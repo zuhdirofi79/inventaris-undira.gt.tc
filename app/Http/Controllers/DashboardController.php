@@ -10,9 +10,12 @@ use App\Models\Category;
 use App\Models\Floor;
 use App\Models\InventoryItem;
 use App\Models\Room;
+use App\Services\DashboardBorrowingScheduleService;
+use App\Services\DashboardRecentBorrowingsService;
 use App\Services\DashboardStatsService;
 use App\Services\DashboardTreeService;
 use App\Services\DashboardCampusExecutiveService;
+use App\Services\OnlinePresenceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
@@ -22,6 +25,9 @@ class DashboardController extends Controller
         protected DashboardTreeService $treeService,
         protected DashboardStatsService $statsService,
         protected DashboardCampusExecutiveService $campusExecutive,
+        protected DashboardBorrowingScheduleService $borrowingSchedule,
+        protected DashboardRecentBorrowingsService $recentBorrowings,
+        protected OnlinePresenceService $onlinePresence,
     ) {}
 
     public function index(): View|\Illuminate\Http\RedirectResponse
@@ -65,6 +71,32 @@ class DashboardController extends Controller
                 });
         }
 
+        $scheduleToday = [];
+        $scheduleUpcoming = [];
+        $onlineUsers = ['total' => 0, 'users' => []];
+        $recentBorrowingPayload = [
+            'submissions' => [],
+            'approved' => [],
+            'submissions_url' => null,
+            'approved_url' => null,
+        ];
+        try {
+            $scheduleToday = $this->borrowingSchedule->today();
+            $scheduleUpcoming = $this->borrowingSchedule->upcoming();
+        } catch (\Throwable) {
+            report(new \RuntimeException('Dashboard borrowing schedule widgets failed to load.'));
+        }
+        try {
+            $recentBorrowingPayload = $this->recentBorrowings->forUser($user);
+        } catch (\Throwable) {
+            report(new \RuntimeException('Dashboard recent borrowing widgets failed to load.'));
+        }
+        try {
+            $onlineUsers = $this->onlinePresence->dashboardSnapshot($user);
+        } catch (\Throwable) {
+            report(new \RuntimeException('Dashboard online presence widget failed to load.'));
+        }
+
         return view('dashboard.index', [
             ...$stats,
             'recent_items' => $recentItems,
@@ -72,6 +104,16 @@ class DashboardController extends Controller
             'quick_actions' => $this->quickActions(),
             'executiveSummary' => $this->campusExecutive->summary(),
             'canRefreshCampusSummary' => (bool) $user?->hasAnyRole(['super-admin', 'admin']),
+            'schedule_today' => $scheduleToday,
+            'schedule_upcoming' => $scheduleUpcoming,
+            'online_users' => $onlineUsers,
+            'schedule_records_url' => ($user?->can('borrowing.view') || $user?->can('room-borrowing.view') || $user?->can('vehicle-borrowing.view'))
+                ? route('borrowing-records.index')
+                : null,
+            'recent_borrowing_submissions' => $recentBorrowingPayload['submissions'],
+            'recent_borrowing_approved' => $recentBorrowingPayload['approved'],
+            'recent_borrowing_submissions_url' => $recentBorrowingPayload['submissions_url'],
+            'recent_borrowing_approved_url' => $recentBorrowingPayload['approved_url'],
         ]);
     }
 
@@ -110,11 +152,25 @@ class DashboardController extends Controller
                 'permission' => 'inventory.create',
             ],
             [
-                'label' => 'Peminjaman',
-                'description' => 'Catat barang dipinjam',
+                'label' => 'Pinjam Inventaris',
+                'description' => 'Ajukan peminjaman satu atau beberapa item inventaris.',
                 'icon' => 'fa-hand-holding',
                 'url' => route('borrowings.create'),
                 'permission' => 'borrowing.create',
+            ],
+            [
+                'label' => 'Pinjam Ruangan',
+                'description' => 'Ajukan penggunaan ruang kelas atau ruangan kampus.',
+                'icon' => 'fa-door-open',
+                'url' => route('room-borrowings.create'),
+                'permission' => 'room-borrowing.create',
+            ],
+            [
+                'label' => 'Pinjam Kendaraan',
+                'description' => 'Ajukan kendaraan operasional untuk keperluan perjalanan.',
+                'icon' => 'fa-car-side',
+                'url' => route('vehicle-borrowings.create'),
+                'permission' => 'vehicle-borrowing.create',
             ],
             [
                 'label' => 'Mutasi',

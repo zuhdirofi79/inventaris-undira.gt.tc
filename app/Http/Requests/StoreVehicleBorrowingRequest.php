@@ -3,7 +3,9 @@
 namespace App\Http\Requests;
 
 use App\Enums\VehicleServiceType;
+use App\Http\Requests\Concerns\BindsAuthenticatedBorrowerEmail;
 use App\Http\Requests\Concerns\ValidatesSupportingDocument;
+use App\Rules\GoogleMapsUrl;
 use App\Rules\IndonesianPhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -11,11 +13,22 @@ use Illuminate\Validation\Validator;
 
 class StoreVehicleBorrowingRequest extends FormRequest
 {
+    use BindsAuthenticatedBorrowerEmail;
     use ValidatesSupportingDocument;
 
     public function authorize(): bool
     {
         return $this->user()?->can('vehicle-borrowing.create') ?? false;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        $this->bindBorrowerIdentityForCreate();
+
+        $maps = trim((string) $this->input('destination_maps_url', ''));
+        $this->merge([
+            'destination_maps_url' => $maps !== '' ? $maps : null,
+        ]);
     }
 
     public function rules(): array
@@ -28,6 +41,7 @@ class StoreVehicleBorrowingRequest extends FormRequest
             'unit' => ['nullable', 'string', 'max:255'],
             'route_id' => ['required', 'integer'],
             'destination' => ['required', 'string', 'max:255'],
+            'destination_maps_url' => ['nullable', 'string', 'max:2048', 'url:http,https', new GoogleMapsUrl],
             'purpose' => ['required', 'string', 'max:2000'],
             'service_type' => ['required', Rule::in(VehicleServiceType::requestValues())],
             'passenger_count' => ['required', 'integer', 'min:1', 'max:50'],
@@ -61,11 +75,20 @@ class StoreVehicleBorrowingRequest extends FormRequest
     {
         return [
             'campus_id.required' => 'Lokasi kampus wajib dipilih.',
-            'borrower_name.required' => 'Nama peminjam wajib diisi.',
-            'borrower_email.required' => 'Email wajib diisi.',
+            'borrower_name.required' => $this->canProxyBorrowerIdentity()
+                ? 'Nama peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki nama. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.required' => $this->canProxyBorrowerIdentity()
+                ? 'Email peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki email yang valid. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.email' => $this->canProxyBorrowerIdentity()
+                ? 'Format email tidak valid.'
+                : 'Email akun Anda tidak valid. Perbarui profil sebelum mengajukan peminjaman.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'route_id.required' => 'Rute wajib dipilih.',
             'destination.required' => 'Tujuan wajib diisi.',
+            'destination_maps_url.url' => 'Link Google Maps Tujuan harus berupa URL yang valid.',
+            'destination_maps_url.max' => 'Link Google Maps Tujuan maksimal 2048 karakter.',
             'purpose.required' => 'Keperluan wajib diisi.',
             'service_type.required' => 'Jenis pengantaran wajib dipilih.',
             'passenger_count.required' => 'Jumlah penumpang wajib diisi.',

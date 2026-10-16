@@ -66,88 +66,159 @@
 <div class="card card-undira border-secondary">
     <div class="card-body p-0">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
-                <thead class="table-secondary">
-                    <tr>
-                        <th>Nama</th>
-                        <th>Lokasi / Info</th>
-                        <th>Tanggal dihapus</th>
-                        <th>Dihapus oleh</th>
-                        <th>Status</th>
-                        <th style="width:180px">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @forelse($items as $item)
-                        @php
-                            $name = match($tab) {
-                                'konfigurasi' => $item->generated_location_code ?: ('Config #'.$item->id),
-                                'inventaris' => $item->name,
-                                default => $item->name ?? ('#'.$item->id),
-                            };
-                            $info = match($tab) {
-                                'inventaris' => trim(($item->inventory_number ?? '').' · '.($item->category?->name ?? '-').' · '.($item->full_location ?? '-')),
-                                'konfigurasi' => collect([$item->campus?->name, $item->building?->name, $item->floor?->name, $item->room?->name, $item->category?->name])->filter()->implode(' / '),
-                                'gedung' => $item->campus?->name ?? '-',
-                                'lantai' => trim(($item->building?->campus?->name ?? '').' / '.($item->building?->name ?? '')),
-                                'ruangan' => $item->full_location ?? '-',
-                                'sub_kategori' => $item->category?->name ?? '-',
-                                'supplier', 'vendor' => $item->email ?? ($item->phone ?? '-'),
-                                default => $item->code ?? '-',
-                            };
-                            $deletedHuman = $item->deleted_at
-                                ? 'Deleted '.$item->deleted_at->diffForHumans(null, true).' lalu'
-                                : '-';
-                        @endphp
-                        <tr class="text-secondary">
-                            <td>
-                                <strong>{{ $name }}</strong>
-                                @if(!empty($item->code) && !in_array($tab, ['inventaris', 'konfigurasi'], true))
-                                    <div class="small">{{ $item->code }}</div>
-                                @endif
-                            </td>
-                            <td><small>{{ $info }}</small></td>
-                            <td>
-                                <div>{{ $item->deleted_at?->format('d/m/Y H:i') }}</div>
-                                <span class="badge bg-secondary">{{ $deletedHuman }}</span>
-                            </td>
-                            <td>{{ $item->deletedByUser?->name ?? '-' }}</td>
-                            <td><span class="badge bg-danger">Terhapus</span></td>
-                            <td class="text-nowrap">
-                                @can('trash.restore')
-                                <form action="{{ route('trash.restore', [$tab, $item->id]) }}" method="POST" class="d-inline"
-                                      data-confirm-title="Pulihkan data ini?"
-                                      data-confirm="Data dan relasi turunannya akan kembali ke sistem."
-                                      data-confirm-button="Pulihkan"
-                                      data-confirm-color="#2E7D32">
-                                    @csrf
-                                    <button type="submit" class="btn btn-sm btn-success" title="Restore">
-                                        <i class="fas fa-recycle"></i>
-                                    </button>
-                                </form>
-                                @endcan
-                                @can('trash.force-delete')
-                                <form action="{{ route('trash.force-delete', [$tab, $item->id]) }}" method="POST" class="d-inline"
-                                      data-confirm-title="Data akan dihapus permanen."
-                                      data-confirm="Data TIDAK dapat dikembalikan. Lanjutkan?"
-                                      data-confirm-button="Hapus Permanen"
-                                      data-confirm-color="#c62828">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="btn btn-sm btn-danger" title="Delete Permanently">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </form>
-                                @endcan
-                            </td>
-                        </tr>
-                    @empty
+            @if($tab === 'riwayat_peminjaman')
+                <table class="table table-hover mb-0">
+                    <thead class="table-secondary">
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">Trash kosong untuk tab ini.</td>
+                            <th>Jenis</th>
+                            <th>Nomor</th>
+                            <th>Peminjam</th>
+                            <th>Ringkasan</th>
+                            <th>Kampus</th>
+                            <th>Status terakhir</th>
+                            <th>Tanggal dihapus</th>
+                            <th>Dihapus oleh</th>
+                            <th style="width:140px">Aksi</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        @forelse($items as $item)
+                            @php
+                                $deletedHuman = $item['deleted_at']
+                                    ? 'Deleted '.$item['deleted_at']->diffForHumans(null, true).' lalu'
+                                    : '-';
+                            @endphp
+                            <tr class="text-secondary">
+                                <td><strong>{{ $item['kind_label'] }}</strong></td>
+                                <td>{{ $item['number'] }}</td>
+                                <td>{{ $item['borrower'] }}</td>
+                                <td><small>{{ $item['subject'] }}</small></td>
+                                <td>{{ $item['campus'] }}</td>
+                                <td>{{ $item['status'] }}</td>
+                                <td>
+                                    <div>{{ $item['deleted_at']?->format('d/m/Y H:i') }}</div>
+                                    <span class="badge bg-secondary">{{ $deletedHuman }}</span>
+                                </td>
+                                <td>{{ $item['deleted_by'] }}</td>
+                                <td class="text-nowrap">
+                                    @can('trash.restore')
+                                    <form action="{{ route('trash.restore', [$item['trash_type'], $item['id']]) }}" method="POST" class="d-inline"
+                                          data-confirm-title="Pulihkan riwayat peminjaman?"
+                                          data-confirm="{{ $item['kind_label'] }} · {{ $item['number'] }} akan dikembalikan ke daftar riwayat aktif."
+                                          data-confirm-button="Pulihkan"
+                                          data-confirm-color="#2E7D32">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-success" title="Pulihkan">
+                                            <i class="fas fa-recycle"></i>
+                                        </button>
+                                    </form>
+                                    @endcan
+                                    @can('trash.force-delete')
+                                    <form action="{{ route('trash.force-delete', [$item['trash_type'], $item['id']]) }}" method="POST" class="d-inline"
+                                          data-confirm-title="Hapus permanen riwayat peminjaman?"
+                                          data-confirm="{{ $item['kind_label'] }} · {{ $item['number'] }} akan dihapus permanen dan tidak dapat dikembalikan. Master inventaris/ruangan/kendaraan tidak ikut terhapus."
+                                          data-confirm-button="Hapus Permanen"
+                                          data-confirm-color="#c62828">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Hapus Permanen">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="text-center text-muted py-4">Trash kosong untuk tab ini.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            @else
+                <table class="table table-hover mb-0">
+                    <thead class="table-secondary">
+                        <tr>
+                            <th>Nama</th>
+                            <th>Lokasi / Info</th>
+                            <th>Tanggal dihapus</th>
+                            <th>Dihapus oleh</th>
+                            <th>Status</th>
+                            <th style="width:180px">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($items as $item)
+                            @php
+                                $name = match($tab) {
+                                    'konfigurasi' => $item->generated_location_code ?: ('Config #'.$item->id),
+                                    'inventaris' => $item->name,
+                                    default => $item->name ?? ('#'.$item->id),
+                                };
+                                $info = match($tab) {
+                                    'inventaris' => trim(($item->inventory_number ?? '').' · '.($item->category?->name ?? '-').' · '.($item->full_location ?? '-')),
+                                    'konfigurasi' => collect([$item->campus?->name, $item->building?->name, $item->floor?->name, $item->room?->name, $item->category?->name])->filter()->implode(' / '),
+                                    'gedung' => $item->campus?->name ?? '-',
+                                    'lantai' => trim(($item->building?->campus?->name ?? '').' / '.($item->building?->name ?? '')),
+                                    'ruangan' => $item->full_location ?? '-',
+                                    'sub_kategori' => $item->category?->name ?? '-',
+                                    'supplier', 'vendor' => $item->email ?? ($item->phone ?? '-'),
+                                    default => $item->code ?? '-',
+                                };
+                                $deletedHuman = $item->deleted_at
+                                    ? 'Deleted '.$item->deleted_at->diffForHumans(null, true).' lalu'
+                                    : '-';
+                            @endphp
+                            <tr class="text-secondary">
+                                <td>
+                                    <strong>{{ $name }}</strong>
+                                    @if(!empty($item->code) && !in_array($tab, ['inventaris', 'konfigurasi'], true))
+                                        <div class="small">{{ $item->code }}</div>
+                                    @endif
+                                </td>
+                                <td><small>{{ $info }}</small></td>
+                                <td>
+                                    <div>{{ $item->deleted_at?->format('d/m/Y H:i') }}</div>
+                                    <span class="badge bg-secondary">{{ $deletedHuman }}</span>
+                                </td>
+                                <td>{{ $item->deletedByUser?->name ?? '-' }}</td>
+                                <td><span class="badge bg-danger">Terhapus</span></td>
+                                <td class="text-nowrap">
+                                    @can('trash.restore')
+                                    <form action="{{ route('trash.restore', [$tab, $item->id]) }}" method="POST" class="d-inline"
+                                          data-confirm-title="Pulihkan data ini?"
+                                          data-confirm="Data dan relasi turunannya akan kembali ke sistem."
+                                          data-confirm-button="Pulihkan"
+                                          data-confirm-color="#2E7D32">
+                                        @csrf
+                                        <button type="submit" class="btn btn-sm btn-success" title="Restore">
+                                            <i class="fas fa-recycle"></i>
+                                        </button>
+                                    </form>
+                                    @endcan
+                                    @can('trash.force-delete')
+                                    <form action="{{ route('trash.force-delete', [$tab, $item->id]) }}" method="POST" class="d-inline"
+                                          data-confirm-title="Data akan dihapus permanen."
+                                          data-confirm="Data TIDAK dapat dikembalikan. Lanjutkan?"
+                                          data-confirm-button="Hapus Permanen"
+                                          data-confirm-color="#c62828">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Delete Permanently">
+                                            <i class="fas fa-times"></i>
+                                        </button>
+                                    </form>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="6" class="text-center text-muted py-4">Trash kosong untuk tab ini.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            @endif
         </div>
     </div>
     @if($items->hasPages())

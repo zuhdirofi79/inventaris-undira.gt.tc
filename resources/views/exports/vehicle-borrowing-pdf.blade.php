@@ -1,0 +1,1 @@
+@include('reports.print-vehicle-borrowing', ['isPdf' => true])

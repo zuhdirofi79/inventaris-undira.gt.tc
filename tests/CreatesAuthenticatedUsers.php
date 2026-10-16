@@ -49,6 +49,16 @@ trait CreatesAuthenticatedUsers
         return $this->makeUserWithRole('viewer', $overrides);
     }
 
+    protected function makeDriver(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('driver', $overrides);
+    }
+
+    protected function makeOb(array $overrides = []): User
+    {
+        return $this->makeUserWithRole('ob', $overrides);
+    }
+
     protected function makeTeknisi(array $overrides = []): User
     {
         return $this->makeUserWithRole('teknisi', $overrides);

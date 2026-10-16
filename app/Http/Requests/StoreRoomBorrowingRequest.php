@@ -3,14 +3,18 @@
 namespace App\Http\Requests;
 
 use App\Enums\RoomActivityType;
+use App\Http\Requests\Concerns\BindsAuthenticatedBorrowerEmail;
 use App\Rules\IndonesianPhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class StoreRoomBorrowingRequest extends FormRequest
 {
+    use BindsAuthenticatedBorrowerEmail;
+
     public function authorize(): bool
     {
         return $this->user()?->can('room-borrowing.create') ?? false;
@@ -20,15 +24,26 @@ class StoreRoomBorrowingRequest extends FormRequest
     {
         $usesBudget = $this->boolean('uses_budget');
         $documentation = trim((string) $this->input('documentation_url', ''));
+        $hasInternal = $this->boolean('participant_internal');
+        $hasExternal = $this->boolean('participant_external');
 
         $this->merge([
             'uses_budget' => $usesBudget,
             'budget_type' => $usesBudget ? trim(strip_tags((string) $this->input('budget_type', ''))) : null,
-            'participant_internal' => $this->boolean('participant_internal'),
-            'participant_external' => $this->boolean('participant_external'),
+            'participant_internal' => $hasInternal,
+            'participant_external' => $hasExternal,
+            // Unchecked categories must not retain stale counts from the client.
+            'participant_internal_count' => $hasInternal
+                ? $this->input('participant_internal_count')
+                : null,
+            'participant_external_count' => $hasExternal
+                ? $this->input('participant_external_count')
+                : null,
             'purpose' => trim(strip_tags((string) $this->input('purpose', ''))),
             'documentation_url' => $documentation !== '' ? $documentation : null,
         ]);
+
+        $this->bindBorrowerIdentityForCreate();
     }
 
     public function rules(): array
@@ -36,7 +51,7 @@ class StoreRoomBorrowingRequest extends FormRequest
         return [
             'room_id' => ['required', 'integer'],
             'borrower_name' => ['required', 'string', 'max:255'],
-            'borrower_email' => ['nullable', 'email', 'max:255'],
+            'borrower_email' => ['required', 'email', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
             'activity_type' => ['required', 'string', 'in:'.implode(',', RoomActivityType::values())],
             'purpose' => ['required', 'string', 'max:2000'],
@@ -47,6 +62,20 @@ class StoreRoomBorrowingRequest extends FormRequest
             'budget_type' => ['nullable', 'string', 'max:255', 'required_if:uses_budget,true,1'],
             'participant_internal' => ['required', 'boolean'],
             'participant_external' => ['required', 'boolean'],
+            'participant_internal_count' => [
+                Rule::requiredIf(fn () => $this->boolean('participant_internal')),
+                'nullable',
+                'integer',
+                'min:1',
+                'max:99999',
+            ],
+            'participant_external_count' => [
+                Rule::requiredIf(fn () => $this->boolean('participant_external')),
+                'nullable',
+                'integer',
+                'min:1',
+                'max:99999',
+            ],
             'approval_document' => $this->documentRules(true),
             'layout_document' => $this->documentRules(false),
             'participant_document' => $this->documentRules(false),
@@ -78,7 +107,15 @@ class StoreRoomBorrowingRequest extends FormRequest
     {
         return [
             'room_id.required' => 'Ruangan wajib dipilih.',
-            'borrower_name.required' => 'Nama peminjam wajib diisi.',
+            'borrower_name.required' => $this->canProxyBorrowerIdentity()
+                ? 'Nama peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki nama. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.required' => $this->canProxyBorrowerIdentity()
+                ? 'Email peminjam wajib diisi.'
+                : 'Akun Anda belum memiliki email yang valid. Perbarui profil sebelum mengajukan peminjaman.',
+            'borrower_email.email' => $this->canProxyBorrowerIdentity()
+                ? 'Format email tidak valid.'
+                : 'Email akun Anda tidak valid. Perbarui profil sebelum mengajukan peminjaman.',
             'borrower_phone.required' => 'Nomor telepon wajib diisi.',
             'activity_type.required' => 'Jenis kegiatan wajib dipilih.',
             'activity_type.in' => 'Jenis kegiatan tidak valid.',
@@ -91,6 +128,12 @@ class StoreRoomBorrowingRequest extends FormRequest
             'ends_at.after' => 'Jadwal selesai harus setelah jadwal mulai.',
             'documentation_url.url' => 'Link dokumentasi harus berupa URL http atau https.',
             'budget_type.required_if' => 'Jenis anggaran wajib diisi jika anggaran digunakan.',
+            'participant_internal_count.required' => 'Jumlah peserta Internal wajib diisi.',
+            'participant_internal_count.integer' => 'Jumlah peserta Internal harus berupa bilangan bulat.',
+            'participant_internal_count.min' => 'Jumlah peserta Internal minimal 1 orang.',
+            'participant_external_count.required' => 'Jumlah peserta External wajib diisi.',
+            'participant_external_count.integer' => 'Jumlah peserta External harus berupa bilangan bulat.',
+            'participant_external_count.min' => 'Jumlah peserta External minimal 1 orang.',
             'approval_document.required' => 'Dokumen persetujuan pimpinan wajib diunggah.',
             'approval_document.mimes' => 'Dokumen persetujuan pimpinan harus PDF, JPG, atau JPEG.',
             'approval_document.max' => 'Dokumen persetujuan pimpinan maksimal 5 MB.',

@@ -21,11 +21,11 @@
 <div class="card card-undira mb-3">
     <div class="card-body">
         <form method="GET" action="{{ route('borrowing-approvals.index') }}" class="row g-2 align-items-end">
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-3">
                 <label class="form-label">Cari</label>
                 <input type="text" name="search" class="form-control" value="{{ $filters['search'] }}" placeholder="No approval / nama / barang">
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-3 col-xl-2">
                 <label class="form-label">Status</label>
                 <select name="status" class="form-select">
                     <option value="">Semua</option>
@@ -34,19 +34,31 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-3 col-xl-2">
+                <label class="form-label" for="approval-campus">Lokasi Kampus</label>
+                <select id="approval-campus" name="campus_id" class="form-select">
+                    <option value="">Semua Kampus</option>
+                    @foreach($campuses as $campus)
+                        <option value="{{ $campus->id }}" @selected((string) ($filters['campus_id'] ?? '') === (string) $campus->id)>{{ $campus->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-6 col-md-3 col-xl-2">
                 <label class="form-label">Dari Tanggal</label>
                 <input type="date" name="date_from" class="form-control" value="{{ $filters['date_from'] }}">
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-3 col-xl-2">
                 <label class="form-label">Sampai Tanggal</label>
                 <input type="date" name="date_to" class="form-control" value="{{ $filters['date_to'] }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-12 col-md-6 col-xl-auto d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-undira"><i class="fas fa-search me-1"></i>Filter</button>
                 <a href="{{ route('borrowing-approvals.index') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
         </form>
+        @if ($errors->any())
+            <div class="alert alert-danger mt-3 mb-0 py-2">{{ $errors->first() }}</div>
+        @endif
     </div>
 </div>
 

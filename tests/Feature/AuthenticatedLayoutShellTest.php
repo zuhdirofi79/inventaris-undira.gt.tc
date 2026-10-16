@@ -65,6 +65,15 @@ class AuthenticatedLayoutShellTest extends TestCase
         $this->assertStringContainsString('width: auto !important', $css);
         $this->assertStringContainsString('scrollbar-gutter: stable', $css);
         $this->assertStringContainsString('sidebar-collapse.sidebar-open .main-sidebar', $css);
+        // Overlay open keeps sidebar-collapse; width must beat the 76px rail rule or labels clip.
+        $this->assertMatchesRegularExpression(
+            '/body\.sidebar-mini\.sidebar-collapse\.sidebar-open \.main-sidebar[^}]*width:\s*var\(--sidebar-expanded-width\)\s*!important/s',
+            $css
+        );
+        $this->assertMatchesRegularExpression(
+            '/body\.sidebar-mini\.sidebar-collapse\.sidebar-open \.main-sidebar[^}]*width:\s*min\(var\(--sidebar-expanded-width\),\s*86vw\)\s*!important/s',
+            $css
+        );
         $this->assertStringContainsString('--sidebar-collapsed-width: 76px', $css);
         $this->assertStringContainsString('--topbar-height: 64px', $css);
         $this->assertStringContainsString('--content-padding-x', $css);

@@ -4,12 +4,17 @@ namespace App\Models;
 
 use App\Enums\FacilityRequestStatus;
 use App\Enums\VehicleServiceType;
+use App\Models\Concerns\TracksTrashMeta;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VehicleBorrowing extends Model
 {
+    use SoftDeletes;
+    use TracksTrashMeta;
+
     protected $fillable = [
         'campus_id',
         'route_id',
@@ -23,6 +28,7 @@ class VehicleBorrowing extends Model
         'service_type',
         'origin',
         'destination',
+        'destination_maps_url',
         'starts_at',
         'ends_at',
         'status',
@@ -129,6 +135,16 @@ class VehicleBorrowing extends Model
         }
 
         return $destination !== '' ? $destination : ($route !== '' ? $route : '—');
+    }
+
+    /**
+     * Stored Google Maps destination link, or null when absent.
+     */
+    public function destinationMapsUrl(): ?string
+    {
+        $url = trim((string) ($this->destination_maps_url ?? ''));
+
+        return $url !== '' ? $url : null;
     }
 
     /**

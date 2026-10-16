@@ -206,5 +206,18 @@ class RolePermissionSeeder extends Seeder
             'guard_name' => 'web',
         ]);
         $viewer->syncPermissions($this->viewerPermissions);
+
+        // Driver / OB — same borrowing rights as Viewer (no admin privileges).
+        $driver = Role::firstOrCreate([
+            'name' => 'driver',
+            'guard_name' => 'web',
+        ]);
+        $driver->syncPermissions($this->viewerPermissions);
+
+        $ob = Role::firstOrCreate([
+            'name' => 'ob',
+            'guard_name' => 'web',
+        ]);
+        $ob->syncPermissions($this->viewerPermissions);
     }
 }

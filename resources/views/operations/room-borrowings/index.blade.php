@@ -26,6 +26,9 @@
             'campusId' => $campusId,
             'search' => $search,
             'status' => $status,
+            'showDates' => ! $isApproval,
+            'dateFrom' => $dateFrom ?? '',
+            'dateTo' => $dateTo ?? '',
             'statuses' => $isApproval ? [] : [
                 ['value' => 'disetujui', 'label' => 'Disetujui'],
                 ['value' => 'ditolak', 'label' => 'Ditolak'],

@@ -329,6 +329,10 @@ body.dark-mode .dash-ent .dash-activity-item:hover { background: rgba(148,163,18
 <span class="visually-hidden">Jumlah Supplier {{ number_format($total_suppliers ?? 0) }}</span>
 <span class="visually-hidden">Jumlah Vendor {{ number_format($total_vendors ?? 0) }}</span>
 
+@include('dashboard.partials.schedule-widgets')
+
+@include('dashboard.partials.recent-borrowings')
+
 <x-ui.section-title title="Analitik" icon="bi bi-graph-up" subtitle="Distribusi & tren 6 bulan terakhir" />
 <div class="row g-3 mb-2">
     <div class="col-12 col-lg-6">

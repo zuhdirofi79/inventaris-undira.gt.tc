@@ -314,21 +314,48 @@
             @endif
             @endif
 
-            {{-- ========== LAPORAN (flat) ========== --}}
+            {{-- ========== LAPORAN ========== --}}
             @if($user->can('report.view') || $user->can('maintenance.view'))
+            @php
+                $reportTypeSlug = (string) (request()->route('type') ?? '');
+                $isBorrowingReport = in_array($reportTypeSlug, ['dipinjam', 'peminjaman-ruangan', 'peminjaman-kendaraan'], true);
+                $isInventarisReport = request()->routeIs('reports.index', 'reports.recap')
+                    || (request()->routeIs('reports.show', 'reports.data', 'reports.export') && ! $isBorrowingReport);
+            @endphp
             <li class="nav-header undira-nav-section">Laporan</li>
             @can('report.view')
             <li class="nav-item">
-                <a href="{{ route('reports.index') }}" class="nav-link {{ request()->routeIs('reports.index') || (request()->routeIs('reports.show') && request()->route('type') !== 'dipinjam') ? 'active' : '' }}">
+                <a href="{{ route('reports.index') }}" class="nav-link {{ $isInventarisReport ? 'active' : '' }}">
                     <i class="nav-icon fas fa-file-invoice"></i>
                     <p>Laporan Inventaris</p>
                 </a>
             </li>
-            <li class="nav-item">
-                <a href="{{ route('reports.show', 'dipinjam') }}" class="nav-link {{ request()->routeIs('reports.*') && request()->route('type') === 'dipinjam' ? 'active' : '' }}">
+            <li class="nav-item {{ $isBorrowingReport ? 'menu-open' : '' }}">
+                <a href="#" class="nav-link {{ $isBorrowingReport ? 'active' : '' }}">
                     <i class="nav-icon fas fa-file-signature"></i>
                     <p>Laporan Peminjaman</p>
+                    <i class="fas fa-angle-left right" aria-hidden="true"></i>
                 </a>
+                <ul class="nav nav-treeview">
+                    <li class="nav-item">
+                        <a href="{{ route('reports.show', 'dipinjam') }}" class="nav-link {{ $reportTypeSlug === 'dipinjam' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-hand-holding"></i>
+                            <p>Laporan Peminjaman Inventaris</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('reports.show', 'peminjaman-ruangan') }}" class="nav-link {{ $reportTypeSlug === 'peminjaman-ruangan' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-door-closed"></i>
+                            <p>Laporan Peminjaman Ruangan</p>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="{{ route('reports.show', 'peminjaman-kendaraan') }}" class="nav-link {{ $reportTypeSlug === 'peminjaman-kendaraan' ? 'active' : '' }}">
+                            <i class="nav-icon fas fa-car"></i>
+                            <p>Laporan Peminjaman Kendaraan</p>
+                        </a>
+                    </li>
+                </ul>
             </li>
             @endcan
             @can('maintenance.view')

@@ -15,8 +15,8 @@
 
 <div class="card card-undira">
     <div class="card-body">
-        <form method="GET" action="{{ route('borrowing-records.index') }}" class="row g-3 align-items-end mb-3">
-            <div class="col-12 col-lg-3">
+        <form method="GET" action="{{ route('borrowing-records.index') }}" class="row g-2 align-items-end mb-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <label class="form-label" for="record-kind">Jenis Peminjaman</label>
                 <select id="record-kind" name="kind" class="form-select">
                     <option value="">Semua Jenis</option>
@@ -25,7 +25,7 @@
                     <option value="kendaraan" @selected($kind === 'kendaraan')>Peminjaman Kendaraan Operasional</option>
                 </select>
             </div>
-            <div class="col-12 col-lg-3">
+            <div class="col-12 col-md-6 col-xl-2">
                 <label class="form-label" for="record-campus">Lokasi Kampus</label>
                 <select id="record-campus" name="campus_id" class="form-select">
                     <option value="">Semua Kampus</option>
@@ -34,7 +34,7 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-4 col-lg-2">
+            <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label" for="record-status">Status</label>
                 <select id="record-status" name="status" class="form-select">
                     <option value="">Semua Status</option>
@@ -43,15 +43,26 @@
                     @endforeach
                 </select>
             </div>
-            <div class="col-12 col-md-5 col-lg-2">
+            <div class="col-6 col-md-4 col-xl-2">
                 <label class="form-label" for="record-q">Pencarian</label>
                 <input id="record-q" type="search" name="q" value="{{ $search }}" class="form-control" placeholder="Nomor, peminjam, barang, ruangan, atau tujuan">
             </div>
-            <div class="col-12 col-md-3 col-lg-2 d-flex flex-wrap gap-2">
+            <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label" for="record-date-from">Dari Tanggal</label>
+                <input id="record-date-from" type="date" name="date_from" class="form-control" value="{{ $dateFrom ?? '' }}">
+            </div>
+            <div class="col-6 col-md-4 col-xl-2">
+                <label class="form-label" for="record-date-to">Sampai Tanggal</label>
+                <input id="record-date-to" type="date" name="date_to" class="form-control" value="{{ $dateTo ?? '' }}">
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
                 <button type="submit" class="btn btn-undira">Filter</button>
                 <a href="{{ route('borrowing-records.index') }}" class="btn btn-outline-secondary">Reset</a>
             </div>
         </form>
+        @if ($errors->any())
+            <div class="alert alert-danger mb-3 py-2">{{ $errors->first() }}</div>
+        @endif
 
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
@@ -90,12 +101,27 @@
                                     <div class="small text-muted mt-1">{{ $record['reason'] }}</div>
                                 @endif
                             </td>
-                            <td class="text-end"><a href="{{ $record['url'] }}" class="btn btn-sm btn-outline-secondary">Detail</a></td>
+                            <td class="text-end text-nowrap">
+                                <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                    <a href="{{ $record['url'] }}" class="btn btn-sm btn-outline-secondary">Detail</a>
+                                    @can('trash.view')
+                                        <form action="{{ route('borrowing-records.trash', [$record['trash_kind'], $record['trash_id']]) }}" method="POST" class="d-inline"
+                                              data-confirm-title="Pindahkan ke Trash?"
+                                              data-confirm="{{ $record['kind_label'] }} · {{ $record['number'] }} akan dipindahkan ke Trash dan tidak muncul di riwayat aktif maupun laporan. Master data tidak dihapus."
+                                              data-confirm-button="Pindahkan ke Trash">
+                                            @csrf
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Pindahkan ke Trash">
+                                                <i class="fas fa-trash-alt"></i>
+                                            </button>
+                                        </form>
+                                    @endcan
+                                </div>
+                            </td>
                         </tr>
                     @empty
                         <tr>
                             <td colspan="9" class="text-center text-muted py-4">
-                                @if($kind !== '' || $campusId !== '' || $status !== '' || $search !== '')
+                                @if($kind !== '' || $campusId !== '' || $status !== '' || $search !== '' || ($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '')
                                     Tidak ada peminjaman yang sesuai dengan filter.
                                 @else
                                     Tidak ada peminjaman.

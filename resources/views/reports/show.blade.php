@@ -93,6 +93,36 @@
             {key:'approved_at', label:'Approved At'},
             {key:'duration', label:'Durasi'},
         ],
+        'room-borrowing': [
+            {key:'no', label:'No'},
+            {key:'approval_number', label:'Nomor Approval'},
+            {key:'request_number', label:'Nomor Pengajuan'},
+            {key:'borrower', label:'Peminjam'},
+            {key:'campus', label:'Kampus'},
+            {key:'room', label:'Ruangan'},
+            {key:'starts_at', label:'Tgl & Jam Mulai'},
+            {key:'ends_at', label:'Tgl & Jam Selesai'},
+            {key:'participant_internal', label:'Peserta Internal'},
+            {key:'participant_external', label:'Peserta External'},
+            {key:'participant_total', label:'Total Peserta'},
+            {key:'status', label:'Status'},
+            {key:'approved_by', label:'Approved By'},
+        ],
+        'vehicle-borrowing': [
+            {key:'no', label:'No'},
+            {key:'approval_number', label:'Nomor Approval'},
+            {key:'request_number', label:'Nomor Pengajuan'},
+            {key:'borrower', label:'Peminjam'},
+            {key:'campus', label:'Kampus'},
+            {key:'service_type', label:'Jenis Layanan'},
+            {key:'destination', label:'Tujuan'},
+            {key:'vehicle', label:'Kendaraan'},
+            {key:'driver', label:'Driver'},
+            {key:'starts_at', label:'Jadwal Mulai'},
+            {key:'ends_at', label:'Jadwal Selesai'},
+            {key:'status', label:'Status'},
+            {key:'approved_by', label:'Approved By'},
+        ],
         maintenance: [
             {key:'no', label:'No'},
             {key:'wo', label:'No WO'},
@@ -200,7 +230,7 @@
             lastPage = json.meta?.last_page || 1;
             const rows = json.data || [];
             if (!rows.length) {
-                $('#reportTbody').html(`<tr><td colspan="${cols.length}" class="text-center text-muted py-4">Tidak ada data.</td></tr>`);
+                $('#reportTbody').html(`<tr><td colspan="${cols.length}" class="text-center text-muted py-4">Tidak ada data untuk filter ini.</td></tr>`);
             } else {
                 $('#reportTbody').html(rows.map(row => {
                     return '<tr>' + cols.map(c => {
@@ -244,12 +274,12 @@
         form.remove();
     }
 
-    $('#campus_id').on('change', () => { loadBuildings(); scheduleLoad(); });
+    $('#campus_id').on('change', () => { if ($('#building_id').length) loadBuildings(); scheduleLoad(); });
     $('#building_id').on('change', () => { loadFloors(); scheduleLoad(); });
     $('#floor_id').on('change', () => { loadRooms(); scheduleLoad(); });
     $('#category_id').on('change', () => { loadSubs(); scheduleLoad(); });
-    $('#building_id,#floor_id,#room_id,#sub_category_id,#pic_id,#status,#condition,#procurement_type_id,#vendor_id,#supplier_id,#include_trash').on('change', scheduleLoad);
-    $('#purchase_year,#tanggal_awal,#tanggal_akhir,#inventory_number,#item_name,#serial_number,#merk,#keyword').on('input', scheduleLoad);
+    $('#building_id,#floor_id,#room_id,#sub_category_id,#pic_id,#status,#condition,#procurement_type_id,#vendor_id,#supplier_id,#include_trash,#approval_status,#service_type,#assigned_vehicle_id,#assigned_driver_id').on('change', scheduleLoad);
+    $('#purchase_year,#tanggal_awal,#tanggal_akhir,#inventory_number,#item_name,#serial_number,#merk,#keyword,#borrower_name,#borrower_phone,#approval_number,#purpose,#destination').on('input', scheduleLoad);
 
     function scheduleLoad() {
         clearTimeout(debounceTimer);
@@ -266,10 +296,10 @@
     $('#btnCsv').on('click', () => submitExport('csv'));
     $('#btnResetReportFilters').on('click', function () {
         $('#reportFilterForm')[0].reset();
-        resetSelect($('#building_id'), 'Semua');
-        resetSelect($('#floor_id'), 'Semua');
-        resetSelect($('#room_id'), 'Semua');
-        resetSelect($('#sub_category_id'), 'Semua');
+        if ($('#building_id').length) resetSelect($('#building_id'), 'Semua');
+        if ($('#floor_id').length) resetSelect($('#floor_id'), 'Semua');
+        if ($('#room_id').length) resetSelect($('#room_id'), 'Semua');
+        if ($('#sub_category_id').length) resetSelect($('#sub_category_id'), 'Semua');
         loadData(1);
     });
 

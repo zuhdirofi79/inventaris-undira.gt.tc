@@ -47,8 +47,12 @@
             <dd class="col-sm-9">{{ $borrowing->ends_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
             <dt class="col-sm-3">Anggaran</dt>
             <dd class="col-sm-9">{{ $borrowing->uses_budget ? ($borrowing->budget_type ?: '—') : 'Tidak menggunakan anggaran' }}</dd>
-            <dt class="col-sm-3">Peserta</dt>
-            <dd class="col-sm-9">{{ $borrowing->participantText() }}</dd>
+            <dt class="col-sm-3">Peserta Internal</dt>
+            <dd class="col-sm-9">{{ $borrowing->participant_internal ? $borrowing->participantInternalCount().' orang' : '0 orang' }}</dd>
+            <dt class="col-sm-3">Peserta External</dt>
+            <dd class="col-sm-9">{{ $borrowing->participant_external ? $borrowing->participantExternalCount().' orang' : '0 orang' }}</dd>
+            <dt class="col-sm-3">Total Peserta</dt>
+            <dd class="col-sm-9">{{ $borrowing->totalParticipantCount() }} orang</dd>
             <dt class="col-sm-3">Link dokumentasi</dt>
             <dd class="col-sm-9">
                 @if($borrowing->documentation_url)
