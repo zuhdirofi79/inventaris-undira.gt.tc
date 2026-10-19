@@ -34,8 +34,10 @@
                 <th>Nomor Approval</th>
                 <th>Nomor Pengajuan</th>
                 <th>Peminjam</th>
+                <th>Unit</th>
                 <th>Kampus</th>
                 <th>Ruangan</th>
+                <th>Jenis Kegiatan</th>
                 <th>Mulai</th>
                 <th>Selesai</th>
                 <th>Peserta Internal</th>
@@ -58,8 +60,10 @@
                     <td>{{ $b->approval_number ?? '—' }}</td>
                     <td>PRU-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
+                    <td>{{ $b->borrower_affiliation ?: '—' }}</td>
                     <td>{{ $b->campus?->name ?? '—' }}</td>
                     <td>{{ $roomLabel }}</td>
+                    <td>{{ $b->activityTypeLabel() }}</td>
                     <td>{{ $b->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
                     <td>{{ $b->ends_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
                     <td>{{ $internalCount }}</td>
@@ -70,7 +74,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="13" class="text-center">Tidak ada data untuk filter ini.</td>
+                    <td colspan="15" class="text-center">Tidak ada data untuk filter ini.</td>
                 </tr>
             @endforelse
         </tbody>

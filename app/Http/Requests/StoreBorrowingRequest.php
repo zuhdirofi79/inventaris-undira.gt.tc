@@ -27,6 +27,12 @@ class StoreBorrowingRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->bindBorrowerIdentityForCreate();
+
+        if ($this->has('borrower_affiliation')) {
+            $this->merge([
+                'borrower_affiliation' => trim(strip_tags((string) $this->input('borrower_affiliation'))),
+            ]);
+        }
     }
 
     public function rules(): array
@@ -44,6 +50,7 @@ class StoreBorrowingRequest extends FormRequest
             'borrower_name' => ['required', 'string', 'max:255'],
             'borrower_email' => ['required', 'email:rfc', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
+            'borrower_affiliation' => ['required', 'string', 'max:255'],
             'borrow_date' => ['required', 'date_format:Y-m-d\TH:i'],
             'expected_return_date' => ['required', 'date_format:Y-m-d\TH:i', 'after:borrow_date'],
             'notes' => ['required', 'string'],
@@ -100,6 +107,8 @@ class StoreBorrowingRequest extends FormRequest
             'items.*.inventory_item_id.required_with' => 'Barang inventaris wajib dipilih.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
             'borrower_phone.regex' => 'Nomor Telepon / No. HP tidak valid. Awali dengan 08, 62, atau +62, lalu isi minimal 4 digit. Spasi dan tanda hubung diperbolehkan.',
+            'borrower_affiliation.required' => 'Kolom Unit wajib diisi.',
+            'borrower_affiliation.max' => 'Kolom Unit maksimal 255 karakter.',
             'borrow_date.required' => 'Tanggal dan jam pinjam wajib diisi.',
             'borrow_date.date_format' => 'Tanggal dan jam pinjam tidak valid.',
             'expected_return_date.required' => 'Tanggal dan jam kembali wajib diisi.',

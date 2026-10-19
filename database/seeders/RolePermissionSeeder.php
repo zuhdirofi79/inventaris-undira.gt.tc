@@ -48,6 +48,8 @@ class RolePermissionSeeder extends Seeder
         'vehicle-borrowing.create',
         'vehicle-borrowing.approve',
         'vehicle-fleet.manage',
+        'room-activity-types.manage',
+        'room-budget-types.manage',
         'maintenance.view',
         'maintenance.create',
         'maintenance.update',

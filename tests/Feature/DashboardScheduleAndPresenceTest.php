@@ -285,8 +285,8 @@ class DashboardScheduleAndPresenceTest extends TestCase
         $this->actingAs($viewer)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Tidak ada peminjaman yang disetujui untuk hari ini.')
-            ->assertSee('Tidak ada jadwal yang disetujui untuk tujuh hari ke depan.');
+            ->assertSee('Tidak ada peminjaman terjadwal untuk hari ini.')
+            ->assertSee('Tidak ada jadwal peminjaman yang disetujui untuk periode mendatang.');
     }
 
     /**

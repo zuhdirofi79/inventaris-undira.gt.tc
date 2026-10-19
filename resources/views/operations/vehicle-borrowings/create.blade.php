@@ -28,6 +28,15 @@
                     'nameCol' => 'col-md-6',
                     'emailCol' => 'col-md-6',
                 ])
+                <div class="col-md-6">
+                    <label class="form-label" for="borrower_phone">Nomor Telepon</label>
+                    <input id="borrower_phone" name="borrower_phone" value="{{ old('borrower_phone') }}" class="form-control @error('borrower_phone') is-invalid @enderror" placeholder="0812XXXX" required autocomplete="tel">
+                    @error('borrower_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                @include('partials.borrower-affiliation-field', [
+                    'fieldName' => 'unit',
+                    'colClass' => 'col-md-6',
+                ])
                 <div class="col-lg-4">
                     <label class="form-label" for="route_id">Rute</label>
                     <select id="route_id" name="route_id" class="form-select @error('route_id') is-invalid @enderror" required>
@@ -101,11 +110,6 @@
                     <label class="form-label" for="ends_at">Jadwal Selesai</label>
                     <input id="ends_at" type="datetime-local" name="ends_at" value="{{ old('ends_at') }}" class="form-control @error('ends_at') is-invalid @enderror" required>
                     @error('ends_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-6">
-                    <label class="form-label" for="borrower_phone">Nomor Telepon</label>
-                    <input id="borrower_phone" name="borrower_phone" value="{{ old('borrower_phone') }}" class="form-control @error('borrower_phone') is-invalid @enderror" placeholder="0812XXXX" required>
-                    @error('borrower_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-md-6">
                     <label class="form-label" for="supporting_document">Dokumen Pendukung (Maksimal 5 MB)</label>

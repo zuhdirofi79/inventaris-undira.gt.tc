@@ -7,7 +7,8 @@
 <ul>
     <li>Nomor: {{ $borrowing->approval_number ?: '—' }}</li>
     <li>Status: {{ $borrowing->displayLabel() }}</li>
-    <li>Jenis kegiatan: {{ $borrowing->activity_type?->label() ?: '—' }}</li>
+    <li>Unit: {{ $borrowing->borrower_affiliation ?: '—' }}</li>
+    <li>Jenis kegiatan: {{ $borrowing->activityTypeLabel() }}</li>
     <li>Tujuan: {{ $borrowing->purpose }}</li>
     <li>Peserta Internal: {{ $borrowing->participant_internal ? $borrowing->participantInternalCount() : 0 }} orang</li>
     <li>Peserta External: {{ $borrowing->participant_external ? $borrowing->participantExternalCount() : 0 }} orang</li>

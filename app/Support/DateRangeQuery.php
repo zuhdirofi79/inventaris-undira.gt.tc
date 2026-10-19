@@ -31,7 +31,7 @@ final class DateRangeQuery
     }
 
     /**
-     * Filter by approval decision timestamp (approved_at or rejected_at),
+     * Filter by approval decision timestamp (approved_at, rejected_at, or cancelled_at),
      * matching Riwayat Approval Inventaris semantics.
      *
      * @param  Builder<*>  $query
@@ -58,6 +58,14 @@ final class DateRangeQuery
                 }
                 if ($dateTo !== null) {
                     $rejected->whereDate('rejected_at', '<=', $dateTo);
+                }
+            })->orWhere(function ($cancelled) use ($dateFrom, $dateTo) {
+                $cancelled->whereNotNull('cancelled_at');
+                if ($dateFrom !== null) {
+                    $cancelled->whereDate('cancelled_at', '>=', $dateFrom);
+                }
+                if ($dateTo !== null) {
+                    $cancelled->whereDate('cancelled_at', '<=', $dateTo);
                 }
             });
         });

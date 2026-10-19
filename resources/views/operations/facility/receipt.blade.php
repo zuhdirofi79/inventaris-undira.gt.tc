@@ -26,15 +26,17 @@
         table.items thead { display: table-header-group; }
         .doc-note { margin-top: 16px; font-size: 12px; }
         .doc-note p { margin: 0 0 4px; }
-        table.signatures { width: 100%; margin-top: 8pt; border-collapse: collapse; page-break-inside: avoid; }
+        table.signatures { width: 100%; margin-top: 10pt; border-collapse: collapse; page-break-inside: avoid; page-break-before: auto; }
         table.signatures td { border: 0; padding: 0; vertical-align: top; }
-        table.signatures .sign-col { width: 48%; }
+        table.signatures .sign-col { width: 48%; text-align: center; }
         table.signatures .sign-gap { width: 4%; }
-        table.signatures .sign-head { height: 28pt; font-size: 10pt; font-weight: 700; line-height: 1.25; }
-        table.signatures .sign-space { height: 76pt; font-size: 10pt; line-height: 76pt; }
-        table.signatures .sign-rule { width: 160pt; border-collapse: collapse; }
-        table.signatures .sign-rule td { border-bottom: 1px solid #1e293b; font-size: 1pt; line-height: 1pt; }
-        table.signatures .sign-name { padding-top: 4pt; font-size: 9pt; line-height: 1.3; word-wrap: break-word; overflow-wrap: break-word; }
+        table.signatures .sign-head { font-size: 10pt; font-weight: 700; line-height: 1.25; color: #1F3C88; margin-bottom: 4pt; }
+        table.signatures .sign-subhead { font-size: 8pt; font-weight: 600; color: #475569; }
+        table.signatures .sign-qr { margin: 4pt auto; width: 110px; height: 110px; }
+        table.signatures .sign-qr img { width: 110px; height: 110px; display: block; margin: 0 auto; }
+        table.signatures .sign-caption { font-size: 7.5pt; color: #64748b; margin: 2pt 0 4pt; }
+        table.signatures .sign-name { font-size: 9pt; line-height: 1.35; word-wrap: break-word; overflow-wrap: break-word; font-weight: 600; }
+        table.signatures .sign-decision { font-weight: 500; color: #475569; font-size: 8pt; }
         .badge { display: inline-block; padding: 3px 8px; border-radius: 4px; background: #E8F5E9; color: #2E7D32; font-weight: 700; }
         .actions { margin-bottom: 16px; }
         .actions a, .actions button { margin-right: 8px; }
@@ -104,22 +106,6 @@
     <p>{{ $generatedAt }}</p>
 </div>
 
-<table class="signatures">
-    <tr>
-        <td class="sign-col">
-            <div class="sign-head">Peminjam,</div>
-            <div class="sign-space">&nbsp;</div>
-            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
-            <div class="sign-name">{{ $borrowerName }}</div>
-        </td>
-        <td class="sign-gap">&nbsp;</td>
-        <td class="sign-col">
-            <div class="sign-head">Biro PPPA<br>Universitas Dian Nusantara</div>
-            <div class="sign-space">&nbsp;</div>
-            <table class="sign-rule"><tr><td>&nbsp;</td></tr></table>
-            <div class="sign-name">(Biro PPPA)</div>
-        </td>
-    </tr>
-</table>
+@include('operations.receipts._signature-qr', ['signature' => $signature ?? []])
 </body>
 </html>

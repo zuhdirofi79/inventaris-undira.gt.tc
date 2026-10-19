@@ -660,6 +660,10 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         if (!sidebar) return;
         sidebar.querySelectorAll('.nav-item.is-float-open').forEach(function (item) {
             item.classList.remove('is-float-open');
+            const trigger = item.querySelector(':scope > .nav-link');
+            if (trigger) {
+                trigger.setAttribute('aria-expanded', 'false');
+            }
         });
     }
 
@@ -692,6 +696,10 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         if (!isIconRail()) return;
         clearFloatOpen();
         item.classList.add('is-float-open');
+        const trigger = item.querySelector(':scope > .nav-link');
+        if (trigger) {
+            trigger.setAttribute('aria-expanded', 'true');
+        }
         positionFloatMenu(item);
     }
 
@@ -780,7 +788,7 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         }, 80);
     });
 
-    /* Floating submenu for collapsed desktop rail */
+    /* Floating submenu for collapsed desktop rail — labels restored via CSS */
     sidebar?.addEventListener('mouseover', function (e) {
         if (!isIconRail()) return;
         const item = e.target.closest('.nav-sidebar > .nav-item');
@@ -789,9 +797,12 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         openFloatMenu(item);
     });
 
-    sidebar?.addEventListener('mouseleave', function () {
+    sidebar?.addEventListener('mouseleave', function (e) {
         if (!isIconRail()) return;
-        floatCloseTimer = window.setTimeout(clearFloatOpen, 260);
+        /* Keep open when pointer moves into the fixed float panel (still a DOM child). */
+        const related = e.relatedTarget;
+        if (related && sidebar.contains(related)) return;
+        floatCloseTimer = window.setTimeout(clearFloatOpen, 280);
     });
 
     sidebar?.addEventListener('focusin', function (e) {
@@ -802,6 +813,13 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         openFloatMenu(item);
     });
 
+    sidebar?.addEventListener('focusout', function (e) {
+        if (!isIconRail()) return;
+        const next = e.relatedTarget;
+        if (next && sidebar.contains(next)) return;
+        floatCloseTimer = window.setTimeout(clearFloatOpen, 280);
+    });
+
     sidebar?.addEventListener('click', function (e) {
         if (!isIconRail()) return;
         const trigger = e.target.closest('.nav-sidebar > .nav-item > .nav-link[href="#"]');
@@ -809,11 +827,32 @@ $(document).on('submit', 'form[data-confirm]', function(e) {
         const item = trigger.parentElement;
         if (!item || !item.querySelector(':scope > .nav-treeview')) return;
         e.preventDefault();
+        e.stopPropagation();
         if (item.classList.contains('is-float-open')) {
             item.classList.remove('is-float-open');
+            trigger.setAttribute('aria-expanded', 'false');
         } else {
             openFloatMenu(item);
+            trigger.setAttribute('aria-expanded', 'true');
         }
+    });
+
+    /* Nested parent links inside the float panel toggle their own treeview. */
+    sidebar?.addEventListener('click', function (e) {
+        if (!isIconRail()) return;
+        const nestedTrigger = e.target.closest('.is-float-open .nav-treeview .nav-item > .nav-link[href="#"]');
+        if (!nestedTrigger) return;
+        const nestedItem = nestedTrigger.parentElement;
+        if (!nestedItem) return;
+        e.preventDefault();
+        e.stopPropagation();
+        nestedItem.classList.toggle('menu-open');
+        nestedTrigger.setAttribute(
+            'aria-expanded',
+            nestedItem.classList.contains('menu-open') ? 'true' : 'false'
+        );
+        const open = sidebar.querySelector('.nav-item.is-float-open');
+        if (open) positionFloatMenu(open);
     });
 
     window.addEventListener('scroll', function () {

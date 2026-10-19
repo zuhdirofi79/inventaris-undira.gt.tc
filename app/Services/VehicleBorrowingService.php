@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\AuditAction;
 use App\Enums\FacilityRequestStatus;
 use App\Enums\VehicleServiceType;
+use App\Mail\VehicleBorrowingCancellationMail;
 use App\Mail\VehicleBorrowingDecisionMail;
+use App\Mail\VehicleDriverAssignmentMail;
 use App\Models\Campus;
 use App\Models\OperationalDriver;
 use App\Models\OperationalRoute;
@@ -31,6 +33,7 @@ class VehicleBorrowingService
         private readonly DecisionMailer $mailer,
         private readonly AuditLogService $audit,
         private readonly NotificationService $notifications,
+        private readonly OperationalDriverDirectory $driverDirectory,
     ) {}
 
     /**
@@ -64,7 +67,9 @@ class VehicleBorrowingService
                     'borrower_name' => $data['borrower_name'],
                     'borrower_email' => $data['borrower_email'],
                     'borrower_phone' => $data['borrower_phone'],
-                    'unit' => $data['unit'] ?? null,
+                    'unit' => filled($data['unit'] ?? null)
+                        ? mb_substr(trim(strip_tags((string) $data['unit'])), 0, 255)
+                        : null,
                     'purpose' => trim(strip_tags((string) $data['purpose'])),
                     'passenger_count' => (int) $data['passenger_count'],
                     'passengers' => $this->passengers($data['passengers'] ?? []),
@@ -157,9 +162,9 @@ class VehicleBorrowingService
                     ]);
                 }
 
-                if (! $driver || ! $driver->is_active) {
+                if (! $driver || ! $this->driverDirectory->isAssignable($driver)) {
                     throw ValidationException::withMessages([
-                        'driver_id' => 'Pengemudi tidak tersedia.',
+                        'driver_id' => 'Pengemudi tidak tersedia. Pilih akun aktif dengan role Driver.',
                     ]);
                 }
 
@@ -228,7 +233,7 @@ class VehicleBorrowingService
                 );
             }
 
-            return $fresh->fresh(['campus', 'route', 'vehicle', 'driver', 'approvedBy']);
+            return $fresh->fresh(['campus', 'route', 'vehicle', 'driver.user', 'approvedBy', 'requestedBy']);
         });
 
         $this->mailer->send(
@@ -238,7 +243,77 @@ class VehicleBorrowingService
             $saved->id,
         );
 
+        if ($saved->status === FacilityRequestStatus::Disetujui && $saved->assigned_driver_id) {
+            $saved->loadMissing('driver.user');
+            $driverUser = $saved->driver?->user;
+            if ($driverUser instanceof User && $driverUser->is_active) {
+                $this->mailer->send(
+                    $driverUser->email,
+                    new VehicleDriverAssignmentMail($saved),
+                    'Email penugasan pengemudi gagal dikirim.',
+                    $saved->id,
+                );
+            }
+        }
+
         $this->notifications->notifyVehicleBorrowingDecided($saved);
+
+        return $saved;
+    }
+
+    public function cancelApproval(User $admin, VehicleBorrowing $borrowing, string $reason): VehicleBorrowing
+    {
+        $reason = trim($reason);
+
+        $saved = DB::transaction(function () use ($admin, $borrowing, $reason) {
+            $fresh = VehicleBorrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $block = $fresh->approvalCancelBlockReason();
+            if ($block !== null) {
+                throw ValidationException::withMessages([
+                    'cancellation_reason' => $block,
+                ]);
+            }
+
+            $previousAssignment = [
+                'assigned_vehicle_id' => $fresh->assigned_vehicle_id,
+                'assigned_driver_id' => $fresh->assigned_driver_id,
+                'assigned_service' => $fresh->assigned_service?->value ?? $fresh->assigned_service,
+            ];
+
+            $fresh->forceFill([
+                'status' => FacilityRequestStatus::PersetujuanDibatalkan,
+                'cancelled_at' => now(),
+                'cancelled_by' => $admin->id,
+                'cancellation_reason' => $reason,
+                'assigned_vehicle_id' => null,
+                'assigned_driver_id' => null,
+                'assigned_service' => null,
+            ])->save();
+
+            $this->audit->log(
+                $admin,
+                AuditAction::Update,
+                $fresh,
+                $previousAssignment,
+                [
+                    'event' => 'vehicle_approval_cancelled',
+                    'cancellation_reason' => $reason,
+                    'previous_assignment' => $previousAssignment,
+                ],
+                'Admin membatalkan persetujuan peminjaman kendaraan dalam jendela 24 jam.',
+            );
+
+            return $fresh->fresh(['campus', 'route', 'vehicle', 'driver', 'approvedBy', 'cancelledBy']);
+        });
+
+        $this->mailer->send(
+            $saved->borrower_email,
+            new VehicleBorrowingCancellationMail($saved),
+            'Email pembatalan peminjaman kendaraan gagal dikirim.',
+            $saved->id,
+        );
+
+        $this->notifications->notifyVehicleBorrowingApprovalCancelled($saved);
 
         return $saved;
     }

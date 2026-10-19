@@ -177,6 +177,7 @@ body.dark-mode .borrowing-save-bar {
                     <tr><th>Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
                     <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '-' }}</td></tr>
                     <tr><th>Telepon</th><td>{{ $borrowing->borrower_phone ?? '-' }}</td></tr>
+                    <tr><th>Unit</th><td>{{ $borrowing->borrower_affiliation ?: '—' }}</td></tr>
                     <tr>
                         <th>Lokasi Kampus</th>
                         <td>
@@ -203,11 +204,15 @@ body.dark-mode .borrowing-save-bar {
                     </tr>
                     <tr><th>Status Approval</th><td>{{ $borrowing->approvalStatusLabel() }}</td></tr>
                     <tr><th>Jumlah Item</th><td>{{ $itemCount }}</td></tr>
+                    <tr><th>Tanggal &amp; Waktu Pengajuan</th><td>{{ $borrowing->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td></tr>
                     <tr><th>Diajukan Oleh</th><td>{{ $borrowing->requestedBy?->name ?? '-' }}</td></tr>
                     <tr><th>Disetujui / Diproses Oleh</th><td>{{ $borrowing->approvedBy?->name ?? '-' }}</td></tr>
-                    <tr><th>Tanggal Persetujuan</th><td>{{ $borrowing->approved_at?->format('d/m/Y H:i') ?? '-' }}</td></tr>
-                    <tr><th>Tanggal Penolakan</th><td>{{ $borrowing->rejected_at?->format('d/m/Y H:i') ?? '-' }}</td></tr>
+                    <tr><th>Tanggal &amp; Waktu Approval</th><td>{{ $borrowing->approved_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td></tr>
+                    <tr><th>Tanggal &amp; Waktu Penolakan</th><td>{{ $borrowing->rejected_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td></tr>
                     <tr><th>Alasan Penolakan</th><td>{{ $borrowing->rejection_reason ?? '-' }}</td></tr>
+                    <tr><th>Tanggal &amp; Waktu Pembatalan</th><td>{{ $borrowing->cancelled_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td></tr>
+                    <tr><th>Dibatalkan Oleh</th><td>{{ $borrowing->cancelledBy?->name ?? '—' }}</td></tr>
+                    <tr><th>Alasan Pembatalan</th><td>{{ $borrowing->cancellation_reason ?? '—' }}</td></tr>
                     <tr><th>Catatan Approval</th><td>{{ $borrowing->approval_notes ?? '-' }}</td></tr>
                     <tr><th>Keperluan</th><td>{{ $borrowing->notes ?? '-' }}</td></tr>
                     <tr>

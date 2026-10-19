@@ -33,8 +33,10 @@ class BorrowingPhoneRequiredTest extends TestCase
 
         $this->assertStringContainsString('Telepon / No. HP', $html);
         $this->assertMatchesRegularExpression('/name="borrower_phone"[^>]*required/', $html);
+        $this->assertStringContainsString('Unit', $html);
+        $this->assertMatchesRegularExpression('/name="borrower_affiliation"[^>]*required/', $html);
         $this->assertMatchesRegularExpression(
-            '/name="borrower_phone"[\s\S]*?<div class="col-12">\s*<div class="row">\s*<div class="col-12 col-md-6 mb-3">[\s\S]*?name="borrow_date"[\s\S]*?name="expected_return_date"/',
+            '/name="borrower_phone"[\s\S]*?name="borrower_affiliation"[\s\S]*?<div class="col-12">\s*<div class="row">\s*<div class="col-12 col-md-6 mb-3">[\s\S]*?name="borrow_date"[\s\S]*?name="expected_return_date"/',
             $html
         );
         $this->assertMatchesRegularExpression('/type="datetime-local"[^>]*step="60"[^>]*id="borrow_date"/', $html);
@@ -155,6 +157,7 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => 'Sari Wijaya',
                 'borrower_email' => 'sari@undira.ac.id',
                 'borrower_phone' => '',
+                'borrower_affiliation' => 'PPPA',
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
                 'notes' => 'Praktikum',
@@ -220,6 +223,7 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
                 'borrower_phone' => '+6281234567890',
+                'borrower_affiliation' => 'PPPA',
                 'borrow_date' => $borrowing->borrow_date?->format('Y-m-d\TH:i'),
                 'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d\TH:i'),
                 'status' => $borrowing->status?->value,
@@ -250,6 +254,7 @@ class BorrowingPhoneRequiredTest extends TestCase
                 'borrower_name' => $borrowing->borrower_name,
                 'borrower_email' => $borrowing->borrower_email,
                 'borrower_phone' => '',
+                'borrower_affiliation' => 'PPPA',
                 'borrow_date' => $borrowing->borrow_date?->format('Y-m-d\TH:i'),
                 'expected_return_date' => $borrowing->expected_return_date?->format('Y-m-d\TH:i'),
                 'status' => $borrowing->status?->value,
@@ -351,6 +356,7 @@ class BorrowingPhoneRequiredTest extends TestCase
             'borrower_name' => 'Sari Wijaya',
             'borrower_email' => 'sari@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'borrow_date' => now()->format('Y-m-d\TH:i'),
             'expected_return_date' => now()->addDays(2)->format('Y-m-d\TH:i'),
             'notes' => 'Praktikum',

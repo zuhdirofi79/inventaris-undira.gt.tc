@@ -99,33 +99,80 @@
         <div class="card card-undira mb-3">
             <div class="card-body">
                 <h2 class="h6">Tambah pengemudi</h2>
+                <p class="small text-muted mb-2">
+                    Pengemudi diambil dari akun dengan role <strong>Driver</strong>.
+                    Buat akun baru melalui
+                    <a href="{{ $usersManageUrl }}">User Management</a>,
+                    lalu sinkronkan di sini bila perlu memperbarui nomor telepon.
+                </p>
                 <form method="POST" action="{{ route('vehicle-fleet.drivers.store') }}" class="row g-2">
                     @csrf
-                    <div class="col-md-5"><input name="name" class="form-control" placeholder="Nama" required></div>
-                    <div class="col-md-4"><input name="phone" class="form-control" placeholder="Telepon"></div>
-                    <div class="col-md-3"><button class="btn btn-undira w-100" type="submit">Simpan</button></div>
+                    <div class="col-md-5">
+                        <select name="user_id" class="form-select @error('user_id') is-invalid @enderror" required>
+                            <option value="">Pilih akun Driver</option>
+                            @foreach($linkableDriverUsers as $driverUser)
+                                <option value="{{ $driverUser->id }}" @selected((string) old('user_id') === (string) $driverUser->id)>
+                                    {{ $driverUser->name }} · {{ $driverUser->email }}
+                                </option>
+                            @endforeach
+                        </select>
+                        @error('user_id')<div class="invalid-feedback d-block">{{ $message }}</div>@enderror
+                    </div>
+                    <div class="col-md-4">
+                        <input name="phone" value="{{ old('phone') }}" class="form-control" placeholder="Telepon (opsional)">
+                    </div>
+                    <div class="col-md-3">
+                        <button class="btn btn-undira w-100" type="submit">Simpan</button>
+                    </div>
                 </form>
+                @if($linkableDriverUsers->isEmpty())
+                    <p class="small text-muted mt-2 mb-0">Belum ada akun aktif dengan role Driver. Tambahkan melalui User Management.</p>
+                @endif
             </div>
         </div>
         <div class="card card-undira">
             <div class="card-body">
                 <h2 class="h6">Pengemudi</h2>
                 @forelse($drivers as $driver)
+                    @php
+                        $phone = $driver->displayPhone();
+                        $linked = $driver->isLinkedToUser();
+                    @endphp
                     <form method="POST" action="{{ route('vehicle-fleet.drivers.update', $driver) }}" class="row g-2 align-items-center border-bottom py-2">
                         @csrf
                         @method('PUT')
-                        <div class="col-md-4"><input name="name" value="{{ $driver->name }}" class="form-control form-control-sm" required></div>
-                        <div class="col-md-3"><input name="phone" value="{{ $driver->phone }}" class="form-control form-control-sm"></div>
-                        <div class="col-md-3">
-                            <select name="is_active" class="form-select form-select-sm">
-                                <option value="1" @selected($driver->is_active)>Aktif</option>
-                                <option value="0" @selected(! $driver->is_active)>Nonaktif</option>
-                            </select>
-                        </div>
-                        <div class="col-md-2"><button class="btn btn-sm btn-outline-secondary w-100" type="submit">Ubah</button></div>
+                        @if($linked)
+                            <div class="col-md-4">
+                                <div class="form-control-plaintext form-control-sm px-0">{{ $driver->displayName() }}</div>
+                                <div class="small text-muted">{{ $driver->user?->email }}</div>
+                            </div>
+                            <div class="col-md-4">
+                                <input name="phone" value="{{ $phone }}" class="form-control form-control-sm" placeholder="{{ $phone ? 'Telepon' : 'Belum tersedia' }}">
+                                @unless($phone)
+                                    <div class="small text-warning">Nomor telepon belum tersedia — isi lalu Simpan, atau perbarui di User Management.</div>
+                                @endunless
+                            </div>
+                            <div class="col-md-2">
+                                <span class="badge bg-{{ $driver->accountIsActive() ? 'success' : 'secondary' }}">
+                                    {{ $driver->accountIsActive() ? 'Aktif' : 'Nonaktif' }}
+                                </span>
+                            </div>
+                            <div class="col-md-2"><button class="btn btn-sm btn-outline-secondary w-100" type="submit">Ubah</button></div>
+                        @else
+                            <div class="col-md-4"><input name="name" value="{{ $driver->name }}" class="form-control form-control-sm" required></div>
+                            <div class="col-md-3"><input name="phone" value="{{ $driver->phone }}" class="form-control form-control-sm"></div>
+                            <div class="col-md-3">
+                                <select name="is_active" class="form-select form-select-sm">
+                                    <option value="1" @selected($driver->is_active)>Aktif</option>
+                                    <option value="0" @selected(! $driver->is_active)>Nonaktif</option>
+                                </select>
+                                <div class="small text-muted">Data lama (tanpa akun)</div>
+                            </div>
+                            <div class="col-md-2"><button class="btn btn-sm btn-outline-secondary w-100" type="submit">Ubah</button></div>
+                        @endif
                     </form>
                 @empty
-                    <p class="text-muted mb-0">Belum ada pengemudi.</p>
+                    <p class="text-muted mb-0">Belum ada pengemudi. Tambahkan akun dengan role Driver di User Management.</p>
                 @endforelse
             </div>
         </div>

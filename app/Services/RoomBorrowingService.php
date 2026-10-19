@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\FacilityRequestStatus;
+use App\Mail\RoomBorrowingCancellationMail;
 use App\Mail\RoomBorrowingDecisionMail;
 use App\Models\Room;
 use App\Models\RoomBorrowing;
@@ -78,6 +79,7 @@ class RoomBorrowingService
                     'borrower_name' => $data['borrower_name'],
                     'borrower_email' => $data['borrower_email'],
                     'borrower_phone' => $data['borrower_phone'],
+                    'borrower_affiliation' => trim(strip_tags((string) ($data['borrower_affiliation'] ?? ''))),
                     'activity_type' => $data['activity_type'],
                     'purpose' => trim(strip_tags((string) $data['purpose'])),
                     'documentation_url' => $data['documentation_url'] ?? null,
@@ -187,6 +189,41 @@ class RoomBorrowingService
         );
 
         $this->notifications->notifyRoomBorrowingDecided($saved);
+
+        return $saved;
+    }
+
+    public function cancelApproval(User $admin, RoomBorrowing $borrowing, string $reason): RoomBorrowing
+    {
+        $reason = trim($reason);
+
+        $saved = DB::transaction(function () use ($admin, $borrowing, $reason) {
+            $fresh = RoomBorrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $block = $fresh->approvalCancelBlockReason();
+            if ($block !== null) {
+                throw ValidationException::withMessages([
+                    'cancellation_reason' => $block,
+                ]);
+            }
+
+            $fresh->forceFill([
+                'status' => FacilityRequestStatus::PersetujuanDibatalkan,
+                'cancelled_at' => now(),
+                'cancelled_by' => $admin->id,
+                'cancellation_reason' => $reason,
+            ])->save();
+
+            return $fresh->fresh(['room.floor.building.campus', 'campus', 'approvedBy', 'cancelledBy']);
+        });
+
+        $this->mailer->send(
+            $saved->borrower_email,
+            new RoomBorrowingCancellationMail($saved),
+            'Email pembatalan peminjaman ruangan gagal dikirim.',
+            $saved->id,
+        );
+
+        $this->notifications->notifyRoomBorrowingApprovalCancelled($saved);
 
         return $saved;
     }

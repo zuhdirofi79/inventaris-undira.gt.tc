@@ -216,7 +216,7 @@
             <li class="nav-header undira-nav-section">Operasional</li>
 
             {{-- Peminjaman --}}
-            @canany(['borrowing.view', 'borrowing.create', 'borrowing.approve', 'room-borrowing.view', 'room-borrowing.create', 'room-borrowing.approve', 'vehicle-borrowing.view', 'vehicle-borrowing.create', 'vehicle-borrowing.approve', 'vehicle-fleet.manage'])
+            @canany(['borrowing.view', 'borrowing.create', 'borrowing.approve', 'room-borrowing.view', 'room-borrowing.create', 'room-borrowing.approve', 'room-activity-types.manage', 'room-budget-types.manage', 'vehicle-borrowing.view', 'vehicle-borrowing.create', 'vehicle-borrowing.approve', 'vehicle-fleet.manage'])
             @include('partials.sidebar-borrowing')
             @endcanany
 

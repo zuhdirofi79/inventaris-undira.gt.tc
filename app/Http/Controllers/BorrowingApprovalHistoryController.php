@@ -127,6 +127,7 @@ class BorrowingApprovalHistoryController extends Controller
                 'inventoryItem:id,inventory_number,name,category_id,sub_category_id,room_id',
                 'items.inventoryItem:id,inventory_number,name',
                 'approvedBy:id,name',
+                'cancelledBy:id,name',
                 'requestedBy:id,name',
             ])
             ->where(function ($q) {
@@ -134,6 +135,7 @@ class BorrowingApprovalHistoryController extends Controller
                     ->orWhereIn('status', [
                         BorrowingStatus::Disetujui->value,
                         BorrowingStatus::Ditolak->value,
+                        BorrowingStatus::PersetujuanDibatalkan->value,
                         BorrowingStatus::Dipinjam->value,
                         BorrowingStatus::Dikembalikan->value,
                         BorrowingStatus::Terlambat->value,

@@ -111,7 +111,7 @@ class DashboardBorrowingScheduleService
                     ->where('expected_return_date', '>=', $rangeStart);
             })
             ->with([
-                'borrowing:id,borrower_name,borrow_date,expected_return_date,status',
+                'borrowing:id,borrower_name,borrower_affiliation,borrow_date,expected_return_date,status',
                 'inventoryItem:id,name,inventory_number,room_id',
                 'inventoryItem.room:id,name,floor_id',
                 'inventoryItem.room.floor:id,name,building_id',
@@ -140,12 +140,17 @@ class DashboardBorrowingScheduleService
                 $phase = 'done';
             }
 
+            $unit = trim((string) ($borrowing->borrower_affiliation ?? ''));
+
             return [
                 'type' => 'inventaris',
                 'type_label' => 'Inventaris',
                 'title' => trim(($item->inventory_number ? $item->inventory_number.' — ' : '').$item->name),
                 'subtitle' => $location,
-                'meta' => $borrowing->borrower_name ?: null,
+                'meta' => collect([
+                    $borrowing->borrower_name ?: null,
+                    $unit !== '' ? $unit : null,
+                ])->filter()->implode(' · ') ?: null,
                 'starts_at' => $borrowing->borrow_date,
                 'ends_at' => $borrowing->expected_return_date,
                 'time_text' => $this->timeRange($borrowing->borrow_date, $borrowing->expected_return_date),
@@ -188,6 +193,9 @@ class DashboardBorrowingScheduleService
             $location = collect([$campusName, $building, $floor])->filter()->implode(' · ') ?: '—';
             $participants = $row->participantText();
             $phase = $this->phase($row->starts_at, $row->ends_at, $now);
+            $unit = trim((string) ($row->borrower_affiliation ?? ''));
+            $activity = $row->activityTypeLabel();
+            $activityLabel = ($activity !== '' && $activity !== '—') ? $activity : null;
 
             return [
                 'type' => 'ruangan',
@@ -195,8 +203,9 @@ class DashboardBorrowingScheduleService
                 'title' => $row->room?->name ?: 'Ruangan',
                 'subtitle' => $location,
                 'meta' => collect([
-                    $row->activity_type?->label(),
+                    $activityLabel,
                     $row->borrower_name,
+                    $unit !== '' ? $unit : null,
                     $participants !== '—' ? $participants : null,
                 ])->filter()->implode(' · ') ?: null,
                 'starts_at' => $row->starts_at,
@@ -243,6 +252,7 @@ class DashboardBorrowingScheduleService
             }
 
             $phase = $this->phase($row->starts_at, $row->ends_at, $now);
+            $unit = trim((string) ($row->unit ?? ''));
 
             return [
                 'type' => 'kendaraan',
@@ -254,6 +264,7 @@ class DashboardBorrowingScheduleService
                 ])->filter(fn ($v) => is_string($v) && $v !== '' && $v !== '—')->implode(' · ') ?: '—',
                 'meta' => collect([
                     $row->borrower_name,
+                    $unit !== '' ? $unit : null,
                     $row->driver?->name ? 'Pengemudi: '.$row->driver->name : null,
                 ])->filter()->implode(' · ') ?: null,
                 'starts_at' => $row->starts_at,

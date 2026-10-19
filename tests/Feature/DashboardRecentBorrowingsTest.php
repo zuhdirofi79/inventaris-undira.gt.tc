@@ -57,6 +57,7 @@ class DashboardRecentBorrowingsTest extends TestCase
             'borrower_name' => 'Pemohon Inventaris',
             'borrower_email' => 'inv@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'borrow_date' => '2026-10-17 09:00:00',
             'expected_return_date' => '2026-10-17 12:00:00',
             'status' => BorrowingStatus::MenungguPersetujuan,
@@ -71,6 +72,7 @@ class DashboardRecentBorrowingsTest extends TestCase
             'borrower_name' => 'Pemohon Ruang',
             'borrower_email' => 'room@undira.ac.id',
             'borrower_phone' => '081234567891',
+            'borrower_affiliation' => 'Teknik Perminyakan',
             'activity_type' => 'rapat',
             'purpose' => 'Rapat koordinasi',
             'starts_at' => '2026-10-18 09:00:00',
@@ -86,6 +88,7 @@ class DashboardRecentBorrowingsTest extends TestCase
             'borrower_name' => 'Pemohon Kendaraan',
             'borrower_email' => 'veh@undira.ac.id',
             'borrower_phone' => '081234567892',
+            'unit' => 'UKM Futsal',
             'purpose' => 'Antar dokumen',
             'service_type' => VehicleServiceType::DropOff,
             'origin' => 'Cibubur',
@@ -108,7 +111,22 @@ class DashboardRecentBorrowingsTest extends TestCase
         $this->assertTrue(collect($payload['submissions'])->contains(
             fn (array $row) => $row['type'] === 'kendaraan' && str_contains($row['detail'], 'Drop-off')
         ));
+        $this->assertTrue(collect($payload['submissions'])->contains(
+            fn (array $row) => $row['type'] === 'inventaris' && ($row['unit'] ?? null) === 'PPPA'
+        ));
+        $this->assertTrue(collect($payload['submissions'])->contains(
+            fn (array $row) => $row['type'] === 'ruangan' && ($row['unit'] ?? null) === 'Teknik Perminyakan'
+        ));
+        $this->assertTrue(collect($payload['submissions'])->contains(
+            fn (array $row) => $row['type'] === 'kendaraan' && ($row['unit'] ?? null) === 'UKM Futsal'
+        ));
         $this->assertSame([], array_filter($payload['approved'], fn ($r) => ($r['status_label'] ?? '') === 'Menunggu Persetujuan'));
+
+        $html = $this->actingAs($admin)->get(route('dashboard'))->assertOk()->getContent();
+        $this->assertStringContainsString('>Unit</th>', $html);
+        $this->assertStringContainsString('PPPA', $html);
+        $this->assertStringContainsString('Teknik Perminyakan', $html);
+        $this->assertStringContainsString('UKM Futsal', $html);
 
         Carbon::setTestNow();
     }

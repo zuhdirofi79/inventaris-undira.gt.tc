@@ -6,12 +6,14 @@
         'borrowings.*',
         'borrowing-approvals.*',
         'room-borrowings.*',
+        'room-activity-types.*',
+        'room-budget-types.*',
         'vehicle-borrowings.*',
         'vehicle-fleet.*',
         'borrowing-records.*'
     );
     $inventoryOpen = request()->routeIs('borrowings.*', 'borrowing-approvals.*');
-    $roomOpen = request()->routeIs('room-borrowings.*');
+    $roomOpen = request()->routeIs('room-borrowings.*', 'room-activity-types.*', 'room-budget-types.*');
     $vehicleOpen = request()->routeIs('vehicle-borrowings.*', 'vehicle-fleet.*');
 @endphp
 <li class="nav-item {{ $borrowingOpen ? 'menu-open' : '' }}">
@@ -56,7 +58,7 @@
         </li>
         @endcanany
 
-        @canany(['room-borrowing.view', 'room-borrowing.create', 'room-borrowing.approve'])
+        @canany(['room-borrowing.view', 'room-borrowing.create', 'room-borrowing.approve', 'room-activity-types.manage', 'room-budget-types.manage'])
         <li class="nav-item {{ $roomOpen ? 'menu-open' : '' }}">
             <a href="#" class="nav-link">
                 <i class="nav-icon fas fa-door-open"></i>
@@ -83,6 +85,22 @@
                     <a href="{{ route('room-borrowings.history') }}" class="nav-link {{ request()->routeIs('room-borrowings.history') ? 'active' : '' }}">
                         <i class="nav-icon fas fa-clipboard-check"></i>
                         <p>Riwayat Approval Ruangan</p>
+                    </a>
+                </li>
+                @endcan
+                @can('room-activity-types.manage')
+                <li class="nav-item">
+                    <a href="{{ route('room-activity-types.index') }}" class="nav-link {{ request()->routeIs('room-activity-types.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-cogs"></i>
+                        <p>Master Jenis Kegiatan</p>
+                    </a>
+                </li>
+                @endcan
+                @can('room-budget-types.manage')
+                <li class="nav-item">
+                    <a href="{{ route('room-budget-types.index') }}" class="nav-link {{ request()->routeIs('room-budget-types.*') ? 'active' : '' }}">
+                        <i class="nav-icon fas fa-wallet"></i>
+                        <p>Master Anggaran</p>
                     </a>
                 </li>
                 @endcan

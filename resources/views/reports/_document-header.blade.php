@@ -51,37 +51,47 @@
 </section>
 @endif
 
-<table class="rpt-summary">
-    <thead>
-        <tr>
-            <th>Total Inventaris</th>
-            <th>Total Kampus</th>
-            <th>Total Gedung</th>
-            <th>Total Ruangan</th>
-            <th>Total Aktif</th>
-            <th>Total Rusak</th>
-            <th>Total Dipinjam</th>
-            <th>Total Maintenance</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr>
-            <td>{{ number_format($summary['total_items'] ?? 0) }}</td>
-            <td>{{ number_format($summary['campus_count'] ?? 0) }}</td>
-            <td>{{ number_format($summary['building_count'] ?? 0) }}</td>
-            <td>{{ number_format($summary['room_count'] ?? 0) }}</td>
-            <td>{{ number_format($summary['aktif'] ?? 0) }}</td>
-            <td>{{ number_format($summary['rusak'] ?? 0) }}</td>
-            <td>{{ number_format($summary['dipinjam'] ?? 0) }}</td>
-            <td>{{ number_format($summary['maintenance'] ?? 0) }}</td>
-        </tr>
-    </tbody>
-</table>
+@php
+    $summaryKind = $summary['kind'] ?? 'inventory';
+@endphp
 
-@include('reports._composition')
+@if($summaryKind === 'room')
+    @include('reports._room-borrowing-stats', ['summary' => $summary])
+@elseif($summaryKind === 'vehicle')
+    @include('reports._vehicle-borrowing-stats', ['summary' => $summary])
+@else
+    <table class="rpt-summary">
+        <thead>
+            <tr>
+                <th>Total Inventaris</th>
+                <th>Total Kampus</th>
+                <th>Total Gedung</th>
+                <th>Total Ruangan</th>
+                <th>Total Aktif</th>
+                <th>Total Rusak</th>
+                <th>Total Dipinjam</th>
+                <th>Total Maintenance</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>{{ number_format($summary['total_items'] ?? 0) }}</td>
+                <td>{{ number_format($summary['campus_count'] ?? 0) }}</td>
+                <td>{{ number_format($summary['building_count'] ?? 0) }}</td>
+                <td>{{ number_format($summary['room_count'] ?? 0) }}</td>
+                <td>{{ number_format($summary['aktif'] ?? 0) }}</td>
+                <td>{{ number_format($summary['rusak'] ?? 0) }}</td>
+                <td>{{ number_format($summary['dipinjam'] ?? 0) }}</td>
+                <td>{{ number_format($summary['maintenance'] ?? 0) }}</td>
+            </tr>
+        </tbody>
+    </table>
 
-@include('reports._sub-category-recap', [
-    'recap' => $summary['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
-    'title' => 'REKAP SUB KATEGORI INVENTARIS',
-    'variant' => 'global',
-])
+    @include('reports._composition')
+
+    @include('reports._sub-category-recap', [
+        'recap' => $summary['sub_category_recap'] ?? ['rows' => [], 'kind_count' => 0, 'total_units' => 0],
+        'title' => 'REKAP SUB KATEGORI INVENTARIS',
+        'variant' => 'global',
+    ])
+@endif

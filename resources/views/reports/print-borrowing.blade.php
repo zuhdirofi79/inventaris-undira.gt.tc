@@ -29,17 +29,18 @@
     ])
     <table class="rpt-table rpt-borrow">
         <colgroup>
-            <col style="width:4%">
-            <col style="width:13%">
+            <col style="width:3%">
+            <col style="width:11%">
+            <col style="width:8%">
+            <col style="width:8%">
+            <col style="width:8%">
+            <col style="width:14%">
+            <col style="width:8%">
+            <col style="width:7%">
+            <col style="width:7%">
+            <col style="width:8%">
             <col style="width:9%">
-            <col style="width:8%">
-            <col style="width:16%">
             <col style="width:9%">
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:8%">
-            <col style="width:9%">
-            <col style="width:8%">
         </colgroup>
         <thead>
             <tr>
@@ -47,6 +48,7 @@
                 <th>Nomor Approval</th>
                 <th>No Peminjaman</th>
                 <th>Peminjam</th>
+                <th>Unit</th>
                 <th>Barang</th>
                 <th>Tgl Pinjam</th>
                 <th>Tgl Kembali</th>
@@ -71,6 +73,7 @@
                     <td>{{ $b->approval_number ?? '—' }}</td>
                     <td>PIN-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
+                    <td>{{ $b->borrower_affiliation ?: '—' }}</td>
                     <td>{{ $itemLabel }}</td>
                     <td>{{ $b->plannedScheduleDate('borrow_date') }}@if($b->plannedScheduleTime('borrow_date')) {{ $b->plannedScheduleTime('borrow_date') }}@endif</td>
                     <td>{{ $b->return_date?->format('d/m/Y') ?? '—' }}</td>

@@ -22,6 +22,7 @@
                 <th>Nomor Approval</th>
                 <th>Tanggal</th>
                 <th>Nama User</th>
+                <th>Unit</th>
                 <th>Barang</th>
                 <th>Status</th>
                 <th>Approved By</th>
@@ -35,6 +36,7 @@
                 <td>{{ $b->approval_number ?? '—' }}</td>
                 <td>{{ ($b->approved_at ?? $b->rejected_at)?->format('d/m/Y H:i') ?? '—' }}</td>
                 <td>{{ $b->borrower_name }}</td>
+                <td>{{ $b->borrower_affiliation ?: '—' }}</td>
                 <td>{{ $b->inventoryItem?->name }} ({{ $b->inventoryItem?->inventory_number }})</td>
                 <td>{{ $b->status?->label() }}</td>
                 <td>{{ $b->approvedBy?->name ?? '—' }}</td>

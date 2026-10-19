@@ -132,8 +132,7 @@ class FacilityBorrowingTest extends TestCase
         $this->actingAs($viewer)
             ->from(route('room-borrowings.create'))
             ->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
-                'uses_budget' => '1',
-                'budget_type' => '',
+                'budget_type' => 'bukan-master-aktif',
             ]))
             ->assertSessionHasErrors('budget_type');
 
@@ -158,19 +157,12 @@ class FacilityBorrowingTest extends TestCase
             ]))
             ->assertSessionHasErrors('layout_document');
 
-        $this->actingAs($viewer)
-            ->from(route('room-borrowings.create'))
-            ->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
-                'documentation_url' => 'javascript:alert(1)',
-            ]))
-            ->assertSessionHasErrors('documentation_url');
-
         $this->assertSame(0, RoomBorrowing::query()->count());
 
         $this->actingAs($viewer)
             ->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
                 'purpose' => '<script>alert(1)</script>Rapat koordinasi persiapan',
-                'budget_type' => 'Tidak boleh tersimpan',
+                'budget_type' => '',
                 'documentation_url' => 'https://drive.google.com/file/d/kegiatan',
                 'borrower_phone' => '0812 3456-7890',
             ]))
@@ -178,7 +170,8 @@ class FacilityBorrowingTest extends TestCase
 
         $saved = RoomBorrowing::query()->first();
         $this->assertNotNull($saved);
-        $this->assertSame('rapat', $saved->activity_type?->value);
+        $this->assertSame('rapat', $saved->activity_type);
+        $this->assertSame('Rapat', $saved->activityTypeLabel());
         $this->assertSame('alert(1)Rapat koordinasi persiapan', $saved->purpose);
         $this->assertFalse($saved->uses_budget);
         $this->assertNull($saved->budget_type);
@@ -187,7 +180,7 @@ class FacilityBorrowingTest extends TestCase
         $this->assertSame(30, $saved->participant_internal_count);
         $this->assertSame(0, $saved->participant_external_count);
         $this->assertSame(30, $saved->totalParticipantCount());
-        $this->assertSame('https://drive.google.com/file/d/kegiatan', $saved->documentation_url);
+        $this->assertNull($saved->documentation_url);
         $this->assertNotNull($saved->approval_document_path);
         $this->assertNull($saved->layout_document_path);
         $this->assertNull($saved->participant_document_path);
@@ -202,7 +195,8 @@ class FacilityBorrowingTest extends TestCase
             ->assertSee('Peserta Internal')
             ->assertSee('30 orang')
             ->assertSee('Total Peserta')
-            ->assertSee('https://drive.google.com/file/d/kegiatan')
+            ->assertDontSee('https://drive.google.com/file/d/kegiatan')
+            ->assertDontSee('Link dokumentasi')
             ->assertSee('persetujuan.pdf')
             ->assertDontSee('<script>alert(1)</script>', false);
 
@@ -214,11 +208,11 @@ class FacilityBorrowingTest extends TestCase
             ->get(route('room-borrowings.documents', [$saved, 'approval']))
             ->assertOk();
 
-        $this->actingAs($viewer)
+        $this->actingAs($admin)
             ->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
                 'borrower_name' => 'Dengan Anggaran',
-                'uses_budget' => '1',
-                'budget_type' => 'Anggaran unit',
+                'borrower_email' => 'anggaran@undira.ac.id',
+                'budget_type' => 'anggaran-unit',
                 'participant_internal' => '1',
                 'participant_external' => '1',
                 'participant_internal_count' => 25,
@@ -230,8 +224,10 @@ class FacilityBorrowingTest extends TestCase
             ->assertRedirect();
 
         $budgeted = RoomBorrowing::query()->where('borrower_name', 'Dengan Anggaran')->first();
+        $this->assertNotNull($budgeted);
         $this->assertTrue($budgeted->uses_budget);
-        $this->assertSame('Anggaran unit', $budgeted->budget_type);
+        $this->assertSame('anggaran-unit', $budgeted->budget_type);
+        $this->assertSame('Anggaran Unit / Biro', $budgeted->budgetDisplayLabel());
         $this->assertSame(25, $budgeted->participant_internal_count);
         $this->assertSame(10, $budgeted->participant_external_count);
         $this->assertSame(35, $budgeted->totalParticipantCount());
@@ -310,7 +306,8 @@ class FacilityBorrowingTest extends TestCase
             ]))
             ->assertSessionHasErrors('participant_internal_count');
 
-        $this->actingAs($viewer)
+        $admin = $this->makeAdmin();
+        $this->actingAs($admin)
             ->from(route('room-borrowings.create'))
             ->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
                 'participant_internal' => '0',
@@ -318,6 +315,7 @@ class FacilityBorrowingTest extends TestCase
                 'participant_internal_count' => 99,
                 'participant_external_count' => 12,
                 'borrower_name' => 'External Alone',
+                'borrower_email' => 'external.alone@undira.ac.id',
                 'starts_at' => '2026-11-05T09:00',
                 'ends_at' => '2026-11-05T11:00',
             ]))
@@ -337,6 +335,7 @@ class FacilityBorrowingTest extends TestCase
             'borrower_name' => 'Legacy Tanpa Count',
             'borrower_email' => 'legacy@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'activity_type' => 'rapat',
             'purpose' => 'Data lama sebelum field count',
             'participant_internal' => true,
@@ -427,13 +426,17 @@ class FacilityBorrowingTest extends TestCase
         $item = $this->itemIn($place, InventoryStatus::Aktif);
         $maintenance = $this->itemIn($place, InventoryStatus::Maintenance, 'INV-MT-'.uniqid());
 
-        $this->actingAs($viewer)->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id));
-        $this->actingAs($viewer)->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
+        $this->actingAs($admin)->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
+            'borrower_name' => 'Sari Ruangan',
+            'borrower_email' => 'sari.ruangan@undira.ac.id',
+        ]))->assertRedirect();
+        $this->actingAs($admin)->post(route('room-borrowings.store'), $this->roomPayload($place['room']->id, [
             'borrower_name' => 'Antrian Kedua',
+            'borrower_email' => 'antrian.kedua@undira.ac.id',
         ]))->assertRedirect();
 
-        $first = RoomBorrowing::query()->where('borrower_name', 'Sari Ruangan')->first();
-        $second = RoomBorrowing::query()->where('borrower_name', 'Antrian Kedua')->first();
+        $first = RoomBorrowing::query()->where('borrower_name', 'Sari Ruangan')->firstOrFail();
+        $second = RoomBorrowing::query()->where('borrower_name', 'Antrian Kedua')->firstOrFail();
 
         $this->actingAs($admin)
             ->post(route('room-borrowings.decide', $first), ['decision' => 'approve'])
@@ -466,6 +469,7 @@ class FacilityBorrowingTest extends TestCase
             'campus_id' => $place['campus']->id,
             'borrower_name' => 'Selesai Dulu',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'purpose' => 'Kemarin',
             'starts_at' => '2026-10-01 08:00:00',
             'ends_at' => '2026-10-01 10:00:00',
@@ -609,7 +613,6 @@ class FacilityBorrowingTest extends TestCase
         $this->actingAs($viewer)
             ->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
                 'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
-                'borrower_name' => 'Dengan Dokumen',
                 'destination' => 'Grogol, Jakarta Barat',
                 'purpose' => 'Kunjungan dinas',
                 'passengers' => [
@@ -618,12 +621,13 @@ class FacilityBorrowingTest extends TestCase
             ]))
             ->assertRedirect();
 
-        $saved = VehicleBorrowing::query()->where('borrower_name', 'Dengan Dokumen')->first();
+        $saved = VehicleBorrowing::query()->where('purpose', 'Kunjungan dinas')->first();
+        $this->assertNotNull($saved);
         $this->assertNotNull($saved->supporting_document_path);
         $this->assertSame('Grogol, Jakarta Barat', $saved->destination);
         $this->assertSame('Kunjungan dinas', $saved->purpose);
         $this->assertSame('alert(1)', $saved->passengerRows()[0]['name']);
-        $this->actingAs($viewer)->get(route('vehicle-borrowings.show', $saved))
+        $this->actingAs($admin)->get(route('vehicle-borrowings.show', $saved))
             ->assertOk()
             ->assertSee('Grogol, Jakarta Barat')
             ->assertSee('Kunjungan dinas')
@@ -654,9 +658,10 @@ class FacilityBorrowingTest extends TestCase
             'phone' => '081200000111',
             'is_active' => true,
         ]);
-        $this->actingAs($viewer)
+        $this->actingAs($admin)
             ->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
                 'borrower_name' => 'Terlalu Penuh',
+                'borrower_email' => 'penuh@undira.ac.id',
                 'passenger_count' => 2,
                 'passengers' => [
                     ['name' => 'Satu', 'unit' => 'A', 'title' => 'Staff'],
@@ -664,7 +669,7 @@ class FacilityBorrowingTest extends TestCase
                 ],
             ]))
             ->assertRedirect();
-        $full = VehicleBorrowing::query()->where('borrower_name', 'Terlalu Penuh')->first();
+        $full = VehicleBorrowing::query()->where('borrower_name', 'Terlalu Penuh')->firstOrFail();
         $this->actingAs($admin)
             ->post(route('vehicle-borrowings.decide', $full), [
                 'decision' => 'approve',
@@ -702,13 +707,18 @@ class FacilityBorrowingTest extends TestCase
             'plate_number' => 'B 1001 UND',
             'category' => 'MPV',
         ])->assertRedirect(route('vehicle-fleet.index'));
-        $this->actingAs($admin)->post(route('vehicle-fleet.drivers.store'), [
+        $driverUser = $this->makeDriver([
             'name' => 'Budi Sopir',
+            'email' => 'budi.sopir@undira.ac.id',
+            'phone' => '081200000001',
+        ]);
+        $this->actingAs($admin)->post(route('vehicle-fleet.drivers.store'), [
+            'user_id' => $driverUser->id,
             'phone' => '081200000001',
         ])->assertRedirect(route('vehicle-fleet.index'));
 
         $vehicle = OperationalVehicle::query()->first();
-        $driver = OperationalDriver::query()->first();
+        $driver = OperationalDriver::query()->where('user_id', $driverUser->id)->firstOrFail();
         $this->actingAs($admin)->put(route('vehicle-fleet.vehicles.update', $vehicle), [
             'name' => 'Avanza Operasional',
             'plate_number' => 'B 1001 UND',
@@ -717,8 +727,8 @@ class FacilityBorrowingTest extends TestCase
         ])->assertRedirect();
         $this->assertFalse($vehicle->fresh()->is_active);
 
-        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id));
-        $pending = VehicleBorrowing::query()->first();
+        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id))->assertRedirect();
+        $pending = VehicleBorrowing::query()->firstOrFail();
 
         $this->actingAs($admin)->put(route('vehicle-fleet.vehicles.update', $vehicle), [
             'name' => 'Avanza Operasional',
@@ -755,10 +765,11 @@ class FacilityBorrowingTest extends TestCase
         $this->assertSame($driver->id, $pending->assigned_driver_id);
         $this->actingAs($admin)->get(route('vehicle-borrowings.show', $pending))->assertSee('B 1001 UND');
 
-        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
+        $this->actingAs($admin)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
             'borrower_name' => 'Bentrok Armada',
-        ]));
-        $overlap = VehicleBorrowing::query()->where('borrower_name', 'Bentrok Armada')->first();
+            'borrower_email' => 'bentrok@undira.ac.id',
+        ]))->assertRedirect();
+        $overlap = VehicleBorrowing::query()->where('borrower_name', 'Bentrok Armada')->firstOrFail();
         $this->actingAs($admin)
             ->post(route('vehicle-borrowings.decide', $overlap), [
                 'decision' => 'approve',
@@ -790,11 +801,11 @@ class FacilityBorrowingTest extends TestCase
         $this->assertSame($driver->id, $overlap->fresh()->assigned_driver_id);
         $this->assertNotSame($pending->approval_number, $overlap->fresh()->approval_number);
 
-        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
+        $this->actingAs($admin)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
             'borrower_name' => 'Pakai GoCar',
             'borrower_email' => 'gocar@undira.ac.id',
-        ]));
-        $gocar = VehicleBorrowing::query()->where('borrower_name', 'Pakai GoCar')->first();
+        ]))->assertRedirect();
+        $gocar = VehicleBorrowing::query()->where('borrower_name', 'Pakai GoCar')->firstOrFail();
         $this->actingAs($admin)
             ->post(route('vehicle-borrowings.decide', $gocar), [
                 'decision' => 'approve',
@@ -834,7 +845,7 @@ class FacilityBorrowingTest extends TestCase
         ];
 
         foreach (['A', 'B', 'C'] as $label) {
-            $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, array_merge($payloadBase, [
+            $this->actingAs($admin)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, array_merge($payloadBase, [
                 'borrower_name' => 'Peminjam '.$label,
                 'borrower_email' => strtolower($label).'@undira.ac.id',
             ])))->assertRedirect();
@@ -880,7 +891,7 @@ class FacilityBorrowingTest extends TestCase
         $viewer = $this->makeViewer();
         $place = $this->place('Kampus Tolak Tanpa Armada');
 
-        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
+        $this->actingAs($admin)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
             'borrower_name' => 'Akan Ditolak',
             'borrower_email' => 'ditolak@undira.ac.id',
         ]))->assertRedirect();
@@ -940,11 +951,11 @@ class FacilityBorrowingTest extends TestCase
         $this->app->forgetInstance('mail.manager');
         $this->app->forgetInstance('mailer');
 
-        $this->actingAs($viewer)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
+        $this->actingAs($admin)->post(route('vehicle-borrowings.store'), $this->vehiclePayload($place['campus']->id, [
             'borrower_name' => 'Surat Gagal',
             'borrower_email' => 'gagal@undira.ac.id',
-        ]));
-        $second = VehicleBorrowing::query()->where('borrower_name', 'Surat Gagal')->first();
+        ]))->assertRedirect();
+        $second = VehicleBorrowing::query()->where('borrower_name', 'Surat Gagal')->firstOrFail();
         $this->failMail();
         Log::spy();
         $this->actingAs($admin)
@@ -1085,6 +1096,7 @@ class FacilityBorrowingTest extends TestCase
             'campus_id' => $tanjung['campus']->id,
             'borrower_name' => 'Ruangan Disetujui Tanjung',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'purpose' => 'Rapat masih berjalan',
             'starts_at' => now()->addDays(2),
             'ends_at' => now()->addDays(2)->addHours(2),
@@ -1096,6 +1108,7 @@ class FacilityBorrowingTest extends TestCase
             'campus_id' => $cibubur['campus']->id,
             'borrower_name' => 'Ruangan Disetujui Cibubur',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'purpose' => 'Rapat kampus lain',
             'starts_at' => now()->addDays(4),
             'ends_at' => now()->addDays(4)->addHours(2),
@@ -1107,6 +1120,7 @@ class FacilityBorrowingTest extends TestCase
             'campus_id' => $tanjung['campus']->id,
             'borrower_name' => 'Ruangan Selesai Tanjung',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'purpose' => 'Rapat sudah lewat',
             'starts_at' => now()->subDays(3),
             'ends_at' => now()->subDays(3)->addHours(2),
@@ -1120,6 +1134,7 @@ class FacilityBorrowingTest extends TestCase
             'campus_id' => null,
             'borrower_name' => 'Ruangan Tanpa Kampus',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'purpose' => 'Data lama',
             'starts_at' => now()->addDay(),
             'ends_at' => now()->addDay()->addHours(1),
@@ -1192,6 +1207,7 @@ class FacilityBorrowingTest extends TestCase
                 'campus_id' => $place['campus']->id,
                 'borrower_name' => $index === 1 ? 'Peminjam Halaman Dua' : 'Peminjam Halaman Satu '.$index,
                 'borrower_phone' => '081234567890',
+                'borrower_affiliation' => 'PPPA',
                 'purpose' => 'Rapat '.$index,
                 'starts_at' => now()->addDays($index),
                 'ends_at' => now()->addDays($index)->addHours(2),
@@ -1380,6 +1396,7 @@ class FacilityBorrowingTest extends TestCase
             'borrower_name' => $name,
             'borrower_email' => 'kendaraan@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'unit' => 'PPPA',
             'purpose' => 'Perjalanan dinas',
             'service_type' => 'drop_off',
             'origin' => 'Kampus',
@@ -1398,6 +1415,7 @@ class FacilityBorrowingTest extends TestCase
             'borrower_name' => 'Sari Ruangan',
             'borrower_email' => 'sari.ruangan@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'Teknik Perminyakan',
             'activity_type' => 'rapat',
             'purpose' => 'Rapat koordinasi persiapan kegiatan universitas',
             'participant_internal' => '1',
@@ -1427,6 +1445,7 @@ class FacilityBorrowingTest extends TestCase
             'borrower_name' => 'Sari Kendaraan',
             'borrower_email' => 'sari.kendaraan@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'unit' => 'BEM Universitas Dian Nusantara',
             'purpose' => 'Antar dokumen',
             'service_type' => 'drop_off',
             'destination' => 'Grogol, Jakarta Barat',
@@ -1450,6 +1469,7 @@ class FacilityBorrowingTest extends TestCase
             'borrower_name' => 'Sari Inventaris',
             'borrower_email' => 'sari.inventaris@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => 'PPPA',
             'borrow_date' => '2026-11-02T09:30',
             'expected_return_date' => '2026-11-02T10:30',
             'notes' => 'Pinjam proyektor',

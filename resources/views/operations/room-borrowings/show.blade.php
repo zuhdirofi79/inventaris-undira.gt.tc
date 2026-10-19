@@ -33,8 +33,10 @@
             <dd class="col-sm-9">{{ $borrowing->borrower_email ?: '—' }}</dd>
             <dt class="col-sm-3">Telepon</dt>
             <dd class="col-sm-9">{{ $borrowing->borrower_phone }}</dd>
+            <dt class="col-sm-3">Unit</dt>
+            <dd class="col-sm-9">{{ $borrowing->borrower_affiliation ?: '—' }}</dd>
             <dt class="col-sm-3">Jenis kegiatan</dt>
-            <dd class="col-sm-9">{{ $borrowing->activity_type?->label() ?: '—' }}</dd>
+            <dd class="col-sm-9">{{ $borrowing->activityTypeLabel() }}</dd>
             <dt class="col-sm-3">Tujuan kegiatan</dt>
             <dd class="col-sm-9">{{ $borrowing->purpose }}</dd>
             <dt class="col-sm-3">Kampus</dt>
@@ -46,21 +48,19 @@
             <dt class="col-sm-3">Jadwal selesai</dt>
             <dd class="col-sm-9">{{ $borrowing->ends_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
             <dt class="col-sm-3">Anggaran</dt>
-            <dd class="col-sm-9">{{ $borrowing->uses_budget ? ($borrowing->budget_type ?: '—') : 'Tidak menggunakan anggaran' }}</dd>
+            <dd class="col-sm-9">{{ $borrowing->budgetDisplayLabel() }}</dd>
             <dt class="col-sm-3">Peserta Internal</dt>
             <dd class="col-sm-9">{{ $borrowing->participant_internal ? $borrowing->participantInternalCount().' orang' : '0 orang' }}</dd>
             <dt class="col-sm-3">Peserta External</dt>
             <dd class="col-sm-9">{{ $borrowing->participant_external ? $borrowing->participantExternalCount().' orang' : '0 orang' }}</dd>
             <dt class="col-sm-3">Total Peserta</dt>
             <dd class="col-sm-9">{{ $borrowing->totalParticipantCount() }} orang</dd>
-            <dt class="col-sm-3">Link dokumentasi</dt>
-            <dd class="col-sm-9">
-                @if($borrowing->documentation_url)
+            @if($borrowing->documentation_url)
+                <dt class="col-sm-3">Link dokumentasi</dt>
+                <dd class="col-sm-9">
                     <a href="{{ $borrowing->documentation_url }}" target="_blank" rel="noopener noreferrer">{{ $borrowing->documentation_url }}</a>
-                @else
-                    —
-                @endif
-            </dd>
+                </dd>
+            @endif
             @foreach ([
                 'approval' => 'Dokumen persetujuan pimpinan',
                 'layout' => 'Layout acara',
@@ -89,11 +89,27 @@
                     —
                 @endforelse
             </dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Pengajuan</dt>
+            <dd class="col-sm-9">{{ $borrowing->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Status Approval</dt>
+            <dd class="col-sm-9"><span class="badge bg-{{ $borrowing->displayColor() }}">{{ $borrowing->displayLabel() }}</span></dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Approval</dt>
+            <dd class="col-sm-9">{{ $borrowing->approved_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Penolakan</dt>
+            <dd class="col-sm-9">{{ $borrowing->rejected_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
             <dt class="col-sm-3">Admin</dt>
             <dd class="col-sm-9">{{ $borrowing->approvedBy?->name ?: '—' }}</dd>
             @if($borrowing->rejection_reason)
                 <dt class="col-sm-3">Alasan penolakan</dt>
                 <dd class="col-sm-9">{{ $borrowing->rejection_reason }}</dd>
+            @endif
+            <dt class="col-sm-3">Tanggal &amp; Waktu Pembatalan</dt>
+            <dd class="col-sm-9">{{ $borrowing->cancelled_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Dibatalkan Oleh</dt>
+            <dd class="col-sm-9">{{ $borrowing->cancelledBy?->name ?: '—' }}</dd>
+            @if($borrowing->cancellation_reason)
+                <dt class="col-sm-3">Alasan pembatalan</dt>
+                <dd class="col-sm-9">{{ $borrowing->cancellation_reason }}</dd>
             @endif
         </dl>
     </div>

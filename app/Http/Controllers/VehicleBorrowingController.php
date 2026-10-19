@@ -3,10 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FacilityRequestStatus;
+use App\Http\Requests\CancelApprovalRequest;
 use App\Http\Requests\DecideVehicleBorrowingRequest;
 use App\Http\Requests\StoreVehicleBorrowingRequest;
 use App\Models\Campus;
-use App\Models\OperationalDriver;
 use App\Models\OperationalRoute;
 use App\Models\OperationalVehicle;
 use App\Models\User;
@@ -14,6 +14,7 @@ use App\Models\VehicleBorrowing;
 use App\Policies\BorrowingPolicy;
 use App\Http\Controllers\Concerns\RespondsToAjaxForm;
 use App\Services\FacilityReceiptService;
+use App\Services\OperationalDriverDirectory;
 use App\Services\VehicleBorrowingService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Support\CampusQuery;
@@ -32,6 +33,7 @@ class VehicleBorrowingController extends Controller
     public function __construct(
         private readonly VehicleBorrowingService $service,
         private readonly FacilityReceiptService $receipts,
+        private readonly OperationalDriverDirectory $driverDirectory,
     ) {}
 
     public function create(): View
@@ -87,7 +89,7 @@ class VehicleBorrowingController extends Controller
     public function show(Request $request, VehicleBorrowing $vehicleBorrowing): View
     {
         $this->authorizeVisible($request->user(), $vehicleBorrowing);
-        $vehicleBorrowing->load(['campus', 'route', 'vehicle', 'driver', 'approvedBy', 'requestedBy']);
+        $vehicleBorrowing->load(['campus', 'route', 'vehicle', 'driver', 'approvedBy', 'cancelledBy', 'requestedBy']);
 
         $conflicts = ['vehicles' => [], 'drivers' => []];
         if (
@@ -105,7 +107,7 @@ class VehicleBorrowingController extends Controller
         return view('operations.vehicle-borrowings.show', [
             'borrowing' => $vehicleBorrowing,
             'vehicles' => OperationalVehicle::query()->where('is_active', true)->orderBy('name')->get(),
-            'drivers' => OperationalDriver::query()->where('is_active', true)->orderBy('name')->get(),
+            'drivers' => $this->driverDirectory->assignable(),
             'assignmentConflicts' => $conflicts,
         ]);
     }
@@ -120,6 +122,19 @@ class VehicleBorrowingController extends Controller
         return redirect()
             ->route('vehicle-borrowings.show', $saved)
             ->with('success', $message);
+    }
+
+    public function cancelApproval(CancelApprovalRequest $request, VehicleBorrowing $vehicleBorrowing): RedirectResponse
+    {
+        $this->service->cancelApproval(
+            $request->user(),
+            $vehicleBorrowing,
+            (string) $request->validated('cancellation_reason'),
+        );
+
+        return redirect()
+            ->route('vehicle-borrowings.history')
+            ->with('success', 'Persetujuan peminjaman kendaraan dibatalkan.');
     }
 
     public function approval(Request $request, VehicleBorrowing $vehicleBorrowing): View
@@ -186,7 +201,7 @@ class VehicleBorrowingController extends Controller
             : ['date_from' => null, 'date_to' => null];
 
         $borrowings = VehicleBorrowing::query()
-            ->with(['campus:id,code,name', 'route:id,name', 'vehicle:id,name,plate_number', 'driver:id,name', 'approvedBy:id,name'])
+            ->with(['campus:id,code,name', 'route:id,name', 'vehicle:id,name,plate_number', 'driver:id,name', 'approvedBy:id,name', 'cancelledBy:id,name'])
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
             ->when($search !== '', function ($q) use ($search) {
@@ -211,7 +226,11 @@ class VehicleBorrowingController extends Controller
                 $q->where('status', '!=', FacilityRequestStatus::MenungguPersetujuan->value);
                 if ($status === 'selesai') {
                     $q->where('status', FacilityRequestStatus::Disetujui->value)->where('ends_at', '<', now());
-                } elseif (in_array($status, [FacilityRequestStatus::Disetujui->value, FacilityRequestStatus::Ditolak->value], true)) {
+                } elseif (in_array($status, [
+                    FacilityRequestStatus::Disetujui->value,
+                    FacilityRequestStatus::Ditolak->value,
+                    FacilityRequestStatus::PersetujuanDibatalkan->value,
+                ], true)) {
                     $q->where('status', $status);
                 }
 

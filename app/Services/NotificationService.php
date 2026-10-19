@@ -14,10 +14,12 @@ use App\Models\RoomBorrowing;
 use App\Models\StockOpname;
 use App\Models\User;
 use App\Models\VehicleBorrowing;
+use App\Notifications\ApprovalCancelledNotification;
 use App\Notifications\BorrowingApprovedNotification;
 use App\Notifications\BorrowingCreatedNotification;
 use App\Notifications\BorrowingRejectedNotification;
 use App\Notifications\DeletionApprovalNotification;
+use App\Notifications\FacilityRequestSubmittedNotification;
 use App\Notifications\MaintenanceApprovalNotification;
 use App\Notifications\MaintenanceDueNotification;
 use App\Notifications\MaintenanceScheduleReminderNotification;
@@ -147,13 +149,22 @@ class NotificationService
 
     public function notifyRoomBorrowingSubmitted(RoomBorrowing $borrowing): int
     {
-        return $this->notifyRoleBorrowingEvent(
+        $count = $this->notifyFacilityApprovers(
+            permission: 'room-borrowing.approve',
+            referenceKey: 'room_borrowing_id',
+            referenceId: $borrowing->id,
+            payload: $this->roomApproverPayload($borrowing),
+        );
+
+        $count += $this->notifyRoleBorrowingEvent(
             roles: ['ob'],
             referenceKey: 'room_borrowing_id',
             referenceId: $borrowing->id,
             event: 'submitted',
             payload: $this->roomPayload($borrowing, 'submitted'),
         );
+
+        return $count;
     }
 
     public function notifyRoomBorrowingDecided(RoomBorrowing $borrowing): int
@@ -171,26 +182,203 @@ class NotificationService
 
     public function notifyVehicleBorrowingSubmitted(VehicleBorrowing $borrowing): int
     {
-        return $this->notifyRoleBorrowingEvent(
+        $count = $this->notifyFacilityApprovers(
+            permission: 'vehicle-borrowing.approve',
+            referenceKey: 'vehicle_borrowing_id',
+            referenceId: $borrowing->id,
+            payload: $this->vehicleApproverPayload($borrowing),
+        );
+
+        $count += $this->notifyRoleBorrowingEvent(
             roles: ['driver'],
             referenceKey: 'vehicle_borrowing_id',
             referenceId: $borrowing->id,
             event: 'submitted',
             payload: $this->vehiclePayload($borrowing, 'submitted'),
         );
+
+        return $count;
+    }
+
+    /**
+     * In-app alerts for users who can approve facility borrowings (Admin / Super Admin).
+     *
+     * @param  array<string, mixed>  $payload
+     */
+    protected function notifyFacilityApprovers(
+        string $permission,
+        string $referenceKey,
+        int $referenceId,
+        array $payload,
+    ): int {
+        $count = 0;
+
+        foreach ($this->usersWithPermission($permission) as $user) {
+            if (! $user instanceof User || ! $user->is_active) {
+                continue;
+            }
+
+            if ($this->alreadyNotified($user, FacilityRequestSubmittedNotification::class, $referenceKey, $referenceId)) {
+                continue;
+            }
+
+            $user->notify(new FacilityRequestSubmittedNotification($payload + [
+                'reference_key' => $referenceKey,
+                'reference_id' => $referenceId,
+                'event' => 'submitted',
+            ]));
+            $count++;
+        }
+
+        return $count;
     }
 
     public function notifyVehicleBorrowingDecided(VehicleBorrowing $borrowing): int
     {
+        $borrowing->loadMissing(['requestedBy', 'driver.user', 'vehicle', 'campus', 'route', 'approvedBy']);
         $event = $borrowing->status === FacilityRequestStatus::Disetujui ? 'approved' : 'rejected';
+        $count = 0;
 
-        return $this->notifyRoleBorrowingEvent(
+        // Borrower (requester account) — approve and reject.
+        $requester = $borrowing->requestedBy;
+        if ($requester instanceof User && $requester->is_active) {
+            if (! $this->alreadyNotifiedForEvent($requester, 'vehicle_borrowing_id', $borrowing->id, $event)) {
+                $requester->notify(new OperationalBorrowingNotification($this->vehiclePayload($borrowing, $event) + [
+                    'reference_key' => 'vehicle_borrowing_id',
+                    'reference_id' => $borrowing->id,
+                    'event' => $event,
+                ]));
+                $count++;
+            }
+        }
+
+        // Assigned driver only when approved with an internal fleet assignment.
+        if ($event === 'approved' && $borrowing->assigned_driver_id) {
+            $driverUser = $borrowing->driver?->user;
+            if ($driverUser instanceof User && $driverUser->is_active) {
+                if (! $this->alreadyNotifiedForEvent($driverUser, 'vehicle_borrowing_id', $borrowing->id, 'driver_assigned')) {
+                    $driverUser->notify(new OperationalBorrowingNotification($this->vehicleDriverAssignmentPayload($borrowing) + [
+                        'reference_key' => 'vehicle_borrowing_id',
+                        'reference_id' => $borrowing->id,
+                        'event' => 'driver_assigned',
+                    ]));
+                    $count++;
+                }
+            }
+        }
+
+        return $count;
+    }
+
+    public function notifyBorrowingApprovalCancelled(Borrowing $borrowing): int
+    {
+        $borrowing->loadMissing(['requestedBy', 'cancelledBy', 'items.inventoryItem', 'inventoryItem']);
+        $count = 0;
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $payload = [
+            'type' => 'borrowing_approval_cancelled',
+            'kind' => 'inventaris',
+            'title' => 'Persetujuan Inventaris Dibatalkan',
+            'message' => 'Persetujuan peminjaman inventaris dibatalkan. Alasan: '
+                .($borrowing->cancellation_reason ?: '—'),
+            'borrowing_id' => $borrowing->id,
+            'approval_number' => $borrowing->approval_number,
+            'cancelled_at' => $borrowing->cancelled_at?->timezone($tz)->format('d/m/Y H:i'),
+            'cancelled_by' => $borrowing->cancelledBy?->name,
+            'cancellation_reason' => $borrowing->cancellation_reason,
+            'status' => $borrowing->status?->label(),
+            'url' => route('borrowings.show', $borrowing, false),
+        ];
+
+        $user = $borrowing->requestedBy;
+        if ($user instanceof User && $user->is_active) {
+            if (! $this->alreadyNotified($user, ApprovalCancelledNotification::class, 'borrowing_id', $borrowing->id)) {
+                $user->notify(new ApprovalCancelledNotification($payload));
+                $count++;
+            }
+        }
+
+        $count += $this->notifyInventoryOpsRoles($borrowing, 'cancelled');
+
+        return $count;
+    }
+
+    public function notifyRoomBorrowingApprovalCancelled(RoomBorrowing $borrowing): int
+    {
+        $borrowing->loadMissing(['requestedBy', 'cancelledBy', 'room', 'campus']);
+        $count = 0;
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $payload = [
+            'type' => 'room_borrowing_approval_cancelled',
+            'kind' => 'ruangan',
+            'title' => 'Persetujuan Ruangan Dibatalkan',
+            'message' => 'Persetujuan peminjaman ruangan dibatalkan. Alasan: '
+                .($borrowing->cancellation_reason ?: '—'),
+            'room_borrowing_id' => $borrowing->id,
+            'approval_number' => $borrowing->approval_number,
+            'cancelled_at' => $borrowing->cancelled_at?->timezone($tz)->format('d/m/Y H:i'),
+            'cancelled_by' => $borrowing->cancelledBy?->name,
+            'cancellation_reason' => $borrowing->cancellation_reason,
+            'status' => $borrowing->status?->label(),
+            'url' => route('room-borrowings.show', $borrowing, false),
+        ];
+
+        $user = $borrowing->requestedBy;
+        if ($user instanceof User && $user->is_active) {
+            if (! $this->alreadyNotified($user, ApprovalCancelledNotification::class, 'room_borrowing_id', $borrowing->id)) {
+                $user->notify(new ApprovalCancelledNotification($payload));
+                $count++;
+            }
+        }
+
+        $count += $this->notifyRoleBorrowingEvent(
+            roles: ['ob'],
+            referenceKey: 'room_borrowing_id',
+            referenceId: $borrowing->id,
+            event: 'cancelled',
+            payload: $this->roomPayload($borrowing, 'cancelled'),
+        );
+
+        return $count;
+    }
+
+    public function notifyVehicleBorrowingApprovalCancelled(VehicleBorrowing $borrowing): int
+    {
+        $borrowing->loadMissing(['requestedBy', 'cancelledBy', 'campus', 'route']);
+        $count = 0;
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $payload = [
+            'type' => 'vehicle_borrowing_approval_cancelled',
+            'kind' => 'kendaraan',
+            'title' => 'Persetujuan Kendaraan Dibatalkan',
+            'message' => 'Persetujuan peminjaman kendaraan dibatalkan. Alasan: '
+                .($borrowing->cancellation_reason ?: '—'),
+            'vehicle_borrowing_id' => $borrowing->id,
+            'approval_number' => $borrowing->approval_number,
+            'cancelled_at' => $borrowing->cancelled_at?->timezone($tz)->format('d/m/Y H:i'),
+            'cancelled_by' => $borrowing->cancelledBy?->name,
+            'cancellation_reason' => $borrowing->cancellation_reason,
+            'status' => $borrowing->status?->label(),
+            'url' => route('vehicle-borrowings.show', $borrowing, false),
+        ];
+
+        $user = $borrowing->requestedBy;
+        if ($user instanceof User && $user->is_active) {
+            if (! $this->alreadyNotified($user, ApprovalCancelledNotification::class, 'vehicle_borrowing_id', $borrowing->id)) {
+                $user->notify(new ApprovalCancelledNotification($payload));
+                $count++;
+            }
+        }
+
+        $count += $this->notifyRoleBorrowingEvent(
             roles: ['driver'],
             referenceKey: 'vehicle_borrowing_id',
             referenceId: $borrowing->id,
-            event: $event,
-            payload: $this->vehiclePayload($borrowing, $event),
+            event: 'cancelled',
+            payload: $this->vehiclePayload($borrowing, 'cancelled'),
         );
+
+        return $count;
     }
 
     /**
@@ -369,11 +557,12 @@ class NotificationService
             ];
         }
 
-        $pendingNote = $event === 'submitted'
-            ? 'Status saat ini: menunggu persetujuan Admin. Belum boleh diserahkan.'
-            : ($event === 'approved'
-                ? 'Admin telah menyetujui pengajuan inventaris.'
-                : 'Admin menolak pengajuan inventaris.');
+        $pendingNote = match ($event) {
+            'submitted' => 'Status saat ini: menunggu persetujuan Admin. Belum boleh diserahkan.',
+            'approved' => 'Admin telah menyetujui pengajuan inventaris.',
+            'cancelled' => 'Admin membatalkan persetujuan peminjaman inventaris.',
+            default => 'Admin menolak pengajuan inventaris.',
+        };
 
         return [
             'type' => 'inventory_'.$event,
@@ -381,6 +570,7 @@ class NotificationService
             'title' => match ($event) {
                 'submitted' => 'Pengajuan Peminjaman Inventaris Baru',
                 'approved' => 'Peminjaman Inventaris Disetujui',
+                'cancelled' => 'Persetujuan Inventaris Dibatalkan',
                 default => 'Peminjaman Inventaris Ditolak',
             },
             'message' => $pendingNote.' Ringkasan: '.$summary.'.',
@@ -404,6 +594,38 @@ class NotificationService
     /**
      * @return array<string, mixed>
      */
+    protected function roomApproverPayload(RoomBorrowing $borrowing): array
+    {
+        $borrowing->loadMissing(['room.floor.building.campus', 'campus']);
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $schedule = ($borrowing->starts_at?->timezone($tz)->format('d/m/Y H:i') ?: '—')
+            .' – '.($borrowing->ends_at?->timezone($tz)->format('d/m/Y H:i') ?: '—');
+        $campus = $borrowing->campus?->name
+            ?: $borrowing->room?->floor?->building?->campus?->name
+            ?: '—';
+        $roomName = $borrowing->room?->name ?: 'Ruangan';
+        $activity = $borrowing->activityTypeLabel();
+
+        return [
+            'type' => 'room_submitted',
+            'kind' => 'ruangan',
+            'title' => 'Peminjaman Ruangan Baru',
+            'message' => $borrowing->borrower_name
+                .' mengajukan peminjaman ruang '.$roomName
+                .' untuk kegiatan '.$activity
+                .' di '.$campus.'. Status: Menunggu Persetujuan. Jadwal: '.$schedule.'.',
+            'subject' => '#'.$borrowing->id,
+            'subtitle' => $roomName.' · '.$activity,
+            'summary' => $schedule,
+            'campus' => $campus,
+            'url' => route('room-borrowings.show', $borrowing, false),
+            'room_borrowing_id' => $borrowing->id,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     protected function roomPayload(RoomBorrowing $borrowing, string $event): array
     {
         $borrowing->loadMissing(['room.floor.building.campus', 'campus']);
@@ -420,6 +642,7 @@ class NotificationService
         $statusLabel = match ($event) {
             'submitted' => 'Menunggu persetujuan Admin',
             'approved' => 'Disetujui',
+            'cancelled' => 'Persetujuan dibatalkan',
             default => 'Ditolak',
         };
 
@@ -429,6 +652,7 @@ class NotificationService
             'title' => match ($event) {
                 'submitted' => 'Pengajuan Peminjaman Ruangan Baru',
                 'approved' => 'Peminjaman Ruangan Disetujui',
+                'cancelled' => 'Persetujuan Ruangan Dibatalkan',
                 default => 'Peminjaman Ruangan Ditolak',
             },
             'message' => $statusLabel.'. '.$borrowing->borrower_name.' — '.($borrowing->room?->name ?: 'Ruangan').'.',
@@ -443,10 +667,38 @@ class NotificationService
                 'Nomor: '.($borrowing->approval_number ?: '#'.$borrowing->id),
                 'Peminjam: '.$borrowing->borrower_name,
                 'Lokasi: '.($location !== '' ? $location : '—'),
-                'Kegiatan: '.($borrowing->activity_type?->label() ?: '—'),
+                'Kegiatan: '.$borrowing->activityTypeLabel(),
                 'Jadwal: '.$schedule,
                 'Peserta: '.$borrowing->participantText(),
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function vehicleApproverPayload(VehicleBorrowing $borrowing): array
+    {
+        $borrowing->loadMissing(['campus']);
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $schedule = ($borrowing->starts_at?->timezone($tz)->format('d/m/Y H:i') ?: '—')
+            .' – '.($borrowing->ends_at?->timezone($tz)->format('d/m/Y H:i') ?: '—');
+        $campus = $borrowing->campus?->name ?: '—';
+        $destination = $borrowing->destination ?: '—';
+
+        return [
+            'type' => 'vehicle_submitted',
+            'kind' => 'kendaraan',
+            'title' => 'Peminjaman Kendaraan Baru',
+            'message' => $borrowing->borrower_name
+                .' mengajukan peminjaman kendaraan menuju '.$destination
+                .' dari '.$campus.'. Status: Menunggu Persetujuan. Jadwal: '.$schedule.'.',
+            'subject' => '#'.$borrowing->id,
+            'subtitle' => $destination,
+            'summary' => $schedule,
+            'campus' => $campus,
+            'url' => route('vehicle-borrowings.show', $borrowing, false),
+            'vehicle_borrowing_id' => $borrowing->id,
         ];
     }
 
@@ -470,6 +722,7 @@ class NotificationService
         $statusLabel = match ($event) {
             'submitted' => 'Menunggu persetujuan Admin — kendaraan belum ditugaskan',
             'approved' => 'Disetujui',
+            'cancelled' => 'Persetujuan dibatalkan',
             default => 'Ditolak',
         };
 
@@ -490,6 +743,9 @@ class NotificationService
                 $lines[] = 'Pengemudi: '.$borrowing->driver->name;
             }
         }
+        if ($event === 'cancelled' && filled($borrowing->cancellation_reason)) {
+            $lines[] = 'Alasan: '.$borrowing->cancellation_reason;
+        }
 
         return [
             'type' => 'vehicle_'.$event,
@@ -497,6 +753,7 @@ class NotificationService
             'title' => match ($event) {
                 'submitted' => 'Pengajuan Peminjaman Kendaraan Baru',
                 'approved' => 'Peminjaman Kendaraan Disetujui',
+                'cancelled' => 'Persetujuan Kendaraan Dibatalkan',
                 default => 'Peminjaman Kendaraan Ditolak',
             },
             'message' => $statusLabel.'. Tujuan: '.($borrowing->destination ?: '—').'.',
@@ -749,5 +1006,63 @@ class NotificationService
             ->where('created_at', '>=', now()->subDays($withinDays))
             ->where("data->{$dataKey}", $dataValue)
             ->exists();
+    }
+
+    protected function alreadyNotifiedForEvent(
+        User $user,
+        string $referenceKey,
+        int $referenceId,
+        string $event,
+        int $withinDays = 1,
+    ): bool {
+        return $user->notifications()
+            ->where('type', OperationalBorrowingNotification::class)
+            ->where('created_at', '>=', now()->subDays($withinDays))
+            ->where("data->{$referenceKey}", $referenceId)
+            ->where('data->event', $event)
+            ->exists();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected function vehicleDriverAssignmentPayload(VehicleBorrowing $borrowing): array
+    {
+        $borrowing->loadMissing(['campus', 'route', 'vehicle', 'driver.user', 'approvedBy']);
+        $tz = (string) config('app.timezone', 'Asia/Jakarta');
+        $schedule = ($borrowing->starts_at?->timezone($tz)->format('d/m/Y H:i') ?: '—')
+            .' – '.($borrowing->ends_at?->timezone($tz)->format('d/m/Y H:i') ?: '—');
+
+        $lines = [
+            'Anda ditugaskan sebagai Driver untuk peminjaman kendaraan operasional.',
+            'Nomor: '.($borrowing->approval_number ?: '#'.$borrowing->id),
+            'Peminjam: '.$borrowing->borrower_name,
+            'Telepon peminjam: '.($borrowing->borrower_phone ?: '—'),
+            'Unit: '.($borrowing->unit ?: '—'),
+            'Kampus: '.($borrowing->campus?->name ?: '—'),
+            'Rute: '.($borrowing->origin ?: ($borrowing->route?->name ?: '—')),
+            'Tujuan: '.($borrowing->destination ?: '—'),
+            'Jadwal: '.$schedule,
+            'Jenis: '.($borrowing->assigned_service?->label() ?: ($borrowing->service_type?->label() ?: '—')),
+            'Kendaraan: '.($borrowing->vehicle?->label() ?: '—'),
+            'Ditetapkan oleh: '.($borrowing->approvedBy?->name ?: '—'),
+        ];
+        if ($borrowing->destinationMapsUrl()) {
+            $lines[] = 'Google Maps: '.$borrowing->destinationMapsUrl();
+        }
+
+        return [
+            'type' => 'vehicle_driver_assigned',
+            'kind' => 'kendaraan',
+            'title' => 'Penugasan Pengemudi',
+            'message' => 'Anda ditugaskan mengantar '.$borrowing->borrower_name.' ke '.($borrowing->destination ?: 'tujuan').'.',
+            'subject' => $borrowing->approval_number ?: '#'.$borrowing->id,
+            'subtitle' => $borrowing->borrower_name,
+            'summary' => $schedule,
+            'url' => route('vehicle-borrowings.show', $borrowing, false),
+            'vehicle_borrowing_id' => $borrowing->id,
+            'mail_subject' => '[LOADOUT] Penugasan pengemudi peminjaman kendaraan',
+            'mail_lines' => $lines,
+        ];
     }
 }

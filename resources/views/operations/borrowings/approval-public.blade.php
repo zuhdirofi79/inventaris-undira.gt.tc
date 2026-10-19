@@ -50,6 +50,7 @@
             <table class="table table-sm mb-3">
                 <tr><th style="width:40%">Nama Peminjam</th><td>{{ $borrowing->borrower_name }}</td></tr>
                 <tr><th>Email</th><td>{{ $borrowing->borrower_email ?? '—' }}</td></tr>
+                <tr><th>Unit</th><td>{{ $borrowing->borrower_affiliation ?: '—' }}</td></tr>
                 <tr><th>Tanggal Pinjam</th><td>{{ $borrowing->plannedScheduleText('borrow_date') }}</td></tr>
                 <tr><th>Tanggal Kembali</th><td>{{ $borrowing->plannedScheduleText('expected_return_date') }}</td></tr>
                 <tr><th>Jumlah Item</th><td>{{ isset($items) && $items->count() ? $items->count() : ($item ? 1 : 0) }}</td></tr>

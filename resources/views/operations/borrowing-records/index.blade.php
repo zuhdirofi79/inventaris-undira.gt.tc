@@ -73,6 +73,8 @@
                         <th>Barang / Ruangan / Tujuan</th>
                         <th>Lokasi Kampus</th>
                         <th>Peminjam</th>
+                        <th>Unit</th>
+                        <th>Tanggal &amp; Waktu Pengajuan</th>
                         <th>Mulai</th>
                         <th>Selesai</th>
                         <th>Status</th>
@@ -93,6 +95,14 @@
                             <td>{{ $record['subject'] }}</td>
                             <td>{{ $record['campus'] }}</td>
                             <td>{{ $record['borrower'] }}</td>
+                            <td>{{ $record['unit'] ?? '—' }}</td>
+                            <td>
+                                @if(!empty($record['submitted_at']))
+                                    {{ $record['submitted_at']->timezone(config('app.timezone'))->format('d/m/Y H:i') }}
+                                @else
+                                    —
+                                @endif
+                            </td>
                             <td>{{ $record['starts_at'] ?? '—' }}</td>
                             <td>{{ $record['ends_at'] ?? '—' }}</td>
                             <td>
@@ -120,7 +130,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="text-center text-muted py-4">
+                            <td colspan="11" class="text-center text-muted py-4">
                                 @if($kind !== '' || $campusId !== '' || $status !== '' || $search !== '' || ($dateFrom ?? '') !== '' || ($dateTo ?? '') !== '')
                                     Tidak ada peminjaman yang sesuai dengan filter.
                                 @else

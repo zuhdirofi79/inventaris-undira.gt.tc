@@ -3,8 +3,9 @@
 namespace App\Models;
 
 use App\Enums\FacilityRequestStatus;
-use App\Enums\RoomActivityType;
+use App\Models\Concerns\TracksApprovalCancellation;
 use App\Models\Concerns\TracksTrashMeta;
+use App\Support\ApprovalCancellationWindow;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class RoomBorrowing extends Model
 {
     use SoftDeletes;
+    use TracksApprovalCancellation;
     use TracksTrashMeta;
 
     protected $fillable = [
@@ -21,6 +23,7 @@ class RoomBorrowing extends Model
         'borrower_name',
         'borrower_email',
         'borrower_phone',
+        'borrower_affiliation',
         'activity_type',
         'purpose',
         'documentation_url',
@@ -47,6 +50,9 @@ class RoomBorrowing extends Model
         'approved_at',
         'rejected_at',
         'rejection_reason',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
         'approval_number',
     ];
 
@@ -57,8 +63,8 @@ class RoomBorrowing extends Model
             'ends_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'status' => FacilityRequestStatus::class,
-            'activity_type' => RoomActivityType::class,
             'uses_budget' => 'boolean',
             'participant_internal' => 'boolean',
             'participant_external' => 'boolean',
@@ -75,6 +81,42 @@ class RoomBorrowing extends Model
     public function campus(): BelongsTo
     {
         return $this->belongsTo(Campus::class);
+    }
+
+    public function activityTypeOption(): BelongsTo
+    {
+        return $this->belongsTo(RoomActivityType::class, 'activity_type', 'code');
+    }
+
+    public function activityTypeLabel(): string
+    {
+        if ($this->relationLoaded('activityTypeOption') && $this->activityTypeOption) {
+            return $this->activityTypeOption->name;
+        }
+
+        return RoomActivityType::labelFor(
+            is_string($this->activity_type) ? $this->activity_type : null
+        );
+    }
+
+    public function budgetTypeOption(): BelongsTo
+    {
+        return $this->belongsTo(RoomBudgetType::class, 'budget_type', 'code');
+    }
+
+    public function budgetDisplayLabel(): string
+    {
+        if (! $this->uses_budget) {
+            return 'Tidak menggunakan anggaran';
+        }
+
+        if ($this->relationLoaded('budgetTypeOption') && $this->budgetTypeOption) {
+            return $this->budgetTypeOption->name;
+        }
+
+        return RoomBudgetType::labelFor(
+            is_string($this->budget_type) ? $this->budget_type : null
+        );
     }
 
     public function requestedBy(): BelongsTo
@@ -110,6 +152,42 @@ class RoomBorrowing extends Model
         $moment ??= now();
 
         return $this->ends_at !== null && $this->ends_at->lt($moment);
+    }
+
+    public function hasStarted(?CarbonInterface $moment = null): bool
+    {
+        $moment ??= now();
+
+        return $this->starts_at !== null && $this->starts_at->lte($moment);
+    }
+
+    public function canCancelApproval(?CarbonInterface $moment = null): bool
+    {
+        return $this->status === FacilityRequestStatus::Disetujui
+            && $this->cancelled_at === null
+            && $this->isWithinApprovalCancelWindow($moment)
+            && ! $this->hasStarted($moment);
+    }
+
+    public function approvalCancelBlockReason(?CarbonInterface $moment = null): ?string
+    {
+        if ($this->status === FacilityRequestStatus::PersetujuanDibatalkan || $this->cancelled_at !== null) {
+            return 'Persetujuan sudah dibatalkan.';
+        }
+
+        if ($this->status !== FacilityRequestStatus::Disetujui) {
+            return 'Hanya peminjaman yang berstatus Disetujui yang dapat dibatalkan.';
+        }
+
+        if ($this->hasStarted($moment)) {
+            return 'Jadwal ruangan sudah dimulai atau sedang berlangsung; pembatalan tidak diizinkan.';
+        }
+
+        if (! $this->isWithinApprovalCancelWindow($moment)) {
+            return ApprovalCancellationWindow::remainingLabel($this->approved_at, $moment);
+        }
+
+        return null;
     }
 
     public function participantInternalCount(): int

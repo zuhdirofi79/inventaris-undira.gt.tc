@@ -159,6 +159,7 @@ class VehicleDestinationMapsUrlTest extends TestCase
             'borrower_name' => 'Pemohon Maps',
             'borrower_email' => 'pemohon.maps@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'unit' => 'PPPA',
             'purpose' => 'Perjalanan dinas',
             'service_type' => 'drop_off',
             'destination' => 'Grogol, Jakarta Barat',

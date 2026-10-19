@@ -32,6 +32,8 @@
             <dd class="col-sm-9">{{ $borrowing->borrower_email }}</dd>
             <dt class="col-sm-3">Telepon</dt>
             <dd class="col-sm-9">{{ $borrowing->borrower_phone }}</dd>
+            <dt class="col-sm-3">Unit</dt>
+            <dd class="col-sm-9">{{ $borrowing->unit ?: '—' }}</dd>
             <dt class="col-sm-3">Lokasi peminjaman</dt>
             <dd class="col-sm-9">{{ $borrowing->campus?->name ?: '—' }}</dd>
             <dt class="col-sm-3">Rute</dt>
@@ -76,7 +78,13 @@
                 @elseif($borrowing->vehicle || $borrowing->driver)
                     {{ $borrowing->vehicle?->label() ?: '—' }}
                     @if($borrowing->driver)
-                        <div>Pengemudi: {{ $borrowing->driver->label() }}</div>
+                        <div>Pengemudi: {{ $borrowing->driver->displayName() }}
+                            @if($borrowing->driver->displayPhone())
+                                · {{ $borrowing->driver->displayPhone() }}
+                            @else
+                                · <span class="text-muted">telepon belum tersedia</span>
+                            @endif
+                        </div>
                     @endif
                 @else
                     Belum ditetapkan
@@ -95,11 +103,27 @@
                     'downloadUrl' => route('vehicle-borrowings.document', $borrowing),
                 ])
             </dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Pengajuan</dt>
+            <dd class="col-sm-9">{{ $borrowing->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Status Approval</dt>
+            <dd class="col-sm-9"><span class="badge bg-{{ $borrowing->displayColor() }}">{{ $borrowing->displayLabel() }}</span></dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Approval</dt>
+            <dd class="col-sm-9">{{ $borrowing->approved_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Tanggal &amp; Waktu Penolakan</dt>
+            <dd class="col-sm-9">{{ $borrowing->rejected_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
             <dt class="col-sm-3">Admin</dt>
             <dd class="col-sm-9">{{ $borrowing->approvedBy?->name ?: '—' }}</dd>
             @if($borrowing->rejection_reason)
                 <dt class="col-sm-3">Alasan penolakan</dt>
                 <dd class="col-sm-9">{{ $borrowing->rejection_reason }}</dd>
+            @endif
+            <dt class="col-sm-3">Tanggal &amp; Waktu Pembatalan</dt>
+            <dd class="col-sm-9">{{ $borrowing->cancelled_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</dd>
+            <dt class="col-sm-3">Dibatalkan Oleh</dt>
+            <dd class="col-sm-9">{{ $borrowing->cancelledBy?->name ?: '—' }}</dd>
+            @if($borrowing->cancellation_reason)
+                <dt class="col-sm-3">Alasan pembatalan</dt>
+                <dd class="col-sm-9">{{ $borrowing->cancellation_reason }}</dd>
             @endif
         </dl>
     </div>

@@ -1,8 +1,12 @@
 @extends('layouts.app')
 
 @php
+    use App\Enums\FacilityRequestStatus;
+    use App\Support\ApprovalCancellationWindow;
+
     $isApproval = $mode === 'approvals';
     $title = $isApproval ? 'Approval Kendaraan' : 'Riwayat Approval Kendaraan';
+    $tz = (string) config('app.timezone');
 @endphp
 
 @section('title', $title.' - Inventaris UNDIRA')
@@ -32,6 +36,7 @@
             'statuses' => $isApproval ? [] : [
                 ['value' => 'disetujui', 'label' => 'Disetujui'],
                 ['value' => 'ditolak', 'label' => 'Ditolak'],
+                ['value' => 'persetujuan_dibatalkan', 'label' => 'Persetujuan Dibatalkan'],
                 ['value' => 'selesai', 'label' => 'Selesai'],
             ],
         ])
@@ -45,6 +50,10 @@
                         <th>Layanan</th>
                         <th>Kampus</th>
                         <th>Jadwal</th>
+                        @unless($isApproval)
+                            <th>Tanggal &amp; Waktu Pengajuan</th>
+                            <th>Tanggal &amp; Waktu Keputusan</th>
+                        @endunless
                         <th>Status</th>
                         <th>Diproses</th>
                         <th>Aksi</th>
@@ -52,6 +61,16 @@
                 </thead>
                 <tbody>
                     @forelse($borrowings as $borrowing)
+                        @php
+                            $decisionAt = $borrowing->decisionTimestamp();
+                            $canCancel = ! $isApproval
+                                && $borrowing->status === FacilityRequestStatus::Disetujui
+                                && $borrowing->canCancelApproval();
+                            $showExpired = ! $isApproval
+                                && $borrowing->status === FacilityRequestStatus::Disetujui
+                                && ! $canCancel
+                                && $borrowing->approved_at;
+                        @endphp
                         <tr>
                             <td>
                                 @if($borrowing->approval_number)
@@ -71,27 +90,41 @@
                             </td>
                             <td>{{ $borrowing->campus?->name ?: '—' }}</td>
                             <td>{{ $borrowing->scheduleText() }}</td>
+                            @unless($isApproval)
+                                <td>{{ $borrowing->created_at?->timezone($tz)->format('d/m/Y H:i') ?? '—' }}</td>
+                                <td>{{ $decisionAt ? $decisionAt->timezone($tz)->format('d/m/Y H:i') : '—' }}</td>
+                            @endunless
                             <td>
                                 <span class="badge bg-{{ $borrowing->displayColor() }}">{{ $borrowing->displayLabel() }}</span>
-                                @if($borrowing->rejection_reason)
+                                @if($borrowing->cancellation_reason)
+                                    <div class="small text-muted mt-1">{{ $borrowing->cancellation_reason }}</div>
+                                @elseif($borrowing->rejection_reason)
                                     <div class="small text-muted mt-1">{{ $borrowing->rejection_reason }}</div>
                                 @endif
                             </td>
                             <td>
-                                {{ $borrowing->approvedBy?->name ?: '—' }}
-                                @php $decidedAt = $borrowing->approved_at ?? $borrowing->rejected_at; @endphp
-                                <div class="small text-muted">{{ $decidedAt ? $decidedAt->timezone(config('app.timezone'))->format('d/m/Y H:i') : '—' }}</div>
+                                {{ $borrowing->cancelledBy?->name ?: ($borrowing->approvedBy?->name ?: '—') }}
+                                <div class="small text-muted">{{ $decisionAt ? $decisionAt->timezone($tz)->format('d/m/Y H:i') : '—' }}</div>
                             </td>
                             <td class="text-end">
                                 @include('partials.approval-history-actions', [
                                     'detailUrl' => route('vehicle-borrowings.show', $borrowing),
                                     'documentUrl' => $borrowing->supporting_document_path ? route('vehicle-borrowings.document.preview', $borrowing) : null,
                                     'receiptPdfUrl' => $borrowing->approval_number ? route('vehicle-borrowings.receipt.pdf', $borrowing) : null,
+                                    'canCancel' => $canCancel,
+                                    'cancelUrl' => route('vehicle-borrowings.cancel-approval', $borrowing),
+                                    'kindLabel' => 'Peminjaman Kendaraan Operasional',
+                                    'number' => $borrowing->approval_number ?: '#'.$borrowing->id,
+                                    'borrower' => $borrowing->borrower_name,
+                                    'approvedAt' => $borrowing->approved_at,
+                                    'modalId' => 'cancelVehicle'.$borrowing->id,
+                                    'showExpiredHint' => $showExpired,
+                                    'expiredHint' => ApprovalCancellationWindow::remainingLabel($borrowing->approved_at),
                                 ])
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="8" class="text-center text-muted py-4">Tidak ada pengajuan kendaraan.</td></tr>
+                        <tr><td colspan="{{ $isApproval ? 8 : 10 }}" class="text-center text-muted py-4">Tidak ada pengajuan kendaraan.</td></tr>
                     @endforelse
                 </tbody>
             </table>

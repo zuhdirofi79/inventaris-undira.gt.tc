@@ -34,11 +34,13 @@
                 <th>Nomor Approval</th>
                 <th>Nomor Pengajuan</th>
                 <th>Peminjam</th>
+                <th>Unit</th>
                 <th>Kampus</th>
                 <th>Jenis Layanan</th>
                 <th>Tujuan</th>
                 <th>Kendaraan</th>
                 <th>Driver</th>
+                <th>Penumpang</th>
                 <th>Mulai</th>
                 <th>Selesai</th>
                 <th>Status</th>
@@ -52,11 +54,13 @@
                     <td>{{ $b->approval_number ?? '—' }}</td>
                     <td>PKD-{{ str_pad((string) $b->id, 6, '0', STR_PAD_LEFT) }}</td>
                     <td>{{ $b->borrower_name }}</td>
+                    <td>{{ $b->unit ?: '—' }}</td>
                     <td>{{ $b->campus?->name ?? '—' }}</td>
                     <td>{{ $b->service_type?->label() ?? '—' }}</td>
                     <td>{{ $b->tripText() }}</td>
                     <td>{{ $b->vehicle?->label() ?? '—' }}</td>
                     <td>{{ $b->driver?->name ?? '—' }}</td>
+                    <td>{{ max(0, (int) $b->passenger_count) }}</td>
                     <td>{{ $b->starts_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
                     <td>{{ $b->ends_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?? '—' }}</td>
                     <td>{{ $b->displayLabel() }}</td>
@@ -64,7 +68,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="13" class="text-center">Tidak ada data untuk filter ini.</td>
+                    <td colspan="15" class="text-center">Tidak ada data untuk filter ini.</td>
                 </tr>
             @endforelse
         </tbody>

@@ -28,6 +28,7 @@ class StoreVehicleBorrowingRequest extends FormRequest
         $maps = trim((string) $this->input('destination_maps_url', ''));
         $this->merge([
             'destination_maps_url' => $maps !== '' ? $maps : null,
+            'unit' => trim(strip_tags((string) $this->input('unit', ''))),
         ]);
     }
 
@@ -38,7 +39,7 @@ class StoreVehicleBorrowingRequest extends FormRequest
             'borrower_name' => ['required', 'string', 'max:255'],
             'borrower_email' => ['required', 'email', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
-            'unit' => ['nullable', 'string', 'max:255'],
+            'unit' => ['required', 'string', 'max:255'],
             'route_id' => ['required', 'integer'],
             'destination' => ['required', 'string', 'max:255'],
             'destination_maps_url' => ['nullable', 'string', 'max:2048', 'url:http,https', new GoogleMapsUrl],
@@ -85,6 +86,8 @@ class StoreVehicleBorrowingRequest extends FormRequest
                 ? 'Format email tidak valid.'
                 : 'Email akun Anda tidak valid. Perbarui profil sebelum mengajukan peminjaman.',
             'borrower_phone.required' => 'Nomor Telepon / No. HP wajib diisi.',
+            'unit.required' => 'Kolom Unit wajib diisi.',
+            'unit.max' => 'Kolom Unit maksimal 255 karakter.',
             'route_id.required' => 'Rute wajib dipilih.',
             'destination.required' => 'Tujuan wajib diisi.',
             'destination_maps_url.url' => 'Link Google Maps Tujuan harus berupa URL yang valid.',

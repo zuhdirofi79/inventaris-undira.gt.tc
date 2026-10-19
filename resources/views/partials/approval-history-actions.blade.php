@@ -1,4 +1,4 @@
-<div class="d-inline-flex flex-wrap gap-1">
+<div class="d-inline-flex flex-wrap gap-1 justify-content-end align-items-center">
     <a href="{{ $detailUrl }}" class="btn btn-sm btn-outline-primary" title="Lihat Detail" aria-label="Lihat Detail">
         <i class="fas fa-eye" aria-hidden="true"></i>
     </a>
@@ -12,4 +12,15 @@
             <i class="fas fa-file-pdf" aria-hidden="true"></i>
         </a>
     @endif
+    @include('partials.cancel-approval-button', [
+        'canCancel' => $canCancel ?? false,
+        'cancelUrl' => $cancelUrl ?? null,
+        'kindLabel' => $kindLabel ?? null,
+        'number' => $number ?? null,
+        'borrower' => $borrower ?? null,
+        'approvedAt' => $approvedAt ?? null,
+        'modalId' => $modalId ?? null,
+        'showExpiredHint' => $showExpiredHint ?? false,
+        'expiredHint' => $expiredHint ?? null,
+    ])
 </div>

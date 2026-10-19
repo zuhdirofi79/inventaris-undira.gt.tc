@@ -54,7 +54,10 @@ use App\Http\Controllers\TeknisiDashboardController;
 use App\Http\Controllers\TrashController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VehicleBorrowingController;
+use App\Http\Controllers\RoomActivityTypeController;
+use App\Http\Controllers\RoomBudgetTypeController;
 use App\Http\Controllers\VehicleFleetController;
+use App\Http\Controllers\ReceiptVerificationController;
 use App\Http\Controllers\VendorController;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +66,13 @@ Route::get('/', fn () => redirect()->route('login'));
 Route::get('/scan/{inventoryNumber}', [InventoryQrController::class, 'scan'])
     ->middleware('throttle:60,1')
     ->name('inventory.scan');
+
+Route::get('/verify/receipt/{kind}/{id}/{purpose}', [ReceiptVerificationController::class, 'show'])
+    ->middleware(['signed', 'throttle:60,1'])
+    ->whereIn('kind', ['inventaris', 'ruangan', 'kendaraan'])
+    ->whereIn('purpose', ['borrower', 'approval'])
+    ->whereNumber('id')
+    ->name('receipt.verify');
 
 Route::get('/borrowing/approval/{approvalNumber}', [BorrowingApprovalPublicController::class, 'show'])
     ->where('approvalNumber', 'APR-\d{8}-\d{6}')
@@ -362,6 +372,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
     Route::middleware('permission:borrowing.approve')->group(function () {
         Route::post('/borrowings/{borrowing}/approve', [BorrowingController::class, 'approve'])->name('borrowings.approve');
         Route::post('/borrowings/{borrowing}/reject', [BorrowingController::class, 'reject'])->name('borrowings.reject');
+        Route::post('/borrowings/{borrowing}/cancel-approval', [BorrowingController::class, 'cancelApproval'])->name('borrowings.cancel-approval');
         Route::post('/borrowings/{borrowing}/save-approvals', [BorrowingController::class, 'saveApprovals'])->name('borrowings.save-approvals');
         Route::post('/borrowings/{borrowing}/items/{borrowingItem}/approve', [BorrowingController::class, 'approveItem'])->name('borrowings.items.approve');
         Route::post('/borrowings/{borrowing}/items/{borrowingItem}/reject', [BorrowingController::class, 'rejectItem'])->name('borrowings.items.reject');
@@ -393,6 +404,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/room-borrowings/approvals', [RoomBorrowingController::class, 'approvals'])->name('room-borrowings.approvals');
         Route::get('/room-borrowings/approval-history', [RoomBorrowingController::class, 'history'])->name('room-borrowings.history');
         Route::post('/room-borrowings/{roomBorrowing}/decide', [RoomBorrowingController::class, 'decide'])->name('room-borrowings.decide');
+        Route::post('/room-borrowings/{roomBorrowing}/cancel-approval', [RoomBorrowingController::class, 'cancelApproval'])->name('room-borrowings.cancel-approval');
     });
     Route::middleware('permission:room-borrowing.view')->group(function () {
         Route::get('/room-borrowings/{roomBorrowing}/approval', [RoomBorrowingController::class, 'approval'])->name('room-borrowings.approval');
@@ -416,6 +428,20 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::post('/routes', [VehicleFleetController::class, 'storeRoute'])->name('routes.store');
         Route::put('/routes/{route}', [VehicleFleetController::class, 'updateRoute'])->name('routes.update');
     });
+
+    Route::middleware('permission:room-activity-types.manage')->prefix('room-activity-types')->name('room-activity-types.')->group(function () {
+        Route::get('/', [RoomActivityTypeController::class, 'index'])->name('index');
+        Route::post('/', [RoomActivityTypeController::class, 'store'])->name('store');
+        Route::put('/{roomActivityType}', [RoomActivityTypeController::class, 'update'])->name('update');
+        Route::delete('/{roomActivityType}', [RoomActivityTypeController::class, 'destroy'])->name('destroy');
+    });
+
+    Route::middleware('permission:room-budget-types.manage')->prefix('room-budget-types')->name('room-budget-types.')->group(function () {
+        Route::get('/', [RoomBudgetTypeController::class, 'index'])->name('index');
+        Route::post('/', [RoomBudgetTypeController::class, 'store'])->name('store');
+        Route::put('/{roomBudgetType}', [RoomBudgetTypeController::class, 'update'])->name('update');
+        Route::delete('/{roomBudgetType}', [RoomBudgetTypeController::class, 'destroy'])->name('destroy');
+    });
     Route::middleware('permission:vehicle-borrowing.create')->group(function () {
         Route::get('/vehicle-borrowings/create', [VehicleBorrowingController::class, 'create'])->name('vehicle-borrowings.create');
         Route::post('/vehicle-borrowings', [VehicleBorrowingController::class, 'store'])->name('vehicle-borrowings.store');
@@ -424,6 +450,7 @@ Route::middleware(['auth', 'password.changed'])->group(function () {
         Route::get('/vehicle-borrowings/approvals', [VehicleBorrowingController::class, 'approvals'])->name('vehicle-borrowings.approvals');
         Route::get('/vehicle-borrowings/approval-history', [VehicleBorrowingController::class, 'history'])->name('vehicle-borrowings.history');
         Route::post('/vehicle-borrowings/{vehicleBorrowing}/decide', [VehicleBorrowingController::class, 'decide'])->name('vehicle-borrowings.decide');
+        Route::post('/vehicle-borrowings/{vehicleBorrowing}/cancel-approval', [VehicleBorrowingController::class, 'cancelApproval'])->name('vehicle-borrowings.cancel-approval');
     });
     Route::middleware('permission:vehicle-borrowing.view')->group(function () {
         Route::get('/vehicle-borrowings/{vehicleBorrowing}/approval', [VehicleBorrowingController::class, 'approval'])->name('vehicle-borrowings.approval');

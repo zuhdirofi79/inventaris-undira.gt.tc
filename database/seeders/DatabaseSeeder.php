@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             RolePermissionSeeder::class,
             SuperAdminSeeder::class,
             DefaultUsersSeeder::class,
+            DriverTestUsersSeeder::class,
             CampusSeeder::class,
             CategorySeeder::class,
             SupplierVendorSeeder::class,

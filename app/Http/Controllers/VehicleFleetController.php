@@ -5,19 +5,35 @@ namespace App\Http\Controllers;
 use App\Models\OperationalDriver;
 use App\Models\OperationalRoute;
 use App\Models\OperationalVehicle;
+use App\Models\User;
+use App\Services\OperationalDriverDirectory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class VehicleFleetController extends Controller
 {
+    public function __construct(
+        private readonly OperationalDriverDirectory $drivers,
+    ) {}
+
     public function index(): View
     {
+        $roster = $this->drivers->masterList();
+        $linkableUsers = User::query()
+            ->role(OperationalDriverDirectory::ROLE)
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'email', 'phone']);
+
         return view('operations.vehicle-fleet.index', [
             'vehicles' => OperationalVehicle::query()->orderBy('name')->get(),
-            'drivers' => OperationalDriver::query()->orderBy('name')->get(),
+            'drivers' => $roster,
             'routes' => OperationalRoute::query()->orderBy('name')->get(),
+            'linkableDriverUsers' => $linkableUsers,
+            'usersManageUrl' => route('admin.users.index'),
         ]);
     }
 
@@ -69,37 +85,65 @@ class VehicleFleetController extends Controller
         return redirect()->route('vehicle-fleet.index')->with('success', 'Data kendaraan diperbarui.');
     }
 
+    /**
+     * Link / refresh a User (role Driver) into the operational driver roster.
+     * Does not create orphan driver identities — source of truth is the user account.
+     */
     public function storeDriver(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'user_id' => ['required', 'integer', 'exists:users,id'],
             'phone' => ['nullable', 'string', 'max:50'],
         ], [
-            'name.required' => 'Nama pengemudi wajib diisi.',
+            'user_id.required' => 'Pilih akun Driver yang akan ditampilkan sebagai pengemudi.',
+            'user_id.exists' => 'Akun Driver tidak ditemukan.',
         ]);
 
-        OperationalDriver::query()->create($data + ['is_active' => true]);
+        $user = User::query()->findOrFail((int) $data['user_id']);
+        if (! $user->hasRole(OperationalDriverDirectory::ROLE)) {
+            throw ValidationException::withMessages([
+                'user_id' => 'Akun yang dipilih tidak memiliki role Driver.',
+            ]);
+        }
+        if (! $user->is_active) {
+            throw ValidationException::withMessages([
+                'user_id' => 'Akun Driver nonaktif tidak dapat ditambahkan ke roster penugasan.',
+            ]);
+        }
 
-        return redirect()->route('vehicle-fleet.index')->with('success', 'Pengemudi ditambahkan.');
+        $this->drivers->ensureForUser($user, $data['phone'] ?? null);
+
+        return redirect()->route('vehicle-fleet.index')->with('success', 'Pengemudi disinkronkan dari akun Driver.');
     }
 
     public function updateDriver(Request $request, OperationalDriver $driver): RedirectResponse
     {
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'is_active' => ['required', Rule::in(['0', '1'])],
-        ], [
-            'name.required' => 'Nama pengemudi wajib diisi.',
         ]);
 
-        $driver->update([
-            'name' => $data['name'],
-            'phone' => $data['phone'] ?? null,
-            'is_active' => $data['is_active'] === '1',
-        ]);
+        if (! $driver->user_id) {
+            // Legacy orphan row: keep limited phone/active edit for historical cleanup only.
+            $legacy = $request->validate([
+                'name' => ['required', 'string', 'max:255'],
+                'phone' => ['nullable', 'string', 'max:50'],
+                'is_active' => ['required', Rule::in(['0', '1'])],
+            ], [
+                'name.required' => 'Nama pengemudi wajib diisi.',
+            ]);
+            $driver->update([
+                'name' => $legacy['name'],
+                'phone' => $legacy['phone'] ?? null,
+                'is_active' => $legacy['is_active'] === '1',
+            ]);
 
-        return redirect()->route('vehicle-fleet.index')->with('success', 'Data pengemudi diperbarui.');
+            return redirect()->route('vehicle-fleet.index')->with('success', 'Data pengemudi lama diperbarui.');
+        }
+
+        $user = $driver->user()->firstOrFail();
+        $this->drivers->ensureForUser($user, $data['phone'] ?? (string) ($user->phone ?? ''));
+
+        return redirect()->route('vehicle-fleet.index')->with('success', 'Nomor telepon akun Driver diperbarui.');
     }
 
     public function storeRoute(Request $request): RedirectResponse

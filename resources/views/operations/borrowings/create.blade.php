@@ -37,6 +37,7 @@
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
+                @include('partials.borrower-affiliation-field', ['feedbackClass' => 'invalid-feedback d-block'])
                 <div class="col-12">
                     <div class="row">
                         <div class="col-12 col-md-6 mb-3">

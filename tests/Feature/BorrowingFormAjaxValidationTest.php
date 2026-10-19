@@ -49,6 +49,7 @@ class BorrowingFormAjaxValidationTest extends TestCase
                 'borrower_name' => 'Azwar Syifa',
                 'borrower_email' => 'azwar@undira.ac.id',
                 'borrower_phone' => '081234567890',
+                'unit' => 'PPPA',
                 'destination' => 'Undira Tandur',
                 'purpose' => 'Kunjungan',
                 'service_type' => 'round_trip',
@@ -119,6 +120,7 @@ class BorrowingFormAjaxValidationTest extends TestCase
                 'borrower_name' => 'Sari',
                 'borrower_email' => 'sari@undira.ac.id',
                 'borrower_phone' => '081234567890',
+                'borrower_affiliation' => 'Teknik Perminyakan',
                 'activity_type' => 'rapat',
                 'purpose' => 'Rapat koordinasi persiapan kegiatan universitas',
                 'participant_internal' => '1',
@@ -136,22 +138,24 @@ class BorrowingFormAjaxValidationTest extends TestCase
 
     public function test_inventory_ajax_create_form_is_wired_and_rejects_invalid_schedule(): void
     {
-        $admin = $this->makeAdmin(['email' => 'ajax.admin@undira.ac.id']);
+        $viewer = $this->makeViewer(['email' => 'ajax.viewer@undira.ac.id']);
         $item = $this->item();
 
-        $html = $this->actingAs($admin)->get(route('borrowings.create'))->assertOk()->getContent();
+        $html = $this->actingAs($viewer)->get(route('borrowings.create'))->assertOk()->getContent();
         $this->assertStringContainsString('data-ajax-submit', $html);
         $this->assertStringContainsString('data-error-bag="items"', $html);
-        $this->assertStringContainsString('value="ajax.admin@undira.ac.id"', $html);
+        $this->assertStringContainsString('value="ajax.viewer@undira.ac.id"', $html);
+        $this->assertStringContainsString('name="borrower_affiliation"', $html);
 
-        // Client-supplied invalid email is ignored; schedule validation still returns 422.
-        $this->actingAs($admin)
+        // Client-supplied invalid email is ignored for non-admin; schedule validation still returns 422.
+        $this->actingAs($viewer)
             ->withHeaders($this->ajaxHeaders())
             ->post(route('borrowings.store'), [
                 'inventory_item_ids' => [$item->id],
                 'borrower_name' => 'Peminjam',
                 'borrower_email' => 'bukan-email',
                 'borrower_phone' => '081234567890',
+                'borrower_affiliation' => 'PPPA',
                 'borrow_date' => now()->addDay()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->format('Y-m-d\TH:i'),
                 'notes' => 'Rapat',
@@ -202,6 +206,7 @@ class BorrowingFormAjaxValidationTest extends TestCase
             'borrower_name' => 'Sari Kendaraan',
             'borrower_email' => 'sari.kendaraan@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'unit' => 'BEM Universitas Dian Nusantara',
             'purpose' => 'Antar dokumen',
             'service_type' => 'drop_off',
             'destination' => 'Grogol, Jakarta Barat',

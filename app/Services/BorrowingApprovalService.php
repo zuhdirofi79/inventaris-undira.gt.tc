@@ -6,6 +6,7 @@ use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
 use App\Enums\InventoryStatus;
 use App\Mail\BorrowingApprovedMail;
+use App\Mail\BorrowingCancelledMail;
 use App\Mail\BorrowingPendingAdminMail;
 use App\Mail\BorrowingRejectedMail;
 use App\Models\Borrowing;
@@ -172,6 +173,49 @@ class BorrowingApprovalService
         InventarisCache::flush();
 
         return $borrowing;
+    }
+
+    /**
+     * Cancel a previously approved borrowing within 24 hours of approved_at.
+     * Does not alter rejected item decisions; frees inventory via parent status only.
+     */
+    public function cancelApproval(Borrowing $borrowing, User $admin, string $reason): Borrowing
+    {
+        $reason = trim($reason);
+
+        $saved = DB::transaction(function () use ($borrowing, $admin, $reason) {
+            $locked = Borrowing::query()->whereKey($borrowing->id)->lockForUpdate()->firstOrFail();
+            $locked->load('items');
+
+            $block = $locked->approvalCancelBlockReason();
+            if ($block !== null) {
+                throw ValidationException::withMessages([
+                    'cancellation_reason' => $block,
+                ]);
+            }
+
+            if ($locked->cancelled_at !== null) {
+                throw ValidationException::withMessages([
+                    'cancellation_reason' => 'Persetujuan sudah dibatalkan.',
+                ]);
+            }
+
+            $locked->forceFill([
+                'status' => BorrowingStatus::PersetujuanDibatalkan,
+                'cancelled_at' => now(),
+                'cancelled_by' => $admin->id,
+                'cancellation_reason' => $reason,
+            ])->save();
+
+            return $locked->fresh($this->defaultRelations());
+        });
+
+        InventarisCache::flush();
+
+        $this->notifications->notifyBorrowingApprovalCancelled($saved);
+        $this->sendCancellationMail($saved);
+
+        return $saved;
     }
 
     /**
@@ -806,6 +850,23 @@ class BorrowingApprovalService
                     'error' => $e->getMessage(),
                 ]);
             }
+        }
+    }
+
+    protected function sendCancellationMail(Borrowing $borrowing): void
+    {
+        $email = trim((string) $borrowing->borrower_email);
+        if ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL) === false) {
+            return;
+        }
+
+        try {
+            Mail::to($email)->send(new BorrowingCancelledMail($borrowing));
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengirim email pembatalan approval inventaris.', [
+                'borrowing_id' => $borrowing->id,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 

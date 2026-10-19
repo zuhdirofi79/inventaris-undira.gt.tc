@@ -7,6 +7,7 @@ enum FacilityRequestStatus: string
     case MenungguPersetujuan = 'menunggu_persetujuan';
     case Disetujui = 'disetujui';
     case Ditolak = 'ditolak';
+    case PersetujuanDibatalkan = 'persetujuan_dibatalkan';
 
     public function label(): string
     {
@@ -14,6 +15,7 @@ enum FacilityRequestStatus: string
             self::MenungguPersetujuan => 'Menunggu Persetujuan',
             self::Disetujui => 'Disetujui',
             self::Ditolak => 'Ditolak',
+            self::PersetujuanDibatalkan => 'Persetujuan Dibatalkan',
         };
     }
 
@@ -23,6 +25,7 @@ enum FacilityRequestStatus: string
             self::MenungguPersetujuan => 'warning',
             self::Disetujui => 'success',
             self::Ditolak => 'danger',
+            self::PersetujuanDibatalkan => 'dark',
         };
     }
 

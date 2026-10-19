@@ -614,19 +614,25 @@ body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item.m
   color: #fff !important;
 }
 
-/* Floating submenu (collapsed desktop/tablet rail) */
+/*
+ * Floating submenu (collapsed desktop rail).
+ * AdminLTE hides EVERY .nav-link p with visibility:hidden + fadeOut while
+ * sidebar-collapse is active. Floating panels must explicitly restore
+ * visibility/animation or only icons (and angle chevrons) remain visible.
+ */
 body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item > .nav-treeview {
   display: none !important;
   position: fixed !important;
   left: calc(var(--sidebar-collapsed-width) + 6px) !important;
   top: 0;
-  min-width: 280px;
-  max-width: min(340px, calc(100vw - var(--sidebar-collapsed-width) - 16px));
-  max-height: min(70vh, 480px);
+  min-width: 300px;
+  width: max-content;
+  max-width: min(380px, calc(100vw - var(--sidebar-collapsed-width) - 16px));
+  max-height: min(72vh, 520px);
   overflow-y: auto;
   overflow-x: hidden;
   margin: 0 !important;
-  padding: 0.45rem 0.35rem !important;
+  padding: 0.5rem 0.4rem !important;
   background: var(--sidebar-float-bg) !important;
   border: 1px solid var(--sidebar-float-border);
   border-radius: 12px;
@@ -640,28 +646,94 @@ body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-sidebar > .nav-item.i
   display: block !important;
 }
 
-body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link {
-  margin: 0.15rem 0.2rem !important;
-  padding: 0.55rem 0.75rem !important;
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview > .nav-item > .nav-link {
+  width: auto !important;
+  max-width: 100%;
   min-height: 40px;
+  height: auto !important;
+  margin: 0.12rem 0.15rem !important;
+  padding: 0.5rem 0.7rem !important;
   justify-content: flex-start !important;
+  align-items: center !important;
+  border-radius: 8px !important;
+  color: #f8fafc !important;
 }
 
-body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link > p {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview .nav-treeview > .nav-item > .nav-link {
+  margin-left: 0.75rem !important;
+  padding: 0.42rem 0.65rem !important;
+  min-height: 36px;
+  font-size: 0.8rem;
+}
+
+/*
+ * Defeat AdminLTE:
+ *   .sidebar-mini.sidebar-collapse .sidebar .nav-sidebar .nav-link p
+ *     { width:0; visibility:hidden; animation: fadeOut; }
+ */
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview .nav-link > p,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .sidebar .nav-treeview .nav-link > p,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .sidebar .nav-item.is-float-open .nav-treeview .nav-link p {
   display: block !important;
+  visibility: visible !important;
   width: auto !important;
+  max-width: none !important;
   height: auto !important;
+  min-height: 0 !important;
   opacity: 1 !important;
   overflow: visible !important;
   white-space: normal !important;
   margin: 0 !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
+  line-height: 1.35 !important;
+  color: inherit !important;
+  -webkit-animation: none !important;
+  animation: none !important;
+  -webkit-animation-name: none !important;
+  animation-name: none !important;
+  -webkit-animation-fill-mode: none !important;
+  animation-fill-mode: none !important;
 }
 
-body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-treeview > .nav-item > .nav-link .nav-icon {
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview .nav-link > .nav-icon {
+  display: inline-block !important;
   margin: 0 !important;
   width: 1.05rem !important;
   min-width: 1.05rem !important;
   font-size: 0.86rem !important;
+  flex: 0 0 1.05rem;
+  opacity: 0.95;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview .nav-link > .right,
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview .nav-link > p > .right {
+  display: inline-block !important;
+  visibility: visible !important;
+  width: 0.85rem !important;
+  height: auto !important;
+  opacity: 0.85 !important;
+  margin: 0 0 0 auto !important;
+  -webkit-animation: none !important;
+  animation: none !important;
+}
+
+body.sidebar-mini.sidebar-collapse:not(.sidebar-open) .nav-item.is-float-open .nav-treeview > .nav-item.menu-open > .nav-treeview {
+  display: block !important;
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  min-width: 0;
+  max-width: none;
+  max-height: none;
+  width: auto;
+  margin: 0 !important;
+  padding: 0.15rem 0 0.25rem !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  overflow: visible;
 }
 
 /* Bootstrap tooltips used for collapsed labels */

@@ -4,7 +4,9 @@ namespace App\Models;
 
 use App\Enums\FacilityRequestStatus;
 use App\Enums\VehicleServiceType;
+use App\Models\Concerns\TracksApprovalCancellation;
 use App\Models\Concerns\TracksTrashMeta;
+use App\Support\ApprovalCancellationWindow;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,6 +15,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class VehicleBorrowing extends Model
 {
     use SoftDeletes;
+    use TracksApprovalCancellation;
     use TracksTrashMeta;
 
     protected $fillable = [
@@ -40,6 +43,9 @@ class VehicleBorrowing extends Model
         'approved_at',
         'rejected_at',
         'rejection_reason',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
         'approval_number',
         'supporting_document_path',
         'supporting_document_original_name',
@@ -53,6 +59,7 @@ class VehicleBorrowing extends Model
             'ends_at' => 'datetime',
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'supporting_document_size' => 'integer',
             'passenger_count' => 'integer',
             'passengers' => 'array',
@@ -115,6 +122,42 @@ class VehicleBorrowing extends Model
         $moment ??= now();
 
         return $this->ends_at !== null && $this->ends_at->lt($moment);
+    }
+
+    public function hasStarted(?CarbonInterface $moment = null): bool
+    {
+        $moment ??= now();
+
+        return $this->starts_at !== null && $this->starts_at->lte($moment);
+    }
+
+    public function canCancelApproval(?CarbonInterface $moment = null): bool
+    {
+        return $this->status === FacilityRequestStatus::Disetujui
+            && $this->cancelled_at === null
+            && $this->isWithinApprovalCancelWindow($moment)
+            && ! $this->hasStarted($moment);
+    }
+
+    public function approvalCancelBlockReason(?CarbonInterface $moment = null): ?string
+    {
+        if ($this->status === FacilityRequestStatus::PersetujuanDibatalkan || $this->cancelled_at !== null) {
+            return 'Persetujuan sudah dibatalkan.';
+        }
+
+        if ($this->status !== FacilityRequestStatus::Disetujui) {
+            return 'Hanya peminjaman yang berstatus Disetujui yang dapat dibatalkan.';
+        }
+
+        if ($this->hasStarted($moment)) {
+            return 'Perjalanan atau jadwal kendaraan sudah dimulai; pembatalan tidak diizinkan.';
+        }
+
+        if (! $this->isWithinApprovalCancelWindow($moment)) {
+            return ApprovalCancellationWindow::remainingLabel($this->approved_at, $moment);
+        }
+
+        return null;
     }
 
     public function scheduleText(): string

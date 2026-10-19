@@ -314,7 +314,7 @@ class ApprovalDocumentPreviewTest extends TestCase
             'borrower_name' => 'Peminjam Ruangan',
             'borrower_email' => 'ruangan@undira.ac.id',
             'borrower_phone' => '081234567890',
-            'activity_type' => RoomActivityType::Rapat,
+            'activity_type' => RoomActivityType::Rapat->value,
             'purpose' => 'Rapat koordinasi',
             'starts_at' => now()->addDay(),
             'ends_at' => now()->addDay()->addHours(2),

@@ -10,6 +10,7 @@ enum BorrowingStatus: string
     case Dipinjam = 'dipinjam';
     case Dikembalikan = 'dikembalikan';
     case Terlambat = 'terlambat';
+    case PersetujuanDibatalkan = 'persetujuan_dibatalkan';
 
     public function label(): string
     {
@@ -20,6 +21,7 @@ enum BorrowingStatus: string
             self::Dipinjam => 'Dipinjam',
             self::Dikembalikan => 'Dikembalikan',
             self::Terlambat => 'Terlambat',
+            self::PersetujuanDibatalkan => 'Persetujuan Dibatalkan',
         };
     }
 
@@ -35,6 +37,7 @@ enum BorrowingStatus: string
             self::Dipinjam => 'primary',
             self::Dikembalikan => 'secondary',
             self::Terlambat => 'warning',
+            self::PersetujuanDibatalkan => 'dark',
         };
     }
 

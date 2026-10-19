@@ -5,11 +5,16 @@ namespace App\Services;
 use App\Enums\VehicleServiceType;
 use App\Models\RoomBorrowing;
 use App\Models\VehicleBorrowing;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\URL;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class FacilityReceiptService
 {
+    public function __construct(
+        protected ReceiptVerificationService $verification,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -32,12 +37,14 @@ class FacilityReceiptService
             ['Nama Peminjam', $borrowing->borrower_name],
             ['Email', $borrowing->borrower_email ?: '—'],
             ['Telepon', $borrowing->borrower_phone ?: '—'],
+            ['Unit', $borrowing->borrower_affiliation ?: '—'],
             ['Kampus', $campus],
             ['Gedung', $building?->name ?: '—'],
             ['Lantai', $floor?->name ?: '—'],
             ['Ruangan', $room?->name ?: '—'],
-            ['Jenis Kegiatan', $borrowing->activity_type?->label() ?: '—'],
+            ['Jenis Kegiatan', $borrowing->activityTypeLabel()],
             ['Keperluan', $borrowing->purpose ?: '—'],
+            ['Anggaran', $borrowing->budgetDisplayLabel()],
             ['Peserta Internal', ($borrowing->participant_internal ? $borrowing->participantInternalCount() : 0).' orang'],
             ['Peserta External', ($borrowing->participant_external ? $borrowing->participantExternalCount() : 0).' orang'],
             ['Total Peserta', $borrowing->totalParticipantCount().' orang'],
@@ -51,6 +58,8 @@ class FacilityReceiptService
         }
 
         return $this->envelope(
+            $borrowing,
+            ReceiptVerificationService::KIND_RUANGAN,
             $borrowing->borrower_name,
             $borrowing->displayLabel(),
             $borrowing->displayColor(),
@@ -125,6 +134,8 @@ class FacilityReceiptService
         }
 
         return $this->envelope(
+            $borrowing,
+            ReceiptVerificationService::KIND_KENDARAAN,
             $borrowing->borrower_name,
             $borrowing->displayLabel(),
             $borrowing->displayColor(),
@@ -155,6 +166,8 @@ class FacilityReceiptService
      * @return array<string, mixed>
      */
     private function envelope(
+        Model $model,
+        string $kind,
         string $borrowerName,
         string $statusLabel,
         string $statusColor,
@@ -167,6 +180,9 @@ class FacilityReceiptService
         string $receiptUrl,
         string $pdfUrl,
     ): array {
+        $signature = $this->verification->signatureBlock($kind, $model);
+        $headerQrUrl = $signature['approvalVerifyUrl'] ?? URL::to($detailUrl);
+
         return [
             'borrowerName' => $borrowerName,
             'statusLabel' => $statusLabel,
@@ -177,7 +193,8 @@ class FacilityReceiptService
             'columns' => $columns,
             'lines' => $lines,
             'logoDataUri' => $this->logoDataUri(),
-            'qrDataUri' => $this->qrDataUri($detailUrl),
+            'qrDataUri' => $this->qrDataUri($headerQrUrl),
+            'signature' => $signature,
             'detailUrl' => $detailUrl,
             'receiptUrl' => $receiptUrl,
             'pdfUrl' => $pdfUrl,

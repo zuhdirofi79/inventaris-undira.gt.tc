@@ -66,8 +66,11 @@ class FacilityApprovalConsistencyTest extends TestCase
         $receipt = $this->actingAs($admin)->get(route('room-borrowings.receipt', $room))->assertOk()->getContent();
         $this->assertStringContainsString('Receipt Approval Peminjaman', $receipt);
         $this->assertStringContainsString('Rincian Ruangan', $receipt);
-        $this->assertStringContainsString('Peminjam,', $receipt);
-        $this->assertStringContainsString('(Biro PPPA)', $receipt);
+        $this->assertStringContainsString('PEMINJAM', $receipt);
+        $this->assertStringContainsString('BIRO PPPA', $receipt);
+        $this->assertStringContainsString('Disetujui oleh:', $receipt);
+        $this->assertStringContainsString($admin->name, $receipt);
+        $this->assertStringNotContainsString('(Biro PPPA)', $receipt);
         $this->assertStringContainsString('overflow-wrap: break-word', $receipt);
         $this->assertStringNotContainsString('Nomor Inventaris', $receipt);
         $this->assertStringNotContainsString('ATURAN DAN TANGGUNG JAWAB PEMINJAM', $receipt);
@@ -167,7 +170,7 @@ class FacilityApprovalConsistencyTest extends TestCase
             'borrower_name' => 'Peminjam Ruangan',
             'borrower_email' => 'ruang@undira.ac.id',
             'borrower_phone' => '081234567890',
-            'activity_type' => RoomActivityType::Rapat,
+            'activity_type' => RoomActivityType::Rapat->value,
             'purpose' => 'Rapat koordinasi',
             'starts_at' => now()->addDay(),
             'ends_at' => now()->addDay()->addHours(2),

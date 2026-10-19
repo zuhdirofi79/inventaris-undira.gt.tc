@@ -6,6 +6,7 @@
 <ul>
     <li>Nomor: {{ $borrowing->approval_number ?: '—' }}</li>
     <li>Status: {{ $borrowing->displayLabel() }}</li>
+    <li>Unit: {{ $borrowing->unit ?: '—' }}</li>
     <li>Kampus: {{ $borrowing->campus?->name ?: '—' }}</li>
     <li>Rute: {{ $borrowing->origin ?: ($borrowing->route?->name ?: '—') }}</li>
     <li>Tujuan: {{ $borrowing->destination ?: '—' }}</li>
@@ -30,10 +31,19 @@
             @if($borrowing->assigned_service === \App\Enums\VehicleServiceType::GoCar)
                 GoCar
             @else
-                {{ $borrowing->vehicle?->label() ?: '—' }}@if($borrowing->driver), pengemudi {{ $borrowing->driver->name }}@endif
+                {{ $borrowing->vehicle?->label() ?: '—' }}
+                @if($borrowing->driver)
+                    — pengemudi {{ $borrowing->driver->displayName() }}
+                    @if($borrowing->driver->displayPhone())
+                        ({{ $borrowing->driver->displayPhone() }})
+                    @endif
+                @endif
             @endif
         </li>
+        <li>Disetujui oleh: {{ $borrowing->approvedBy?->name ?: '—' }}</li>
     @else
         <li>Alasan penolakan: {{ $borrowing->rejection_reason }}</li>
+        <li>Ditolak oleh: {{ $borrowing->approvedBy?->name ?: '—' }}</li>
+        <li>Waktu keputusan: {{ $borrowing->rejected_at?->timezone((string) config('app.timezone'))->format('d/m/Y H:i') ?: '—' }}</li>
     @endif
 </ul>

@@ -130,6 +130,7 @@ class BorrowingRecordController extends Controller
                 'items.inventoryItem:id,name,inventory_number,room_id',
                 'items.inventoryItem.room.floor.building.campus:id,name',
                 'approvedBy:id,name',
+                'cancelledBy:id,name',
             ])
             ->when($ownOnly, fn ($q) => $q->where('requested_by', $userId))
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
@@ -182,6 +183,7 @@ class BorrowingRecordController extends Controller
                     'number' => $borrowing->approval_number ?: '—',
                     'number_url' => $borrowing->approval_number ? route('borrowing.approval.public', $borrowing->approval_number) : null,
                     'borrower' => $borrowing->borrower_name,
+                    'unit' => filled($borrowing->borrower_affiliation) ? $borrowing->borrower_affiliation : '—',
                     'subject' => $count > 1 ? $name.' +'.($count - 1).' barang lain' : $name,
                     'campus' => $borrowing->campusSummary(),
                     'status_label' => $borrowing->status?->label() ?? '—',
@@ -189,9 +191,9 @@ class BorrowingRecordController extends Controller
                     'starts_at' => $this->inventorySchedule($borrowing, 'borrow_date'),
                     'ends_at' => $this->inventorySchedule($borrowing, 'expected_return_date'),
                     'submitted_at' => $borrowing->created_at,
-                    'decided_at' => $borrowing->approved_at ?? $borrowing->rejected_at,
-                    'admin' => $borrowing->approvedBy?->name,
-                    'reason' => $borrowing->rejection_reason,
+                    'decided_at' => $borrowing->cancelled_at ?? $borrowing->approved_at ?? $borrowing->rejected_at,
+                    'admin' => $borrowing->cancelledBy?->name ?? $borrowing->approvedBy?->name,
+                    'reason' => $borrowing->cancellation_reason ?: $borrowing->rejection_reason,
                     'url' => route('borrowings.show', $borrowing),
                     'trash_kind' => 'inventaris',
                     'trash_id' => $borrowing->id,
@@ -245,7 +247,7 @@ class BorrowingRecordController extends Controller
         }
 
         return RoomBorrowing::query()
-            ->with(['room:id,name,code', 'campus:id,name', 'approvedBy:id,name'])
+            ->with(['room:id,name,code', 'campus:id,name', 'approvedBy:id,name', 'cancelledBy:id,name'])
             ->when($ownOnly, fn ($q) => $q->where('requested_by', $userId))
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
@@ -271,7 +273,7 @@ class BorrowingRecordController extends Controller
             ->latest()
             ->get()
             ->map(function (RoomBorrowing $borrowing) {
-                $activity = $borrowing->activity_type?->label();
+                $activity = $borrowing->activityTypeLabel();
                 $purpose = trim((string) $borrowing->purpose);
                 $subject = $purpose !== '' ? $purpose : ($borrowing->room?->name ?: 'Ruangan');
                 if (is_string($activity) && $activity !== '') {
@@ -285,6 +287,7 @@ class BorrowingRecordController extends Controller
                     'number' => $borrowing->approval_number ?: '—',
                     'number_url' => $borrowing->approval_number ? route('room-borrowings.approval', $borrowing) : null,
                     'borrower' => $borrowing->borrower_name,
+                    'unit' => filled($borrowing->borrower_affiliation) ? $borrowing->borrower_affiliation : '—',
                     'subject' => $subject,
                     'campus' => $borrowing->campus?->name ?: '—',
                     'status_label' => $borrowing->displayLabel(),
@@ -292,9 +295,9 @@ class BorrowingRecordController extends Controller
                     'starts_at' => $this->facilitySchedule($borrowing->starts_at),
                     'ends_at' => $this->facilitySchedule($borrowing->ends_at),
                     'submitted_at' => $borrowing->created_at,
-                    'decided_at' => $borrowing->approved_at ?? $borrowing->rejected_at,
-                    'admin' => $borrowing->approvedBy?->name,
-                    'reason' => $borrowing->rejection_reason,
+                    'decided_at' => $borrowing->cancelled_at ?? $borrowing->approved_at ?? $borrowing->rejected_at,
+                    'admin' => $borrowing->cancelledBy?->name ?? $borrowing->approvedBy?->name,
+                    'reason' => $borrowing->cancellation_reason ?: $borrowing->rejection_reason,
                     'url' => route('room-borrowings.show', $borrowing),
                     'trash_kind' => 'ruangan',
                     'trash_id' => $borrowing->id,
@@ -323,7 +326,7 @@ class BorrowingRecordController extends Controller
         }
 
         return VehicleBorrowing::query()
-            ->with(['campus:id,name', 'route:id,name', 'vehicle:id,name,plate_number', 'approvedBy:id,name'])
+            ->with(['campus:id,name', 'route:id,name', 'vehicle:id,name,plate_number', 'approvedBy:id,name', 'cancelledBy:id,name'])
             ->when($ownOnly, fn ($q) => $q->where('requested_by', $userId))
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
@@ -361,6 +364,7 @@ class BorrowingRecordController extends Controller
                     'number' => $borrowing->approval_number ?: '—',
                     'number_url' => $borrowing->approval_number ? route('vehicle-borrowings.approval', $borrowing) : null,
                     'borrower' => $borrowing->borrower_name,
+                    'unit' => filled($borrowing->unit) ? $borrowing->unit : '—',
                     'subject' => $subject,
                     'campus' => $borrowing->campus?->name ?: '—',
                     'status_label' => $borrowing->displayLabel(),
@@ -368,9 +372,9 @@ class BorrowingRecordController extends Controller
                     'starts_at' => $this->facilitySchedule($borrowing->starts_at),
                     'ends_at' => $this->facilitySchedule($borrowing->ends_at),
                     'submitted_at' => $borrowing->created_at,
-                    'decided_at' => $borrowing->approved_at ?? $borrowing->rejected_at,
-                    'admin' => $borrowing->approvedBy?->name,
-                    'reason' => $borrowing->rejection_reason,
+                    'decided_at' => $borrowing->cancelled_at ?? $borrowing->approved_at ?? $borrowing->rejected_at,
+                    'admin' => $borrowing->cancelledBy?->name ?? $borrowing->approvedBy?->name,
+                    'reason' => $borrowing->cancellation_reason ?: $borrowing->rejection_reason,
                     'url' => route('vehicle-borrowings.show', $borrowing),
                     'trash_kind' => 'kendaraan',
                     'trash_id' => $borrowing->id,
@@ -431,7 +435,11 @@ class BorrowingRecordController extends Controller
             return;
         }
 
-        if (in_array($status, [FacilityRequestStatus::MenungguPersetujuan->value, FacilityRequestStatus::Ditolak->value], true)) {
+        if (in_array($status, [
+            FacilityRequestStatus::MenungguPersetujuan->value,
+            FacilityRequestStatus::Ditolak->value,
+            FacilityRequestStatus::PersetujuanDibatalkan->value,
+        ], true)) {
             $query->where('status', $status);
         }
     }
@@ -461,6 +469,7 @@ class BorrowingRecordController extends Controller
             ['value' => BorrowingStatus::MenungguPersetujuan->value, 'label' => 'Menunggu Persetujuan'],
             ['value' => BorrowingStatus::Disetujui->value, 'label' => 'Disetujui'],
             ['value' => BorrowingStatus::Ditolak->value, 'label' => 'Ditolak'],
+            ['value' => BorrowingStatus::PersetujuanDibatalkan->value, 'label' => 'Persetujuan Dibatalkan'],
             ['value' => BorrowingStatus::Dipinjam->value, 'label' => 'Dipinjam'],
             ['value' => BorrowingStatus::Dikembalikan->value, 'label' => 'Dikembalikan'],
             ['value' => BorrowingStatus::Terlambat->value, 'label' => 'Terlambat'],
@@ -469,6 +478,7 @@ class BorrowingRecordController extends Controller
             ['value' => FacilityRequestStatus::MenungguPersetujuan->value, 'label' => 'Menunggu Persetujuan'],
             ['value' => FacilityRequestStatus::Disetujui->value, 'label' => 'Disetujui'],
             ['value' => FacilityRequestStatus::Ditolak->value, 'label' => 'Ditolak'],
+            ['value' => FacilityRequestStatus::PersetujuanDibatalkan->value, 'label' => 'Persetujuan Dibatalkan'],
             ['value' => 'selesai', 'label' => 'Selesai'],
         ];
 

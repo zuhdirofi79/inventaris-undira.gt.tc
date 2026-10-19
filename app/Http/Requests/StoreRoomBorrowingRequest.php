@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use App\Enums\RoomActivityType;
 use App\Http\Requests\Concerns\BindsAuthenticatedBorrowerEmail;
 use App\Rules\IndonesianPhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,14 +21,14 @@ class StoreRoomBorrowingRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        $usesBudget = $this->boolean('uses_budget');
-        $documentation = trim((string) $this->input('documentation_url', ''));
+        $budgetCode = trim(strip_tags((string) $this->input('budget_type', '')));
         $hasInternal = $this->boolean('participant_internal');
         $hasExternal = $this->boolean('participant_external');
 
         $this->merge([
-            'uses_budget' => $usesBudget,
-            'budget_type' => $usesBudget ? trim(strip_tags((string) $this->input('budget_type', ''))) : null,
+            // Empty dropdown = tidak menggunakan anggaran. Selected code = menggunakan anggaran.
+            'budget_type' => $budgetCode !== '' ? $budgetCode : null,
+            'uses_budget' => $budgetCode !== '',
             'participant_internal' => $hasInternal,
             'participant_external' => $hasExternal,
             // Unchecked categories must not retain stale counts from the client.
@@ -40,7 +39,9 @@ class StoreRoomBorrowingRequest extends FormRequest
                 ? $this->input('participant_external_count')
                 : null,
             'purpose' => trim(strip_tags((string) $this->input('purpose', ''))),
-            'documentation_url' => $documentation !== '' ? $documentation : null,
+            // Link dokumentasi dihapus dari form; pengajuan baru tidak menyimpan nilai baru.
+            'documentation_url' => null,
+            'borrower_affiliation' => trim(strip_tags((string) $this->input('borrower_affiliation', ''))),
         ]);
 
         $this->bindBorrowerIdentityForCreate();
@@ -53,13 +54,23 @@ class StoreRoomBorrowingRequest extends FormRequest
             'borrower_name' => ['required', 'string', 'max:255'],
             'borrower_email' => ['required', 'email', 'max:255'],
             'borrower_phone' => ['required', 'string', 'max:50', new IndonesianPhoneNumber],
-            'activity_type' => ['required', 'string', 'in:'.implode(',', RoomActivityType::values())],
+            'borrower_affiliation' => ['required', 'string', 'max:255'],
+            'activity_type' => [
+                'required',
+                'string',
+                'max:40',
+                Rule::exists('room_activity_types', 'code')->where(fn ($q) => $q->where('is_active', true)),
+            ],
             'purpose' => ['required', 'string', 'max:2000'],
             'starts_at' => ['required', 'date_format:Y-m-d\TH:i'],
             'ends_at' => ['required', 'date_format:Y-m-d\TH:i', 'after:starts_at'],
-            'documentation_url' => ['nullable', 'url:http,https', 'max:2048'],
             'uses_budget' => ['required', 'boolean'],
-            'budget_type' => ['nullable', 'string', 'max:255', 'required_if:uses_budget,true,1'],
+            'budget_type' => [
+                'nullable',
+                'string',
+                'max:40',
+                Rule::exists('room_budget_types', 'code')->where(fn ($q) => $q->where('is_active', true)),
+            ],
             'participant_internal' => ['required', 'boolean'],
             'participant_external' => ['required', 'boolean'],
             'participant_internal_count' => [
@@ -89,10 +100,6 @@ class StoreRoomBorrowingRequest extends FormRequest
                 $validator->errors()->add('participants', 'Pilih minimal satu jenis peserta, Internal atau External.');
             }
 
-            if ($this->boolean('uses_budget') && trim((string) $this->input('budget_type')) === '') {
-                $validator->errors()->add('budget_type', 'Jenis anggaran wajib diisi jika anggaran digunakan.');
-            }
-
             foreach ([
                 'approval_document' => 'Dokumen persetujuan pimpinan',
                 'layout_document' => 'Layout acara',
@@ -117,8 +124,10 @@ class StoreRoomBorrowingRequest extends FormRequest
                 ? 'Format email tidak valid.'
                 : 'Email akun Anda tidak valid. Perbarui profil sebelum mengajukan peminjaman.',
             'borrower_phone.required' => 'Nomor telepon wajib diisi.',
+            'borrower_affiliation.required' => 'Kolom Unit wajib diisi.',
+            'borrower_affiliation.max' => 'Kolom Unit maksimal 255 karakter.',
             'activity_type.required' => 'Jenis kegiatan wajib dipilih.',
-            'activity_type.in' => 'Jenis kegiatan tidak valid.',
+            'activity_type.exists' => 'Jenis kegiatan tidak valid atau sudah tidak aktif.',
             'purpose.required' => 'Tujuan kegiatan wajib diisi.',
             'purpose.max' => 'Tujuan kegiatan terlalu panjang.',
             'starts_at.required' => 'Jadwal mulai wajib diisi.',
@@ -126,8 +135,7 @@ class StoreRoomBorrowingRequest extends FormRequest
             'ends_at.required' => 'Jadwal selesai wajib diisi.',
             'ends_at.date_format' => 'Jadwal selesai tidak valid.',
             'ends_at.after' => 'Jadwal selesai harus setelah jadwal mulai.',
-            'documentation_url.url' => 'Link dokumentasi harus berupa URL http atau https.',
-            'budget_type.required_if' => 'Jenis anggaran wajib diisi jika anggaran digunakan.',
+            'budget_type.exists' => 'Jenis anggaran tidak valid atau sudah tidak aktif.',
             'participant_internal_count.required' => 'Jumlah peserta Internal wajib diisi.',
             'participant_internal_count.integer' => 'Jumlah peserta Internal harus berupa bilangan bulat.',
             'participant_internal_count.min' => 'Jumlah peserta Internal minimal 1 orang.',

@@ -137,6 +137,7 @@ class DashboardRecentBorrowingsService
                     number: $borrowing->approval_number ?: '#'.$borrowing->id,
                     numberUrl: $this->inventoryDetailUrl($user, $borrowing),
                     borrower: $borrowing->borrower_name,
+                    unit: $borrowing->borrower_affiliation,
                     detail: $summary['label'],
                     campus: $borrowing->campusSummary(),
                     schedule: $this->inventoryScheduleText($borrowing),
@@ -205,6 +206,7 @@ class DashboardRecentBorrowingsService
                     number: $borrowing->approval_number ?: '#'.$borrowing->id,
                     numberUrl: $this->inventoryDetailUrl($user, $borrowing),
                     borrower: $borrowing->borrower_name,
+                    unit: $borrowing->borrower_affiliation,
                     detail: $summary['label'],
                     campus: $borrowing->campusSummary(),
                     schedule: $this->inventoryScheduleText($borrowing),
@@ -244,7 +246,7 @@ class DashboardRecentBorrowingsService
 
                 $detail = collect([
                     $row->room?->name ?: 'Ruangan',
-                    $row->activity_type?->label(),
+                    $row->activityTypeLabel(),
                 ])->filter()->implode(' — ');
 
                 return $this->baseRow(
@@ -253,6 +255,7 @@ class DashboardRecentBorrowingsService
                     number: $row->approval_number ?: '#'.$row->id,
                     numberUrl: $user->can('room-borrowing.view') ? route('room-borrowings.show', $row) : null,
                     borrower: $row->borrower_name,
+                    unit: $row->borrower_affiliation,
                     detail: $detail,
                     campus: $location,
                     schedule: $this->facilityScheduleText($row->starts_at, $row->ends_at),
@@ -292,7 +295,7 @@ class DashboardRecentBorrowingsService
 
                 $detail = collect([
                     $row->room?->name ?: 'Ruangan',
-                    $row->activity_type?->label(),
+                    $row->activityTypeLabel(),
                     $row->participantText() !== '—' ? $row->participantText() : null,
                 ])->filter()->implode(' — ');
 
@@ -302,6 +305,7 @@ class DashboardRecentBorrowingsService
                     number: $row->approval_number ?: '#'.$row->id,
                     numberUrl: $user->can('room-borrowing.view') ? route('room-borrowings.show', $row) : null,
                     borrower: $row->borrower_name,
+                    unit: $row->borrower_affiliation,
                     detail: $detail,
                     campus: $location,
                     schedule: $this->facilityScheduleText($row->starts_at, $row->ends_at),
@@ -331,6 +335,7 @@ class DashboardRecentBorrowingsService
                     number: $row->approval_number ?: '#'.$row->id,
                     numberUrl: $user->can('vehicle-borrowing.view') ? route('vehicle-borrowings.show', $row) : null,
                     borrower: $row->borrower_name,
+                    unit: $row->unit,
                     detail: $this->vehicleDetail($row, false),
                     campus: $row->campus?->name ?: '—',
                     schedule: $this->facilityScheduleText($row->starts_at, $row->ends_at),
@@ -364,6 +369,7 @@ class DashboardRecentBorrowingsService
                     number: $row->approval_number ?: '#'.$row->id,
                     numberUrl: $user->can('vehicle-borrowing.view') ? route('vehicle-borrowings.show', $row) : null,
                     borrower: $row->borrower_name,
+                    unit: $row->unit,
                     detail: $this->vehicleDetail($row, true),
                     campus: $row->campus?->name ?: '—',
                     schedule: $this->facilityScheduleText($row->starts_at, $row->ends_at),
@@ -464,6 +470,7 @@ class DashboardRecentBorrowingsService
         string $number,
         ?string $numberUrl,
         string $borrower,
+        ?string $unit,
         string $detail,
         string $campus,
         string $schedule,
@@ -472,12 +479,15 @@ class DashboardRecentBorrowingsService
         mixed $sortAt,
         ?string $meta,
     ): array {
+        $unitLabel = trim((string) ($unit ?? ''));
+
         return [
             'type' => $type,
             'type_label' => $typeLabel,
             'number' => $number,
             'number_url' => $numberUrl,
             'borrower' => $borrower !== '' ? $borrower : '—',
+            'unit' => $unitLabel !== '' ? $unitLabel : '—',
             'detail' => $detail !== '' ? $detail : '—',
             'campus' => $campus !== '' ? $campus : '—',
             'schedule' => $schedule,

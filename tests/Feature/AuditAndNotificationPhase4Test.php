@@ -47,6 +47,7 @@ class AuditAndNotificationPhase4Test extends TestCase
                 'borrower_name' => 'Budi',
                 'borrower_email' => 'budi@undira.ac.id',
                 'borrower_phone' => '081234567890',
+                'borrower_affiliation' => 'PPPA',
                 'supporting_document' => UploadedFile::fake()->image('bukti.jpg'),
                 'borrow_date' => now()->format('Y-m-d\TH:i'),
                 'expected_return_date' => now()->addDays(3)->format('Y-m-d\TH:i'),

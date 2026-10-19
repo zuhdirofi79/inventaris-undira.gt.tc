@@ -3,10 +3,12 @@
 namespace App\Http\Controllers;
 
 use App\Enums\FacilityRequestStatus;
-use App\Enums\RoomActivityType;
+use App\Http\Requests\CancelApprovalRequest;
 use App\Http\Requests\DecideRoomBorrowingRequest;
 use App\Http\Requests\StoreRoomBorrowingRequest;
 use App\Models\Campus;
+use App\Models\RoomActivityType;
+use App\Models\RoomBudgetType;
 use App\Models\RoomBorrowing;
 use App\Models\User;
 use App\Http\Controllers\Concerns\RespondsToAjaxForm;
@@ -47,8 +49,6 @@ class RoomBorrowingController extends Controller
             'borrower_phone',
             'starts_at',
             'ends_at',
-            'documentation_url',
-            'uses_budget',
             'budget_type',
             'participants',
             'participant_internal',
@@ -61,7 +61,8 @@ class RoomBorrowingController extends Controller
         ]);
 
         return view('operations.room-borrowings.create', [
-            'activityTypes' => RoomActivityType::cases(),
+            'activityTypes' => RoomActivityType::query()->active()->ordered()->get(['code', 'name']),
+            'budgetTypes' => RoomBudgetType::query()->active()->ordered()->get(['code', 'name']),
             'templates' => $this->templates->links(),
         ]);
     }
@@ -101,6 +102,7 @@ class RoomBorrowingController extends Controller
             'room.inventoryItems',
             'campus',
             'approvedBy',
+            'cancelledBy',
             'requestedBy',
         ]);
 
@@ -119,6 +121,19 @@ class RoomBorrowingController extends Controller
         return redirect()
             ->route('room-borrowings.show', $saved)
             ->with('success', $message);
+    }
+
+    public function cancelApproval(CancelApprovalRequest $request, RoomBorrowing $roomBorrowing): RedirectResponse
+    {
+        $saved = $this->service->cancelApproval(
+            $request->user(),
+            $roomBorrowing,
+            (string) $request->validated('cancellation_reason'),
+        );
+
+        return redirect()
+            ->route('room-borrowings.history')
+            ->with('success', 'Persetujuan peminjaman ruangan dibatalkan.');
     }
 
     public function approval(Request $request, RoomBorrowing $roomBorrowing): View
@@ -193,7 +208,7 @@ class RoomBorrowingController extends Controller
             : ['date_from' => null, 'date_to' => null];
 
         $borrowings = RoomBorrowing::query()
-            ->with(['room:id,floor_id,code,name', 'campus:id,code,name', 'approvedBy:id,name'])
+            ->with(['room:id,floor_id,code,name', 'campus:id,code,name', 'approvedBy:id,name', 'cancelledBy:id,name'])
             ->when($campusId === 0, fn ($q) => $q->whereRaw('0 = 1'))
             ->when(is_int($campusId) && $campusId > 0, fn ($q) => $q->where('campus_id', $campusId))
             ->when($search !== '', function ($q) use ($search) {
@@ -216,7 +231,11 @@ class RoomBorrowingController extends Controller
                 $q->where('status', '!=', FacilityRequestStatus::MenungguPersetujuan->value);
                 if ($status === 'selesai') {
                     $q->where('status', FacilityRequestStatus::Disetujui->value)->where('ends_at', '<', now());
-                } elseif (in_array($status, [FacilityRequestStatus::Disetujui->value, FacilityRequestStatus::Ditolak->value], true)) {
+                } elseif (in_array($status, [
+                    FacilityRequestStatus::Disetujui->value,
+                    FacilityRequestStatus::Ditolak->value,
+                    FacilityRequestStatus::PersetujuanDibatalkan->value,
+                ], true)) {
                     $q->where('status', $status);
                 }
 

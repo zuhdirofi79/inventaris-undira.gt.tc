@@ -6,6 +6,7 @@ use App\Enums\AuditAction;
 use App\Enums\BorrowingStatus;
 use App\Http\Requests\ApproveBorrowingItemRequest;
 use App\Http\Requests\ApproveBorrowingRequest;
+use App\Http\Requests\CancelApprovalRequest;
 use App\Http\Requests\HandoverBorrowingItemRequest;
 use App\Http\Requests\RejectBorrowingItemRequest;
 use App\Http\Requests\RejectBorrowingRequest;
@@ -61,6 +62,7 @@ class BorrowingController extends Controller
                 'inventoryItem.room.floor.building.campus:id,name',
                 'items.inventoryItem.room.floor.building.campus:id,name',
                 'approvedBy',
+                'cancelledBy',
                 'requestedBy',
             ])
             ->withCount('items')
@@ -162,6 +164,7 @@ class BorrowingController extends Controller
             'inventoryItem.subCategory',
             'inventoryItem.room.floor.building.campus:id,name',
             'approvedBy',
+            'cancelledBy',
             'requestedBy',
         ]);
 
@@ -333,6 +336,19 @@ class BorrowingController extends Controller
             'error',
             'Penolakan dilakukan per inventaris pada halaman detail peminjaman, lalu disimpan dengan Simpan Approval.',
         );
+    }
+
+    public function cancelApproval(CancelApprovalRequest $request, Borrowing $borrowing): RedirectResponse
+    {
+        $this->approval->cancelApproval(
+            $borrowing,
+            $request->user(),
+            (string) $request->validated('cancellation_reason'),
+        );
+
+        return redirect()
+            ->route('borrowing-approvals.index')
+            ->with('success', 'Persetujuan peminjaman inventaris dibatalkan.');
     }
 
     public function saveApprovals(SaveBorrowingItemApprovalsRequest $request, Borrowing $borrowing): RedirectResponse

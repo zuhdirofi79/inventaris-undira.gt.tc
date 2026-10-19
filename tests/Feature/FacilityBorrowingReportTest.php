@@ -79,6 +79,12 @@ class FacilityBorrowingReportTest extends TestCase
         $this->assertStringContainsString('Export Ruang Peminjam', $print);
         $this->assertStringContainsString('RNG-EXPORT-1', $print);
         $this->assertStringContainsString('Laporan Peminjaman Ruangan', $print);
+        $this->assertStringContainsString('STATISTIK PEMINJAMAN RUANGAN', $print);
+        $this->assertStringContainsString('Total Pengajuan', $print);
+        $this->assertStringContainsString('Top Peminjam', $print);
+        $this->assertStringNotContainsString('Total Inventaris', $print);
+        $this->assertStringNotContainsString('STATISTIK KOMPOSISI INVENTARIS', $print);
+        $this->assertStringNotContainsString('REKAP SUB KATEGORI INVENTARIS', $print);
 
         $this->actingAs($admin)
             ->post(route('reports.export', 'peminjaman-ruangan'), [
@@ -174,6 +180,12 @@ class FacilityBorrowingReportTest extends TestCase
 
         $this->assertStringContainsString('Export Kendaraan Peminjam', $print);
         $this->assertStringContainsString('Penjemputan', $print);
+        $this->assertStringContainsString('STATISTIK PEMINJAMAN KENDARAAN', $print);
+        $this->assertStringContainsString('Total Pengajuan', $print);
+        $this->assertStringContainsString('Penugasan Pengemudi', $print);
+        $this->assertStringNotContainsString('Total Inventaris', $print);
+        $this->assertStringNotContainsString('STATISTIK KOMPOSISI INVENTARIS', $print);
+        $this->assertStringNotContainsString('Total Ruangan', $print);
 
         $empty = $this->actingAs($admin)
             ->getJson(route('reports.data', 'peminjaman-kendaraan').'?campus_id='.$campus->id.'&service_type='.VehicleServiceType::GoCar->value)
@@ -263,6 +275,164 @@ class FacilityBorrowingReportTest extends TestCase
             ->assertOk();
     }
 
+    public function test_room_report_ranks_borrower_unit_and_excludes_pending_from_approved(): void
+    {
+        $admin = $this->makeAdmin(['email' => 'facility-report-room-rank@undira.ac.id']);
+        [$campus, $room] = $this->place('Rank Room');
+
+        for ($i = 0; $i < 3; $i++) {
+            $this->roomLoan(
+                $admin,
+                $campus,
+                $room,
+                'Azwar Rank',
+                FacilityRequestStatus::Disetujui,
+                'RNG-RANK-A-'.$i,
+                'PPPA',
+                'rapat',
+                10,
+                5
+            );
+        }
+        $this->roomLoan(
+            $admin,
+            $campus,
+            $room,
+            'Azwar Rank',
+            FacilityRequestStatus::Disetujui,
+            'RNG-RANK-B-1',
+            'Fakultas Teknik',
+            'seminar',
+            20,
+            0
+        );
+        $this->roomLoan(
+            $admin,
+            $campus,
+            $room,
+            'Azwar Rank',
+            FacilityRequestStatus::MenungguPersetujuan,
+            null,
+            'PPPA',
+            'rapat',
+            99,
+            99
+        );
+        $this->roomLoan(
+            $admin,
+            $campus,
+            $room,
+            'User Ditolak',
+            FacilityRequestStatus::Ditolak,
+            null,
+            'UKM',
+            'lainnya',
+            1,
+            0
+        );
+
+        $print = $this->actingAs($admin)
+            ->post(route('reports.export', 'peminjaman-ruangan'), [
+                'format' => 'print',
+                'campus_id' => $campus->id,
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Azwar Rank', $print);
+        $this->assertStringContainsString('PPPA', $print);
+        $this->assertStringContainsString('Fakultas Teknik', $print);
+        $this->assertStringContainsString('3 kali', $print);
+        $this->assertStringContainsString('Berdasarkan Jenis Kegiatan', $print);
+        $this->assertStringContainsString('Ringkasan per Kampus', $print);
+        $this->assertMatchesRegularExpression('/Tingkat Persetujuan[\s\S]*?80(?:\.0)?%/', $print);
+        $this->assertStringNotContainsString('Total Inventaris', $print);
+    }
+
+    public function test_vehicle_report_ranks_assigned_vehicles_and_drivers_only(): void
+    {
+        $admin = $this->makeAdmin(['email' => 'facility-report-vehicle-rank@undira.ac.id']);
+        [$campus] = $this->place('Rank Vehicle');
+
+        $used = OperationalVehicle::query()->create([
+            'name' => 'Mobil Digunakan',
+            'plate_number' => 'B 2222 RPT',
+            'category' => 'SUV',
+            'is_active' => true,
+        ]);
+        OperationalVehicle::query()->create([
+            'name' => 'Mobil Tidak Pernah',
+            'plate_number' => 'B 3333 RPT',
+            'category' => 'MPV',
+            'is_active' => true,
+        ]);
+        $driver = OperationalDriver::query()->create([
+            'name' => 'Driver Ranking',
+            'phone' => '081222222222',
+            'is_active' => true,
+        ]);
+
+        $this->vehicleLoan(
+            $admin,
+            $campus,
+            'Peminjam Rank Veh',
+            VehicleServiceType::DropOff,
+            'KND-RANK-1',
+            $used->id,
+            $driver->id,
+            'PPPA',
+            4
+        );
+        $this->vehicleLoan(
+            $admin,
+            $campus,
+            'Peminjam Rank Veh',
+            VehicleServiceType::RoundTrip,
+            'KND-RANK-2',
+            $used->id,
+            $driver->id,
+            'PPPA',
+            6
+        );
+        $this->vehicleLoan($admin, $campus, 'Pending Veh', VehicleServiceType::Pickup, null, null, null, 'Biro', 2);
+
+        $print = $this->actingAs($admin)
+            ->post(route('reports.export', 'peminjaman-kendaraan'), [
+                'format' => 'print',
+                'campus_id' => $campus->id,
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Mobil Digunakan', $print);
+        $this->assertStringContainsString('Driver Ranking', $print);
+        $this->assertStringContainsString('PPPA', $print);
+        $this->assertStringContainsString('2 kali', $print);
+        $this->assertStringNotContainsString('Mobil Tidak Pernah', $print);
+        $this->assertStringNotContainsString('Total Inventaris', $print);
+        $this->assertStringNotContainsString('Komposisi Berdasarkan Kategori', $print);
+    }
+
+    public function test_room_report_empty_filter_shows_zero_stats_without_inventory(): void
+    {
+        $admin = $this->makeAdmin(['email' => 'facility-report-room-empty@undira.ac.id']);
+        [$campus] = $this->place('Empty Room Stats');
+
+        $print = $this->actingAs($admin)
+            ->post(route('reports.export', 'peminjaman-ruangan'), [
+                'format' => 'print',
+                'campus_id' => $campus->id,
+                'tanggal_awal' => '2099-01-01',
+                'tanggal_akhir' => '2099-01-31',
+            ])
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('Tidak ada data untuk filter ini', $print);
+        $this->assertStringContainsString('STATISTIK PEMINJAMAN RUANGAN', $print);
+        $this->assertStringNotContainsString('Total Inventaris', $print);
+    }
+
     /**
      * @return array{0: Campus, 1: Room}
      */
@@ -308,6 +478,10 @@ class FacilityBorrowingReportTest extends TestCase
         string $borrower,
         FacilityRequestStatus $status,
         ?string $approvalNumber = null,
+        ?string $unit = null,
+        ?string $activityType = null,
+        int $internal = 0,
+        int $external = 0,
     ): RoomBorrowing {
         return RoomBorrowing::query()->create([
             'room_id' => $room->id,
@@ -315,7 +489,13 @@ class FacilityBorrowingReportTest extends TestCase
             'borrower_name' => $borrower,
             'borrower_email' => 'room@undira.ac.id',
             'borrower_phone' => '081234567890',
+            'borrower_affiliation' => $unit,
+            'activity_type' => $activityType,
             'purpose' => 'Keperluan laporan',
+            'participant_internal' => $internal > 0,
+            'participant_internal_count' => $internal,
+            'participant_external' => $external > 0,
+            'participant_external_count' => $external,
             'starts_at' => '2026-10-15 09:00:00',
             'ends_at' => '2026-10-15 11:00:00',
             'status' => $status,
@@ -334,17 +514,20 @@ class FacilityBorrowingReportTest extends TestCase
         ?string $approvalNumber = null,
         ?int $vehicleId = null,
         ?int $driverId = null,
+        string $unit = 'Biro Umum',
+        int $passengers = 0,
     ): VehicleBorrowing {
         return VehicleBorrowing::query()->create([
             'campus_id' => $campus->id,
             'borrower_name' => $borrower,
             'borrower_email' => 'vehicle@undira.ac.id',
             'borrower_phone' => '081298765432',
-            'unit' => 'Biro Umum',
+            'unit' => $unit,
             'purpose' => 'Perjalanan dinas',
             'service_type' => $service,
             'origin' => 'Kampus',
             'destination' => 'Tujuan '.$borrower,
+            'passenger_count' => $passengers,
             'starts_at' => '2026-10-16 08:00:00',
             'ends_at' => '2026-10-16 12:00:00',
             'status' => $approvalNumber ? FacilityRequestStatus::Disetujui : FacilityRequestStatus::MenungguPersetujuan,

@@ -45,6 +45,15 @@ class SidebarLayoutTest extends TestCase
             $html
         );
         $this->assertStringNotContainsString(route('admin.users.index'), $html);
+
+        /* Collapsed float panel must restore AdminLTE-hidden labels. */
+        $layoutCss = file_get_contents(public_path('css/undira-layout.css'));
+        $this->assertNotFalse($layoutCss);
+        $this->assertStringContainsString('nav-item.is-float-open .nav-treeview .nav-link > p', $layoutCss);
+        $this->assertStringContainsString('visibility: visible !important', $layoutCss);
+        $this->assertStringContainsString('animation-name: none !important', $layoutCss);
+        $this->assertStringContainsString('sidebar-no-expand', $html);
+        $this->assertStringContainsString('undira-sidebar-tooltip', $html);
     }
 
     public function test_viewer_sidebar_stays_limited_to_allowed_borrowing_links(): void

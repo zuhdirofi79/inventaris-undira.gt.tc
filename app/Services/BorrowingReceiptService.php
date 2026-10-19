@@ -8,6 +8,10 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class BorrowingReceiptService
 {
+    public function __construct(
+        protected ReceiptVerificationService $verification,
+    ) {}
+
     public function approvalPublicUrl(Borrowing $borrowing): ?string
     {
         if (! $borrowing->approval_number) {
@@ -83,6 +87,10 @@ class BorrowingReceiptService
             'logoDataUri' => $logoDataUri,
             'qrDataUri' => $this->qrDataUri($borrowing),
             'approvalUrl' => $this->approvalPublicUrl($borrowing),
+            'signature' => $this->verification->signatureBlock(
+                ReceiptVerificationService::KIND_INVENTARIS,
+                $borrowing
+            ),
         ];
     }
 }

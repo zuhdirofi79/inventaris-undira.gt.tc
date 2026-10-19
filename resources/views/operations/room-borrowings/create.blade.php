@@ -25,18 +25,28 @@
                     'emailCol' => 'col-md-4',
                 ])
                 <div class="col-md-4">
+                    <label class="form-label" for="borrower_phone">Nomor Telepon</label>
+                    <input id="borrower_phone" name="borrower_phone" value="{{ old('borrower_phone') }}" class="form-control @error('borrower_phone') is-invalid @enderror" placeholder="0812XXXX" required autocomplete="tel">
+                    @error('borrower_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                </div>
+                @include('partials.borrower-affiliation-field', ['colClass' => 'col-md-6'])
+                <div class="col-md-6">
                     <label class="form-label" for="activity_type">Jenis Kegiatan</label>
-                    <select id="activity_type" name="activity_type" class="form-select @error('activity_type') is-invalid @enderror" required>
+                    <select id="activity_type" name="activity_type" class="form-select @error('activity_type') is-invalid @enderror" required @disabled($activityTypes->isEmpty())>
                         <option value="">Masukkan Jenis Kegiatan</option>
                         @foreach($activityTypes as $type)
-                            <option value="{{ $type->value }}" @selected(old('activity_type') === $type->value)>{{ $type->label() }}</option>
+                            <option value="{{ $type->code }}" @selected(old('activity_type') === $type->code)>{{ $type->name }}</option>
                         @endforeach
                     </select>
+                    @if($activityTypes->isEmpty())
+                        <div class="form-text text-warning">Belum ada jenis kegiatan aktif. Hubungi Admin untuk menambahkannya di Master Jenis Kegiatan.</div>
+                    @endif
                     @error('activity_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-12">
                     <label class="form-label" for="purpose">Tujuan Kegiatan</label>
-                    <textarea id="purpose" name="purpose" rows="3" class="form-control @error('purpose') is-invalid @enderror" placeholder="Masukkan Tujuan Kegiatan" required maxlength="2000">{{ old('purpose') }}</textarea>
+                    <textarea id="purpose" name="purpose" rows="3" class="form-control @error('purpose') is-invalid @enderror" placeholder="Contoh: Kelas Online, Rapat BEM, Rapat Hima, atau Pelatihan UKM Futsal" required maxlength="2000">{{ old('purpose') }}</textarea>
+                    <div class="form-text">Jelaskan tujuan penggunaan ruangan secara singkat agar Admin dapat memahami kebutuhan kegiatan.</div>
                     @error('purpose')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
             </div>
@@ -78,30 +88,19 @@
                     <input id="ends_at" type="datetime-local" name="ends_at" value="{{ old('ends_at') }}" class="form-control @error('ends_at') is-invalid @enderror" required>
                     @error('ends_at')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label" for="borrower_phone">Nomor Telepon</label>
-                    <input id="borrower_phone" name="borrower_phone" value="{{ old('borrower_phone') }}" class="form-control @error('borrower_phone') is-invalid @enderror" placeholder="0812XXXX" required>
-                    @error('borrower_phone')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
-                <div class="col-md-8">
-                    <label class="form-label" for="documentation_url">Link Dokumentasi</label>
-                    <input id="documentation_url" type="url" name="documentation_url" value="{{ old('documentation_url') }}" class="form-control @error('documentation_url') is-invalid @enderror" placeholder="https://drive.google.com/...">
-                    @error('documentation_url')<div class="invalid-feedback">{{ $message }}</div>@enderror
-                </div>
             </div>
 
             <h2 class="h6 text-body-secondary border-bottom pb-2 mb-3 mt-4">Anggaran dan Peserta</h2>
             <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label d-block">Anggaran</label>
-                    <div class="form-check mt-2">
-                        <input class="form-check-input" type="checkbox" id="uses_budget" name="uses_budget" value="1" @checked(old('uses_budget'))>
-                        <label class="form-check-label" for="uses_budget">Gunakan Anggaran</label>
-                    </div>
-                </div>
-                <div class="col-md-8" id="budget-type-wrap" @if(! old('uses_budget')) hidden @endif>
-                    <label class="form-label" for="budget_type">Jenis Anggaran</label>
-                    <input id="budget_type" name="budget_type" value="{{ old('budget_type') }}" class="form-control @error('budget_type') is-invalid @enderror" placeholder="Masukkan Jenis Anggaran" maxlength="255" @disabled(! old('uses_budget'))>
+                <div class="col-md-6">
+                    <label class="form-label" for="budget_type">Anggaran (Opsional)</label>
+                    <select id="budget_type" name="budget_type" class="form-select @error('budget_type') is-invalid @enderror">
+                        <option value="">Pilih jenis anggaran (opsional)</option>
+                        @foreach($budgetTypes as $type)
+                            <option value="{{ $type->code }}" @selected(old('budget_type') === $type->code)>{{ $type->name }}</option>
+                        @endforeach
+                    </select>
+                    <div class="form-text">Pilih anggaran yang sesuai jika kegiatan menggunakan anggaran. Kosongkan jika tidak menggunakan anggaran.</div>
                     @error('budget_type')<div class="invalid-feedback">{{ $message }}</div>@enderror
                 </div>
                 <div class="col-12">
@@ -206,9 +205,6 @@
     const building = document.getElementById('building_id');
     const floor = document.getElementById('floor_id');
     const room = document.getElementById('room_id');
-    const budget = document.getElementById('uses_budget');
-    const budgetWrap = document.getElementById('budget-type-wrap');
-    const budgetType = document.getElementById('budget_type');
     const form = document.getElementById('room-borrow-form');
 
     function fill(select, rows, placeholder) {
@@ -242,13 +238,6 @@
         return Array.isArray(payload.results) ? payload.results : [];
     }
 
-    function syncBudget() {
-        const on = budget.checked;
-        budgetWrap.hidden = !on;
-        budgetType.disabled = !on;
-        budgetType.required = on;
-    }
-
     campus.addEventListener('change', async function () {
         fill(building, [], 'Pilih gedung');
         fill(floor, [], 'Pilih lantai');
@@ -267,9 +256,6 @@
         if (!floor.value) return;
         fill(room, await load(urls.rooms, { floor_id: floor.value }), 'Pilih Ruangan');
     });
-
-    budget.addEventListener('change', syncBudget);
-    syncBudget();
 
     const participantInternal = document.getElementById('participant_internal');
     const participantExternal = document.getElementById('participant_external');

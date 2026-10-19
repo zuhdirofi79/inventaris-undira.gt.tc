@@ -5,7 +5,9 @@ namespace App\Models;
 use App\Casts\PlannedDateTimeCast;
 use App\Enums\BorrowingItemStatus;
 use App\Enums\BorrowingStatus;
+use App\Models\Concerns\TracksApprovalCancellation;
 use App\Models\Concerns\TracksTrashMeta;
+use App\Support\ApprovalCancellationWindow;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -16,6 +18,7 @@ use Illuminate\Support\Collection;
 class Borrowing extends Model
 {
     use SoftDeletes;
+    use TracksApprovalCancellation;
     use TracksTrashMeta;
 
     protected $fillable = [
@@ -23,6 +26,7 @@ class Borrowing extends Model
         'borrower_name',
         'borrower_email',
         'borrower_phone',
+        'borrower_affiliation',
         'borrow_date',
         'return_date',
         'expected_return_date',
@@ -33,6 +37,9 @@ class Borrowing extends Model
         'approved_at',
         'rejected_at',
         'rejection_reason',
+        'cancelled_at',
+        'cancelled_by',
+        'cancellation_reason',
         'approval_notes',
         'approval_number',
         'notification_sent',
@@ -49,10 +56,62 @@ class Borrowing extends Model
             'expected_return_date' => PlannedDateTimeCast::class,
             'approved_at' => 'datetime',
             'rejected_at' => 'datetime',
+            'cancelled_at' => 'datetime',
             'notification_sent' => 'boolean',
             'supporting_document_size' => 'integer',
             'status' => BorrowingStatus::class,
         ];
+    }
+
+    /**
+     * Approved header that has not been handed over and is still within the 24h cancel window.
+     */
+    public function canCancelApproval(?CarbonInterface $moment = null): bool
+    {
+        if ($this->status !== BorrowingStatus::Disetujui) {
+            return false;
+        }
+
+        if ($this->cancelled_at !== null || ! $this->isWithinApprovalCancelWindow($moment)) {
+            return false;
+        }
+
+        $this->loadMissing('items');
+
+        if ($this->items->isEmpty()) {
+            return true;
+        }
+
+        return ! $this->items->contains(fn ($item) => in_array($item->status, [
+            BorrowingItemStatus::Dipinjam,
+            BorrowingItemStatus::Dikembalikan,
+        ], true));
+    }
+
+    public function approvalCancelBlockReason(?CarbonInterface $moment = null): ?string
+    {
+        if ($this->status === BorrowingStatus::PersetujuanDibatalkan || $this->cancelled_at !== null) {
+            return 'Persetujuan sudah dibatalkan.';
+        }
+
+        if ($this->status !== BorrowingStatus::Disetujui) {
+            return 'Hanya peminjaman yang berstatus Disetujui yang dapat dibatalkan.';
+        }
+
+        if (! $this->isWithinApprovalCancelWindow($moment)) {
+            return ApprovalCancellationWindow::remainingLabel($this->approved_at, $moment);
+        }
+
+        $this->loadMissing('items');
+        if ($this->items->contains(fn ($item) => $item->status === BorrowingItemStatus::Dipinjam)) {
+            return 'Barang sudah diserahkan kepada peminjam. Gunakan proses pengembalian yang ada.';
+        }
+
+        if ($this->items->contains(fn ($item) => $item->status === BorrowingItemStatus::Dikembalikan)) {
+            return 'Sebagian atau seluruh barang sudah dikembalikan; pembatalan approval tidak aman.';
+        }
+
+        return null;
     }
 
     public function hasPlannedTime(string $attribute): bool
@@ -164,7 +223,8 @@ class Borrowing extends Model
                     'status' => match ($this->status) {
                         BorrowingStatus::Dikembalikan => BorrowingItemStatus::Dikembalikan,
                         BorrowingStatus::Ditolak => BorrowingItemStatus::Ditolak,
-                        BorrowingStatus::Disetujui => BorrowingItemStatus::Disetujui,
+                        BorrowingStatus::Disetujui,
+                        BorrowingStatus::PersetujuanDibatalkan => BorrowingItemStatus::Disetujui,
                         BorrowingStatus::Dipinjam,
                         BorrowingStatus::Terlambat => BorrowingItemStatus::Dipinjam,
                         default => BorrowingItemStatus::MenungguPersetujuan,
@@ -316,6 +376,10 @@ class Borrowing extends Model
     {
         if ($this->status === BorrowingStatus::MenungguPersetujuan) {
             return 'Menunggu Persetujuan';
+        }
+
+        if ($this->status === BorrowingStatus::PersetujuanDibatalkan || $this->cancelled_at) {
+            return 'Persetujuan Dibatalkan';
         }
 
         if ($this->status === BorrowingStatus::Ditolak || $this->rejected_at) {

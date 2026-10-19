@@ -8,6 +8,7 @@ use App\Exports\InventoryFlatWorkbookExport;
 use App\Exports\InventoryReportWorkbookExport;
 use App\Services\InventoryReportService;
 use App\Services\Reports\EamReportService;
+use App\Services\Reports\FacilityBorrowingReportStats;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -198,6 +199,7 @@ class ReportController extends Controller
                 'approval_number' => $b->approval_number ?? '—',
                 'borrowing_number' => 'PIN-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 'borrower' => $b->borrower_name,
+                'unit' => filled($b->borrower_affiliation) ? $b->borrower_affiliation : '—',
                 'item' => $itemLabel,
                 'items_count' => $itemCount,
                 'borrow_date' => trim($b->plannedScheduleDate('borrow_date').' '.($b->plannedScheduleTime('borrow_date') ?? '')),
@@ -242,6 +244,7 @@ class ReportController extends Controller
                 'approval_number' => $b->approval_number ?? '—',
                 'request_number' => 'PRU-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 'borrower' => $b->borrower_name,
+                'unit' => filled($b->borrower_affiliation) ? $b->borrower_affiliation : '—',
                 'campus' => $b->campus?->name ?? '—',
                 'room' => $room ? trim(($room->code ? $room->code.' · ' : '').$room->name) : '—',
                 'location' => $locationParts !== [] ? implode(' / ', $locationParts) : '—',
@@ -281,6 +284,7 @@ class ReportController extends Controller
                 'approval_number' => $b->approval_number ?? '—',
                 'request_number' => 'PKD-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 'borrower' => $b->borrower_name,
+                'unit' => filled($b->unit) ? $b->unit : '—',
                 'campus' => $b->campus?->name ?? '—',
                 'service_type' => $b->service_type?->label() ?? '—',
                 'destination' => $b->tripText(),
@@ -509,6 +513,7 @@ class ReportController extends Controller
                 $b->approval_number ?? '—',
                 'PIN-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 $b->borrower_name,
+                filled($b->borrower_affiliation) ? $b->borrower_affiliation : '—',
                 $item?->name,
                 $item?->inventory_number,
                 $b->borrow_date?->format('Y-m-d'),
@@ -520,7 +525,7 @@ class ReportController extends Controller
         })->all();
 
         $export = new EamFlatReportExport(
-            ['No', 'Nomor Approval', 'No Peminjaman', 'Peminjam', 'Barang', 'No Inventaris', 'Tgl Pinjam', 'Tgl Kembali', 'Status', 'Approved By', 'Approved At'],
+            ['No', 'Nomor Approval', 'No Peminjaman', 'Peminjam', 'Unit', 'Barang', 'No Inventaris', 'Tgl Pinjam', 'Tgl Kembali', 'Status', 'Approved By', 'Approved At'],
             $excelRows,
             'Peminjaman'
         );
@@ -532,10 +537,12 @@ class ReportController extends Controller
 
     protected function exportRoomBorrowing(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response
     {
+        $stats = app(FacilityBorrowingReportStats::class);
         $rows = $this->reports->roomBorrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
-        $filters = app(InventoryReportService::class)->describeFilters($request);
-        $payload = compact('rows', 'meta', 'filters', 'type');
+        $filters = $stats->describeRoomFilters($request);
+        $summary = $stats->summarizeRooms($rows);
+        $payload = compact('rows', 'meta', 'filters', 'type', 'summary');
 
         if ($format === 'preview') {
             return view('reports.preview-room-borrowing', $payload);
@@ -556,8 +563,10 @@ class ReportController extends Controller
                 $b->approval_number ?? '—',
                 'PRU-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 $b->borrower_name,
+                filled($b->borrower_affiliation) ? $b->borrower_affiliation : '—',
                 $b->campus?->name ?? '—',
                 $room ? trim(($room->code ? $room->code.' · ' : '').$room->name) : '—',
+                $b->activityTypeLabel(),
                 $b->starts_at?->format('Y-m-d H:i') ?? '—',
                 $b->ends_at?->format('Y-m-d H:i') ?? '—',
                 $b->participant_internal ? $b->participantInternalCount() : 0,
@@ -569,7 +578,7 @@ class ReportController extends Controller
         })->all();
 
         $export = new EamFlatReportExport(
-            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Kampus', 'Ruangan', 'Mulai', 'Selesai', 'Peserta Internal', 'Peserta External', 'Total Peserta', 'Status', 'Approved By'],
+            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Unit', 'Kampus', 'Ruangan', 'Jenis Kegiatan', 'Mulai', 'Selesai', 'Peserta Internal', 'Peserta External', 'Total Peserta', 'Status', 'Approved By'],
             $excelRows,
             'Peminjaman Ruangan'
         );
@@ -581,10 +590,12 @@ class ReportController extends Controller
 
     protected function exportVehicleBorrowing(Request $request, InventoryReportType $type, string $format, string $orientation): View|BinaryFileResponse|Response
     {
+        $stats = app(FacilityBorrowingReportStats::class);
         $rows = $this->reports->vehicleBorrowingQuery($request)->limit(EamReportService::EXPORT_MAX_ROWS)->get();
         $meta = $this->reports->meta($request, $type, $orientation);
-        $filters = app(InventoryReportService::class)->describeFilters($request);
-        $payload = compact('rows', 'meta', 'filters', 'type');
+        $filters = $stats->describeVehicleFilters($request);
+        $summary = $stats->summarizeVehicles($rows);
+        $payload = compact('rows', 'meta', 'filters', 'type', 'summary');
 
         if ($format === 'preview') {
             return view('reports.preview-vehicle-borrowing', $payload);
@@ -603,11 +614,13 @@ class ReportController extends Controller
                 $b->approval_number ?? '—',
                 'PKD-'.str_pad((string) $b->id, 6, '0', STR_PAD_LEFT),
                 $b->borrower_name,
+                filled($b->unit) ? $b->unit : '—',
                 $b->campus?->name ?? '—',
                 $b->service_type?->label() ?? '—',
                 $b->tripText(),
                 $b->vehicle?->label() ?? '—',
                 $b->driver?->name ?? '—',
+                max(0, (int) $b->passenger_count),
                 $b->starts_at?->format('Y-m-d H:i') ?? '—',
                 $b->ends_at?->format('Y-m-d H:i') ?? '—',
                 $b->displayLabel(),
@@ -616,7 +629,7 @@ class ReportController extends Controller
         })->all();
 
         $export = new EamFlatReportExport(
-            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Kampus', 'Jenis Layanan', 'Tujuan', 'Kendaraan', 'Driver', 'Mulai', 'Selesai', 'Status', 'Approved By'],
+            ['No', 'Nomor Approval', 'Nomor Pengajuan', 'Peminjam', 'Unit', 'Kampus', 'Jenis Layanan', 'Tujuan', 'Kendaraan', 'Driver', 'Penumpang', 'Mulai', 'Selesai', 'Status', 'Approved By'],
             $excelRows,
             'Peminjaman Kendaraan'
         );

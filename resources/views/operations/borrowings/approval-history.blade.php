@@ -3,6 +3,11 @@
 @section('title', 'Riwayat Approval - Inventaris UNDIRA')
 
 @section('content')
+@php
+    use App\Enums\BorrowingStatus;
+    use App\Support\ApprovalCancellationWindow;
+    $tz = (string) config('app.timezone');
+@endphp
 <x-page-header
     title="Riwayat Approval"
     subtitle="Riwayat persetujuan dan penolakan peminjaman"
@@ -64,49 +69,80 @@
 
 <div class="card card-undira">
     <div class="card-body p-0">
-        <table class="table table-hover mb-0">
-            <thead>
-                <tr>
-                    <th>Nomor Approval</th>
-                    <th>Tanggal</th>
-                    <th>Nama User</th>
-                    <th>Barang</th>
-                    <th>Status</th>
-                    <th>Approved By</th>
-                    <th>Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($borrowings as $borrowing)
-                <tr>
-                    <td>
-                        @if($borrowing->approval_number)
-                            <a href="{{ route('borrowing.approval.public', $borrowing->approval_number) }}">{{ $borrowing->approval_number }}</a>
-                        @else
-                            <span class="text-muted">—</span>
-                        @endif
-                    </td>
-                    <td>{{ ($borrowing->approved_at ?? $borrowing->rejected_at)?->format('d/m/Y H:i') ?? '—' }}</td>
-                    <td>{{ $borrowing->borrower_name }}</td>
-                    <td>
-                        {{ $borrowing->inventoryItem?->name }}
-                        <br><small class="text-muted">{{ $borrowing->inventoryItem?->inventory_number }}</small>
-                    </td>
-                    <td><span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span></td>
-                    <td>{{ $borrowing->approvedBy?->name ?? '—' }}</td>
-                    <td>
-                        @include('partials.approval-history-actions', [
-                            'detailUrl' => route('borrowings.show', $borrowing),
-                            'documentUrl' => $borrowing->hasSupportingDocument() ? route('borrowings.supporting-document.view', $borrowing) : null,
-                            'receiptPdfUrl' => $borrowing->approval_number ? route('borrowings.receipt.pdf', $borrowing) : null,
-                        ])
-                    </td>
-                </tr>
-                @empty
-                <tr><td colspan="7" class="text-center text-muted py-4">Belum ada riwayat approval.</td></tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Nomor Approval</th>
+                        <th>Tanggal &amp; Waktu Pengajuan</th>
+                        <th>Tanggal &amp; Waktu Keputusan</th>
+                        <th>Nama User</th>
+                        <th>Barang</th>
+                        <th>Status</th>
+                        <th>Approved By</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($borrowings as $borrowing)
+                    @php
+                        $decisionAt = $borrowing->decisionTimestamp();
+                        $canCancel = $borrowing->status === BorrowingStatus::Disetujui && $borrowing->canCancelApproval();
+                        $showExpired = $borrowing->status === BorrowingStatus::Disetujui && ! $canCancel && $borrowing->approved_at;
+                    @endphp
+                    <tr>
+                        <td>
+                            @if($borrowing->approval_number)
+                                <a href="{{ route('borrowing.approval.public', $borrowing->approval_number) }}">{{ $borrowing->approval_number }}</a>
+                            @else
+                                <span class="text-muted">—</span>
+                            @endif
+                        </td>
+                        <td>{{ $borrowing->created_at?->timezone($tz)->format('d/m/Y H:i') ?? '—' }}</td>
+                        <td>
+                            @if($decisionAt)
+                                {{ $decisionAt->timezone($tz)->format('d/m/Y H:i') }}
+                            @elseif($borrowing->status === BorrowingStatus::MenungguPersetujuan)
+                                Belum diputuskan
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td>{{ $borrowing->borrower_name }}</td>
+                        <td>
+                            {{ $borrowing->inventoryItem?->name }}
+                            <br><small class="text-muted">{{ $borrowing->inventoryItem?->inventory_number }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ $borrowing->status?->badgeColor() ?? 'secondary' }}">{{ $borrowing->status?->label() }}</span>
+                            @if($borrowing->cancellation_reason)
+                                <div class="small text-muted mt-1">{{ $borrowing->cancellation_reason }}</div>
+                            @endif
+                        </td>
+                        <td>{{ $borrowing->cancelledBy?->name ?? $borrowing->approvedBy?->name ?? '—' }}</td>
+                        <td>
+                            @include('partials.approval-history-actions', [
+                                'detailUrl' => route('borrowings.show', $borrowing),
+                                'documentUrl' => $borrowing->hasSupportingDocument() ? route('borrowings.supporting-document.view', $borrowing) : null,
+                                'receiptPdfUrl' => $borrowing->approval_number ? route('borrowings.receipt.pdf', $borrowing) : null,
+                                'canCancel' => $canCancel,
+                                'cancelUrl' => route('borrowings.cancel-approval', $borrowing),
+                                'kindLabel' => 'Peminjaman Inventaris',
+                                'number' => $borrowing->approval_number ?: '#'.$borrowing->id,
+                                'borrower' => $borrowing->borrower_name,
+                                'approvedAt' => $borrowing->approved_at,
+                                'modalId' => 'cancelInv'.$borrowing->id,
+                                'showExpiredHint' => $showExpired,
+                                'expiredHint' => ApprovalCancellationWindow::remainingLabel($borrowing->approved_at),
+                            ])
+                        </td>
+                    </tr>
+                    @empty
+                    <tr><td colspan="8" class="text-center text-muted py-4">Belum ada riwayat approval.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
     @if($borrowings->hasPages())<div class="card-footer">{{ $borrowings->links() }}</div>@endif
 </div>

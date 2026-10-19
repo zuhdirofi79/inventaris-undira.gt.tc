@@ -246,7 +246,9 @@ class EamReportService
                 'room:id,floor_id,code,name',
                 'room.floor:id,building_id,code,name',
                 'room.floor.building:id,campus_id,code,name',
+                'room.floor.building.campus:id,code,name',
                 'campus:id,code,name',
+                'activityTypeOption:id,code,name',
                 'approvedBy:id,name',
             ])
             ->when($campusId === 0, fn (Builder $q) => $q->whereRaw('0 = 1'))
@@ -309,7 +311,7 @@ class EamReportService
             ->with([
                 'campus:id,code,name',
                 'route:id,name',
-                'vehicle:id,name,plate_number',
+                'vehicle:id,name,plate_number,category',
                 'driver:id,name',
                 'approvedBy:id,name',
             ])

@@ -70,6 +70,10 @@
                         <div class="invalid-feedback d-block">{{ $message }}</div>
                     @enderror
                 </div>
+                @include('partials.borrower-affiliation-field', [
+                    'feedbackClass' => 'invalid-feedback d-block',
+                    'value' => $borrowing->borrower_affiliation,
+                ])
                 <div class="col-md-6 mb-3">
                     <label class="form-label">Status</label>
                     <select name="status" class="form-select">
